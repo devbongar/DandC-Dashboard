@@ -406,6 +406,11 @@ export default function ProjectsPage() {
                     </div>
                   </th>
 
+                  {/* Location */}
+                  <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Location</span>
+                  </th>
+
                   {/* Phase */}
                   <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
                     <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Phase</span>
@@ -441,6 +446,11 @@ export default function ProjectsPage() {
                       {project.is_4ph_project
                         ? <span className="font-semibold px-2.5 py-1 rounded-full bg-[#ed6055]/10 text-[#ed6055]">4PH</span>
                         : <span className="text-gray-300 italic">—</span>}
+                    </td>
+                    <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
+                      {project.city && project.province
+                        ? `${project.city}, ${project.province}`
+                        : project.city || project.province || <span className="text-gray-300 italic">—</span>}
                     </td>
                     <td className="px-5 py-4 text-xs whitespace-nowrap">
                       {project.phase
@@ -604,7 +614,7 @@ export default function ProjectsPage() {
             </p>
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
-              <button onClick={confirmDelete} disabled={deleting} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-60">
+              <button onClick={confirmDelete} disabled={deleting} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-60">
                 {deleting ? 'Deleting…' : 'Delete'}
               </button>
             </div>
@@ -665,7 +675,12 @@ export default function ProjectsPage() {
 
       {/* Toast */}
       {toast && (
-        <div className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-medium shadow-lg z-[60] ${toast.type === 'success' ? 'bg-black text-white' : 'bg-[#ed6055] text-white'}`}>
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-medium shadow-lg z-[60] ${toast.type === 'success' ? 'bg-black text-white' : 'bg-[#ed6055] text-white'}`}
+          style={{ animation: 'ph1-fade-up 0.2s ease-out both' }}
+        >
           {toast.message}
         </div>
       )}

@@ -36,37 +36,36 @@ export default function DashboardLayout({ profile, children }) {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#f0f2f5]">
 
       {/* ── Topbar ── */}
       <div
-        className="fixed top-0 left-0 right-0 z-40 flex items-center h-12"
-        style={{ background: '#ed6055', borderBottom: '1px solid rgba(0,0,0,0.10)' }}
+        className="fixed top-0 left-0 right-0 z-40 flex items-center h-16"
+        style={{ background: 'rgba(63,63,63,1)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
       >
         {/* Hamburger */}
         <button
           onClick={() => setSidebarOpen(true)}
           aria-label="Open menu"
-          className="h-full px-4 flex items-center flex-shrink-0 text-white/70 hover:text-white hover:bg-black/10 transition"
+          className="h-full px-4 flex items-center flex-shrink-0 text-white/70 hover:text-white hover:bg-white/10 transition"
         >
           <HamburgerIcon />
         </button>
 
         {/* Logo */}
         <div className="px-3 flex items-center flex-shrink-0">
-          <Logo size="sm" variant="white" />
+          <Logo size="md" variant="white" />
         </div>
 
-        <div className="w-px h-5 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.30)' }} />
+        <div className="w-px h-8 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }} />
 
-        {/* Company + division */}
-        <div className="px-4 flex items-center gap-2 min-w-0">
-          <span className="text-white text-xs font-semibold whitespace-nowrap tracking-wide">
-            PH1 World Developers
+        {/* Title */}
+        <div className="px-4 flex items-center min-w-0">
+          <span className="text-white text-base font-bold whitespace-nowrap tracking-wide sm:hidden">
+            D&amp;C Dashboard
           </span>
-          <span className="text-white/40 text-xs flex-shrink-0 hidden sm:inline">|</span>
-          <span className="text-xs whitespace-nowrap hidden sm:inline" style={{ color: 'rgba(255,255,255,0.75)' }}>
-            Design &amp; Construction Division
+          <span className="text-white text-base font-bold whitespace-nowrap tracking-wide hidden sm:inline">
+            Design &amp; Construction Dashboard
           </span>
         </div>
 
@@ -86,10 +85,10 @@ export default function DashboardLayout({ profile, children }) {
             </div>
 
             {/* Avatar */}
-            <div className="w-7 h-7 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 bg-white/20 ring-1 ring-white/40">
+            <div className="w-9 h-9 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 bg-white/20 ring-1 ring-white/40">
               {profile?.avatar_url
                 ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                : <span className="text-[10px] font-bold text-white">{initial}</span>
+                : <span className="text-xs font-bold text-white">{initial}</span>
               }
             </div>
 
@@ -98,25 +97,60 @@ export default function DashboardLayout({ profile, children }) {
 
           {/* Dropdown */}
           {menuOpen && (
-            <div className="absolute right-0 top-full mt-1 w-44 bg-white rounded-xl border border-gray-100 shadow-lg overflow-hidden z-50">
-              <div className="px-4 py-3 border-b border-gray-50">
-                <p className="text-xs font-semibold text-black truncate">{profile?.full_name ?? profile?.email}</p>
-                <p className="text-[10px] text-gray-400 mt-0.5">{profile?.email}</p>
+            <div
+              className="absolute right-0 top-full mt-2 w-56 rounded-2xl z-50 overflow-hidden"
+              style={{
+                background: 'linear-gradient(145deg, #444444 0%, #333333 100%)',
+                border: '1px solid rgba(255,255,255,0.12)',
+                boxShadow: '0 20px 40px rgba(0,0,0,0.4), 0 1px 0 rgba(255,255,255,0.06) inset',
+                animation: 'ph1-dropdown 0.15s ease-out both',
+              }}
+            >
+              {/* User info block */}
+              <div className="px-4 pt-4 pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 ring-2 ring-white/20" style={{ background: 'rgba(237,96,85,0.25)' }}>
+                    {profile?.avatar_url
+                      ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                      : <span className="text-sm font-bold text-[#ed6055]">{initial}</span>
+                    }
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-white truncate leading-tight">{profile?.full_name ?? profile?.email}</p>
+                    <p className="text-[11px] truncate mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>{profile?.email}</p>
+                  </div>
+                </div>
+                <div className="mt-2.5">
+                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(237,96,85,0.2)', color: '#ed6055', border: '1px solid rgba(237,96,85,0.3)' }}>
+                    {roleLabel}
+                  </span>
+                </div>
               </div>
-              <button
-                onClick={() => { setMenuOpen(false); navigate('/profile') }}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-black transition text-left"
-              >
-                <ProfileIcon />
-                View Profile
-              </button>
-              <button
-                onClick={signOut}
-                className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-600 hover:bg-gray-50 hover:text-black transition text-left"
-              >
-                <SignOutIcon />
-                Sign Out
-              </button>
+
+              {/* Divider */}
+              <div style={{ height: 1, background: 'rgba(255,255,255,0.07)', margin: '0 16px' }} />
+
+              {/* Actions */}
+              <div className="p-2">
+                <button
+                  onClick={() => { setMenuOpen(false); navigate('/profile') }}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-white/10 transition text-left group"
+                >
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-white/10 transition" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <ProfileIcon />
+                  </div>
+                  <span className="font-medium">View Profile</span>
+                </button>
+                <button
+                  onClick={signOut}
+                  className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm text-white/70 hover:text-white hover:bg-red-500/10 hover:text-red-400 transition text-left group"
+                >
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 group-hover:bg-red-500/10 transition" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                    <SignOutIcon />
+                  </div>
+                  <span className="font-medium">Sign Out</span>
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -126,7 +160,7 @@ export default function DashboardLayout({ profile, children }) {
       <Sidebar profile={profile} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
       {/* Main content */}
-      <div className="pt-12">
+      <div className="pt-16">
         <div className="px-3 sm:px-4 py-3">
           {children}
         </div>
@@ -138,7 +172,7 @@ export default function DashboardLayout({ profile, children }) {
 
 function HamburgerIcon() {
   return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
     </svg>
   )

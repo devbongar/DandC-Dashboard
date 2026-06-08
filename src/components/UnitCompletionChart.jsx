@@ -4,7 +4,6 @@ import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
-import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
 
 // ── Colors ───────────────────────────────────────────────────────────────────
 const M4_EXP = '#d1d5db'  // gray-300    (expected = gray)
@@ -102,6 +101,145 @@ function extractYears(floors, completions) {
 // ── Styles ────────────────────────────────────────────────────────────────────
 const selectCls = 'px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent'
 
+// ── Generic Searchable Dropdown ───────────────────────────────────────────────
+// options: array of { value, label }
+// emptyValue: the "all / none" sentinel value (e.g. 'all' or '')
+// emptyLabel: label shown for that sentinel (e.g. 'All Projects')
+// placeholder: search input placeholder
+// icon: optional SVG path string for the trigger icon
+// disabled: grays out the whole control
+function SearchDropdown({ options, value, onChange, emptyValue, emptyLabel, placeholder, icon, disabled = false, minWidth = 130 }) {
+  const [open, setOpen]   = useState(false)
+  const [query, setQuery] = useState('')
+  const ref               = useRef(null)
+  const inputRef          = useRef(null)
+
+  const isEmptyVal  = value === emptyValue
+  const selectedLabel = isEmptyVal ? emptyLabel : (options.find(o => o.value === value)?.label ?? emptyLabel)
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return q ? options.filter(o => o.label.toLowerCase().includes(q)) : options
+  }, [options, query])
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const openDropdown = () => {
+    if (disabled) return
+    setOpen(true)
+    setQuery('')
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  const select = (val) => { onChange(val); setOpen(false); setQuery('') }
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      {/* Trigger */}
+      <button
+        type="button"
+        onClick={() => open ? setOpen(false) : openDropdown()}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-all"
+        style={{
+          background: disabled ? '#f9fafb' : open ? '#fff' : '#fafafa',
+          borderColor: open ? '#ed6055' : '#e5e7eb',
+          color: disabled ? '#9ca3af' : isEmptyVal ? '#9ca3af' : '#111827',
+          boxShadow: open ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+          minWidth,
+          maxWidth: 200,
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.6 : 1,
+        }}
+      >
+        {icon && (
+          <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+          </svg>
+        )}
+        <span className="flex-1 text-left truncate font-medium">{selectedLabel}</span>
+        <svg
+          className="w-3 h-3 flex-shrink-0 text-gray-400 transition-transform"
+          style={{ transform: open ? 'rotate(180deg)' : 'none' }}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {/* Popover */}
+      {open && !disabled && (
+        <div
+          className="absolute left-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
+          style={{
+            width: 220,
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
+          }}
+        >
+          {/* Search input */}
+          <div className="p-2 border-b border-gray-100">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+              <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z" />
+              </svg>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={placeholder}
+                className="flex-1 bg-transparent text-xs text-black placeholder-gray-400 outline-none"
+              />
+              {query && (
+                <button type="button" onClick={() => setQuery('')} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="overflow-y-auto" style={{ maxHeight: 220 }}>
+            <button
+              type="button"
+              onClick={() => select(emptyValue)}
+              className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-gray-50"
+              style={{ color: isEmptyVal ? '#ed6055' : '#6b7280' }}
+            >
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: isEmptyVal ? '#ed6055' : 'transparent', border: isEmptyVal ? 'none' : '1.5px solid #d1d5db' }} />
+              <span className="font-medium italic">{emptyLabel}</span>
+            </button>
+
+            {filtered.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center italic">No results found</p>
+            ) : (
+              filtered.map(o => (
+                <button
+                  key={o.value}
+                  type="button"
+                  onClick={() => select(o.value)}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-gray-50"
+                  style={{ color: value === o.value ? '#ed6055' : '#111827' }}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: value === o.value ? '#ed6055' : 'transparent', border: value === o.value ? 'none' : '1.5px solid #d1d5db' }} />
+                  <span className={value === o.value ? 'font-semibold' : 'font-medium'}>{o.label}</span>
+                </button>
+              ))
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 // ── Custom X Tick ─────────────────────────────────────────────────────────────
 function CustomXTick({ x, y, payload }) {
   const label = payload?.value ?? ''
@@ -143,6 +281,7 @@ export default function UnitCompletionChart() {
 
   // Filters
   const [is4ph, setIs4ph]           = useState('all')
+  const [projectId, setProjectId]   = useState('all')
   const [province, setProvince]     = useState('')
   const [city, setCity]             = useState('')
   const [timeMode, setTimeMode]     = useState('monthly')
@@ -157,6 +296,29 @@ export default function UnitCompletionChart() {
       .then(({ data }) => setAllProjects(data ?? []))
   }, [])
 
+  // Derive province list from actual project data (respects type filter)
+  const availableProvinces = useMemo(() => {
+    if (!allProjects) return []
+    return [...new Set(
+      allProjects
+        .filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project))
+        .map(p => p.province)
+        .filter(Boolean)
+    )].sort()
+  }, [allProjects, is4ph])
+
+  // Derive city list from projects matching the selected province (and type filter)
+  const availableCities = useMemo(() => {
+    if (!allProjects || !province) return []
+    return [...new Set(
+      allProjects
+        .filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project))
+        .filter(p => p.province === province)
+        .map(p => p.city)
+        .filter(Boolean)
+    )].sort()
+  }, [allProjects, is4ph, province])
+
   useEffect(() => {
     const load = async () => {
       if (allProjects === null) return
@@ -164,6 +326,7 @@ export default function UnitCompletionChart() {
 
       const filteredIds = allProjects
         .filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project))
+        .filter(p => projectId === 'all' || p.id === projectId)
         .filter(p => !province  || p.province === province)
         .filter(p => !city      || p.city === city)
         .map(p => p.id)
@@ -187,7 +350,7 @@ export default function UnitCompletionChart() {
     }
 
     load()
-  }, [allProjects, is4ph, province, city])
+  }, [allProjects, is4ph, projectId, province, city])
 
   // Available years derived from data
   const availableYears = useMemo(() => {
@@ -200,8 +363,29 @@ export default function UnitCompletionChart() {
     [floors, completions, timeMode, availableYears],
   )
 
+  const totals = useMemo(() => {
+    const today = new Date()
+    today.setHours(23, 59, 59, 999)
+
+    const m4Actual       = completions.filter(c => c.m4_date).length
+    const m5Actual       = completions.filter(c => c.m5_date).length
+
+    const m4PlannedToday = floors.filter(f => f.m4_planned_end && new Date(f.m4_planned_end) <= today).reduce((s, f) => s + (f.num_units ?? 0), 0)
+    const m5PlannedToday = floors.filter(f => f.m5_planned_end && new Date(f.m5_planned_end) <= today).reduce((s, f) => s + (f.num_units ?? 0), 0)
+
+    const m4Total        = floors.reduce((s, f) => s + (f.num_units ?? 0), 0)
+    const m5Total        = floors.reduce((s, f) => s + (f.num_units ?? 0), 0)
+
+    const m4Rate   = m4PlannedToday > 0 ? Math.round((m4Actual / m4PlannedToday) * 100) : null
+    const m5Rate   = m5PlannedToday > 0 ? Math.round((m5Actual / m5PlannedToday) * 100) : null
+    const m4Status = m4PlannedToday === 0 ? null : m4Actual > m4PlannedToday ? 'ahead' : m4Actual === m4PlannedToday ? 'on-track' : 'delayed'
+    const m5Status = m5PlannedToday === 0 ? null : m5Actual > m5PlannedToday ? 'ahead' : m5Actual === m5PlannedToday ? 'on-track' : 'delayed'
+
+    return { m4Actual, m4PlannedToday, m4Total, m4Rate, m4Status, m5Actual, m5PlannedToday, m5Total, m5Rate, m5Status }
+  }, [floors, completions])
+
   // Min visible periods per screen: 12 months, 4 quarters, or 3 years
-  const minVisible = timeMode === 'monthly' ? 12 : timeMode === 'quarterly' ? 4 : 3
+  const minVisible = timeMode === 'monthly' ? 12 : timeMode === 'quarterly' ? 4 : 4
   const chartWidthPct = `${Math.max(100, (chartData.length / minVisible) * 100)}%`
 
   // Scroll both charts to the current (or latest) year on load / mode change
@@ -219,49 +403,88 @@ export default function UnitCompletionChart() {
   }, [availableYears, timeMode])
 
   return (
-    <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-2 flex flex-col">
+    <section className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 flex flex-col">
       {/* Title */}
-      <div className="flex items-center gap-2 mb-2">
+      <div className="flex items-center gap-2 mb-3">
         <div className="w-1 h-4 rounded-full bg-[#ed6055]" />
         <h2 className="text-sm font-bold text-black">Unit Completion Overview</h2>
       </div>
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2 mb-3">
-        {/* 4PH */}
-        <select
-          value={is4ph}
-          onChange={e => setIs4ph(e.target.value)}
-          className={selectCls}
-        >
-          <option value="all">All Projects</option>
-          <option value="yes">4PH Only</option>
-          <option value="no">Non-4PH</option>
-        </select>
+      <div className="flex flex-col gap-2 mb-4">
+        {/* Row 1: Type toggle + Project picker + Province + City */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {/* Type toggle — styled to match card context */}
+          <div
+            className="flex items-center gap-0.5 flex-shrink-0 p-0.5 rounded-lg"
+            style={{
+              background: '#f3f4f6',
+              border: '1px solid #e5e7eb',
+              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)',
+            }}
+          >
+            {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
+              <button
+                key={t.key}
+                onClick={() => { setIs4ph(t.key); setProjectId('all'); setProvince(''); setCity('') }}
+                className="relative px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                style={is4ph === t.key ? {
+                  background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
+                  color: '#fff',
+                  boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                } : {
+                  color: '#6b7280',
+                  background: 'transparent',
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
 
-        {/* Province */}
-        <select
-          value={province}
-          onChange={e => { setProvince(e.target.value); setCity('') }}
-          className={selectCls}
-        >
-          <option value="">All Provinces</option>
-          {PH_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-        </select>
+          {/* Project picker — scoped by type */}
+          <SearchDropdown
+            options={(allProjects ?? [])
+              .filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project))
+              .sort((a, b) => a.name.localeCompare(b.name))
+              .map(p => ({ value: p.id, label: p.name }))
+            }
+            value={projectId}
+            onChange={setProjectId}
+            emptyValue="all"
+            emptyLabel="All Projects"
+            placeholder="Search projects…"
+            icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+            minWidth={130}
+          />
 
-        {/* City */}
-        <select
-          value={city}
-          onChange={e => setCity(e.target.value)}
-          disabled={!province}
-          className={`${selectCls} ${!province ? 'opacity-50 cursor-not-allowed' : ''}`}
-        >
-          <option value="">All Cities</option>
-          {(PH_CITIES[province] ?? []).map(c => <option key={c} value={c}>{c}</option>)}
-        </select>
+          {/* Province */}
+          <SearchDropdown
+            options={availableProvinces.map(p => ({ value: p, label: p }))}
+            value={province}
+            onChange={v => { setProvince(v); setCity('') }}
+            emptyValue=""
+            emptyLabel="All Provinces"
+            placeholder="Search provinces…"
+            icon="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
+            minWidth={120}
+          />
 
-        {/* Time mode toggle */}
-        <div className="flex rounded-lg border border-gray-200 overflow-hidden ml-auto">
+          {/* City */}
+          <SearchDropdown
+            options={availableCities.map(c => ({ value: c, label: c }))}
+            value={city}
+            onChange={setCity}
+            emptyValue=""
+            emptyLabel="All Cities"
+            placeholder="Search cities…"
+            icon="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"
+            minWidth={110}
+            disabled={!province || availableCities.length === 0}
+          />
+
+          {/* Time mode toggle */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden ml-auto">
           {TIME_MODES.map(m => (
             <button
               key={m.key}
@@ -275,8 +498,67 @@ export default function UnitCompletionChart() {
               {m.label}
             </button>
           ))}
+          </div>
         </div>
       </div>
+
+
+      {/* Summary pills */}
+      {!loading && allProjects !== null && (floors.length > 0 || completions.length > 0) && (
+        <div className="grid grid-cols-2 gap-3 mb-4">
+          {[
+            { label: 'M4 — Unit Completion',    actual: totals.m4Actual, planned: totals.m4PlannedToday, total: totals.m4Total, rate: totals.m4Rate, status: totals.m4Status },
+            { label: 'M5 — Handover to PMO', actual: totals.m5Actual, planned: totals.m5PlannedToday, total: totals.m5Total, rate: totals.m5Rate, status: totals.m5Status },
+          ].map(({ label, actual, planned, total, rate, status }) => (
+            <div key={label} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+              {/* Header row */}
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div>
+                  <p className="text-[11px] font-bold text-gray-700 mb-1.5">{label}</p>
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: M4_EXP }} />
+                      <span className="text-[10px] text-gray-400 font-medium">Planned</span>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: M4_ACT }} />
+                      <span className="text-[10px] text-gray-400 font-medium">Actual</span>
+                    </div>
+                  </div>
+                </div>
+                {status !== null ? (
+                  <span
+                    className={`text-[10px] font-bold px-2.5 py-1 rounded-lg flex-shrink-0 ${
+                      status === 'ahead'    ? 'bg-green-100 text-green-700 border border-green-200' :
+                      status === 'on-track' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                                             'bg-red-100 text-red-600 border border-red-200'
+                    }`}
+                  >
+                    {rate}% &bull; {status === 'ahead' ? 'Ahead' : status === 'on-track' ? 'On Track' : 'Delayed'}
+                  </span>
+                ) : (
+                  <span className="text-[10px] text-gray-300 italic flex-shrink-0">no plan set</span>
+                )}
+              </div>
+              {/* Three stats */}
+              <div className="grid grid-cols-3 gap-2">
+                <div>
+                  <p className="text-xl font-bold text-gray-900 leading-none">{planned.toLocaleString()}</p>
+                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">Planned today</p>
+                </div>
+                <div className="border-l border-gray-200 pl-3">
+                  <p className="text-xl font-bold text-green-600 leading-none">{actual.toLocaleString()}</p>
+                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">Actual</p>
+                </div>
+                <div className="border-l border-gray-200 pl-3">
+                  <p className="text-xl font-bold text-gray-400 leading-none">{total.toLocaleString()}</p>
+                  <p className="text-[10px] text-gray-400 mt-1 leading-snug">Total units</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {/* Charts */}
       {loading || allProjects === null ? (
@@ -294,12 +576,13 @@ export default function UnitCompletionChart() {
         </div>
       ) : (
         <div>
-          <div className="grid lg:grid-cols-2 gap-6">
+          <div className="grid lg:grid-cols-2 gap-4">
             {/* M4 */}
             <div>
-              <div className="flex items-center gap-2 mb-1 bg-[#ed6055]/10 border border-[#ed6055]/20 rounded-lg px-3 py-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: '#ed6055' }} />
-                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#ed6055' }}>M4 — Unit Completion</p>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-gray-700">M4</span>
+                <span className="text-xs text-gray-400">Unit Completion</span>
+                <div className="flex-1 h-px bg-gray-100" />
               </div>
               <div className="flex">
                 {/* Fixed Y-axis */}
@@ -332,9 +615,10 @@ export default function UnitCompletionChart() {
 
             {/* M5 */}
             <div>
-              <div className="flex items-center gap-2 mb-1 bg-[#ed6055]/10 border border-[#ed6055]/20 rounded-lg px-3 py-1.5">
-                <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: '#ed6055' }} />
-                <p className="text-xs font-bold uppercase tracking-wider" style={{ color: '#ed6055' }}>M5 — Handover Completion</p>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold text-gray-700">M5</span>
+                <span className="text-xs text-gray-400">Handover to PMO</span>
+                <div className="flex-1 h-px bg-gray-100" />
               </div>
               <div className="flex">
                 {/* Fixed Y-axis */}
@@ -366,17 +650,6 @@ export default function UnitCompletionChart() {
             </div>
           </div>
 
-          {/* Shared legend */}
-          <div className="flex items-center justify-center gap-8 mt-3 bg-gray-50 border border-gray-100 rounded-lg py-2.5 px-8 w-fit mx-auto">
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm inline-block" style={{ background: M4_EXP }} />
-              <span className="text-xs text-gray-500 font-medium">Planned</span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-3 h-3 rounded-sm inline-block" style={{ background: M4_ACT }} />
-              <span className="text-xs text-gray-500 font-medium">Actual</span>
-            </div>
-          </div>
         </div>
       )}
     </section>

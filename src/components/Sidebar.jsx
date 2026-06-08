@@ -63,7 +63,7 @@ export default function Sidebar({ profile, open, onClose }) {
       {/* Drawer */}
       <aside
         className={[
-          'fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-[#111111]',
+          'fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-[#2d2d2d]',
           'transition-transform duration-300 ease-in-out',
           open ? 'translate-x-0' : '-translate-x-full',
         ].join(' ')}

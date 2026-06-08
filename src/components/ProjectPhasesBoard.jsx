@@ -102,7 +102,12 @@ export default function ProjectPhasesBoard() {
       )}
 
       {toast && (
-        <div className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-medium shadow-lg z-50 ${toast.type === 'success' ? 'bg-black text-white' : 'bg-[#ed6055] text-white'}`}>
+        <div
+          role="status"
+          aria-live="polite"
+          className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-medium shadow-lg z-50 ${toast.type === 'success' ? 'bg-black text-white' : 'bg-[#ed6055] text-white'}`}
+          style={{ animation: 'ph1-fade-up 0.2s ease-out both' }}
+        >
           {toast.message}
         </div>
       )}

@@ -1,7 +1,7 @@
 import ph1Logo from '../assets/ph1Logo.jpg'
 import ph1LogoWhite from '../assets/ph1WorldWhite.png'
 
-const heights = { sm: 30, md: 56, lg: 88 }
+const heights = { sm: 30, md: 44, lg: 88 }
 
 export default function Logo({ size = 'md', variant = 'light' }) {
   const h = heights[size] ?? heights.md
