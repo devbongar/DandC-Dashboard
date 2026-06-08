@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  margin: 0;
+}
+
+/* ── Floating triangle variants ─────────────────────────── */
+@keyframes ph1-tri-a {
+  0%        { transform: translate(0px,    0px)  rotate(0deg);   }
+  25%       { transform: translate(22px,  -40px) rotate(14deg);  }
+  50%       { transform: translate(-15px, -65px) rotate(-8deg);  }
+  75%       { transform: translate(30px,  -35px) rotate(18deg);  }
+  100%      { transform: translate(0px,    0px)  rotate(0deg);   }
+}
+@keyframes ph1-tri-b {
+  0%        { transform: translate(0px,   0px)   rotate(0deg);   }
+  30%       { transform: translate(-30px,-50px)  rotate(-16deg); }
+  60%       { transform: translate(18px, -80px)  rotate(10deg);  }
+  80%       { transform: translate(-10px,-45px)  rotate(-6deg);  }
+  100%      { transform: translate(0px,   0px)   rotate(0deg);   }
+}
+@keyframes ph1-tri-c {
+  0%        { transform: translate(0px,   0px)   rotate(0deg);   }
+  35%       { transform: translate(28px, -55px)  rotate(20deg);  }
+  65%       { transform: translate(-20px,-75px)  rotate(-12deg); }
+  100%      { transform: translate(0px,   0px)   rotate(0deg);   }
+}
+
+/* ── Background blob breathe ────────────────────────────── */
+@keyframes ph1-blob {
+  0%,  100% { opacity: 0.08; }
+  50%        { opacity: 0.16; }
+}
+
+/* ── Entrance animations ────────────────────────────────── */
+@keyframes ph1-fade-up {
+  from { opacity: 0; transform: translateY(22px); }
+  to   { opacity: 1; transform: translateY(0);    }
+}
+@keyframes ph1-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Loading screen triangle pulse ──────────────────────────── */
+@keyframes ph1-loader-tri {
+  0%, 100% { opacity: 0.18; transform: scale(0.72) translateX(-2px); }
+  50%       { opacity: 1;    transform: scale(1.12) translateX(3px);  }
+}
+
+/* ── Loading screen fade-in ─────────────────────────────────── */
+@keyframes ph1-screen-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
