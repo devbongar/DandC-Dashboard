@@ -27,7 +27,7 @@ const formatBU = code => code || null
 
 const PERMIT_STATUSES = [
   { key: 'done',             label: 'Done',            badge: 'bg-green-50 text-green-600' },
-  { key: 'ongoing',          label: 'Ongoing',         badge: 'bg-[#ed6055] text-white' },
+  { key: 'ongoing',          label: 'Ongoing',         badge: 'bg-yellow-100 text-yellow-700' },
   { key: 'not_yet_started',  label: 'Not Yet Started', badge: 'bg-gray-100 text-gray-500' },
 ]
 const PERMIT_STATUS_MAP = Object.fromEntries(PERMIT_STATUSES.map(s => [s.key, s]))
@@ -664,16 +664,202 @@ function AmenitiesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
 }
 
 
-function ProjectFloorSchedule({ projectId, isAdmin, showToast, refreshKey = 0 }) {
+// ── Building Selector ─────────────────────────────────────────────────────────
+
+function BuildingSelector({ projectId, isAdmin, buildingId, onChange }) {
+  const [buildings, setBuildings] = useState([])
+  const [adding, setAdding]       = useState(false)
+  const [editId, setEditId]       = useState(null)
+  const [nameInput, setNameInput] = useState('')
+  const [deleteId, setDeleteId]   = useState(null)
+
+  useEffect(() => { load() }, [projectId])
+
+  const load = async () => {
+    const { data } = await supabase
+      .from('project_buildings')
+      .select('*')
+      .eq('project_id', projectId)
+      .order('sort_order')
+    if (data) {
+      setBuildings(data)
+      if (data.length > 0 && !buildingId) onChange(data[0].id)
+    }
+  }
+
+  const addBuilding = async () => {
+    const name = nameInput.trim()
+    if (!name) return
+    const { data } = await supabase
+      .from('project_buildings')
+      .insert({ project_id: projectId, name, sort_order: buildings.length })
+      .select('*').single()
+    if (data) { setBuildings(b => [...b, data]); onChange(data.id) }
+    setAdding(false); setNameInput('')
+  }
+
+  const renameBuilding = async (id) => {
+    const name = nameInput.trim()
+    if (!name) return
+    await supabase.from('project_buildings').update({ name }).eq('id', id)
+    setBuildings(b => b.map(x => x.id === id ? { ...x, name } : x))
+    setEditId(null); setNameInput('')
+  }
+
+  const deleteBuilding = async (id) => {
+    await supabase.from('project_floors').delete().eq('building_id', id)
+    await supabase.from('project_parking_floors').delete().eq('building_id', id)
+    await supabase.from('project_buildings').delete().eq('id', id)
+    const remaining = buildings.filter(b => b.id !== id)
+    setBuildings(remaining)
+    if (buildingId === id) onChange(remaining[0]?.id ?? null)
+  }
+
+  if (buildings.length === 0 && !isAdmin) return null
+
+  return (
+    <div className="flex items-center gap-2 flex-wrap mb-5">
+      {buildings.map(b => (
+        editId === b.id ? (
+          <div key={b.id} className="flex items-center gap-1">
+            <input
+              autoFocus
+              value={nameInput}
+              onChange={e => setNameInput(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter') renameBuilding(b.id); if (e.key === 'Escape') { setEditId(null); setNameInput('') } }}
+              className="text-xs border border-gray-300 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-[#ed6055]"
+            />
+            <button onClick={() => renameBuilding(b.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45]">Save</button>
+            <button onClick={() => { setEditId(null); setNameInput('') }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+          </div>
+        ) : (
+          <div key={b.id} className="flex items-center gap-0.5 group">
+            <button
+              onClick={() => onChange(b.id)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${buildingId === b.id ? 'bg-black text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+            >
+              {b.name}
+            </button>
+            {isAdmin && buildingId === b.id && (
+              <>
+                <button onClick={() => { setEditId(b.id); setNameInput(b.name) }} className="p-1 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition"><PencilIcon /></button>
+                <button onClick={() => setDeleteId(b.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><TrashIcon /></button>
+              </>
+            )}
+          </div>
+        )
+      ))}
+
+      {isAdmin && !adding && (
+        <button
+          onClick={() => { setAdding(true); setNameInput('') }}
+          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] transition"
+        >
+          <PlusIcon /> Add Building
+        </button>
+      )}
+
+      {adding && (
+        <div className="flex items-center gap-1">
+          <input
+            autoFocus
+            value={nameInput}
+            onChange={e => setNameInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') addBuilding(); if (e.key === 'Escape') { setAdding(false); setNameInput('') } }}
+            placeholder="e.g. Tower A"
+            className="text-xs border border-gray-300 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-[#ed6055]"
+          />
+          <button onClick={addBuilding} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45]">Add</button>
+          <button onClick={() => { setAdding(false); setNameInput('') }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+        </div>
+      )}
+
+      {deleteId !== null && (
+        <ConfirmDeleteModal
+          onConfirm={() => { deleteBuilding(deleteId); setDeleteId(null) }}
+          onCancel={() => setDeleteId(null)}
+        />
+      )}
+    </div>
+  )
+}
+
+function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
+  const [from, setFrom]     = useState('')
+  const [to, setTo]         = useState('')
+  const [prefix, setPrefix] = useState('')
+  const [numUnits, setNumUnits] = useState('')
+  const [err, setErr]       = useState('')
+
+  const handle = () => {
+    const f = parseInt(from), t = parseInt(to)
+    if (isNaN(f) || isNaN(t) || f > t) { setErr('Enter a valid floor range (From ≤ To).'); return }
+    if (t - f > 99) { setErr('Maximum 100 floors at a time.'); return }
+    setErr('')
+    const floors = []
+    for (let i = f; i <= t; i++) {
+      floors.push({
+        physical_level: prefix ? `${prefix}${i}` : String(i),
+        marketing_level: null,
+        num_units: numUnits !== '' ? parseInt(numUnits) || null : null,
+        m4_planned_start: null,
+        m4_planned_end:   null,
+        m5_planned_start: null,
+        m5_planned_end:   null,
+      })
+    }
+    onConfirm(floors)
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <h3 className="text-sm font-bold text-gray-900 mb-4">Bulk Add Floors</h3>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">From Floor #</label>
+              <input type="number" value={from} onChange={e => setFrom(e.target.value)} placeholder="1" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">To Floor #</label>
+              <input type="number" value={to} onChange={e => setTo(e.target.value)} placeholder="40" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40" />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">Level Prefix <span className="font-normal text-gray-400">(optional)</span></label>
+              <input value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="e.g. F or L" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40" />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-600 mb-1">{unitLabel} / Floor <span className="font-normal text-gray-400">(optional)</span></label>
+              <input type="number" value={numUnits} onChange={e => setNumUnits(e.target.value)} placeholder="0" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40" />
+            </div>
+          </div>
+          {err && <p className="text-xs text-red-500">{err}</p>}
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
+          <button onClick={handle} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition">Add Floors</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refreshKey = 0 }) {
   const [rows, setRows] = useState([])
   const [adding, setAdding] = useState(false)
+  const [bulkAdding, setBulkAdding] = useState(false)
   const [editId, setEditId] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
   const [form, setForm] = useState({})
 
-  useEffect(() => { load() }, [projectId, refreshKey])
+  useEffect(() => { load() }, [projectId, buildingId, refreshKey])
   const load = async () => {
-    const { data } = await supabase.from('project_floors').select('*').eq('project_id', projectId)
+    let q = supabase.from('project_floors').select('*').eq('project_id', projectId)
+    if (buildingId) q = q.eq('building_id', buildingId)
+    const { data } = await q
     if (data) {
       data.sort((a, b) => {
         const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
@@ -685,7 +871,7 @@ function ProjectFloorSchedule({ projectId, isAdmin, showToast, refreshKey = 0 })
   }
   const blank = () => ({ physical_level: '', marketing_level: '', num_units: '', m4_planned_start: '', m4_planned_end: '', m5_planned_start: '', m5_planned_end: '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false })
   const save = async (id) => {
-    const payload = { project_id: projectId, physical_level: form.physical_level?.trim(), marketing_level: form.marketing_level?.trim() || null, num_units: form.num_units !== '' ? parseInt(form.num_units) : null, m4_planned_start: form.m4_planned_start || null, m4_planned_end: form.m4_planned_end || null, m5_planned_start: form.m5_planned_start || null, m5_planned_end: form.m5_planned_end || null }
+    const payload = { project_id: projectId, building_id: buildingId ?? null, physical_level: form.physical_level?.trim(), marketing_level: form.marketing_level?.trim() || null, num_units: form.num_units !== '' ? parseInt(form.num_units) : null, m4_planned_start: form.m4_planned_start || null, m4_planned_end: form.m4_planned_end || null, m5_planned_start: form.m5_planned_start || null, m5_planned_end: form.m5_planned_end || null }
     if (!payload.physical_level) return
     if (noNeg(payload.num_units)) { showToast('Values cannot be negative.', 'error'); return }
     if (form.m4_start_bad || (form.m4_planned_start && !isValidDate(form.m4_planned_start))) { showToast('M4 Start Date is not a valid calendar date.', 'error'); return }
@@ -698,11 +884,24 @@ function ProjectFloorSchedule({ projectId, isAdmin, showToast, refreshKey = 0 })
     if (error) { showToast(error.message, 'error'); return }
     showToast(id ? 'Updated.' : 'Added.', 'success'); setAdding(false); setEditId(null); load()
   }
+  const bulkSave = async (floors) => {
+    const rows = floors.map(f => ({ ...f, project_id: projectId, building_id: buildingId ?? null }))
+    const { error } = await supabase.from('project_floors').insert(rows)
+    if (error) { showToast(error.message, 'error'); return }
+    showToast(`${floors.length} floor${floors.length !== 1 ? 's' : ''} added.`, 'success')
+    setBulkAdding(false)
+    load()
+  }
   const del = async (id) => { await supabase.from('project_floors').delete().eq('id', id); load() }
 
   return (
     <div className="mb-6">
-      <SectionHeader title="Floor Schedule (M4 / M5)" action={isAdmin && !adding && <button onClick={() => { setForm(blank()); setAdding(true) }} className="text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition flex items-center gap-1"><PlusIcon /> Add Floor</button>} />
+      <SectionHeader title="Floor Schedule (M4 / M5)" action={isAdmin && !adding && (
+        <div className="flex gap-1.5">
+          <button onClick={() => { setForm(blank()); setAdding(true) }} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"><PlusIcon /> Add One</button>
+          <button onClick={() => setBulkAdding(true)} className="text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition flex items-center gap-1"><PlusIcon /> Bulk Add</button>
+        </div>
+      )} />
       <div className="overflow-x-auto">
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-w-[900px]">
           <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
@@ -785,20 +984,24 @@ function ProjectFloorSchedule({ projectId, isAdmin, showToast, refreshKey = 0 })
         </div>
       </div>
       {deleteId !== null && <ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />}
+      {bulkAdding && <BulkAddFloorsModal unitLabel="Units" onConfirm={bulkSave} onCancel={() => setBulkAdding(false)} />}
     </div>
   )
 }
 
-function ParkingFloorSchedule({ projectId, isAdmin, showToast, refreshKey = 0 }) {
+function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refreshKey = 0 }) {
   const [rows, setRows] = useState([])
   const [adding, setAdding] = useState(false)
+  const [bulkAdding, setBulkAdding] = useState(false)
   const [editId, setEditId] = useState(null)
   const [deleteId, setDeleteId] = useState(null)
   const [form, setForm] = useState({})
 
-  useEffect(() => { load() }, [projectId, refreshKey])
+  useEffect(() => { load() }, [projectId, buildingId, refreshKey])
   const load = async () => {
-    const { data } = await supabase.from('project_parking_floors').select('*').eq('project_id', projectId)
+    let q = supabase.from('project_parking_floors').select('*').eq('project_id', projectId)
+    if (buildingId) q = q.eq('building_id', buildingId)
+    const { data } = await q
     if (data) {
       data.sort((a, b) => {
         const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
@@ -819,15 +1022,28 @@ function ParkingFloorSchedule({ projectId, isAdmin, showToast, refreshKey = 0 })
     if (form.m5_end_bad   || (form.m5_planned_end   && !isValidDate(form.m5_planned_end)))   { showToast('M5 End Date is not a valid calendar date.', 'error'); return }
     if (payload.m4_planned_start && payload.m4_planned_end && payload.m4_planned_end < payload.m4_planned_start) { showToast('M4 End Date cannot be earlier than M4 Start Date.', 'error'); return }
     if (payload.m5_planned_start && payload.m5_planned_end && payload.m5_planned_end < payload.m5_planned_start) { showToast('M5 End Date cannot be earlier than M5 Start Date.', 'error'); return }
-    const { error } = id ? await supabase.from('project_parking_floors').update(payload).eq('id', id) : await supabase.from('project_parking_floors').insert(payload)
+    const { error } = id ? await supabase.from('project_parking_floors').update(payload).eq('id', id) : await supabase.from('project_parking_floors').insert({ ...payload, building_id: buildingId ?? null })
     if (error) { showToast(error.message, 'error'); return }
     showToast(id ? 'Updated.' : 'Added.', 'success'); setAdding(false); setEditId(null); load()
+  }
+  const bulkSave = async (floors) => {
+    const rows = floors.map(f => ({ ...f, project_id: projectId, building_id: buildingId ?? null }))
+    const { error } = await supabase.from('project_parking_floors').insert(rows)
+    if (error) { showToast(error.message, 'error'); return }
+    showToast(`${floors.length} parking floor${floors.length !== 1 ? 's' : ''} added.`, 'success')
+    setBulkAdding(false)
+    load()
   }
   const del = async (id) => { await supabase.from('project_parking_floors').delete().eq('id', id); load() }
 
   return (
     <div>
-      <SectionHeader title="Parking Floor Schedule (M4 / M5)" action={isAdmin && !adding && <button onClick={() => { setForm(blank()); setAdding(true) }} className="text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition flex items-center gap-1"><PlusIcon /> Add Floor</button>} />
+      <SectionHeader title="Parking Floor Schedule (M4 / M5)" action={isAdmin && !adding && (
+        <div className="flex gap-1.5">
+          <button onClick={() => { setForm(blank()); setAdding(true) }} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"><PlusIcon /> Add One</button>
+          <button onClick={() => setBulkAdding(true)} className="text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition flex items-center gap-1"><PlusIcon /> Bulk Add</button>
+        </div>
+      )} />
       <div className="overflow-x-auto">
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-w-[900px]">
           <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
@@ -910,6 +1126,7 @@ function ParkingFloorSchedule({ projectId, isAdmin, showToast, refreshKey = 0 })
         </div>
       </div>
       {deleteId !== null && <ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />}
+      {bulkAdding && <BulkAddFloorsModal unitLabel="Slots" onConfirm={bulkSave} onCancel={() => setBulkAdding(false)} />}
     </div>
   )
 }
@@ -917,7 +1134,7 @@ function ParkingFloorSchedule({ projectId, isAdmin, showToast, refreshKey = 0 })
 const DEV_UNIT_COLS    = [{ key: 'unit_type', header: 'Unit Type' }, { key: 'quantity', header: 'Quantity' }, { key: 'cfa_sqm', header: 'CFA (sqm)' }, { key: 'saleable_area_sqm', header: 'Saleable Area (sqm)' }]
 const DEV_PARKING_COLS = [{ key: 'parking_type', header: 'Parking Type' }, { key: 'quantity', header: 'Quantity' }, { key: 'cfa_sqm', header: 'CFA (sqm)' }, { key: 'saleable_area_sqm', header: 'Saleable Area (sqm)' }]
 const DEV_AMENITY_COLS = [{ key: 'amenity_name', header: 'Amenity Name' }, { key: 'cfa_sqm', header: 'CFA (sqm)' }, { key: 'floor_area_sqm', header: 'Floor Area (sqm)' }]
-const DEV_FLOOR_COLS   = [{ key: 'physical_level', header: 'Physical Level' }, { key: 'marketing_level', header: 'Marketing Level' }, { key: 'num_units', header: 'Units' }, { key: 'm4_planned_start', header: 'M4 Planned Start' }, { key: 'm4_planned_end', header: 'M4 Planned End' }, { key: 'm5_planned_start', header: 'M5 Planned Start' }, { key: 'm5_planned_end', header: 'M5 Planned End' }]
+const DEV_FLOOR_COLS   = [{ key: 'building_name', header: 'Building' }, { key: 'physical_level', header: 'Physical Level' }, { key: 'marketing_level', header: 'Marketing Level' }, { key: 'num_units', header: 'Units' }, { key: 'm4_planned_start', header: 'M4 Planned Start' }, { key: 'm4_planned_end', header: 'M4 Planned End' }, { key: 'm5_planned_start', header: 'M5 Planned Start' }, { key: 'm5_planned_end', header: 'M5 Planned End' }]
 
 function DevelopmentTab({ project, isAdmin, showToast }) {
   const [devRefreshKey, setDevRefreshKey] = useState(0)
@@ -934,66 +1151,60 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
   const handleExport = async () => {
     const pid = project.id
     const isCondo = project.development_type === 'condominium'
-    const [utRes, pkRes, amRes, flRes, pfRes] = await Promise.all([
-      supabase.from('project_unit_types').select('*').eq('project_id', pid).order('sort_order'),
-      supabase.from('project_parking').select('*').eq('project_id', pid).order('sort_order'),
-      supabase.from('project_amenities').select('*').eq('project_id', pid).order('sort_order'),
-      isCondo ? supabase.from('project_floors').select('*').eq('project_id', pid) : { data: [] },
-      isCondo ? supabase.from('project_parking_floors').select('*').eq('project_id', pid) : { data: [] },
+    if (!isCondo) { showToast('Export is only available for condominium projects.', 'error'); return }
+    const [flRes, pfRes, blRes] = await Promise.all([
+      supabase.from('project_floors').select('*').eq('project_id', pid),
+      supabase.from('project_parking_floors').select('*').eq('project_id', pid),
+      supabase.from('project_buildings').select('id, name').eq('project_id', pid),
     ])
+    const buildingMap = Object.fromEntries((blRes.data ?? []).map(b => [b.id, b.name]))
+    const sort = rows => [...(rows ?? [])].sort((a, b) => {
+      const ba = buildingMap[a.building_id] ?? '', bb = buildingMap[b.building_id] ?? ''
+      if (ba !== bb) return ba.localeCompare(bb)
+      const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
+      if (!isNaN(na) && !isNaN(nb)) return na - nb
+      return a.physical_level.localeCompare(b.physical_level)
+    })
+    const withBuildingName = rows => sort(rows).map(r => ({ ...r, building_name: buildingMap[r.building_id] ?? '' }))
     const sheets = [
-      { sheetName: 'Unit Types',   rows: utRes.data ?? [], columns: DEV_UNIT_COLS },
-      { sheetName: 'Parking',      rows: pkRes.data ?? [], columns: DEV_PARKING_COLS },
-      { sheetName: 'Amenities',    rows: amRes.data ?? [], columns: DEV_AMENITY_COLS },
-      ...(isCondo ? [
-        { sheetName: 'Floor Schedule',         rows: flRes.data ?? [], columns: DEV_FLOOR_COLS },
-        { sheetName: 'Parking Floor Schedule', rows: pfRes.data ?? [], columns: DEV_FLOOR_COLS },
-      ] : []),
+      { sheetName: 'Floor Schedule',         rows: withBuildingName(flRes.data), columns: DEV_FLOOR_COLS },
+      { sheetName: 'Parking Floor Schedule', rows: withBuildingName(pfRes.data), columns: DEV_FLOOR_COLS },
     ]
     await downloadWorkbook(sheets, `${project.name}_development.xlsx`)
   }
 
   const handleImport = async (file) => {
-    if (!window.confirm('This will replace all Development data for this project. Continue?')) return
+    if (!window.confirm('This will replace all floor schedule data for this project. Continue?')) return
     setImporting(true)
     setImportErrors([])
     try {
       const sheets  = await parseWorkbook(file)
       const pid     = project.id
       const isCondo = project.development_type === 'condominium'
+      if (!isCondo) { showToast('Import is only available for condominium projects.', 'error'); return }
 
-      // ── 1. Build rows ─────────────────────────────────────────────────────────
-      const utRows = (sheets['Unit Types'] ?? []).map((r, i) => ({ project_id: pid, unit_type: String(r['Unit Type'] ?? '').trim(), quantity: toInt(r['Quantity']), cfa_sqm: toFloat(r['CFA (sqm)']), saleable_area_sqm: toFloat(r['Saleable Area (sqm)']), sort_order: i })).filter(r => r.unit_type)
-      const pkRows = (sheets['Parking'] ?? []).map((r, i) => ({ project_id: pid, parking_type: String(r['Parking Type'] ?? '').trim(), quantity: toInt(r['Quantity']), cfa_sqm: toFloat(r['CFA (sqm)']), saleable_area_sqm: toFloat(r['Saleable Area (sqm)']), sort_order: i })).filter(r => r.parking_type)
-      const amRows = (sheets['Amenities'] ?? []).map((r, i) => ({ project_id: pid, amenity_name: String(r['Amenity Name'] ?? '').trim(), cfa_sqm: toFloat(r['CFA (sqm)']), floor_area_sqm: toFloat(r['Floor Area (sqm)']), sort_order: i })).filter(r => r.amenity_name)
-      const flRows = isCondo ? (sheets['Floor Schedule'] ?? []).map(r => ({ project_id: pid, physical_level: String(r['Physical Level'] ?? '').trim(), marketing_level: String(r['Marketing Level'] ?? '').trim() || null, num_units: toInt(r['Units']), m4_planned_start: toDateStr(r['M4 Planned Start']), m4_planned_end: toDateStr(r['M4 Planned End']), m5_planned_start: toDateStr(r['M5 Planned Start']), m5_planned_end: toDateStr(r['M5 Planned End']) })).filter(r => r.physical_level) : []
-      const pfRows = isCondo ? (sheets['Parking Floor Schedule'] ?? []).map(r => ({ project_id: pid, physical_level: String(r['Physical Level'] ?? '').trim(), marketing_level: String(r['Marketing Level'] ?? '').trim() || null, num_units: toInt(r['Units']), m4_planned_start: toDateStr(r['M4 Planned Start']), m4_planned_end: toDateStr(r['M4 Planned End']), m5_planned_start: toDateStr(r['M5 Planned Start']), m5_planned_end: toDateStr(r['M5 Planned End']) })).filter(r => r.physical_level) : []
+      // ── 1. Build raw floor rows (building_id resolved after upsert) ──────────
+      const mapFloor = r => ({
+        project_id: pid,
+        building_name: String(r['Building'] ?? '').trim(),
+        physical_level: String(r['Physical Level'] ?? '').trim(),
+        marketing_level: String(r['Marketing Level'] ?? '').trim() || null,
+        num_units: toInt(r['Units']),
+        m4_planned_start: toDateStr(r['M4 Planned Start']),
+        m4_planned_end:   toDateStr(r['M4 Planned End']),
+        m5_planned_start: toDateStr(r['M5 Planned Start']),
+        m5_planned_end:   toDateStr(r['M5 Planned End']),
+      })
+      const flRows = (sheets['Floor Schedule'] ?? []).map(mapFloor).filter(r => r.physical_level)
+      const pfRows = (sheets['Parking Floor Schedule'] ?? []).map(mapFloor).filter(r => r.physical_level)
 
       // ── 2. Validate ───────────────────────────────────────────────────────────
       const errors = []
-      utRows.forEach((r, i) => {
-        const lbl = `Unit Types row ${i + 2} "${r.unit_type}"`
-        if (r.quantity !== null && r.quantity < 0)                    errors.push(`${lbl}: Quantity cannot be negative.`)
-        if (r.cfa_sqm !== null && r.cfa_sqm < 0)                     errors.push(`${lbl}: CFA (sqm) cannot be negative.`)
-        if (r.saleable_area_sqm !== null && r.saleable_area_sqm < 0) errors.push(`${lbl}: Saleable Area cannot be negative.`)
-      })
-      pkRows.forEach((r, i) => {
-        const lbl = `Parking row ${i + 2} "${r.parking_type}"`
-        if (r.quantity !== null && r.quantity < 0)                    errors.push(`${lbl}: Quantity cannot be negative.`)
-        if (r.cfa_sqm !== null && r.cfa_sqm < 0)                     errors.push(`${lbl}: CFA (sqm) cannot be negative.`)
-        if (r.saleable_area_sqm !== null && r.saleable_area_sqm < 0) errors.push(`${lbl}: Saleable Area cannot be negative.`)
-      })
-      amRows.forEach((r, i) => {
-        const lbl = `Amenities row ${i + 2} "${r.amenity_name}"`
-        if (r.cfa_sqm !== null && r.cfa_sqm < 0)        errors.push(`${lbl}: CFA (sqm) cannot be negative.`)
-        if (r.floor_area_sqm !== null && r.floor_area_sqm < 0) errors.push(`${lbl}: Floor Area cannot be negative.`)
-      })
-      if (isCondo) {
-        // Validate dates against raw Excel values before toDateStr auto-corrects overflow
-        ;(sheets['Floor Schedule'] ?? []).forEach((raw, i) => {
+      const validateFloorSheet = (rawSheet, rows, sheetLabel) => {
+        rawSheet.forEach((raw, i) => {
           const level = String(raw['Physical Level'] ?? '').trim()
           if (!level) return
-          const lbl = `Floor Schedule row ${i + 2} (${level})`
+          const lbl = `${sheetLabel} row ${i + 2} (${level})`
           const m4sOk = isValidRawDate(raw['M4 Planned Start'])
           const m4eOk = isValidRawDate(raw['M4 Planned End'])
           const m5sOk = isValidRawDate(raw['M5 Planned Start'])
@@ -1011,63 +1222,37 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
             if (s && e && e < s) errors.push(`${lbl}: M5 Planned End cannot be before M5 Planned Start.`)
           }
         })
-        flRows.forEach((r, i) => {
-          const lbl = `Floor Schedule row ${i + 2} (${r.physical_level})`
-          if (r.num_units !== null && r.num_units < 0) errors.push(`${lbl}: Units cannot be negative.`)
-        })
-        if (project.num_floors != null && flRows.length !== project.num_floors)
-          errors.push(`Floor Schedule has ${flRows.length} floor(s) but the project specifies ${project.num_floors} floor(s).`)
-        if (project.num_units != null) {
-          const total = flRows.reduce((s, r) => s + (r.num_units ?? 0), 0)
-          if (total !== project.num_units)
-            errors.push(`Floor Schedule total units (${total}) does not match the project's total units (${project.num_units}).`)
-        }
-        ;(sheets['Parking Floor Schedule'] ?? []).forEach((raw, i) => {
-          const level = String(raw['Physical Level'] ?? '').trim()
-          if (!level) return
-          const lbl = `Parking Floor Schedule row ${i + 2} (${level})`
-          const m4sOk = isValidRawDate(raw['M4 Planned Start'])
-          const m4eOk = isValidRawDate(raw['M4 Planned End'])
-          const m5sOk = isValidRawDate(raw['M5 Planned Start'])
-          const m5eOk = isValidRawDate(raw['M5 Planned End'])
-          if (!m4sOk) errors.push(`${lbl}: M4 Planned Start is not a valid calendar date.`)
-          if (!m4eOk) errors.push(`${lbl}: M4 Planned End is not a valid calendar date.`)
-          if (!m5sOk) errors.push(`${lbl}: M5 Planned Start is not a valid calendar date.`)
-          if (!m5eOk) errors.push(`${lbl}: M5 Planned End is not a valid calendar date.`)
-          if (m4sOk && m4eOk) {
-            const s = toDateStr(raw['M4 Planned Start']), e = toDateStr(raw['M4 Planned End'])
-            if (s && e && e < s) errors.push(`${lbl}: M4 Planned End cannot be before M4 Planned Start.`)
-          }
-          if (m5sOk && m5eOk) {
-            const s = toDateStr(raw['M5 Planned Start']), e = toDateStr(raw['M5 Planned End'])
-            if (s && e && e < s) errors.push(`${lbl}: M5 Planned End cannot be before M5 Planned Start.`)
-          }
-        })
-        pfRows.forEach((r, i) => {
-          const lbl = `Parking Floor Schedule row ${i + 2} (${r.physical_level})`
-          if (r.num_units !== null && r.num_units < 0) errors.push(`${lbl}: Units cannot be negative.`)
+        rows.forEach((r, i) => {
+          if (r.num_units !== null && r.num_units < 0)
+            errors.push(`${sheetLabel} row ${i + 2} (${r.physical_level}): Units cannot be negative.`)
         })
       }
+      validateFloorSheet(sheets['Floor Schedule'] ?? [], flRows, 'Floor Schedule')
+      validateFloorSheet(sheets['Parking Floor Schedule'] ?? [], pfRows, 'Parking Floor Schedule')
       if (errors.length > 0) { setImportErrors(errors); return }
 
-      // ── 3. Commit ─────────────────────────────────────────────────────────────
+      // ── 3. Upsert buildings, build name→id map ────────────────────────────────
+      const allNames = [...new Set([...flRows, ...pfRows].map(r => r.building_name).filter(Boolean))]
+      const { data: existingBuildings } = await supabase.from('project_buildings').select('id, name').eq('project_id', pid)
+      const existingByName = Object.fromEntries((existingBuildings ?? []).map(b => [b.name.trim().toLowerCase(), b.id]))
+      const missingNames = allNames.filter(n => !existingByName[n.toLowerCase()])
+      if (missingNames.length > 0) {
+        const { data: created } = await supabase.from('project_buildings').insert(
+          missingNames.map((name, i) => ({ project_id: pid, name, sort_order: (existingBuildings?.length ?? 0) + i }))
+        ).select('id, name')
+        ;(created ?? []).forEach(b => { existingByName[b.name.trim().toLowerCase()] = b.id })
+      }
+      const resolveBuildingId = name => existingByName[name.trim().toLowerCase()] ?? null
+
+      // ── 4. Commit ─────────────────────────────────────────────────────────────
       await Promise.all([
-        supabase.from('project_unit_types').delete().eq('project_id', pid),
-        supabase.from('project_parking').delete().eq('project_id', pid),
-        supabase.from('project_amenities').delete().eq('project_id', pid),
-        ...(isCondo ? [
-          supabase.from('project_floors').delete().eq('project_id', pid),
-          supabase.from('project_parking_floors').delete().eq('project_id', pid),
-        ] : []),
+        supabase.from('project_floors').delete().eq('project_id', pid),
+        supabase.from('project_parking_floors').delete().eq('project_id', pid),
       ])
+      const toDbRow = r => ({ project_id: r.project_id, building_id: resolveBuildingId(r.building_name), physical_level: r.physical_level, marketing_level: r.marketing_level, num_units: r.num_units, m4_planned_start: r.m4_planned_start, m4_planned_end: r.m4_planned_end, m5_planned_start: r.m5_planned_start, m5_planned_end: r.m5_planned_end })
       await Promise.all([
-        utRows.length > 0 && supabase.from('project_unit_types').insert(utRows),
-        pkRows.length > 0 && supabase.from('project_parking').insert(pkRows),
-        amRows.length > 0 && supabase.from('project_amenities').insert(amRows),
-        ...(isCondo ? [
-          flRows.length > 0 && supabase.from('project_floors').insert(flRows),
-          pfRows.length > 0 && supabase.from('project_parking_floors').insert(pfRows),
-        ] : []),
+        flRows.length > 0 && supabase.from('project_floors').insert(flRows.map(toDbRow)),
+        pfRows.length > 0 && supabase.from('project_parking_floors').insert(pfRows.map(toDbRow)),
       ].filter(Boolean))
 
       setDevRefreshKey(k => k + 1)
@@ -1083,61 +1268,27 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
     ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200">Housing</span>
     : <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-purple-600 border border-purple-200">Condominium</span>
 
-  const inner = project.development_type === 'housing' ? (
-    <div>
-      <div className="sticky top-0 z-30 bg-white">
-        <ImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
-        <div className="py-3 flex items-center justify-between gap-2 flex-wrap">
-          {typeBadge}
-          <ExcelButtons onExport={handleExport} onImport={handleImport} importing={importing} />
+  if (project.development_type === 'housing') {
+    return (
+      <div>
+        <div className="sticky top-0 z-30 bg-white">
+          <div className="py-3">{typeBadge}</div>
+        </div>
+        <div className="py-8 text-center text-gray-400 text-sm">
+          Floor schedule is not available for housing projects.
         </div>
       </div>
-      <UnitTypesSection projectId={project.id} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} />
-      <ParkingSection   projectId={project.id} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} />
-      <AmenitiesSection projectId={project.id} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} />
-    </div>
-  ) : (
+    )
+  }
+
+  return (
     <CondominiumDevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} devRefreshKey={devRefreshKey} typeBadge={typeBadge} onExport={handleExport} onImport={handleImport} importing={importing} importErrors={importErrors} onDismissImportErrors={() => setImportErrors([])} />
   )
-  return inner
 }
 
 function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey = 0, typeBadge, onExport, onImport, importing, importErrors = [], onDismissImportErrors }) {
-  const [editingInfo, setEditingInfo]       = useState(false)
-  const [infoForm, setInfoForm]             = useState({ num_floors: project.num_floors ?? '', num_units: project.num_units ?? '' })
-  const [saving, setSaving]                 = useState(false)
   const [floorRefreshKey, setFloorRefreshKey] = useState(0)
-
-  const saveInfo = async () => {
-    setSaving(true)
-    const numFloors = infoForm.num_floors !== '' ? parseInt(infoForm.num_floors) : null
-    const numUnits  = infoForm.num_units  !== '' ? parseInt(infoForm.num_units)  : null
-    if (noNeg(numFloors, numUnits)) { showToast('Values cannot be negative.', 'error'); setSaving(false); return }
-    const { error } = await supabase.from('projects').update({ num_floors: numFloors, num_units: numUnits }).eq('id', project.id)
-    if (error) { showToast(error.message, 'error'); setSaving(false); return }
-
-    // Auto-generate missing numbered floor rows
-    if (numFloors && numFloors > 0) {
-      const { data: existing } = await supabase.from('project_floors').select('physical_level').eq('project_id', project.id)
-      const existingLevels = new Set((existing ?? []).map(f => f.physical_level))
-      const toInsert = []
-      for (let i = 1; i <= numFloors; i++) {
-        if (!existingLevels.has(String(i))) {
-          toInsert.push({ project_id: project.id, physical_level: String(i) })
-        }
-      }
-      if (toInsert.length > 0) {
-        await supabase.from('project_floors').insert(toInsert)
-        setFloorRefreshKey(k => k + 1)
-      }
-    }
-
-    setSaving(false)
-    showToast('Updated.', 'success')
-    project.num_floors = numFloors
-    project.num_units  = numUnits
-    setEditingInfo(false)
-  }
+  const [buildingId, setBuildingId]           = useState(null)
 
   return (
     <div>
@@ -1149,48 +1300,15 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
         </div>
       </div>
 
-      <div className="bg-gray-50 rounded-xl border border-gray-100 px-4 py-3 mb-5">
-        {editingInfo ? (
-          <div className="flex items-end gap-4 flex-wrap">
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Number of Floors</p>
-              <input type="number" min="0" value={infoForm.num_floors} onChange={e => setInfoForm(p => ({ ...p, num_floors: e.target.value }))} placeholder="0" className={`${inputCls} w-32 ${infoForm.num_floors !== '' && Number(infoForm.num_floors) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
-            </div>
-            <div>
-              <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">Number of Units</p>
-              <input type="number" min="0" value={infoForm.num_units} onChange={e => setInfoForm(p => ({ ...p, num_units: e.target.value }))} placeholder="0" className={`${inputCls} w-32 ${infoForm.num_units !== '' && Number(infoForm.num_units) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
-            </div>
-            <div className="flex gap-2 pb-0.5">
-              <button onClick={() => setEditingInfo(false)} className="px-3 py-2 text-xs rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition">Cancel</button>
-              <button onClick={saveInfo} disabled={saving} className="px-3 py-2 text-xs rounded-lg bg-[#ed6055] text-white font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">{saving ? 'Saving…' : 'Save'}</button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex gap-8">
-              <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Number of Floors</p>
-                <p className="text-sm font-semibold text-black">{project.num_floors ?? '—'}</p>
-              </div>
-              <div>
-                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Number of Units</p>
-                <p className="text-sm font-semibold text-black">{project.num_units ?? '—'}</p>
-              </div>
-            </div>
-            {isAdmin && (
-              <button onClick={() => { setInfoForm({ num_floors: project.num_floors ?? '', num_units: project.num_units ?? '' }); setEditingInfo(true) }} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#ed6055] hover:bg-[#d94f45] transition flex-shrink-0">
-                <PencilIcon /> Edit
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+      <BuildingSelector
+        projectId={project.id}
+        isAdmin={isAdmin}
+        buildingId={buildingId}
+        onChange={setBuildingId}
+      />
 
-      <UnitTypesSection projectId={project.id} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} />
-      <ParkingSection   projectId={project.id} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} />
-      <AmenitiesSection projectId={project.id} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} />
-      <ProjectFloorSchedule projectId={project.id} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} />
-      <ParkingFloorSchedule projectId={project.id} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} />
+      <ProjectFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} />
+      <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} />
     </div>
   )
 }
@@ -1454,16 +1572,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
     load(); fetchAllPermitNames()
   }
 
-  // After saving a L2, sync parent L1 status
-  const syncParentStatus = async (parentId) => {
-    const { data: children } = await supabase.from('project_permits').select('status').eq('parent_id', parentId)
-    if (!children || children.length === 0) return
-    const derived = deriveL1Status(children)
-    await supabase.from('project_permits').update({ status: derived }).eq('id', parentId)
-  }
-
   const saveAndSync = async (id) => {
-    const isL2 = form.parent_id !== null && form.parent_id !== undefined
     const payload = {
       project_id:  project.id,
       permit_name: form.permit_name?.trim(),
@@ -1476,7 +1585,6 @@ function ComplianceTab({ project, isAdmin, showToast }) {
       ? await supabase.from('project_permits').update(payload).eq('id', id)
       : await supabase.from('project_permits').insert({ ...payload, sort_order: rows.length })
     if (error) { showToast(error.message, 'error'); return }
-    if (isL2 && form.parent_id) await syncParentStatus(form.parent_id)
     showToast(id ? 'Updated.' : 'Added.', 'success')
     setAddingTo(null); setEditId(null)
     load(); fetchAllPermitNames()
@@ -1493,20 +1601,12 @@ function ComplianceTab({ project, isAdmin, showToast }) {
     return map
   }, [rows])
 
-  // For each L1 that has children, use derived status for display
-  const displayStatus = (l1) => {
-    const kids = childrenOf[l1.id]
-    if (kids && kids.length > 0) return deriveL1Status(kids)
-    return l1.status
-  }
+  const displayStatus = (l1) => l1.status
 
   const filteredL1s = useMemo(() => {
     if (filterStatus === 'all') return l1s
-    return l1s.filter(l1 => {
-      const st = childrenOf[l1.id]?.length > 0 ? deriveL1Status(childrenOf[l1.id]) : l1.status
-      return st === filterStatus
-    })
-  }, [l1s, childrenOf, filterStatus])
+    return l1s.filter(l1 => l1.status === filterStatus)
+  }, [l1s, filterStatus])
 
   const toggleCollapse = (id) => setCollapsed(prev => {
     const next = new Set(prev)
@@ -1591,10 +1691,9 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                         <PermitCombobox value={form.permit_name} onChange={v => setForm(p => ({ ...p, permit_name: v }))} options={allPermitNames} />
                       </td>
                       <td className="px-4 py-2">
-                        <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className={selectCls} disabled={hasKids}>
+                        <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className={selectCls}>
                           {PERMIT_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                         </select>
-                        {hasKids && <p className="text-[10px] text-gray-400 mt-0.5">Auto-derived</p>}
                       </td>
                       <td className="px-4 py-2"><InlineInput value={form.remarks} onChange={v => setForm(p => ({ ...p, remarks: v }))} placeholder="Optional remarks" /></td>
                       {isAdmin && <td className="px-4 py-2 whitespace-nowrap">
@@ -1837,15 +1936,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
             const target = rows.find(r => r.id === deleteId)
             await del(deleteId)
             // If deleting a L2, sync parent after deletion
-            if (target?.parent_id) {
-              setTimeout(async () => {
-                const { data: remaining } = await supabase.from('project_permits').select('status').eq('parent_id', target.parent_id)
-                if (remaining && remaining.length > 0) {
-                  await supabase.from('project_permits').update({ status: deriveL1Status(remaining) }).eq('id', target.parent_id)
-                }
-                load()
-              }, 200)
-            }
+            if (target?.parent_id) load()
             setDeleteId(null)
           }}
           onCancel={() => setDeleteId(null)}
@@ -1877,6 +1968,9 @@ function MilestonesTab({ project, isAdmin, showToast }) {
   const [form, setForm]               = useState({})
   const [importing, setImporting]     = useState(false)
   const [importErrors, setImportErrors] = useState([])
+  const [deleteBLId, setDeleteBLId]   = useState(null)
+  const [pendingImportFile, setPendingImportFile] = useState(null)
+  const [blNameInput, setBlNameInput] = useState('')
 
   // Load baselines on mount; set activeBL to the latest one
   useEffect(() => {
@@ -1902,6 +1996,13 @@ function MilestonesTab({ project, isAdmin, showToast }) {
       setBaselines([])
       setActiveBL(null)
     }
+  }
+
+  const deleteBaseline = async (blId) => {
+    await supabase.from('project_milestones').delete().eq('baseline_id', blId)
+    await supabase.from('milestone_baselines').delete().eq('id', blId)
+    showToast('Baseline deleted.', 'success')
+    loadBaselines()
   }
 
   const load = async (blId) => {
@@ -1947,31 +2048,33 @@ function MilestonesTab({ project, isAdmin, showToast }) {
   const del = async (id) => { await supabase.from('project_milestones').delete().eq('id', id); load(activeBL) }
 
   const handleExport = async () => {
+    // Only export child rows (and parentless standalone rows).
+    // Parent rows are grouping headers — their dates are auto-computed, so we omit them.
     const exportRows = []
     MILESTONE_PHASES.forEach(({ key: phase }) => {
-      const pRows  = rows.filter(r => r.phase === phase)
+      const pRows   = rows.filter(r => r.phase === phase)
       const parents = pRows.filter(r => !r.parent_id)
+      const idToName = Object.fromEntries(pRows.map(r => [r.id, r.milestone_name]))
       parents.forEach(parent => {
-        exportRows.push(parent)
-        pRows.filter(r => r.parent_id === parent.id).forEach(c => exportRows.push(c))
+        const children = pRows.filter(r => r.parent_id === parent.id)
+        if (children.length > 0) {
+          // Parent has children — export only children, parent name goes in Parent Milestone column
+          children.forEach(c => exportRows.push({ ...c, _parentName: parent.milestone_name }))
+        } else {
+          // Standalone (no children) — export as a regular row with no parent
+          exportRows.push({ ...parent, _parentName: '' })
+        }
       })
     })
 
-    const COL_NAME = 2, COL_PROJ_START = 7, COL_PROJ_END = 8
-    const lockedCells = exportRows.map(r => {
-      const locked = []
-      if (r.actual_start || r.actual_end) locked.push(COL_NAME)
-      if (r.actual_start) locked.push(COL_PROJ_START)
-      if (r.actual_end)   locked.push(COL_PROJ_END)
-      return locked
-    })
-
     const blLabel = baselines.find(b => b.id === activeBL)?.label ?? ''
+
     await downloadWorkbook([{
       sheetName: 'Milestones',
       rows: exportRows.map(r => ({
         phase:           MILESTONE_PHASE_MAP_OUT[r.phase] ?? r.phase,
-        milestone_name:  r.parent_id ? `- ${r.milestone_name}` : r.milestone_name,
+        milestone_name:  r.milestone_name,
+        parent_name:     r._parentName ?? '',
         planned_start:   r.planned_start   ?? '',
         planned_end:     r.planned_end     ?? '',
         actual_start:    r.actual_start ?? '',
@@ -1982,6 +2085,7 @@ function MilestonesTab({ project, isAdmin, showToast }) {
       columns: [
         { key: 'phase',           header: 'Phase' },
         { key: 'milestone_name',  header: 'Milestone Name' },
+        { key: 'parent_name',     header: 'Parent Milestone' },
         { key: 'planned_start',   header: 'Planned Start' },
         { key: 'planned_end',     header: 'Planned End' },
         { key: 'actual_start',    header: 'Actual Start' },
@@ -1989,12 +2093,15 @@ function MilestonesTab({ project, isAdmin, showToast }) {
         { key: 'projected_start', header: 'Projected Start' },
         { key: 'projected_end',   header: 'Projected End' },
       ],
-      protectSheet: true,
-      lockedCells,
     }], `${project.name}_milestones${blLabel ? `_${blLabel}` : ''}.xlsx`)
   }
 
-  const handleImport = async (file) => {
+  const handleImportRequest = (file) => {
+    setPendingImportFile(file)
+    setBlNameInput('')
+  }
+
+  const handleImport = async (file, label) => {
     setImporting(true); setImportErrors([])
     try {
       const sheets  = await parseWorkbook(file)
@@ -2002,13 +2109,19 @@ function MilestonesTab({ project, isAdmin, showToast }) {
       const rawRows = sheets['Milestones'] ?? Object.values(sheets)[0] ?? []
 
       // ── 1. Parse rows ─────────────────────────────────────────────────────────
-      let currentParentIdx = null
+      // New format: "Parent Milestone" column holds parent name; parent rows are not in the file.
+      // Legacy fallback: "- " prefix on Milestone Name.
       const newRows = []
+      // Track legacy sequential parent for "- " prefix fallback
+      let legacyParentName = null
       rawRows.forEach((r, i) => {
-        const rawName = String(r['Milestone Name'] ?? '').trim()
-        const isSub   = rawName.startsWith('- ')
-        const name    = isSub ? rawName.slice(2).trim() : rawName
+        const rawName   = String(r['Milestone Name'] ?? '').trim()
+        const parentCol = String(r['Parent Milestone'] ?? '').trim()
+        const legacySub = rawName.startsWith('- ')
+        const name      = legacySub ? rawName.slice(2).trim() : rawName
         if (!name) return
+        const parentName = parentCol || (legacySub ? legacyParentName : null)
+        if (!legacySub) legacyParentName = name
         newRows.push({
           project_id: pid,
           phase:           MILESTONE_PHASE_MAP_IN[r['Phase']] ?? 'initiation',
@@ -2020,10 +2133,8 @@ function MilestonesTab({ project, isAdmin, showToast }) {
           projected_start: toDateStr(r['Projected Start']),
           projected_end:   toDateStr(r['Projected End']),
           sort_order:      i,
-          _isSub:          isSub,
-          _parentIdx:      isSub ? currentParentIdx : null,
+          _parentName:     parentName,
         })
-        if (!isSub) currentParentIdx = newRows.length - 1
       })
 
       // ── 2. Validate ───────────────────────────────────────────────────────────
@@ -2051,8 +2162,6 @@ function MilestonesTab({ project, isAdmin, showToast }) {
       if (errors.length > 0) { setImportErrors(errors); return }
 
       // ── 3. Create new baseline ────────────────────────────────────────────────
-      const nextIndex = baselines.length  // BL0, BL1, BL2 …
-      const label     = `BL${nextIndex}`
       const { data: blData, error: blErr } = await supabase
         .from('milestone_baselines')
         .insert({ project_id: pid, label })
@@ -2061,31 +2170,35 @@ function MilestonesTab({ project, isAdmin, showToast }) {
       if (blErr) throw blErr
       const blId = blData.id
 
-      // ── 4. Insert parents then children with baseline_id ──────────────────────
-      const parents  = newRows.filter(r => !r._isSub)
-      const children = newRows.filter(r => r._isSub)
+      // ── 4. Insert synthetic parents, then children ───────────────────────────
+      // Collect unique parent names referenced by children (order-preserving)
+      const uniqueParentNames = [...new Set(newRows.map(r => r._parentName).filter(Boolean))]
+      const parentNameToDbId = {}
 
-      const parentDbIds = {}
-      if (parents.length > 0) {
+      if (uniqueParentNames.length > 0) {
         const { data: ins, error: pErr } = await supabase
           .from('project_milestones')
-          .insert(parents.map(({ _isSub, _parentIdx, ...rest }) => ({ ...rest, baseline_id: blId })))
+          .insert(uniqueParentNames.map((name, i) => ({
+            project_id: pid,
+            baseline_id: blId,
+            phase: newRows.find(r => r._parentName === name)?.phase ?? 'initiation',
+            milestone_name: name,
+            sort_order: -(uniqueParentNames.length - i),
+          })))
           .select('id')
         if (pErr) throw pErr
-        let pi = 0
-        newRows.forEach((r, idx) => { if (!r._isSub) { parentDbIds[idx] = ins[pi++].id } })
+        uniqueParentNames.forEach((name, i) => { parentNameToDbId[name] = ins[i].id })
       }
 
-      if (children.length > 0) {
-        const { error: cErr } = await supabase.from('project_milestones').insert(
-          children.map(({ _isSub, _parentIdx, ...rest }) => ({
-            ...rest,
-            baseline_id: blId,
-            parent_id: _parentIdx !== null ? (parentDbIds[_parentIdx] ?? null) : null,
-          }))
-        )
-        if (cErr) throw cErr
-      }
+      // Insert all rows (children reference their synthetic parent; standalones have no parent)
+      const { error: cErr } = await supabase.from('project_milestones').insert(
+        newRows.map(({ _parentName, ...rest }) => ({
+          ...rest,
+          baseline_id: blId,
+          parent_id: _parentName ? (parentNameToDbId[_parentName] ?? null) : null,
+        }))
+      )
+      if (cErr) throw cErr
 
       // Refresh baselines list then switch to the new BL
       const { data: newBLs } = await supabase
@@ -2107,6 +2220,26 @@ function MilestonesTab({ project, isAdmin, showToast }) {
 
   const phaseRows = rows.filter(r => r.phase === activePhase)
   const totalCols = isAdmin ? 8 : 7
+
+  // Derive parent dates from children per the agreed rules
+  const computeParentDates = (children) => {
+    if (!children.length) return {}
+    const minStr = (vals) => vals.filter(Boolean).sort()[0] ?? null
+    const maxStr = (vals) => vals.filter(Boolean).sort().at(-1) ?? null
+    const planned_start   = minStr(children.map(c => c.planned_start))
+    const planned_end     = maxStr(children.map(c => c.planned_end))
+    const actual_start    = minStr(children.map(c => c.actual_start))
+    // actual_end: only if ALL children have actual_end
+    const actual_end      = children.every(c => c.actual_end)
+      ? maxStr(children.map(c => c.actual_end))
+      : null
+    // projected_start: only if NO child has actual_start
+    const projected_start = children.every(c => !c.actual_start)
+      ? minStr(children.map(c => c.projected_start))
+      : null
+    const projected_end   = maxStr(children.map(c => c.projected_end))
+    return { planned_start, planned_end, actual_start, actual_end, projected_start, projected_end }
+  }
 
   const editCells = (rowId, onCancel) => {
     const hasActualStart  = !!form.actual_start
@@ -2162,19 +2295,33 @@ function MilestonesTab({ project, isAdmin, showToast }) {
             )
           })}
           <div className="ml-auto flex items-center gap-2">
-            {/* BL dropdown */}
+            {/* BL dropdown + delete */}
             {baselines.length > 0 && (
-              <select
-                value={activeBL ?? ''}
-                onChange={e => { setActiveBL(e.target.value); setEditId(null) }}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold"
-              >
-                {baselines.map(b => (
-                  <option key={b.id} value={b.id}>{b.label}</option>
-                ))}
-              </select>
+              <>
+                <select
+                  value={activeBL ?? ''}
+                  onChange={e => { setActiveBL(e.target.value); setEditId(null) }}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold"
+                >
+                  {baselines.map(b => (
+                    <option key={b.id} value={b.id}>{b.label}</option>
+                  ))}
+                </select>
+                {isAdmin && activeBL && (
+                  <button
+                    onClick={() => setDeleteBLId(activeBL)}
+                    title="Delete selected baseline"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 text-xs font-semibold transition"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                    Delete BL
+                  </button>
+                )}
+              </>
             )}
-            <ExcelButtons onExport={handleExport} onImport={handleImport} importing={importing} />
+            <ExcelButtons onExport={handleExport} onImport={handleImportRequest} importing={importing} />
           </div>
         </div>
       </div>
@@ -2189,7 +2336,7 @@ function MilestonesTab({ project, isAdmin, showToast }) {
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-w-[1200px]">
             <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
               <thead>
-                <tr className="bg-gray-50/80 border-b border-gray-200">
+                <tr className="bg-gray-50/80 border-b border-gray-200 sticky top-0 z-10">
                   <th className="text-left px-4 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 160 }}>Milestone</th>
                   <th className="text-center px-3 py-2 font-semibold text-blue-500 uppercase tracking-wider" colSpan={2} style={{ minWidth: 260 }}>
                     <div>Planned</div>
@@ -2215,20 +2362,21 @@ function MilestonesTab({ project, isAdmin, showToast }) {
                     <>
                       {parents.map(parent => {
                         const children = childrenOf(parent.id)
+                        const pd = children.length ? computeParentDates(children) : parent
                         return (
                           <Fragment key={parent.id}>
-                            {/* Parent row */}
+                            {/* Parent row — dates computed from children */}
                             {editId === parent.id ? (
                               <tr>{editCells(parent.id, () => setEditId(null))}</tr>
                             ) : (
                               <tr className="hover:bg-gray-50/50">
                                 <td className="px-4 py-2.5 font-semibold text-black">{parent.milestone_name}</td>
-                                <td className="px-3 py-2.5 text-gray-500">{fmt(parent.planned_start)}</td>
-                                <td className="px-3 py-2.5 text-gray-500">{fmt(parent.planned_end)}</td>
-                                <td className="px-3 py-2.5 text-gray-500">{fmt(parent.actual_start)}</td>
-                                <td className="px-3 py-2.5 text-gray-500">{fmt(parent.actual_end)}</td>
-                                <td className="px-3 py-2.5 text-gray-500">{fmt(parent.projected_start)}</td>
-                                <td className="px-3 py-2.5 text-gray-500">{fmt(parent.projected_end)}</td>
+                                <td className="px-3 py-2.5 text-gray-500">{fmt(pd.planned_start)}</td>
+                                <td className="px-3 py-2.5 text-gray-500">{fmt(pd.planned_end)}</td>
+                                <td className="px-3 py-2.5 text-gray-500">{fmt(pd.actual_start)}</td>
+                                <td className="px-3 py-2.5 text-gray-500">{fmt(pd.actual_end)}</td>
+                                <td className="px-3 py-2.5 text-gray-500">{fmt(pd.projected_start)}</td>
+                                <td className="px-3 py-2.5 text-gray-500">{fmt(pd.projected_end)}</td>
                                 {isAdmin && (
                                   <td className="px-3 py-2.5 sticky right-0 bg-white border-l border-gray-100">
                                     <div className="flex gap-1 items-center">
@@ -2281,6 +2429,61 @@ function MilestonesTab({ project, isAdmin, showToast }) {
         </div>
       )}
       {deleteId !== null && <ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />}
+      {pendingImportFile && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setPendingImportFile(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-black mb-1">Name this baseline</h3>
+            <p className="text-sm text-gray-500 mb-4">Give a name to identify this baseline (e.g. BL0, Initial, Revised).</p>
+            <input
+              autoFocus
+              type="text"
+              value={blNameInput}
+              onChange={e => setBlNameInput(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && blNameInput.trim()) {
+                  const file = pendingImportFile
+                  const label = blNameInput.trim()
+                  setPendingImportFile(null)
+                  handleImport(file, label)
+                }
+              }}
+              placeholder="e.g. BL0"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] mb-5"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setPendingImportFile(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+              <button
+                disabled={!blNameInput.trim()}
+                onClick={() => {
+                  const file = pendingImportFile
+                  const label = blNameInput.trim()
+                  setPendingImportFile(null)
+                  handleImport(file, label)
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >Import</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {deleteBLId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setDeleteBLId(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-black mb-1">Delete baseline?</h3>
+            <p className="text-sm text-gray-500 mb-1">
+              You are about to delete <span className="font-semibold text-gray-700">{baselines.find(b => b.id === deleteBLId)?.label}</span>.
+            </p>
+            <p className="text-sm text-gray-500 mb-5">All milestones in this baseline will be permanently removed. This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteBLId(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+              <button
+                onClick={() => { deleteBaseline(deleteBLId); setDeleteBLId(null) }}
+                className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition"
+              >Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
@@ -3110,6 +3313,12 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   const [tab, setTab] = useState(startTab)
   const [toast, setToast] = useState(null)
 
+  useEffect(() => {
+    const prev = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = prev }
+  }, [])
+
   const phase = PHASE_MAP[project.phase]
   const tabs = project.development_type === 'condominium'
     ? [...BASE_TABS, 'Completion (M4/M5)']
@@ -3128,15 +3337,15 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-4xl max-h-[92vh] flex flex-col overflow-hidden"
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[92vh] flex flex-col overflow-hidden"
         style={{ borderTop: `4px solid ${phase?.color ?? '#ed6055'}` }}>
 
         {/* Modal header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-start justify-between gap-4 flex-shrink-0">
-          <div>
+        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
+          <div className="min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h2 className="text-xl font-bold text-black leading-tight">{project.name}</h2>
-              {project.is_4ph_project && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#ed6055]/10 text-[#ed6055] border border-[#ed6055]/20">4PH</span>}
+              <h2 className="text-xl font-bold text-black leading-tight truncate">{project.name}</h2>
+              {project.is_4ph_project && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#ed6055]/10 text-[#ed6055] border border-[#ed6055]/20 flex-shrink-0">4PH</span>}
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {project.development_type && <span className="text-xs text-gray-400 capitalize">{project.development_type}</span>}
@@ -3144,19 +3353,25 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
               {phase && <><span className="text-gray-300">·</span><span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${phase.badge}`}>{phase.label}</span></>}
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-black transition flex-shrink-0"><XIcon /></button>
+          <button
+            onClick={onClose}
+            aria-label="Close"
+            className="p-2 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition flex-shrink-0"
+          >
+            <XIcon />
+          </button>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-gray-100 flex-shrink-0 overflow-x-auto">
+        <div className="flex border-b border-gray-100 flex-shrink-0 overflow-x-auto bg-gray-50/50 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
           {tabs.map(t => (
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`px-5 py-3 text-sm font-semibold whitespace-nowrap transition border-b-2 -mb-px ${
+              className={`px-5 py-3.5 text-sm font-semibold whitespace-nowrap transition-all border-b-2 -mb-px ${
                 tab === t
-                  ? 'border-[#ed6055] text-[#ed6055]'
-                  : 'border-transparent text-gray-400 hover:text-black'
+                  ? 'border-[#ed6055] text-[#ed6055] bg-white'
+                  : 'border-transparent text-gray-400 hover:text-gray-700 hover:bg-white/60'
               }`}
             >
               {t}
@@ -3165,7 +3380,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         </div>
 
         {/* Tab content */}
-        <div className={`flex-1 overflow-y-auto px-6 ${['Completion (M4/M5)', 'Development', 'Permits', 'Milestones', 'Issues & Concerns'].includes(tab) ? 'pb-5' : 'py-5'}`}>
+        <div className={`flex-1 overflow-y-auto px-6 ${tab === 'Overview' ? 'py-5' : 'pb-5'}`}>
           {tab === 'Overview'          && <OverviewTab    project={project} isAdmin={isAdmin} onUpdated={handleUpdated} showToast={showToast} startEditing={startEditing} />}
           {tab === 'Development'       && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Permits'           && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
@@ -3176,7 +3391,14 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       </div>
 
       {toast && (
-        <div className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-medium shadow-lg z-[60] ${toast.type === 'success' ? 'bg-black text-white' : 'bg-[#ed6055] text-white'}`}>
+        <div
+          aria-live="polite"
+          className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-medium shadow-lg z-[60] flex items-center gap-2 ${toast.type === 'success' ? 'bg-black text-white' : 'bg-[#ed6055] text-white'}`}
+        >
+          {toast.type === 'success'
+            ? <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
+            : <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" /></svg>
+          }
           {toast.message}
         </div>
       )}

@@ -283,6 +283,7 @@ export default function ProjectsPage() {
 
   return (
     <DashboardLayout profile={profile}>
+      <div className="max-w-6xl mx-auto">
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -343,6 +344,10 @@ export default function ProjectsPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100">
+                  {/* No. */}
+                  <th className="text-center px-3 py-3 bg-gray-50/80 whitespace-nowrap w-10">
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">No.</span>
+                  </th>
                   {/* Project Name — sortable */}
                   <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
                     <button
@@ -425,7 +430,7 @@ export default function ProjectsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {filtered.map(project => {
+                {filtered.map((project, idx) => {
                   const phaseColor = PHASE_MAP[project.phase]?.color ?? '#e5e7eb'
                   return (
                   <tr
@@ -434,6 +439,9 @@ export default function ProjectsPage() {
                     className="hover:bg-gray-50/60 transition cursor-pointer"
                     style={{ boxShadow: `inset 3px 0 0 ${phaseColor}` }}
                   >
+                    <td className="px-3 py-4 text-center">
+                      <span className="text-xs font-medium text-gray-400 tabular-nums">{idx + 1}</span>
+                    </td>
                     <td className="px-5 py-4">
                       <p className="font-semibold text-black">{project.name}</p>
                     </td>
@@ -488,6 +496,7 @@ export default function ProjectsPage() {
         )}
       </div>
       <p className="text-xs text-gray-400 mt-2 text-right">{filtered.length} of {projects.length} shown</p>
+      </div>
 
       {/* ── Project Detail Modal ── */}
       {selected && (
