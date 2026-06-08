@@ -36,12 +36,12 @@ export default function DashboardLayout({ profile, children }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#f0f2f5]">
+    <div className="min-h-screen bg-[#e4e7ec]">
 
       {/* ── Topbar ── */}
       <div
         className="fixed top-0 left-0 right-0 z-40 flex items-center h-16"
-        style={{ background: 'rgba(63,63,63,1)', borderBottom: '1px solid rgba(255,255,255,0.08)' }}
+        style={{ background: 'rgba(63,63,63,1)', borderBottom: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 1px 0 rgba(0,0,0,0.18)' }}
       >
         {/* Hamburger */}
         <button
@@ -79,7 +79,7 @@ export default function DashboardLayout({ profile, children }) {
           >
             <div className="text-right hidden sm:block">
               <p className="text-white text-xs font-semibold leading-tight">{profile?.full_name ?? ''}</p>
-              <p className="text-[10px] leading-tight mt-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>
+              <p className="text-xs leading-tight mt-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>
                 {roleLabel}
               </p>
             </div>
@@ -117,11 +117,11 @@ export default function DashboardLayout({ profile, children }) {
                   </div>
                   <div className="min-w-0">
                     <p className="text-sm font-semibold text-white truncate leading-tight">{profile?.full_name ?? profile?.email}</p>
-                    <p className="text-[11px] truncate mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>{profile?.email}</p>
+                    <p className="text-xs truncate mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>{profile?.email}</p>
                   </div>
                 </div>
                 <div className="mt-2.5">
-                  <span className="inline-block text-[10px] font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(237,96,85,0.2)', color: '#ed6055', border: '1px solid rgba(237,96,85,0.3)' }}>
+                  <span className="inline-block text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(237,96,85,0.2)', color: '#ed6055', border: '1px solid rgba(237,96,85,0.3)' }}>
                     {roleLabel}
                   </span>
                 </div>

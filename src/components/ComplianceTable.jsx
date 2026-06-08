@@ -1,12 +1,185 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import SearchDropdown from './SearchDropdown'
+import TriangleLoader from './TriangleLoader'
 
-// ── Cell components ───────────────────────────────────────────────────────────
+// ── Multi-select searchable dropdown ─────────────────────────────────────────
+
+function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholder, icon, minWidth = 130 }) {
+  const [open, setOpen]   = useState(false)
+  const [query, setQuery] = useState('')
+  const ref               = useRef(null)
+  const inputRef          = useRef(null)
+
+  const allSelected = values.length === 0
+
+  const triggerLabel = allSelected
+    ? emptyLabel
+    : values.length === 1
+      ? (options.find(o => o.value === values[0])?.label ?? emptyLabel)
+      : `${values.length} selected`
+
+  const filtered = useMemo(() => {
+    const q = query.trim().toLowerCase()
+    return q ? options.filter(o => o.label.toLowerCase().includes(q)) : options
+  }, [options, query])
+
+  useEffect(() => {
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const openDropdown = () => {
+    setOpen(true)
+    setQuery('')
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  const toggle = (val) => {
+    if (values.includes(val)) onChange(values.filter(v => v !== val))
+    else onChange([...values, val])
+  }
+
+  const clearAll = () => { onChange([]); setOpen(false); setQuery('') }
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        type="button"
+        onClick={() => open ? setOpen(false) : openDropdown()}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-all"
+        style={{
+          background: open ? '#fff' : '#fafafa',
+          borderColor: open ? '#ed6055' : (!allSelected ? '#ed6055' : '#e5e7eb'),
+          color: allSelected ? '#9ca3af' : '#111827',
+          boxShadow: open ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+          minWidth,
+          maxWidth: 220,
+          cursor: 'pointer',
+        }}
+      >
+        {icon && (
+          <svg className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+            <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+          </svg>
+        )}
+        <span className="flex-1 text-left truncate font-medium">{triggerLabel}</span>
+        {!allSelected && (
+          <button
+            type="button"
+            onClick={e => { e.stopPropagation(); clearAll() }}
+            className="flex-shrink-0 text-gray-400 hover:text-[#ed6055] transition-colors"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        )}
+        {allSelected && (
+          <svg
+            className="w-3 h-3 flex-shrink-0 text-gray-400 transition-transform"
+            style={{ transform: open ? 'rotate(180deg)' : 'none' }}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        )}
+      </button>
+
+      {open && (
+        <div
+          className="absolute left-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
+          style={{
+            width: 240,
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
+          }}
+        >
+          {/* Search */}
+          <div className="p-2 border-b border-gray-100">
+            <div className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+              <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z" />
+              </svg>
+              <input
+                ref={inputRef}
+                type="text"
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder={placeholder}
+                className="flex-1 bg-transparent text-xs text-black placeholder-gray-400 outline-none"
+              />
+              {query && (
+                <button type="button" onClick={() => setQuery('')} className="text-gray-400 hover:text-gray-600">
+                  <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* List */}
+          <div className="overflow-y-auto" style={{ maxHeight: 220 }}>
+            {/* Clear all / select all */}
+            {!allSelected && (
+              <button
+                type="button"
+                onClick={clearAll}
+                className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-gray-50 border-b border-gray-50"
+                style={{ color: '#ed6055' }}
+              >
+                <span className="font-semibold italic">Clear all</span>
+              </button>
+            )}
+
+            {filtered.length === 0 ? (
+              <p className="px-3 py-3 text-xs text-gray-400 text-center italic">No results found</p>
+            ) : (
+              filtered.map(o => {
+                const checked = values.includes(o.value)
+                return (
+                  <button
+                    key={o.value}
+                    type="button"
+                    onClick={() => toggle(o.value)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-gray-50"
+                    style={{ color: checked ? '#ed6055' : '#111827' }}
+                  >
+                    {/* Checkbox indicator */}
+                    <span
+                      className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center border transition-colors"
+                      style={{
+                        background: checked ? '#ed6055' : '#fff',
+                        borderColor: checked ? '#ed6055' : '#d1d5db',
+                      }}
+                    >
+                      {checked && (
+                        <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                        </svg>
+                      )}
+                    </span>
+                    <span className={checked ? 'font-semibold' : 'font-medium'}>{o.label}</span>
+                  </button>
+                )
+              })
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Status cells ──────────────────────────────────────────────────────────────
 
 const DoneCell = () => (
   <div className="flex items-center justify-center">
-    <span className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-      <svg className="w-3.5 h-3.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <span className="w-7 h-7 rounded-full bg-green-100 flex items-center justify-center">
+      <svg className="w-4 h-4 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
       </svg>
     </span>
@@ -15,8 +188,8 @@ const DoneCell = () => (
 
 const OngoingCell = () => (
   <div className="flex items-center justify-center">
-    <span className="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center">
-      <svg className="w-3.5 h-3.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <span className="w-7 h-7 rounded-full bg-amber-100 flex items-center justify-center">
+      <svg className="w-4 h-4 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
       </svg>
     </span>
@@ -25,122 +198,136 @@ const OngoingCell = () => (
 
 const NotStartedCell = () => (
   <div className="flex items-center justify-center">
-    <span className="w-6 h-6 rounded-full bg-red-50 flex items-center justify-center">
-      <span className="w-2 h-2 rounded-full bg-[#ed6055]" />
+    <span className="w-7 h-7 rounded-full bg-red-50 flex items-center justify-center">
+      <svg className="w-3.5 h-3.5 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+      </svg>
     </span>
   </div>
 )
 
 const NACell = () => (
-  <span className="text-[10px] text-gray-300 font-medium select-none">N/A</span>
+  <span className="text-xs text-gray-300 font-medium select-none">—</span>
 )
 
-// ── Loader ────────────────────────────────────────────────────────────────────
-
-function TriangleLoader() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-4">
-      <div className="flex items-center gap-3">
-        {[0, 1, 2].map(i => (
-          <div key={i} style={{
-            width: 12, height: 12, background: '#ed6055',
-            clipPath: 'polygon(0 0, 100% 50%, 0 100%)',
-            animation: 'ph1-loader-tri 1.4s ease-in-out infinite',
-            animationDelay: `${i * 0.22}s`,
-          }} />
-        ))}
-      </div>
-      <p className="text-xs text-gray-400">Loading compliance data…</p>
-    </div>
-  )
-}
 
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function ComplianceTable() {
-  const [permits, setPermits]       = useState([])
-  const [projects, setProjects]     = useState([])
-  const [loading, setLoading]       = useState(true)
-  const [search, setSearch]         = useState('')
-  const [sortOrder, setSortOrder]   = useState('asc') // 'asc' | 'desc'
+  const [permits, setPermits]     = useState([])
+  const [projects, setProjects]   = useState([])
+  const [loading, setLoading]     = useState(true)
+  const [filterProjects, setFilterProjects] = useState([])
+  const [standardNames, setStandardNames]   = useState([])
+  const [sortOrder, setSortOrder] = useState('asc')
+  const [type4ph, setType4ph]     = useState('all')
 
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
     setLoading(true)
-    const [permitsRes, projectsRes] = await Promise.all([
-      supabase.from('project_permits').select('id, project_id, permit_name, status'),
-      supabase.from('projects').select('id, name').order('name'),
+    const [permitsRes, projectsRes, standardsRes] = await Promise.all([
+      supabase.from('project_permits').select('id, project_id, permit_name, status, parent_id'),
+      supabase.from('projects').select('id, name, is_4ph_project').order('name'),
+      supabase.from('standard_permits').select('id, permit_name, parent_id').is('parent_id', null).order('sort_order'),
     ])
-    if (permitsRes.data)  setPermits(permitsRes.data)
-    if (projectsRes.data) setProjects(projectsRes.data)
+    if (permitsRes.data)   setPermits(permitsRes.data)
+    if (projectsRes.data)  setProjects(projectsRes.data)
+    if (standardsRes.data) setStandardNames(standardsRes.data.map(s => s.permit_name))
     setLoading(false)
   }
 
-  // All unique permit names across every project, sorted A→Z
-  const permitNames = useMemo(() =>
-    [...new Set(permits.map(p => p.permit_name).filter(Boolean))]
-      .sort((a, b) => a.localeCompare(b)),
-    [permits]
-  )
+  const permitNames = standardNames
 
-  // Fast lookup: lookup[projectId][permitName] = 'done' | 'ongoing' | 'not_yet_started' | undefined
   const lookup = useMemo(() => {
     const map = {}
-    permits.forEach(p => {
+    permits.filter(p => !p.parent_id).forEach(p => {
       if (!map[p.project_id]) map[p.project_id] = {}
       map[p.project_id][p.permit_name] = p.status
     })
     return map
   }, [permits])
 
-  // Filtered + sorted projects
   const visibleProjects = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    let list = q ? projects.filter(p => p.name.toLowerCase().includes(q)) : [...projects]
+    let list = [...projects]
+    if (type4ph !== 'all') list = list.filter(p => type4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)
+    if (filterProjects.length > 0) list = list.filter(p => filterProjects.includes(p.id))
     list.sort((a, b) => {
       const cmp = a.name.localeCompare(b.name)
       return sortOrder === 'asc' ? cmp : -cmp
     })
     return list
-  }, [projects, search, sortOrder])
+  }, [projects, filterProjects, sortOrder, type4ph])
+
+  const projectOptions = useMemo(() => {
+    const list = type4ph === 'all' ? projects : projects.filter(p => type4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)
+    return list.map(p => ({ value: p.id, label: p.name }))
+  }, [projects, type4ph])
 
   const renderCell = (projectId, permitName) => {
     const status = lookup[projectId]?.[permitName]
-    if (status === undefined)      return <NACell />
-    if (status === 'done')         return <DoneCell />
-    if (status === 'ongoing')      return <OngoingCell />
+    if (status === undefined)  return <NACell />
+    if (status === 'done')     return <DoneCell />
+    if (status === 'ongoing')  return <OngoingCell />
     return <NotStartedCell />
   }
 
-  const isEmpty = !loading && (projects.length === 0 || permitNames.length === 0)
+  const isEmpty = !loading && (projects.length === 0 || standardNames.length === 0)
 
   return (
-    <section className="mb-8">
+    <section className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col" style={{ height: 600 }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="pl-3 border-l-[3px] border-[#ed6055]">
-          <h2 className="text-sm font-bold text-black tracking-tight">Compliance</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Permit checklist across all projects.</p>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />
+          <h2 className="text-sm font-bold text-black">Permits &amp; Licensing</h2>
         </div>
+        {!loading && !isEmpty && (
+          <span className="text-xs font-bold text-[#ed6055]">
+            {visibleProjects.length}{filterProjects.length > 0 ? ` / ${projects.length}` : ''} project{projects.length !== 1 ? 's' : ''}
+          </span>
+        )}
       </div>
 
       {/* Filters */}
       {!loading && !isEmpty && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          <input
-            type="text"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {/* 4PH toggle */}
+          <div
+            className="flex items-center gap-0.5 flex-shrink-0 p-0.5 rounded-lg"
+            style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
+          >
+            {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
+              <button
+                key={t.key}
+                onClick={() => { setType4ph(t.key); setFilterProjects([]) }}
+                className="relative px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                style={type4ph === t.key ? {
+                  background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
+                  color: '#fff',
+                  boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                } : { color: '#6b7280', background: 'transparent' }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <MultiSearchDropdown
+            options={projectOptions}
+            values={filterProjects}
+            onChange={setFilterProjects}
+            emptyLabel="All Projects"
             placeholder="Search projects…"
-            className="flex-1 min-w-[160px] px-3 py-2 rounded-lg border border-gray-200 text-xs text-black placeholder-gray-400 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent"
+            icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+            minWidth={130}
           />
-
           <button
             onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg border border-gray-200 text-xs text-black bg-white hover:bg-gray-50 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 transition"
+            style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
           >
-            <svg className="w-3.5 h-3.5 text-gray-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M7 12h10M11 17h2" />
             </svg>
             {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
@@ -148,39 +335,86 @@ export default function ComplianceTable() {
         </div>
       )}
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {loading ? <TriangleLoader /> : isEmpty ? (
-          <div className="text-center py-16 text-gray-400 text-sm italic">
-            {projects.length === 0 ? 'No projects yet.' : 'No permits recorded yet.'}
+      {/* Legend */}
+      {!loading && !isEmpty && (
+        <div className="flex items-center gap-4 mb-3 flex-wrap">
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            </span>
+            <span className="text-xs text-gray-500 font-medium">Done</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </span>
+            <span className="text-xs text-gray-500 font-medium">Ongoing</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
+              </svg>
+            </span>
+            <span className="text-xs text-gray-500 font-medium">Not Yet Started</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-300 font-medium">—</span>
+            <span className="text-xs text-gray-500 font-medium">Not Applicable</span>
+          </div>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="rounded-xl border border-gray-200 overflow-hidden flex-1 flex flex-col">
+        {loading ? <TriangleLoader label="Loading permits…" /> : isEmpty ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-1">
+            <svg className="w-5 h-5 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <p className="text-xs text-gray-300 italic">
+              {projects.length === 0 ? 'No projects yet.' : 'No permits recorded yet.'}
+            </p>
           </div>
         ) : visibleProjects.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 text-sm italic">
-            No projects match your search.
+          <div className="flex flex-col items-center justify-center py-16 gap-2">
+            <svg className="w-6 h-6 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z" />
+            </svg>
+            <p className="text-sm text-gray-400">No projects match your filters.</p>
+            <button onClick={() => setFilterProjects([])} className="text-xs text-[#ed6055] underline underline-offset-2 cursor-pointer">
+              Clear filters
+            </button>
           </div>
         ) : (
-          <div className="overflow-auto max-h-[420px]">
+          <div className="overflow-auto flex-1">
             <table className="text-xs" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
               <thead>
                 <tr>
                   {/* Top-left sticky corner */}
                   <th
-                    className="sticky left-0 top-0 z-30 bg-gray-50 border-b border-r border-gray-200 px-4 py-3 text-left min-w-[180px]"
+                    className="sticky left-0 top-0 z-30 border-b border-r border-gray-200 px-4 py-3 text-left min-w-[200px]"
+                    style={{ background: '#fff', borderTop: '2px solid #ed6055' }}
                   >
-                    <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Project</span>
+                    <span className="text-xs font-bold text-gray-700">Project</span>
                   </th>
 
-                  {/* Permit column headers — rotated vertical text */}
+                  {/* Permit column headers — rotated */}
                   {permitNames.map(name => (
                     <th
                       key={name}
-                      className="sticky top-0 z-20 bg-gray-50 border-b border-r border-gray-200"
-                      style={{ width: 48, minWidth: 48 }}
+                      className="sticky top-0 z-20 border-b border-r border-gray-200"
+                      style={{ width: 52, minWidth: 52, background: '#fff', borderTop: '2px solid #ed6055' }}
                     >
-                      <div className="flex items-end justify-center h-32 pb-2.5 px-1">
+                      <div className="flex items-end justify-center h-32 pb-3 px-1">
                         <span
                           title={name}
                           style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: 112 }}
-                          className="text-[10px] font-semibold text-gray-600 leading-tight overflow-hidden"
+                          className="text-xs font-semibold text-gray-600 leading-tight overflow-hidden"
                         >
                           {name}
                         </span>
@@ -190,71 +424,31 @@ export default function ComplianceTable() {
                 </tr>
               </thead>
 
-              <tbody>
-                {visibleProjects.map((proj, pi) => {
-                  const isEven = pi % 2 === 0
-                  const rowBg  = isEven ? 'bg-white' : 'bg-gray-50/60'
-                  return (
-                    <tr key={proj.id}>
-                      {/* Project name — sticky left column */}
+              <tbody className="divide-y divide-gray-50">
+                {visibleProjects.map(proj => (
+                  <tr key={proj.id} className="hover:bg-[#ed6055]/[0.02] transition">
+                    <td className="sticky left-0 z-10 border-r border-b border-gray-100 px-4 py-3 bg-white">
+                      <span className="block truncate max-w-[200px] text-xs font-semibold text-gray-800" title={proj.name}>
+                        {proj.name}
+                      </span>
+                    </td>
+                    {permitNames.map(name => (
                       <td
-                        className={`sticky left-0 z-10 border-r border-b border-gray-100 px-4 py-2.5 font-medium text-black text-xs ${rowBg}`}
+                        key={name}
+                        className="border-r border-b border-gray-100 p-1.5 text-center align-middle bg-white"
+                        style={{ width: 52 }}
                       >
-                        <span className="block truncate max-w-[200px]" title={proj.name}>
-                          {proj.name}
-                        </span>
+                        {renderCell(proj.id, name)}
                       </td>
-
-                      {/* Permit status cells */}
-                      {permitNames.map(name => (
-                        <td
-                          key={name}
-                          className={`border-r border-b border-gray-100 p-1.5 text-center align-middle ${rowBg}`}
-                          style={{ width: 48 }}
-                        >
-                          {renderCell(proj.id, name)}
-                        </td>
-                      ))}
-                    </tr>
-                  )
-                })}
+                    ))}
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         )}
       </div>
 
-      {/* Legend */}
-      {!loading && !isEmpty && (
-        <div className="flex items-center gap-4 mt-2.5 flex-wrap">
-          <div className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-2.5 h-2.5 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-              </svg>
-            </span>
-            <span className="text-[10px] text-gray-500">Done</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
-              <svg className="w-2.5 h-2.5 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </span>
-            <span className="text-[10px] text-gray-500">Ongoing</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-4 h-4 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
-              <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055]" />
-            </span>
-            <span className="text-[10px] text-gray-500">Not Yet Started</span>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-gray-300 font-medium">N/A</span>
-            <span className="text-[10px] text-gray-500">No permit on record</span>
-          </div>
-        </div>
-      )}
     </section>
   )
 }

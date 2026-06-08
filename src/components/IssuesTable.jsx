@@ -1,10 +1,12 @@
-import { useState, useEffect, useMemo, Fragment } from 'react'
+import { useState, useEffect, useMemo, useRef, Fragment } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import SearchDropdown from './SearchDropdown'
+import TriangleLoader from './TriangleLoader'
 
 const STATUS_CONFIG = {
-  open:  { label: 'Open',   className: 'bg-[#ed6055] text-white' },
-  close: { label: 'Closed', className: 'bg-gray-100 text-gray-500' },
-  hold:  { label: 'Hold',   className: 'border border-gray-200 text-gray-500 bg-white' },
+  open:  { label: 'Open',   className: 'bg-[#ed6055]/10 text-[#ed6055] border border-[#ed6055]/20' },
+  close: { label: 'Closed', className: 'bg-green-50 text-green-600 border border-green-100' },
+  hold:  { label: 'Hold',   className: 'bg-amber-50 text-amber-600 border border-amber-100' },
 }
 
 const GROUPS = ['Commercial', 'Design', 'Construction', 'Compliance']
@@ -17,34 +19,15 @@ const daysAging = (dateStr) => {
 }
 
 const fmt = (dateStr) => dateStr
-  ? new Date(dateStr).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' })
+  ? new Date(dateStr).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
   : '—'
 
-function TriangleLoader() {
-  return (
-    <div className="flex flex-col items-center justify-center py-16 gap-4">
-      <div className="flex items-center gap-3">
-        {[0, 1, 2].map(i => (
-          <div key={i} style={{
-            width: 12, height: 12, background: '#ed6055',
-            clipPath: 'polygon(0 0, 100% 50%, 0 100%)',
-            animation: 'ph1-loader-tri 1.4s ease-in-out infinite',
-            animationDelay: `${i * 0.22}s`,
-          }} />
-        ))}
-      </div>
-      <p className="text-xs text-gray-400">Loading issues…</p>
-    </div>
-  )
-}
 
-function LabelBox({ label, value, light }) {
+function LabelBox({ label, value }) {
   return (
     <div>
-      <p className={`text-xs font-semibold mb-1 ${light ? 'text-white/70' : 'text-gray-400 uppercase tracking-wider'}`}>{label}</p>
-      <div className={`rounded-lg px-3 py-2 text-sm font-medium ${light ? 'bg-white text-black' : 'bg-gray-50 text-black'}`}>
-        {value || <span className="text-gray-400 italic font-normal">—</span>}
-      </div>
+      <p className="text-base font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-xl font-medium text-gray-900">{value || <span className="text-gray-300 italic font-normal">—</span>}</p>
     </div>
   )
 }
@@ -52,10 +35,8 @@ function LabelBox({ label, value, light }) {
 function SectionBlock({ label, value }) {
   return (
     <div>
-      <div className="bg-gray-100 px-4 py-1.5 rounded-t-lg">
-        <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">{label}</p>
-      </div>
-      <div className="border border-gray-100 border-t-0 rounded-b-lg px-4 py-3 min-h-[72px] text-sm text-black leading-relaxed whitespace-pre-wrap">
+      <p className="text-base font-bold text-gray-400 uppercase tracking-wider mb-2">{label}</p>
+      <div className="rounded-xl border border-gray-100 bg-gray-50 px-5 py-4 min-h-[80px] text-xl text-gray-800 leading-relaxed whitespace-pre-wrap">
         {value || <span className="text-gray-300 italic">—</span>}
       </div>
     </div>
@@ -69,11 +50,14 @@ export default function IssuesTable() {
   const [modal, setModal]           = useState(null)
   const [active, setActive]         = useState(null)
   const [toast, setToast]           = useState(null)
-  const [filterStatus, setFilterStatus]           = useState('all')
-  const [filterGroup, setFilterGroup]             = useState('all')
-  const [filterMgmtLevel, setFilterMgmtLevel]     = useState('all')
+  const [filterStatus, setFilterStatus]       = useState('all')
+  const [filterGroup, setFilterGroup]         = useState('all')
+  const [filterMgmtLevel, setFilterMgmtLevel] = useState('all')
+  const [filterProject, setFilterProject]     = useState('all')
+  const [type4ph, setType4ph]                 = useState('all')
   const [collapsed, setCollapsed]   = useState(new Set())
-  const [searchProject, setSearchProject] = useState('')
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const filtersRef = useRef(null)
 
   const toggleGroup = (pid) => setCollapsed(prev => {
     const next = new Set(prev)
@@ -84,14 +68,20 @@ export default function IssuesTable() {
 
   useEffect(() => { fetchAll() }, [])
 
+  useEffect(() => {
+    const handler = (e) => { if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
   const fetchAll = async () => {
     setLoading(true)
     const [issuesRes, projectsRes] = await Promise.all([
       supabase
         .from('issues')
-        .select('id, project_id, issue_group, management_level, status, date_presented, details, caused_by, corrective_action, created_at')
+        .select('id, project_id, issue_group, management_level, status, date_presented, details, caused_by, action_steps, created_at')
         .order('created_at', { ascending: false }),
-      supabase.from('projects').select('id, name'),
+      supabase.from('projects').select('id, name, is_4ph_project'),
     ])
     if (issuesRes.data)   setIssues(issuesRes.data)
     if (projectsRes.data) setProjects(projectsRes.data)
@@ -108,61 +98,168 @@ export default function IssuesTable() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  const filtered = issues.filter(issue => {
+  const filtered = useMemo(() => issues.filter(issue => {
     const matchStatus    = filterStatus    === 'all' || issue.status           === filterStatus
     const matchGroup     = filterGroup     === 'all' || issue.issue_group      === filterGroup
     const matchMgmtLevel = filterMgmtLevel === 'all' || issue.management_level === filterMgmtLevel
-    return matchStatus && matchGroup && matchMgmtLevel
-  })
+    const matchProject   = filterProject   === 'all' || issue.project_id       === filterProject
+    const proj           = projects.find(p => p.id === issue.project_id)
+    const match4ph       = type4ph === 'all' || (proj && (type4ph === 'yes' ? proj.is_4ph_project : !proj.is_4ph_project))
+    return matchStatus && matchGroup && matchMgmtLevel && matchProject && match4ph
+  }), [issues, filterStatus, filterGroup, filterMgmtLevel, filterProject, type4ph, projects])
 
-  const hasActiveFilter = filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' || searchProject !== ''
-  const clearFilters = () => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel('all'); setSearchProject('') }
+  const hasActiveFilter = filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' || filterProject !== 'all' || type4ph !== 'all'
+  const clearFilters = () => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel('all'); setFilterProject('all'); setType4ph('all') }
 
-  const visibleCount = useMemo(() => {
-    if (!searchProject.trim()) return filtered.length
-    const q = searchProject.trim().toLowerCase()
-    return filtered.filter(issue => {
-      const name = projectName(issue.project_id).toLowerCase()
-      return name.includes(q)
-    }).length
-  }, [filtered, searchProject, projects])
-
-  const inputCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-black bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent'
+  // Projects that actually have issues (for the dropdown)
+  const projectOptions = useMemo(() => {
+    const ids = [...new Set(issues.map(i => i.project_id).filter(Boolean))]
+    return ids
+      .map(id => ({ value: id, label: projectName(id), proj: projects.find(p => p.id === id) }))
+      .filter(o => type4ph === 'all' || (o.proj && (type4ph === 'yes' ? o.proj.is_4ph_project : !o.proj.is_4ph_project)))
+      .map(o => ({ value: o.value, label: o.label }))
+      .sort((a, b) => a.label.localeCompare(b.label))
+  }, [issues, projects, type4ph])
 
   return (
-    <section className="mb-8">
+    <section className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col" style={{ height: 600 }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <div className="pl-3 border-l-[3px] border-[#ed6055]">
-          <h2 className="text-sm font-bold text-black tracking-tight">Issues &amp; Concerns</h2>
-          <p className="text-xs text-gray-400 mt-0.5">Track and manage project issues.</p>
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />
+          <h2 className="text-sm font-bold text-black">Issues &amp; Concerns</h2>
         </div>
+        {!loading && (
+          <span className="text-xs font-bold text-[#ed6055]">{filtered.length} issue{filtered.length !== 1 ? 's' : ''}</span>
+        )}
       </div>
 
       {/* Filters */}
       {!loading && issues.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-4">
-          <input
-            type="text"
-            value={searchProject}
-            onChange={e => setSearchProject(e.target.value)}
+        <div className="flex items-center gap-2 mb-4 flex-wrap">
+          {/* 4PH toggle */}
+          <div
+            className="flex items-center gap-0.5 flex-shrink-0 p-0.5 rounded-lg"
+            style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
+          >
+            {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
+              <button
+                key={t.key}
+                onClick={() => { setType4ph(t.key); setFilterProject('all') }}
+                className="relative px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                style={type4ph === t.key ? {
+                  background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
+                  color: '#fff',
+                  boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                } : { color: '#6b7280', background: 'transparent' }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Project picker */}
+          <SearchDropdown
+            options={projectOptions}
+            value={filterProject}
+            onChange={setFilterProject}
+            emptyValue="all"
+            emptyLabel="All Projects"
             placeholder="Search projects…"
-            className="flex-1 min-w-[160px] px-3 py-2 rounded-lg border border-gray-200 text-sm text-black bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent"
+            icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+            minWidth={130}
           />
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className="flex-1 min-w-[120px] px-3 py-2 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055]">
-            <option value="all">All Statuses</option>
-            {Object.entries(STATUS_CONFIG).map(([val, cfg]) => <option key={val} value={val}>{cfg.label}</option>)}
-          </select>
-          <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)} className="flex-1 min-w-[120px] px-3 py-2 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055]">
-            <option value="all">All Groups</option>
-            {GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
-          <select value={filterMgmtLevel} onChange={e => setFilterMgmtLevel(e.target.value)} className="flex-1 min-w-[150px] px-3 py-2 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055]">
-            <option value="all">All Mgmt Levels</option>
-            {MANAGEMENT_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
+
+          {/* Filters popover */}
+          <div ref={filtersRef} className="relative flex-shrink-0">
+            <button
+              onClick={() => setFiltersOpen(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+              style={{
+                background: filtersOpen || filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' ? '#fff' : '#fafafa',
+                borderColor: filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' ? '#ed6055' : (filtersOpen ? '#ed6055' : '#e5e7eb'),
+                color: filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' ? '#ed6055' : '#6b7280',
+                boxShadow: filtersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+              Filters
+              {(filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all') && (
+                <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+                  {[filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel !== 'all'].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+
+            {filtersOpen && (
+              <div
+                className="absolute left-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
+                style={{
+                  width: 240,
+                  background: '#fff',
+                  border: '1px solid #e5e7eb',
+                  boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
+                }}
+              >
+                <div className="p-3 space-y-3">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[{ value: 'all', label: 'All' }, ...Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))].map(o => (
+                        <button
+                          key={o.value}
+                          onClick={() => setFilterStatus(o.value)}
+                          className="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all"
+                          style={filterStatus === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[{ value: 'all', label: 'All' }, ...GROUPS.map(g => ({ value: g, label: g }))].map(o => (
+                        <button
+                          key={o.value}
+                          onClick={() => setFilterGroup(o.value)}
+                          className="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all"
+                          style={filterGroup === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[{ value: 'all', label: 'All' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))].map(o => (
+                        <button
+                          key={o.value}
+                          onClick={() => setFilterMgmtLevel(o.value)}
+                          className="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all"
+                          style={filterMgmtLevel === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}
+                        >
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
           {hasActiveFilter && (
-            <button onClick={clearFilters} className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 bg-white transition whitespace-nowrap">
+            <button
+              onClick={clearFilters}
+              className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 bg-white transition whitespace-nowrap"
+            >
               Clear
             </button>
           )}
@@ -170,22 +267,32 @@ export default function IssuesTable() {
       )}
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-        {loading ? <TriangleLoader /> : filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 text-sm italic">
-            {issues.length === 0 ? 'No issues recorded yet.' : 'No issues match the selected filters.'}
+      <div className="rounded-xl border border-gray-200 overflow-hidden flex-1 flex flex-col">
+        {loading ? <TriangleLoader label="Loading issues…" /> : filtered.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 gap-2">
+            <svg className="w-6 h-6 text-gray-200" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z" />
+            </svg>
+            <p className="text-sm text-gray-400">
+              {issues.length === 0 ? 'No issues recorded yet.' : 'No issues match your filters.'}
+            </p>
+            {hasActiveFilter && (
+              <button onClick={clearFilters} className="text-xs text-[#ed6055] underline underline-offset-2 cursor-pointer">
+                Clear filters
+              </button>
+            )}
           </div>
         ) : (
-          <div className="overflow-x-auto overflow-y-auto max-h-[400px]">
+          <div className="overflow-x-auto overflow-y-auto flex-1">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-gray-100 bg-gray-50 sticky top-0 z-10">
-                  {['Issue', 'Status', 'Date Presented', 'Days Aging'].map(h => (
-                    <th key={h} className="text-left px-5 py-3.5 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">{h}</th>
-                  ))}
+                <tr className="sticky top-0 z-10" style={{ background: '#fff', borderTop: '2px solid #ed6055', borderBottom: '1px solid #e5e7eb' }}>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-700 whitespace-nowrap">Issue</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-700 whitespace-nowrap">Action Steps</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-700 whitespace-nowrap w-20">Status</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-gray-50">
                 {Object.entries(
                   filtered.reduce((acc, issue) => {
                     const pid = issue.project_id ?? '__none__'
@@ -195,21 +302,22 @@ export default function IssuesTable() {
                   }, {})
                 )
                   .sort(([a], [b]) => projectName(a).localeCompare(projectName(b)))
-                  .filter(([pid]) => projectName(pid).toLowerCase().includes(searchProject.trim().toLowerCase()))
                   .map(([pid, groupIssues]) => {
                     const isCollapsed = collapsed.has(pid)
                     return (
                       <Fragment key={pid}>
-                        {/* Project group header */}
+                        {/* Project group row */}
                         <tr
-                          className="cursor-pointer select-none bg-gray-50 hover:bg-gray-100 transition border-t border-gray-100 first:border-t-0"
+                          className="cursor-pointer select-none hover:bg-[#ed6055]/5 transition"
+                          style={{ background: 'rgba(237,96,85,0.04)', borderTop: '1px solid #f3f4f6' }}
                           onClick={() => toggleGroup(pid)}
                         >
-                          <td colSpan={4} className="px-5 py-2.5">
+                          <td colSpan={3} className="px-4 py-2">
                             <div className="flex items-center gap-2">
+                              <div className="w-[3px] h-3.5 rounded-full bg-[#ed6055] flex-shrink-0" />
                               <ChevronIcon collapsed={isCollapsed} />
-                              <span className="text-xs font-bold text-black tracking-tight">{projectName(pid)}</span>
-                              <span className="text-[10px] font-semibold text-white bg-[#ed6055] rounded-full px-1.5 py-0.5 leading-none">
+                              <span className="text-xs font-bold text-gray-800">{projectName(pid)}</span>
+                              <span className="text-xs font-bold text-white bg-[#ed6055] rounded-full px-1.5 py-0.5 leading-none">
                                 {groupIssues.length}
                               </span>
                             </div>
@@ -217,24 +325,23 @@ export default function IssuesTable() {
                         </tr>
 
                         {/* Issue rows */}
-                        {!isCollapsed && groupIssues.map(issue => {
+                        {!isCollapsed && groupIssues.map((issue, idx) => {
                           const sc = STATUS_CONFIG[issue.status] ?? STATUS_CONFIG.open
-                          const aging = daysAging(issue.date_presented)
                           return (
                             <tr
                               key={issue.id}
                               onClick={() => openView(issue)}
-                              className="hover:bg-gray-50/60 transition cursor-pointer border-t border-gray-50"
+                              className="hover:bg-[#ed6055]/[0.03] transition cursor-pointer"
+                              style={{ borderTop: idx === 0 ? 'none' : '1px solid #f9fafb' }}
                             >
-                              <td className="px-5 py-3 text-gray-600 w-full">
-                                <p className="line-clamp-2 text-xs">{issue.details}</p>
+                              <td className="px-4 py-3 w-[45%]">
+                                <p className="line-clamp-3 text-xs text-gray-700 leading-relaxed">{issue.details || <span className="italic text-gray-300">—</span>}</p>
                               </td>
-                              <td className="px-5 py-3 whitespace-nowrap">
-                                <span className={`inline-block text-xs font-semibold px-2.5 py-1 rounded-full ${sc.className}`}>{sc.label}</span>
+                              <td className="px-4 py-3 w-[45%]">
+                                <p className="line-clamp-3 text-xs text-gray-500 leading-relaxed">{issue.action_steps || <span className="italic text-gray-300">—</span>}</p>
                               </td>
-                              <td className="px-5 py-3 text-gray-500 whitespace-nowrap text-xs">{fmt(issue.date_presented)}</td>
-                              <td className="px-5 py-3 text-gray-500 whitespace-nowrap text-xs">
-                                {aging !== null ? `${aging}d` : <span className="text-gray-300 italic">—</span>}
+                              <td className="px-4 py-3 w-20 whitespace-nowrap">
+                                <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-md ${sc.className}`}>{sc.label}</span>
                               </td>
                             </tr>
                           )
@@ -248,55 +355,47 @@ export default function IssuesTable() {
         )}
       </div>
 
-      {!loading && issues.length > 0 && (
-        <p className="text-xs text-gray-400 mt-2 text-right">
-          {visibleCount} of {issues.length} issue{issues.length !== 1 ? 's' : ''}
-        </p>
-      )}
-
       {/* ── View Modal ── */}
       {modal === 'view' && active && (() => {
         const aging = daysAging(active.date_presented)
         const sc = STATUS_CONFIG[active.status] ?? STATUS_CONFIG.open
         return (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={closeModal}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
-              style={{ borderTop: '4px solid #ed6055' }} onClick={e => e.stopPropagation()}
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4" onClick={closeModal}>
+            <div
+              className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl overflow-hidden flex flex-col"
+              style={{ height: 'calc(100vh - 48px)' }}
+              onClick={e => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
+              {/* Modal header */}
+              <div className="px-8 py-5 border-b border-gray-100 flex items-start justify-between gap-4 flex-shrink-0">
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Issues &amp; Concerns</p>
-                  <h3 className="text-base font-bold text-black leading-snug mt-0.5">
+                  <p className="text-base font-semibold text-gray-400 uppercase tracking-wider mb-1">Issues &amp; Concerns</p>
+                  <h3 className="text-3xl font-bold text-black leading-snug">
                     {projectName(active.project_id) !== '—' ? projectName(active.project_id) : 'No project linked'}
                   </h3>
                 </div>
-                <div className="flex items-center gap-2 flex-shrink-0">
-                  <button onClick={closeModal} className="p-1.5 text-gray-400 hover:text-[#ed6055] transition"><XIcon /></button>
+                <div className="flex items-center gap-3 flex-shrink-0 mt-1">
+                  <span className={`text-sm font-semibold px-3 py-1 rounded-lg ${sc.className}`}>{sc.label}</span>
+                  <button onClick={closeModal} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"><XIcon /></button>
                 </div>
               </div>
 
-              {/* Body — two-panel layout */}
-              <div className="flex flex-1 overflow-hidden">
-                {/* Left panel */}
-                <div className="w-44 flex-shrink-0 bg-[#ed6055] px-4 py-5 space-y-4 overflow-y-auto">
-                  <LabelBox label="Status" value={sc.label} light />
-                  <LabelBox label="Group" value={active.issue_group} light />
-                  <LabelBox label="Management Level" value={active.management_level} light />
-                  <LabelBox label="Date Presented" value={fmt(active.date_presented)} light />
-                  <LabelBox label="Days Aging" value={aging !== null ? `${aging} day${aging !== 1 ? 's' : ''}` : null} light />
-                </div>
-
-                {/* Right panel */}
-                <div className="flex-1 px-5 py-5 space-y-4 overflow-y-auto">
-                  <SectionBlock label="Issue" value={active.details} />
-                  <SectionBlock label="Caused By" value={active.caused_by} />
-                  <SectionBlock label="Corrective Action" value={active.corrective_action} />
-                </div>
+              {/* Meta row */}
+              <div className="px-8 py-4 border-b border-gray-100 grid grid-cols-4 gap-6 bg-gray-50 flex-shrink-0">
+                <LabelBox label="Group"            value={active.issue_group} />
+                <LabelBox label="Management Level" value={active.management_level} />
+                <LabelBox label="Date Presented"   value={fmt(active.date_presented)} />
+                <LabelBox label="Days Aging"       value={aging !== null ? `${aging} day${aging !== 1 ? 's' : ''}` : null} />
               </div>
 
-              <div className="px-6 py-3 border-t border-gray-100 flex justify-end flex-shrink-0">
-                <button onClick={closeModal} className="px-5 py-2 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition">Close</button>
+              {/* Body */}
+              <div className="flex-1 px-8 py-6 space-y-5 overflow-y-auto">
+                <SectionBlock label="Issue"        value={active.details} />
+                <SectionBlock label="Action Steps" value={active.action_steps} />
+              </div>
+
+              <div className="px-8 py-4 border-t border-gray-100 flex justify-end flex-shrink-0">
+                <button onClick={closeModal} className="px-6 py-2.5 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition">Close</button>
               </div>
             </div>
           </div>
@@ -313,29 +412,14 @@ export default function IssuesTable() {
   )
 }
 
-const PlusIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-  </svg>
-)
-const PencilIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
-  </svg>
-)
-const TrashIcon = () => (
-  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
-  </svg>
-)
 const XIcon = () => (
-  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 )
 const ChevronIcon = ({ collapsed }) => (
   <svg
-    className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-200"
+    className="w-3 h-3 text-gray-400 flex-shrink-0 transition-transform duration-200"
     style={{ transform: collapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }}
     fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
   >

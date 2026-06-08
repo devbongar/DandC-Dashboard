@@ -11,6 +11,7 @@ import ApproverDashboard from './pages/dashboards/ApproverDashboard'
 import UpdaterDashboard from './pages/dashboards/UpdaterDashboard'
 import ViewerDashboard from './pages/dashboards/ViewerDashboard'
 import RoleAssignment from './pages/admin/RoleAssignment'
+import StandardPermits from './pages/admin/StandardPermits'
 import ProjectsPage from './pages/ProjectsPage'
 import ProfilePage from './pages/ProfilePage'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -41,7 +42,8 @@ function App() {
         <Route path="/profile"  element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
         {/* Admin tools */}
-        <Route path="/admin/roles" element={<ProtectedRoute roles={['admin']}><RoleAssignment /></ProtectedRoute>} />
+        <Route path="/admin/roles"            element={<ProtectedRoute roles={['admin']}><RoleAssignment /></ProtectedRoute>} />
+        <Route path="/admin/standard-permits" element={<ProtectedRoute roles={['admin']}><StandardPermits /></ProtectedRoute>} />
 
         <Route path="/" element={<Navigate to="/signin" replace />} />
         <Route path="*" element={<Navigate to="/signin" replace />} />

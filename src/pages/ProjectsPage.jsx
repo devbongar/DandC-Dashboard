@@ -5,6 +5,7 @@ import useProfile from '../hooks/useProfile'
 import LoadingScreen from '../components/LoadingScreen'
 import useMinLoading from '../hooks/useMinLoading'
 import ProjectDetailModal from '../components/ProjectDetailModal'
+import TriangleLoader from '../components/TriangleLoader'
 import { downloadWorkbook, parseWorkbook, toFloat } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
 
@@ -332,7 +333,7 @@ export default function ProjectsPage() {
       {/* Table */}
       <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
         {loading ? (
-          <TriangleLoader />
+          <TriangleLoader label="Loading projects…" />
         ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-gray-400 text-sm">
             {projects.length === 0 ? 'No projects yet.' : 'No projects match your filters.'}
@@ -688,27 +689,6 @@ export default function ProjectsPage() {
   )
 }
 
-function TriangleLoader() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20 gap-4">
-      <div className="flex items-center gap-3">
-        {[0, 1, 2].map(i => (
-          <div
-            key={i}
-            style={{
-              width: 12, height: 12,
-              background: '#ed6055',
-              clipPath: 'polygon(0 0, 100% 50%, 0 100%)',
-              animation: 'ph1-loader-tri 1.4s ease-in-out infinite',
-              animationDelay: `${i * 0.22}s`,
-            }}
-          />
-        ))}
-      </div>
-      <p className="text-xs text-gray-400">Loading projects…</p>
-    </div>
-  )
-}
 
 function FormField({ label, required, children }) {
   return (

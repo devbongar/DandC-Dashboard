@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useIdleTimeout } from '../hooks/useIdleTimeout'
+import LoadingScreen from './LoadingScreen'
 
 function IdleWarningBanner({ onStay }) {
   return (
@@ -51,7 +52,7 @@ function AuthenticatedRoute({ children, roles }) {
     return () => { cancelled = true }
   }, [])
 
-  if (status === 'loading')   return null
+  if (status === 'loading')   return <LoadingScreen />
   if (status === 'unauth')    return <Navigate to="/signin"      replace />
   if (status === 'forbidden') return <Navigate to="/unauthorized" replace />
   if (status === 'disabled')  return <Navigate to="/disabled"    replace />

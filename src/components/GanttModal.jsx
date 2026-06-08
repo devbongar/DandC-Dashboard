@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import TriangleLoader from './TriangleLoader'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
@@ -15,72 +16,96 @@ const PHASE_COLORS = {
   closeout:             '#22c55e',
 }
 
-const PAD    = 7 * 86400000
-const LABEL_W = 160
+const PAD     = 7 * 86400000
+const LABEL_W = 240
+const DEFAULT_COL_PX = { day: 20, week: 20, month: 20 }
 
-// Parse "YYYY-MM-DD" as local midnight to avoid UTC-vs-local timezone shift
 function parseDate(str) {
   const [y, m, d] = str.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
-function GanttBar({ start, end, color, minDate, totalMs }) {
+function GanttBar({ start, end, color, toPx }) {
   if (!start || !end) return null
-  const s = parseDate(start)
-  const e = parseDate(end)
-  const left  = ((s - minDate) / totalMs) * 100
-  const width = ((e - s)      / totalMs) * 100
-  if (width <= 0) return null
+  const s    = parseDate(start)
+  const e    = parseDate(end)
+  const left = toPx(s)
+  const w    = toPx(e) - left
+  if (w <= 0) return null
   return (
     <div
-      className="absolute rounded-sm"
-      style={{ left: `${left}%`, width: `${Math.max(width, 0.5)}%`, backgroundColor: color, top: '50%', transform: 'translateY(-50%)', height: 10 }}
+      className="absolute rounded"
+      style={{ left, width: Math.max(w, 2), backgroundColor: color, top: '50%', transform: 'translateY(-50%)', height: 18 }}
       title={`${start} → ${end}`}
     />
   )
 }
 
-function MilestoneRow({ m, minDate, totalMs, gridDates, todayLeft, showToday, isChild = false }) {
+function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, isChild = false }) {
   const hasDates = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
 
   return (
-    <div className={`flex items-center mb-1.5 gap-2 ${isChild ? 'opacity-90' : ''}`}>
-      {/* Fixed-width label column */}
-      <div style={{ width: LABEL_W, minWidth: LABEL_W }} className="flex items-center pr-2">
-        {isChild && <span className="text-gray-400 mr-1 flex-shrink-0 text-[10px]">└</span>}
-        <p className={`text-[10px] truncate leading-tight ${isChild ? 'text-gray-500 font-medium pl-1' : 'font-bold text-gray-600'}`}>{m.milestone_name}</p>
+    <div
+      className="flex items-center border-b border-gray-200 group transition-colors"
+      style={{ backgroundColor: isChild ? '#fafafa' : '#ffffff' }}
+      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#eff6ff' }}
+      onMouseLeave={e => { e.currentTarget.style.backgroundColor = isChild ? '#fafafa' : '#ffffff' }}
+    >
+      {/* Fixed-width label column — frozen */}
+      <div
+        style={{ width: LABEL_W, minWidth: LABEL_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+        className="sticky left-0 z-30 flex items-center gap-1 pr-2 pl-2 flex-shrink-0 self-stretch"
+      >
+        {/* SVG tree connector for children */}
+        {isChild ? (
+          <svg width="12" height="12" viewBox="0 0 12 12" className="flex-shrink-0 text-gray-300" fill="none">
+            <path d="M2 0 L2 6 L10 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : (
+          <span className="w-3 flex-shrink-0" />
+        )}
+        <span className="text-xs font-medium text-gray-400 flex-shrink-0 tabular-nums w-8 text-right">{seq}{!isChild && '.'}</span>
+        <p
+          className={`text-xs truncate leading-tight flex-1 min-w-0 ${isChild ? 'text-gray-500 font-medium pl-1' : 'font-bold text-gray-700 pl-1'}`}
+          title={m.milestone_name}
+        >
+          {m.milestone_name}
+        </p>
       </div>
 
       {/* Bar area */}
-      <div className="flex-1 min-w-0">
+      <div style={{ width: chartPxWidth, minWidth: chartPxWidth, position: 'relative' }}>
         {!hasDates ? (
-          <div className="px-3 py-2 rounded-lg bg-gray-50 text-[10px] text-gray-400 italic">No dates set</div>
+          <div className="px-3 flex items-center" style={{ height: 52 }}>
+            <span className="text-xs text-gray-300 italic">No dates set</span>
+          </div>
         ) : (
-          <div className="relative rounded-lg bg-gray-50 overflow-hidden" style={{ height: 48 }}>
+          <div className="relative overflow-hidden" style={{ height: 52, width: chartPxWidth, backgroundColor: 'transparent' }}>
             {/* Grid lines */}
-            {gridDates.map((mo, j) => (
-              <div key={j} className="absolute top-0 bottom-0 w-px bg-gray-200"
-                style={{ left: `${((mo - minDate) / totalMs) * 100}%` }} />
-            ))}
+            {gridDates.map((d, j) => {
+              const left = toPx(d)
+              if (left <= 0) return null
+              return <div key={j} className="absolute top-0 bottom-0 w-px bg-gray-100" style={{ left }} />
+            })}
 
             {/* Today line */}
             {showToday && (
               <div className="absolute top-0 bottom-0 z-10"
-                style={{ left: `${todayLeft}%`, width: 1.5, background: '#ed6055', opacity: 0.8 }} />
+                style={{ left: todayPx, width: 1.5, background: '#ed6055', opacity: 0.8 }} />
             )}
 
             {/* Row 1: Planned */}
-            <div className="absolute inset-x-0" style={{ top: 8, height: 14 }}>
+            <div className="absolute inset-x-0" style={{ top: 4, height: 20 }}>
               <div className="relative h-full">
-                <GanttBar start={m.planned_start} end={m.planned_end} color="#94a3b8" minDate={minDate} totalMs={totalMs} />
+                <GanttBar start={m.planned_start} end={m.planned_end} color="#94a3b8" toPx={toPx} />
               </div>
             </div>
 
-            {/* Row 2: Projected (behind) then Actual (on top) */}
-            <div className="absolute inset-x-0" style={{ top: 27, height: 14 }}>
+            {/* Row 2: Projected then Actual */}
+            <div className="absolute inset-x-0" style={{ top: 25, height: 20 }}>
               <div className="relative h-full">
-                <GanttBar start={m.projected_start} end={m.projected_end} color="#22c55e" minDate={minDate} totalMs={totalMs} />
-                <GanttBar start={m.actual_start}     end={m.actual_end}     color="#ef4444" minDate={minDate} totalMs={totalMs} />
+                <GanttBar start={m.projected_start} end={m.projected_end} color="#22c55e" toPx={toPx} />
+                <GanttBar start={m.actual_start}     end={m.actual_end}     color="#ef4444" toPx={toPx} />
               </div>
             </div>
           </div>
@@ -102,26 +127,18 @@ function buildTicks(minDate, maxDate, timeScale) {
     const cur = new Date(minDate); cur.setHours(0,0,0,0)
     while (cur <= maxDate) { ticks.push(new Date(cur)); cur.setDate(cur.getDate() + 1) }
   } else if (timeScale === 'week') {
-    // align to nearest Monday on or before minDate
     const cur = new Date(minDate); cur.setHours(0,0,0,0)
     const dow = cur.getDay()
     cur.setDate(cur.getDate() - (dow === 0 ? 6 : dow - 1))
     while (cur <= maxDate) { if (cur >= minDate) ticks.push(new Date(cur)); cur.setDate(cur.getDate() + 7) }
   } else {
-    // month: every 7 days starting from 1st of first month
     const cur = new Date(minDate.getFullYear(), minDate.getMonth(), 1)
     while (cur <= maxDate) { if (cur >= minDate) ticks.push(new Date(cur)); cur.setDate(cur.getDate() + 7) }
   }
   return ticks
 }
 
-function tickLabel(d, timeScale) {
-  if (timeScale === 'day')  return d.getDate()
-  if (timeScale === 'week') return d.toLocaleDateString('en-PH', { month: 'short', day: 'numeric' })
-  return d.getDate()
-}
-
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month' }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20 }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -131,109 +148,169 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month' 
     return <div className="text-center py-12 text-sm text-gray-400 italic">No dates set on any milestone.</div>
   }
 
-  // Snap to local day boundaries so bar positions and tick positions use the same reference
-  const rawMin = new Date(Math.min(...allDates) - PAD)
-  const rawMax = new Date(Math.max(...allDates) + PAD)
+  const rawMin  = new Date(Math.min(...allDates) - PAD)
+  const rawMax  = new Date(Math.max(...allDates) + PAD)
   const minDate = overrideMin ?? new Date(rawMin.getFullYear(), rawMin.getMonth(), rawMin.getDate())
   const maxDate = overrideMax ?? new Date(rawMax.getFullYear(), rawMax.getMonth(), rawMax.getDate() + 1)
-  const totalMs = maxDate - minDate
 
   const months = []
   const cur = new Date(minDate.getFullYear(), minDate.getMonth(), 1)
-  while (cur <= maxDate) {
-    months.push(new Date(cur))
-    cur.setMonth(cur.getMonth() + 1)
-  }
+  while (cur <= maxDate) { months.push(new Date(cur)); cur.setMonth(cur.getMonth() + 1) }
 
-  const today     = new Date()
-  const todayLeft = ((today - minDate) / totalMs) * 100
-  const showToday = todayLeft >= 0 && todayLeft <= 100
+  const years = []
+  const seenYears = new Set()
+  months.forEach(mo => {
+    const y = mo.getFullYear()
+    if (!seenYears.has(y)) { seenYears.add(y); years.push(new Date(mo)) }
+  })
 
-  const ticks = buildTicks(minDate, maxDate, timeScale)
+  const today = new Date()
+  const ticks  = buildTicks(minDate, maxDate, timeScale)
 
-  // For day scale with many days, skip labels to avoid overlap
-  const tickStep = timeScale === 'day' && ticks.length > 60 ? Math.ceil(ticks.length / 60) : 1
+  const tickStep = timeScale === 'day' && ticks.length > 90 ? Math.ceil(ticks.length / 90)
+    : timeScale === 'week' && ticks.length > 52 ? Math.ceil(ticks.length / 52)
+    : 1
 
-  // Grid lines drawn inside each bar row — match axis ticks for day/week, month boundaries for month
   const gridDates = timeScale === 'month'
     ? months
     : ticks.filter((_, i) => i % tickStep === 0)
 
+  const COL_PX = colPx
+
+  const MS_PER_COL = timeScale === 'day'
+    ? 86400000
+    : timeScale === 'week'
+      ? 7 * 86400000
+      : 30.4375 * 86400000
+
+  const chartPxWidth = timeScale === 'month'
+    ? Math.max(480, months.length * COL_PX)
+    : Math.max(480, ticks.length * COL_PX)
+
+  const toPx       = (d) => ((d - minDate) / MS_PER_COL) * COL_PX
+  const todayPx    = toPx(today)
+  const showToday  = todayPx >= 0 && todayPx <= chartPxWidth
+
   return (
-    <div style={{ minWidth: LABEL_W + 480 }}>
-      {/* Axis header */}
-      <div className="flex gap-2">
-        <div style={{ width: LABEL_W, minWidth: LABEL_W }} />
-        <div className="flex-1 min-w-0 overflow-hidden">
+    <div className="overflow-x-auto">
+      <div style={{ width: LABEL_W + chartPxWidth, minWidth: LABEL_W + chartPxWidth }}>
 
-          {/* Row 1 — month labels */}
-          <div className="relative" style={{ height: 22 }}>
-            {months.map((mo, i) => {
-              const left = ((mo - minDate) / totalMs) * 100
-              return (
-                <div key={i} className="absolute flex flex-col items-start" style={{ left: `${left}%` }}>
-                  <div className="w-px h-2 bg-gray-300" />
-                  <span className="text-[10px] font-medium text-gray-400 whitespace-nowrap ml-1">
-                    {mo.getMonth() === 0
-                      ? mo.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })
-                      : mo.toLocaleDateString('en-PH', { month: 'short' })}
-                  </span>
-                </div>
-              )
-            })}
+        {/* Axis header */}
+        <div className="flex" style={{ backgroundColor: '#f8fafc' }}>
+          <div
+            style={{ width: LABEL_W, minWidth: LABEL_W, borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc' }}
+            className="sticky left-0 z-30 flex-shrink-0 flex items-end pb-1 pl-3"
+          >
+            <span className="text-xs font-bold text-gray-700">Activity</span>
           </div>
+          <div style={{ width: chartPxWidth, minWidth: chartPxWidth, position: 'relative' }}>
 
-          {/* Row 2 — scale ticks + today label */}
-          <div className="relative mb-1" style={{ height: 16 }}>
-            {ticks.map((d, i) => {
-              const left = ((d - minDate) / totalMs) * 100
-              if (left < 0 || left > 100) return null
-              const showLabel = i % tickStep === 0
-              return (
-                <div key={i} className="absolute flex flex-col items-center" style={{ left: `${left}%`, transform: 'translateX(-50%)' }}>
-                  <div className="w-px h-1 bg-gray-200" />
-                  {showLabel && (
-                    <span className={`leading-none ${timeScale === 'week' ? 'text-[8px] text-gray-400 whitespace-nowrap' : 'text-[8px] text-gray-300'}`}>
-                      {tickLabel(d, timeScale)}
-                    </span>
+            {/* Row 1 */}
+            <div className="relative" style={{ height: 22 }}>
+              {timeScale === 'month' ? (
+                years.map((yr, i) => {
+                  const left = toPx(yr)
+                  return (
+                    <div key={i} className="absolute flex flex-col items-start" style={{ left }}>
+                      <div className="w-px h-2 bg-gray-300" />
+                      <span className="text-xs font-semibold text-gray-800 whitespace-nowrap ml-1">{yr.getFullYear()}</span>
+                    </div>
+                  )
+                })
+              ) : (
+                months.map((mo, i) => {
+                  const left = toPx(mo)
+                  return (
+                    <div key={i} className="absolute flex flex-col items-start" style={{ left }}>
+                      <div className="w-px h-2 bg-gray-300" />
+                      <span className="text-xs font-medium text-gray-700 whitespace-nowrap ml-1">
+                        {mo.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })}
+                      </span>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* Row 2 */}
+            <div className="relative mb-1" style={{ height: 28 }}>
+              {timeScale === 'month' ? (
+                months.map((mo, i) => {
+                  const left = toPx(mo)
+                  if (left < 0 || left > chartPxWidth) return null
+                  return (
+                    <div key={i} className="absolute flex flex-col items-center" style={{ left, top: 0, transform: 'translateX(-50%)' }}>
+                      <div className="w-px h-1 bg-gray-200" />
+                      <span className="text-xs font-medium text-gray-700 whitespace-nowrap leading-none">
+                        {mo.toLocaleDateString('en-PH', { month: 'short' })}
+                      </span>
+                    </div>
+                  )
+                })
+              ) : (
+                <>
+                  {ticks.map((d, i) => {
+                    const left = toPx(d)
+                    if (left < 0 || left > chartPxWidth) return null
+                    const showLabel = i % tickStep === 0
+                    const isWeekend = (d.getDay() === 0 || d.getDay() === 6)
+                    return (
+                      <div key={i} className="absolute flex flex-col items-center" style={{ left, top: 0, transform: 'translateX(-50%)' }}>
+                        <div className={`w-px bg-gray-200 ${timeScale === 'day' ? 'h-2' : 'h-1'}`} />
+                        {showLabel && (
+                          <span className={`leading-none ${isWeekend ? 'text-xs font-bold text-[#ed6055]' : 'text-xs font-medium text-gray-700'}`}>
+                            {d.getDate()}
+                          </span>
+                        )}
+                      </div>
+                    )
+                  })}
+                  {/* Today label in day/week mode — sits below the tick labels */}
+                  {showToday && (
+                    <div className="absolute flex items-center justify-center" style={{ left: todayPx, top: 14, transform: 'translateX(-50%)' }}>
+                      <span className="text-[10px] font-bold text-[#ed6055] whitespace-nowrap">today</span>
+                    </div>
                   )}
+                </>
+              )}
+              {/* Today label in month mode — sits below the MMM labels */}
+              {timeScale === 'month' && showToday && (
+                <div className="absolute flex items-center justify-center" style={{ left: todayPx, top: 14, transform: 'translateX(-50%)' }}>
+                  <span className="text-[10px] font-bold text-[#ed6055] whitespace-nowrap">today</span>
                 </div>
-              )
-            })}
-            {showToday && (
-              <div className="absolute flex flex-col items-center" style={{ left: `${todayLeft}%`, transform: 'translateX(-50%)' }}>
-                <span className="text-[9px] font-bold text-[#ed6055] whitespace-nowrap">today</span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
+
+        {/* Axis divider */}
+        <div className="border-b-2 border-gray-200" />
+
+        {/* Milestone rows */}
+        {(() => {
+          const parents = milestones.filter(m => !m.parent_id)
+          const rows = []
+          parents.forEach((parent, pi) => {
+            const parentSeq = pi + 1
+            rows.push({ m: parent, isChild: false, seq: String(parentSeq) })
+            milestones.filter(m => m.parent_id === parent.id)
+              .forEach((child, ci) => rows.push({ m: child, isChild: true, seq: `${parentSeq}.${ci + 1}` }))
+          })
+          return rows.map(({ m, isChild, seq }) => (
+            <MilestoneRow
+              key={m.id}
+              m={m}
+              seq={seq}
+              toPx={toPx}
+              chartPxWidth={chartPxWidth}
+              gridDates={gridDates}
+              todayPx={todayPx}
+              showToday={showToday}
+              isChild={isChild}
+            />
+          ))
+        })()}
       </div>
-
-      {/* Axis divider */}
-      <div className="border-b border-gray-200" />
-
-      {/* Milestone rows — parents first, then their children */}
-      {(() => {
-        const parents  = milestones.filter(m => !m.parent_id)
-        const rows = []
-        parents.forEach(parent => {
-          rows.push({ m: parent, isChild: false })
-          milestones.filter(m => m.parent_id === parent.id)
-            .forEach(child => rows.push({ m: child, isChild: true }))
-        })
-        return rows.map(({ m, isChild }) => (
-          <MilestoneRow
-            key={m.id}
-            m={m}
-            minDate={minDate}
-            totalMs={totalMs}
-            gridDates={gridDates}
-            todayLeft={todayLeft}
-            showToday={showToday}
-            isChild={isChild}
-          />
-        ))
-      })()}
     </div>
   )
 }
@@ -249,8 +326,7 @@ function MonthYearPicker({ value, onChange, min, max }) {
   useEffect(() => {
     if (value) {
       const [y, m] = value.split('-')
-      setSelYear(y)
-      setSelMonth(m)
+      setSelYear(y); setSelMonth(m)
     } else {
       setSelYear(''); setSelMonth('')
     }
@@ -261,15 +337,11 @@ function MonthYearPicker({ value, onChange, min, max }) {
     else onChange('')
   }
 
-  const selectCls = 'px-2 py-1 text-xs rounded-lg border border-gray-200 text-black focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white'
+  const selectCls = 'px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white cursor-pointer'
 
   return (
     <div className="flex items-center gap-1">
-      <select
-        value={selMonth}
-        onChange={e => { setSelMonth(e.target.value); handleChange(e.target.value, selYear) }}
-        className={selectCls}
-      >
+      <select value={selMonth} onChange={e => { setSelMonth(e.target.value); handleChange(e.target.value, selYear) }} className={selectCls}>
         <option value="">(Month)</option>
         {MONTH_NAMES.map((name, i) => {
           const m = String(i + 1).padStart(2, '0')
@@ -278,11 +350,7 @@ function MonthYearPicker({ value, onChange, min, max }) {
           return <option key={m} value={m} disabled={!!disabled}>{name}</option>
         })}
       </select>
-      <select
-        value={selYear}
-        onChange={e => { setSelYear(e.target.value); handleChange(selMonth, e.target.value) }}
-        className={selectCls}
-      >
+      <select value={selYear} onChange={e => { setSelYear(e.target.value); handleChange(selMonth, e.target.value) }} className={selectCls}>
         <option value="">(Year)</option>
         {YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
       </select>
@@ -299,6 +367,25 @@ export default function GanttModal({ project, onClose }) {
   const [fromMonth, setFromMonth]     = useState('')
   const [toMonth, setToMonth]         = useState('')
   const [timeScale, setTimeScale]     = useState('month')
+  const [colPxMap, setColPxMap] = useState(() => {
+    try {
+      const saved = localStorage.getItem('gantt_colPxMap')
+      if (saved) return { ...DEFAULT_COL_PX, ...JSON.parse(saved) }
+    } catch {}
+    return { ...DEFAULT_COL_PX }
+  })
+  const colPx    = colPxMap[timeScale]
+  const isDefaultWidth = colPx === DEFAULT_COL_PX[timeScale]
+  const setColPx = (fn) => setColPxMap(prev => {
+    const next = { ...prev, [timeScale]: typeof fn === 'function' ? fn(prev[timeScale]) : fn }
+    try { localStorage.setItem('gantt_colPxMap', JSON.stringify(next)) } catch {}
+    return next
+  })
+  const resetColPx = () => setColPxMap(prev => {
+    const next = { ...prev, [timeScale]: DEFAULT_COL_PX[timeScale] }
+    try { localStorage.setItem('gantt_colPxMap', JSON.stringify(next)) } catch {}
+    return next
+  })
 
   useEffect(() => {
     const loadBaselines = async () => {
@@ -330,42 +417,38 @@ export default function GanttModal({ project, onClose }) {
     loadMilestones()
   }, [project.id, activeBL])
 
+  useEffect(() => {
+    document.body.style.overflow = 'hidden'
+    return () => { document.body.style.overflow = '' }
+  }, [])
+
   const phaseColor      = PHASE_COLORS[project.phase] ?? '#ed6055'
   const phaseMilestones = milestones.filter(m => m.phase === activePhase)
 
   const overrideMin = fromMonth ? (() => { const [y, m] = fromMonth.split('-').map(Number); return new Date(y, m - 1, 1) })() : null
   const overrideMax = toMonth   ? (() => { const [y, m] = toMonth.split('-').map(Number);   return new Date(y, m, 0) })()    : null
-  const hasFilter = fromMonth || toMonth
+  const hasFilter   = fromMonth || toMonth
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/30 flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
       <div
-        className="relative bg-white flex flex-col overflow-hidden rounded-xl w-3/4 h-3/4"
+        className="relative bg-white flex flex-col overflow-hidden rounded-xl w-3/4 h-[90vh] shadow-2xl"
         style={{ borderTop: `4px solid ${phaseColor}` }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
         <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
-          <div>
-            <h2 className="text-lg font-bold text-black leading-tight">{project.name}</h2>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-lg font-bold text-black leading-tight truncate">{project.name}</h2>
             <p className="text-xs text-gray-400 mt-0.5">Milestone Gantt Chart</p>
           </div>
-          <div className="flex items-center gap-5 flex-shrink-0">
-            <div className="hidden sm:flex items-center gap-4 text-xs text-gray-500">
-              <span className="flex items-center gap-1.5">
-                <span className="w-4 h-2.5 rounded-sm inline-block bg-slate-400" />Planned
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-4 h-2.5 rounded-sm inline-block bg-red-500" />Actual
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="w-4 h-2.5 rounded-sm inline-block bg-green-500" />Projected
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span className="inline-block w-0.5 h-3.5 bg-[#ed6055] rounded-full" />Today
-              </span>
-            </div>
-            <button onClick={onClose} className="text-gray-400 hover:text-black transition">
+          <div className="flex items-center gap-4 flex-shrink-0">
+            {/* Close — proper touch target */}
+            <button
+              onClick={onClose}
+              className="p-2 -mr-2 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition"
+              aria-label="Close"
+            >
               <XIcon />
             </button>
           </div>
@@ -382,31 +465,39 @@ export default function GanttModal({ project, onClose }) {
                 onClick={() => setActivePhase(p.key)}
                 className={`px-3 py-2 text-xs font-semibold transition flex items-center gap-1.5 border-b-2 -mb-px ${
                   active
-                    ? 'border-black text-black'
+                    ? 'border-[#ed6055] text-[#ed6055]'
                     : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
               >
                 {p.label}
-                <span className={`text-[10px] font-bold ${active ? 'text-gray-400' : 'text-gray-300'}`}>{count}</span>
+                <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${
+                  active ? 'bg-[#ed6055]/10 text-[#ed6055]' : 'text-gray-300'
+                }`}>{count}</span>
               </button>
             )
           })}
         </div>
 
-        {/* Month range filter */}
-        <div className="px-8 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-4 flex-shrink-0 flex-wrap">
+        {/* Toolbar */}
+        <div className="px-6 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-3 flex-shrink-0 flex-wrap">
+
+          {/* Baseline selector */}
           {baselines.length > 0 && (
-            <select
-              value={activeBL ?? ''}
-              onChange={e => setActiveBL(e.target.value)}
-              className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold"
-            >
-              {baselines.map(b => (
-                <option key={b.id} value={b.id}>{b.label}</option>
-              ))}
-            </select>
+            <>
+              <select
+                value={activeBL ?? ''}
+                onChange={e => setActiveBL(e.target.value)}
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
+              >
+                {baselines.map(b => (
+                  <option key={b.id} value={b.id}>{b.label}</option>
+                ))}
+              </select>
+              <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+            </>
           )}
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">Date Range</span>
+
+          {/* Time scale toggle */}
           <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5 flex-shrink-0">
             {TIME_SCALES.map(s => (
               <button
@@ -414,7 +505,7 @@ export default function GanttModal({ project, onClose }) {
                 onClick={() => setTimeScale(s.key)}
                 className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
                   timeScale === s.key
-                    ? 'bg-black text-white'
+                    ? 'bg-[#ed6055] text-white shadow-sm'
                     : 'text-gray-400 hover:text-gray-700'
                 }`}
               >
@@ -422,28 +513,60 @@ export default function GanttModal({ project, onClose }) {
               </button>
             ))}
           </div>
-          <div className="flex items-center gap-2">
-            <label className="text-[11px] font-medium text-gray-500 flex-shrink-0">From</label>
+
+          <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+
+          {/* Column width control */}
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Width</span>
+            <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setColPx(v => Math.max(10, v - 5))}
+                className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
+                aria-label="Decrease column width"
+              >−</button>
+              <span className="px-2 text-[11px] font-semibold text-gray-700 tabular-nums border-x border-gray-200 min-w-[42px] text-center">
+                {colPx}px
+              </span>
+              <button
+                onClick={() => setColPx(v => Math.min(120, v + 5))}
+                className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
+                aria-label="Increase column width"
+              >+</button>
+            </div>
+            {!isDefaultWidth && (
+              <button
+                onClick={resetColPx}
+                className="text-[10px] text-gray-400 hover:text-[#ed6055] transition font-medium underline underline-offset-2"
+              >
+                reset
+              </button>
+            )}
+          </div>
+
+          <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+
+          {/* Date range */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">From</label>
             <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
-          </div>
-          <div className="flex items-center gap-2">
-            <label className="text-[11px] font-medium text-gray-500 flex-shrink-0">To</label>
+            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">To</label>
             <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
+            {hasFilter && (
+              <button
+                onClick={() => { setFromMonth(''); setToMonth('') }}
+                className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
+              >
+                Clear
+              </button>
+            )}
           </div>
-          {hasFilter && (
-            <button
-              onClick={() => { setFromMonth(''); setToMonth('') }}
-              className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
-            >
-              Clear
-            </button>
-          )}
         </div>
 
         {/* Body */}
         <div className="flex-1 overflow-y-auto px-6 py-3">
           {loading ? (
-            <div className="flex items-center justify-center py-20 text-sm text-gray-400">Loading…</div>
+            <TriangleLoader label="Loading milestones…" />
           ) : activeBL === null ? (
             <div className="flex items-center justify-center py-20 text-sm text-gray-400 italic">
               No milestone data yet. Import milestones from the project detail view.
@@ -453,9 +576,30 @@ export default function GanttModal({ project, onClose }) {
               No milestones for {PHASES.find(p => p.key === activePhase)?.label}.
             </div>
           ) : (
-            <div className="overflow-x-auto">
-              <GanttChart milestones={phaseMilestones} overrideMin={overrideMin} overrideMax={overrideMax} timeScale={timeScale} />
-            </div>
+            <>
+              {/* Legend — right-aligned above the chart */}
+              <div className="flex items-center justify-end gap-3 mb-2">
+                <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className="w-4 h-3 rounded inline-block bg-slate-400" />Planned
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className="w-4 h-3 rounded inline-block bg-red-500" />Actual
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className="w-4 h-3 rounded inline-block bg-green-500" />Projected
+                </span>
+                <span className="flex items-center gap-1.5 text-xs text-gray-500">
+                  <span className="inline-block w-0.5 h-3.5 bg-[#ed6055] rounded-full" />Today
+                </span>
+              </div>
+              <GanttChart
+                milestones={phaseMilestones}
+                overrideMin={overrideMin}
+                overrideMax={overrideMax}
+                timeScale={timeScale}
+                colPx={colPx}
+              />
+            </>
           )}
         </div>
       </div>
@@ -468,4 +612,3 @@ const XIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 )
-

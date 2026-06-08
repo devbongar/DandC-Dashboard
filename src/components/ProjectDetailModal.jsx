@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr, toFloat, toInt } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
+import TriangleLoader from './TriangleLoader'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -38,7 +39,7 @@ const noNeg = (...vals) => vals.filter(v => v !== null && v !== undefined).some(
 
 const inputCls  = 'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white'
 
-const BASE_TABS = ['Overview', 'Development', 'Compliance', 'Milestones', 'Issues & Concerns']
+const BASE_TABS = ['Overview', 'Development', 'Permits', 'Milestones', 'Issues & Concerns']
 
 const ISSUE_STATUS_CONFIG = {
   open:  { label: 'Open',  cls: 'bg-[#ed6055] text-white' },
@@ -49,7 +50,7 @@ const ISSUE_GROUPS = ['Commercial', 'Design', 'Construction', 'Compliance']
 const MANAGEMENT_LEVELS = ['ESA', 'Management Committee']
 const issueAgingDays = (d) => d ? Math.max(0, Math.floor((new Date() - new Date(d)) / 86400000)) : null
 const fmtIssueDate = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'
-const ISSUE_EMPTY = { issue_group: '', management_level: '', status: 'open', date_presented: '', date_bad: false, details: '', caused_by: '', corrective_action: '' }
+const ISSUE_EMPTY = { issue_group: '', management_level: '', status: 'open', date_presented: '', date_bad: false, details: '', caused_by: '', action_steps: '' }
 
 // ── Combobox ──────────────────────────────────────────────────────────────────
 
@@ -1258,22 +1259,39 @@ function PermitCombobox({ value, onChange, options = [], placeholder = '' }) {
   )
 }
 
-function ComplianceTab({ project, isAdmin, showToast }) {
-  const [rows, setRows] = useState([])
-  const [adding, setAdding] = useState(false)
-  const [editId, setEditId] = useState(null)
-  const [deleteId, setDeleteId] = useState(null)
-  const [form, setForm] = useState({})
-  const [filterStatus, setFilterStatus]   = useState('all')
-  const [importing, setImporting]         = useState(false)
-  const [importErrors, setImportErrors]   = useState([])
-  const [allPermitNames, setAllPermitNames] = useState([])
+// Derive Level 1 status from its children
+function deriveL1Status(children) {
+  if (!children || children.length === 0) return null
+  const statuses = children.map(c => c.status)
+  if (statuses.every(s => s === 'done')) return 'done'
+  if (statuses.some(s => s === 'ongoing')) return 'ongoing'
+  return 'not_yet_started'
+}
 
-  useEffect(() => { load(); fetchAllPermitNames() }, [project.id])
+function ComplianceTab({ project, isAdmin, showToast }) {
+  const [rows, setRows]                     = useState([])
+  const [editId, setEditId]                 = useState(null)
+  const [deleteId, setDeleteId]             = useState(null)
+  const [form, setForm]                     = useState({})
+  const [filterStatus, setFilterStatus]     = useState('all')
+  const [importing, setImporting]           = useState(false)
+  const [importErrors, setImportErrors]     = useState([])
+  const [allPermitNames, setAllPermitNames] = useState([])
+  // addingTo: null = not adding, 'root' = new L1, <parentId> = new L2 under that parent
+  const [addingTo, setAddingTo]             = useState(null)
+  const [showAddModal, setShowAddModal]     = useState(false)
+  const [standards, setStandards]           = useState([])
+  const [loading, setLoading]               = useState(true)
+  const [populating, setPopulating]         = useState(false)
+  // collapsed L1 ids
+  const [collapsed, setCollapsed]           = useState(new Set())
+
+  useEffect(() => { loadAndAutoPopulate() }, [project.id])
 
   const load = async () => {
     const { data } = await supabase.from('project_permits').select('*').eq('project_id', project.id).order('sort_order')
     if (data) setRows(data)
+    return data ?? []
   }
 
   const fetchAllPermitNames = async () => {
@@ -1284,13 +1302,89 @@ function ComplianceTab({ project, isAdmin, showToast }) {
     }
   }
 
-  const blank = () => ({ permit_name: '', status: 'not_yet_started', remarks: '' })
+  const loadStandards = async () => {
+    const { data } = await supabase
+      .from('standard_permits')
+      .select('*')
+      .order('sort_order')
+    if (data) setStandards(data)
+  }
+
+  const populatingRef = useRef(false)
+
+  const loadAndAutoPopulate = async () => {
+    if (populatingRef.current) return
+    populatingRef.current = true
+    setLoading(true)
+
+    fetchAllPermitNames()
+    loadStandards()
+
+    // Always re-check the DB directly — don't trust cached state
+    const { count } = await supabase
+      .from('project_permits')
+      .select('id', { count: 'exact', head: true })
+      .eq('project_id', project.id)
+
+    if (count > 0) {
+      await load()
+      setLoading(false)
+      populatingRef.current = false
+      return
+    }
+
+    // No permits yet — auto-populate from standard_permits
+    const { data: stdList } = await supabase
+      .from('standard_permits')
+      .select('*')
+      .order('sort_order')
+
+    if (!stdList || stdList.length === 0) {
+      setLoading(false)
+      populatingRef.current = false
+      return
+    }
+
+    setPopulating(true)
+    const l1Standards = stdList.filter(s => !s.parent_id)
+    const l2Standards = stdList.filter(s => s.parent_id)
+    const idMap = {}
+    for (let i = 0; i < l1Standards.length; i++) {
+      const s = l1Standards[i]
+      const { data: inserted } = await supabase
+        .from('project_permits')
+        .insert({ project_id: project.id, permit_name: s.permit_name, status: 'not_yet_started', remarks: null, parent_id: null, sort_order: i })
+        .select()
+        .single()
+      if (inserted) idMap[s.id] = inserted.id
+    }
+    for (let i = 0; i < l2Standards.length; i++) {
+      const s = l2Standards[i]
+      const newParentId = idMap[s.parent_id]
+      if (!newParentId) continue
+      await supabase.from('project_permits').insert({ project_id: project.id, permit_name: s.permit_name, status: 'not_yet_started', remarks: null, parent_id: newParentId, sort_order: i })
+    }
+    setPopulating(false)
+    await load()
+    setLoading(false)
+    populatingRef.current = false
+  }
+
+  const blank = (parentId = null) => ({ permit_name: '', status: 'not_yet_started', remarks: '', parent_id: parentId })
 
   const handleExport = async () => {
+    const l1 = rows.filter(r => !r.parent_id)
+    const exportRows = []
+    l1.forEach(p => {
+      exportRows.push({ 'Level': 'L1', 'Permit Name': p.permit_name, 'Status': COMPLIANCE_STATUS_MAP_OUT[p.status] ?? p.status, 'Remarks': p.remarks ?? '' })
+      rows.filter(r => r.parent_id === p.id).forEach(c => {
+        exportRows.push({ 'Level': 'L2', 'Permit Name': c.permit_name, 'Status': COMPLIANCE_STATUS_MAP_OUT[c.status] ?? c.status, 'Remarks': c.remarks ?? '' })
+      })
+    })
     await downloadWorkbook([{
       sheetName: 'Compliance',
-      rows: rows.map(r => ({ ...r, status: COMPLIANCE_STATUS_MAP_OUT[r.status] ?? r.status })),
-      columns: [{ key: 'permit_name', header: 'Permit Name' }, { key: 'status', header: 'Status' }, { key: 'remarks', header: 'Remarks' }],
+      rows: exportRows,
+      columns: [{ key: 'Level', header: 'Level' }, { key: 'Permit Name', header: 'Permit Name' }, { key: 'Status', header: 'Status' }, { key: 'Remarks', header: 'Remarks' }],
     }], `${project.name}_compliance.xlsx`)
   }
 
@@ -1300,16 +1394,30 @@ function ComplianceTab({ project, isAdmin, showToast }) {
     setImportErrors([])
     try {
       const sheets = await parseWorkbook(file)
-      const pid    = project.id
-      const newRows = (sheets['Compliance'] ?? Object.values(sheets)[0] ?? []).map((r, i) => ({
-        project_id:  pid,
-        permit_name: String(r['Permit Name'] ?? '').trim(),
-        status:      COMPLIANCE_STATUS_MAP_IN[r['Status']] ?? 'not_yet_started',
-        remarks:     String(r['Remarks'] ?? '').trim() || null,
-        sort_order:  i,
-      })).filter(r => r.permit_name)
+      const pid = project.id
+      const sheetRows = sheets['Compliance'] ?? Object.values(sheets)[0] ?? []
       await supabase.from('project_permits').delete().eq('project_id', pid)
-      if (newRows.length > 0) await supabase.from('project_permits').insert(newRows)
+      // Two-pass: insert L1s first, then L2s with resolved parent_id
+      const l1Rows = sheetRows.filter(r => !r['Level'] || String(r['Level']).trim().toUpperCase() !== 'L2')
+      const l2Rows = sheetRows.filter(r => String(r['Level']).trim().toUpperCase() === 'L2')
+      const insertedL1 = []
+      for (let i = 0; i < l1Rows.length; i++) {
+        const r = l1Rows[i]
+        const name = String(r['Permit Name'] ?? '').trim()
+        if (!name) continue
+        const { data } = await supabase.from('project_permits').insert({ project_id: pid, permit_name: name, status: COMPLIANCE_STATUS_MAP_IN[r['Status']] ?? 'not_yet_started', remarks: String(r['Remarks'] ?? '').trim() || null, sort_order: i, parent_id: null }).select().single()
+        if (data) insertedL1.push(data)
+      }
+      // L2s: match to last L1 inserted before them in sheet order
+      let lastL1 = null
+      for (const r of sheetRows) {
+        const isL2 = String(r['Level'] ?? '').trim().toUpperCase() === 'L2'
+        if (!isL2) { lastL1 = insertedL1.find(p => p.permit_name === String(r['Permit Name'] ?? '').trim()) ?? lastL1; continue }
+        if (!lastL1) continue
+        const name = String(r['Permit Name'] ?? '').trim()
+        if (!name) continue
+        await supabase.from('project_permits').insert({ project_id: pid, permit_name: name, status: COMPLIANCE_STATUS_MAP_IN[r['Status']] ?? 'not_yet_started', remarks: String(r['Remarks'] ?? '').trim() || null, sort_order: 0, parent_id: lastL1.id })
+      }
       load()
       showToast('Compliance data imported.', 'success')
     } catch (err) {
@@ -1318,100 +1426,431 @@ function ComplianceTab({ project, isAdmin, showToast }) {
       setImporting(false)
     }
   }
-  const save = async (id) => {
-    const payload = { project_id: project.id, permit_name: form.permit_name?.trim(), status: form.status, remarks: form.remarks?.trim() || null }
-    if (!payload.permit_name) return
-    const { error } = id ? await supabase.from('project_permits').update(payload).eq('id', id) : await supabase.from('project_permits').insert({ ...payload, sort_order: rows.length })
-    if (error) { showToast(error.message, 'error'); return }
-    showToast(id ? 'Updated.' : 'Added.', 'success'); setAdding(false); setEditId(null); load(); fetchAllPermitNames()
-  }
-  const del = async (id) => { await supabase.from('project_permits').delete().eq('id', id); load(); fetchAllPermitNames() }
 
-  const filtered = filterStatus === 'all' ? rows : rows.filter(r => r.status === filterStatus)
-  const fCls = 'px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055]'
+  const save = async (id) => {
+    const isL2 = form.parent_id !== null && form.parent_id !== undefined
+    const payload = {
+      project_id:  project.id,
+      permit_name: form.permit_name?.trim(),
+      status:      isL2 ? form.status : undefined, // L1 with children: derived; L1 without: manual
+      remarks:     form.remarks?.trim() || null,
+      parent_id:   form.parent_id ?? null,
+    }
+    if (!payload.permit_name) return
+    // For L1 saves, always include status (it may have no children yet)
+    if (!isL2) payload.status = form.status
+    const { error } = id
+      ? await supabase.from('project_permits').update(payload).eq('id', id)
+      : await supabase.from('project_permits').insert({ ...payload, sort_order: rows.filter(r => !r.parent_id).length })
+    if (error) { showToast(error.message, 'error'); return }
+    showToast(id ? 'Updated.' : 'Added.', 'success')
+    setAddingTo(null); setEditId(null)
+    load(); fetchAllPermitNames()
+  }
+
+  const del = async (id) => {
+    // children are cascade-deleted by DB (ON DELETE CASCADE)
+    await supabase.from('project_permits').delete().eq('id', id)
+    load(); fetchAllPermitNames()
+  }
+
+  // After saving a L2, sync parent L1 status
+  const syncParentStatus = async (parentId) => {
+    const { data: children } = await supabase.from('project_permits').select('status').eq('parent_id', parentId)
+    if (!children || children.length === 0) return
+    const derived = deriveL1Status(children)
+    await supabase.from('project_permits').update({ status: derived }).eq('id', parentId)
+  }
+
+  const saveAndSync = async (id) => {
+    const isL2 = form.parent_id !== null && form.parent_id !== undefined
+    const payload = {
+      project_id:  project.id,
+      permit_name: form.permit_name?.trim(),
+      status:      form.status,
+      remarks:     form.remarks?.trim() || null,
+      parent_id:   form.parent_id ?? null,
+    }
+    if (!payload.permit_name) return
+    const { error } = id
+      ? await supabase.from('project_permits').update(payload).eq('id', id)
+      : await supabase.from('project_permits').insert({ ...payload, sort_order: rows.length })
+    if (error) { showToast(error.message, 'error'); return }
+    if (isL2 && form.parent_id) await syncParentStatus(form.parent_id)
+    showToast(id ? 'Updated.' : 'Added.', 'success')
+    setAddingTo(null); setEditId(null)
+    load(); fetchAllPermitNames()
+  }
+
+  // Build tree: L1s with children array
+  const l1s = useMemo(() => rows.filter(r => !r.parent_id), [rows])
+  const childrenOf = useMemo(() => {
+    const map = {}
+    rows.filter(r => r.parent_id).forEach(r => {
+      if (!map[r.parent_id]) map[r.parent_id] = []
+      map[r.parent_id].push(r)
+    })
+    return map
+  }, [rows])
+
+  // For each L1 that has children, use derived status for display
+  const displayStatus = (l1) => {
+    const kids = childrenOf[l1.id]
+    if (kids && kids.length > 0) return deriveL1Status(kids)
+    return l1.status
+  }
+
+  const filteredL1s = useMemo(() => {
+    if (filterStatus === 'all') return l1s
+    return l1s.filter(l1 => {
+      const st = childrenOf[l1.id]?.length > 0 ? deriveL1Status(childrenOf[l1.id]) : l1.status
+      return st === filterStatus
+    })
+  }, [l1s, childrenOf, filterStatus])
+
+  const toggleCollapse = (id) => setCollapsed(prev => {
+    const next = new Set(prev)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    return next
+  })
+
+  const totalL1 = l1s.length
+  const totalL2 = rows.filter(r => r.parent_id).length
+  const selectCls = 'text-xs border border-gray-200 rounded px-2 py-1.5 bg-white focus:outline-none focus:ring-1 focus:ring-[#ed6055]'
+  const COLS = isAdmin ? 4 : 3
+
+  if (loading) {
+    return <TriangleLoader label={populating ? 'Setting up permits from standard list…' : 'Loading permits…'} />
+  }
 
   return (
     <div>
       <div className="sticky top-0 z-30 bg-white">
         <ImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
-        <SectionHeader sticky title="Permits" action={
+        <SectionHeader sticky title="Permits &amp; Licensing" action={
           <div className="flex items-center gap-2">
             <ExcelButtons onExport={handleExport} onImport={handleImport} importing={importing} />
-            {isAdmin && !adding && (
-              <button onClick={() => { setForm(blank()); setAdding(true) }} className="text-xs font-semibold px-3 py-1.5 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition flex items-center gap-1"><PlusIcon /> Add Permit</button>
+            {isAdmin && (
+              <button
+                onClick={() => { setForm(blank(null)); setShowAddModal(true) }}
+                className="text-xs font-semibold px-3 py-1.5 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition flex items-center gap-1"
+              >
+                <PlusIcon /> Add Permit
+              </button>
             )}
           </div>
         } />
       </div>
 
+      {/* Filter bar */}
       {rows.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={fCls}>
+        <div className="flex flex-wrap items-center gap-2 mb-3">
+          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={selectCls}>
             <option value="all">All Statuses</option>
             {PERMIT_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
           </select>
           {filterStatus !== 'all' && (
-            <button onClick={() => setFilterStatus('all')} className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 bg-white transition">
-              Clear
-            </button>
+            <button onClick={() => setFilterStatus('all')} className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 bg-white transition">Clear</button>
           )}
+          <span className="ml-auto text-[11px] text-gray-400">
+            {totalL1} permit{totalL1 !== 1 ? 's' : ''}{totalL2 > 0 ? `, ${totalL2} sub-requirement${totalL2 !== 1 ? 's' : ''}` : ''}
+          </span>
         </div>
       )}
 
       <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-sm [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
-          <thead><tr className="bg-gray-50/80 border-b border-gray-200">
-            {['Permit', 'Status', 'Remarks', ...(isAdmin ? [''] : [])].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-gray-400 uppercase tracking-wider">{h}</th>)}
-          </tr></thead>
-          <tbody className="divide-y divide-gray-100">
-            {filtered.map(row => editId === row.id ? (
-              <tr key={row.id}>
-                <td className="px-4 py-2"><PermitCombobox value={form.permit_name} onChange={v => setForm(p => ({ ...p, permit_name: v }))} options={allPermitNames} /></td>
-                <td className="px-4 py-2">
-                  <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-[#ed6055]">
-                    {PERMIT_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                  </select>
-                </td>
-                <td className="px-4 py-2"><InlineInput value={form.remarks} onChange={v => setForm(p => ({ ...p, remarks: v }))} placeholder="Optional remarks" /></td>
-                <td className="px-4 py-2 whitespace-nowrap"><button onClick={() => save(row.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button><button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button></td>
-              </tr>
-            ) : (
-              <tr key={row.id} className="hover:bg-gray-50/50">
-                <td className="px-4 py-3 font-medium text-black">{row.permit_name}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${PERMIT_STATUS_MAP[row.status]?.badge ?? 'bg-gray-100 text-gray-500'}`}>
-                    {PERMIT_STATUS_MAP[row.status]?.label ?? row.status}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-gray-500 text-xs">{row.remarks || '—'}</td>
-                {isAdmin && <td className="px-4 py-3"><div className="flex gap-1">
-                  <button onClick={() => { setForm({ permit_name: row.permit_name, status: row.status, remarks: row.remarks ?? '' }); setEditId(row.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
-                  <button onClick={() => setDeleteId(row.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
-                </div></td>}
-              </tr>
-            ))}
-            {adding && (
-              <tr>
-                <td className="px-4 py-2"><PermitCombobox value={form.permit_name} onChange={v => setForm(p => ({ ...p, permit_name: v }))} options={allPermitNames} placeholder="e.g. Building Permit" /></td>
-                <td className="px-4 py-2">
-                  <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className="text-xs border border-gray-200 rounded px-2 py-1 bg-white focus:outline-none focus:ring-1 focus:ring-[#ed6055]">
-                    {PERMIT_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
-                  </select>
-                </td>
-                <td className="px-4 py-2"><InlineInput value={form.remarks} onChange={v => setForm(p => ({ ...p, remarks: v }))} placeholder="Optional remarks" /></td>
-                <td className="px-4 py-2 whitespace-nowrap"><button onClick={() => save(null)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button><button onClick={() => setAdding(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button></td>
-              </tr>
+        <table className="w-full text-sm">
+          <thead>
+            <tr style={{ background: '#fff', borderTop: '2px solid #ed6055', borderBottom: '1px solid #e5e7eb' }}>
+              <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-700 w-72">Permit / Requirement</th>
+              <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-700 w-36">Status</th>
+              <th className="text-left px-4 py-3 text-[11px] font-bold text-gray-700">Remarks</th>
+              {isAdmin && <th className="px-4 py-3 w-20" />}
+            </tr>
+          </thead>
+          <tbody>
+            {filteredL1s.length === 0 && addingTo !== 'root' && (
+              <tr><td colSpan={COLS} className="text-center py-12 text-sm text-gray-400 italic">
+                {rows.length === 0 ? 'No permits recorded yet.' : 'No permits match the selected filter.'}
+              </td></tr>
             )}
-            {filtered.length === 0 && !adding && <EmptyRow cols={isAdmin ? 4 : 3} message={rows.length === 0 ? 'No permits recorded.' : 'No permits match the selected filter.'} />}
+
+            {filteredL1s.map(l1 => {
+              const children  = childrenOf[l1.id] ?? []
+              const hasKids   = children.length > 0
+              const isCollapsed = collapsed.has(l1.id)
+              const derivedSt = displayStatus(l1)
+              const stCfg     = PERMIT_STATUS_MAP[derivedSt] ?? PERMIT_STATUS_MAP['not_yet_started']
+
+              return (
+                <Fragment key={l1.id}>
+                  {/* ── L1 row ── */}
+                  {editId === l1.id ? (
+                    <tr className="bg-[#ed6055]/[0.03] border-t border-gray-100">
+                      <td className="px-4 py-2">
+                        <PermitCombobox value={form.permit_name} onChange={v => setForm(p => ({ ...p, permit_name: v }))} options={allPermitNames} />
+                      </td>
+                      <td className="px-4 py-2">
+                        <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className={selectCls} disabled={hasKids}>
+                          {PERMIT_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                        </select>
+                        {hasKids && <p className="text-[10px] text-gray-400 mt-0.5">Auto-derived</p>}
+                      </td>
+                      <td className="px-4 py-2"><InlineInput value={form.remarks} onChange={v => setForm(p => ({ ...p, remarks: v }))} placeholder="Optional remarks" /></td>
+                      {isAdmin && <td className="px-4 py-2 whitespace-nowrap">
+                        <button onClick={() => saveAndSync(l1.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button>
+                        <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                      </td>}
+                    </tr>
+                  ) : (
+                    <tr className="border-t border-gray-100 hover:bg-gray-50/40 transition" style={{ background: 'rgba(237,96,85,0.025)' }}>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          {/* Collapse toggle */}
+                          {hasKids ? (
+                            <button onClick={() => toggleCollapse(l1.id)} className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition">
+                              <svg className="w-3.5 h-3.5 transition-transform" style={{ transform: isCollapsed ? 'rotate(-90deg)' : 'rotate(0deg)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                              </svg>
+                            </button>
+                          ) : (
+                            <span className="w-3.5 flex-shrink-0" />
+                          )}
+                          <div className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />
+                          <span className="text-xs font-bold text-gray-900">{l1.permit_name}</span>
+                          {hasKids && (
+                            <span className="text-[10px] font-bold text-white bg-[#ed6055] rounded-full px-1.5 py-0.5 leading-none flex-shrink-0">{children.length}</span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={`text-[11px] font-semibold px-2.5 py-1 rounded-full ${stCfg.badge}`}>
+                          {stCfg.label}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{l1.remarks || '—'}</td>
+                      {isAdmin && (
+                        <td className="px-4 py-3">
+                          <div className="flex items-center gap-1">
+                            <button
+                              title="Add sub-requirement"
+                              onClick={() => { setForm(blank(l1.id)); setShowAddModal(true) }}
+                              className="p-1 text-gray-400 hover:text-[#ed6055] transition"
+                            >
+                              <PlusIcon />
+                            </button>
+                            <button onClick={() => { setForm({ permit_name: l1.permit_name, status: l1.status, remarks: l1.remarks ?? '', parent_id: null }); setEditId(l1.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
+                            <button onClick={() => setDeleteId(l1.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  )}
+
+                  {/* ── L2 rows ── */}
+                  {!isCollapsed && children.map((child, idx) => (
+                    editId === child.id ? (
+                      <tr key={child.id} className="border-t border-gray-100 bg-gray-50/60">
+                        <td className="pl-12 pr-4 py-2">
+                          <PermitCombobox value={form.permit_name} onChange={v => setForm(p => ({ ...p, permit_name: v }))} options={allPermitNames} />
+                        </td>
+                        <td className="px-4 py-2">
+                          <select value={form.status} onChange={e => setForm(p => ({ ...p, status: e.target.value }))} className={selectCls}>
+                            {PERMIT_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                          </select>
+                        </td>
+                        <td className="px-4 py-2"><InlineInput value={form.remarks} onChange={v => setForm(p => ({ ...p, remarks: v }))} placeholder="Optional remarks" /></td>
+                        {isAdmin && <td className="px-4 py-2 whitespace-nowrap">
+                          <button onClick={() => saveAndSync(child.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button>
+                          <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+                        </td>}
+                      </tr>
+                    ) : (
+                      <tr key={child.id} className="border-t border-gray-50 bg-gray-50/40 hover:bg-gray-50 transition">
+                        <td className="pl-12 pr-4 py-2.5">
+                          <div className="flex items-center gap-2">
+                            <span className="w-1 h-1 rounded-full bg-gray-300 flex-shrink-0" />
+                            <span className="text-xs text-gray-700 font-medium">{child.permit_name}</span>
+                          </div>
+                        </td>
+                        <td className="px-4 py-2.5">
+                          <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${PERMIT_STATUS_MAP[child.status]?.badge ?? 'bg-gray-100 text-gray-500'}`}>
+                            {PERMIT_STATUS_MAP[child.status]?.label ?? child.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-2.5 text-xs text-gray-400">{child.remarks || '—'}</td>
+                        {isAdmin && (
+                          <td className="px-4 py-2.5">
+                            <div className="flex items-center gap-1">
+                              <button onClick={() => { setForm({ permit_name: child.permit_name, status: child.status, remarks: child.remarks ?? '', parent_id: child.parent_id }); setEditId(child.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
+                              <button onClick={() => setDeleteId(child.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  ))}
+
+                </Fragment>
+              )
+            })}
+
           </tbody>
         </table>
       </div>
-      {rows.length > 0 && (
-        <p className="text-[10px] text-gray-400 mt-2 text-right">
-          {filtered.length} of {rows.length} permit{rows.length !== 1 ? 's' : ''}
-        </p>
+
+      {/* ── Add Permit Modal ── */}
+      {showAddModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowAddModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+            {/* Header */}
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h3 className="text-sm font-bold text-black">Add Permit / Requirement</h3>
+              <button onClick={() => setShowAddModal(false)} className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+
+            {/* Body */}
+            {(() => {
+              // Standards not yet in this project
+              const existingNames = new Set(rows.map(r => r.permit_name))
+              const stdL1s = standards.filter(s => !s.parent_id)
+              const stdChildrenOf = {}
+              standards.filter(s => s.parent_id).forEach(s => {
+                if (!stdChildrenOf[s.parent_id]) stdChildrenOf[s.parent_id] = []
+                stdChildrenOf[s.parent_id].push(s)
+              })
+              // Available: standards whose name is not already in project under same parent context
+              const availableL1s = stdL1s.filter(s => !existingNames.has(s.permit_name))
+              const selectedStdL1 = form.parent_id
+                ? null
+                : stdL1s.find(s => s.permit_name === form.permit_name)
+              const availableL2s = selectedStdL1
+                ? (stdChildrenOf[selectedStdL1.id] ?? []).filter(s => !existingNames.has(s.permit_name))
+                : []
+
+              return (
+                <div className="px-6 py-5 space-y-4">
+                  {/* Select from standard permits */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Select permit</label>
+                    <select
+                      value={form.parent_id ? '' : form.permit_name ?? ''}
+                      onChange={e => {
+                        const name = e.target.value
+                        setForm(p => ({ ...p, permit_name: name, parent_id: null }))
+                      }}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black"
+                    >
+                      <option value="">— Choose a Level 1 permit —</option>
+                      {availableL1s.map(s => (
+                        <option key={s.id} value={s.permit_name}>{s.permit_name}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Sub-requirement (only if the selected L1 standard has L2 children available) */}
+                  {availableL2s.length > 0 && (
+                    <div>
+                      <label className="block text-xs font-semibold text-gray-500 mb-1.5">
+                        Add as sub-requirement of <span className="text-black">{form.permit_name}</span> <span className="font-normal text-gray-400">(optional)</span>
+                      </label>
+                      <select
+                        value={form.parent_id ? form.permit_name : ''}
+                        onChange={e => {
+                          const name = e.target.value
+                          // Find the project L1 row that matches the standard L1
+                          const projectL1 = rows.find(r => !r.parent_id && r.permit_name === selectedStdL1.permit_name)
+                          setForm(p => ({
+                            ...p,
+                            permit_name: name || selectedStdL1.permit_name,
+                            parent_id: name ? (projectL1?.id ?? null) : null,
+                          }))
+                        }}
+                        className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black"
+                      >
+                        <option value="">— None (add as Level 1) —</option>
+                        {availableL2s.map(s => (
+                          <option key={s.id} value={s.permit_name}>{s.permit_name}</option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-gray-400">
+                    {form.parent_id
+                      ? 'This will be added as a sub-requirement (Level 2).'
+                      : form.permit_name
+                        ? 'This will be added as a top-level permit (Level 1).'
+                        : 'Select a permit from the list above.'}
+                  </p>
+
+                  {/* Status */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Status</label>
+                    <select
+                      value={form.status}
+                      onChange={e => setForm(p => ({ ...p, status: e.target.value }))}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black"
+                    >
+                      {PERMIT_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
+                    </select>
+                  </div>
+
+                  {/* Remarks */}
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 mb-1.5">Remarks <span className="font-normal text-gray-400">(optional)</span></label>
+                    <input
+                      type="text"
+                      value={form.remarks ?? ''}
+                      onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
+                      placeholder="Add any notes…"
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black placeholder-gray-400"
+                    />
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Footer */}
+            <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+              <button onClick={() => setShowAddModal(false)} className="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100 transition">Cancel</button>
+              <button
+                onClick={async () => {
+                  if (!form.permit_name?.trim()) return
+                  await saveAndSync(null)
+                  setShowAddModal(false)
+                }}
+                className="px-4 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition"
+              >
+                Add Permit
+              </button>
+            </div>
+          </div>
+        </div>
       )}
-      {deleteId !== null && <ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />}
+
+      {deleteId !== null && (
+        <ConfirmDeleteModal
+          onConfirm={async () => {
+            const target = rows.find(r => r.id === deleteId)
+            await del(deleteId)
+            // If deleting a L2, sync parent after deletion
+            if (target?.parent_id) {
+              setTimeout(async () => {
+                const { data: remaining } = await supabase.from('project_permits').select('status').eq('parent_id', target.parent_id)
+                if (remaining && remaining.length > 0) {
+                  await supabase.from('project_permits').update({ status: deriveL1Status(remaining) }).eq('id', target.parent_id)
+                }
+                load()
+              }, 200)
+            }
+            setDeleteId(null)
+          }}
+          onCancel={() => setDeleteId(null)}
+        />
+      )}
     </div>
   )
 }
@@ -1875,7 +2314,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
         date_presented:    r.date_presented    ?? '',
         details:           r.details           ?? '',
         caused_by:         r.caused_by         ?? '',
-        corrective_action: r.corrective_action ?? '',
+        action_steps: r.action_steps ?? '',
       })),
       columns: [
         { key: 'issue_group',       header: 'Issue Group' },
@@ -1884,7 +2323,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
         { key: 'date_presented',    header: 'Date Presented' },
         { key: 'details',           header: 'Details' },
         { key: 'caused_by',         header: 'Caused By' },
-        { key: 'corrective_action', header: 'Corrective Action' },
+        { key: 'action_steps', header: 'Action Steps' },
       ],
     }], `${project.name}_issues.xlsx`)
   }
@@ -1905,7 +2344,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
         date_presented:    toDateStr(r['Date Presented']),
         details:           String(r['Details']           ?? '').trim(),
         caused_by:         String(r['Caused By']         ?? '').trim() || null,
-        corrective_action: String(r['Corrective Action'] ?? '').trim() || null,
+        action_steps: String(r['Action Steps'] ?? '').trim() || null,
       })).filter(r => r.details)
       const errors = []
       // Validate dates against raw Excel values before toDateStr auto-corrects overflow
@@ -1931,7 +2370,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
     setLoading(true)
     const { data } = await supabase
       .from('issues')
-      .select('id, issue_group, management_level, status, date_presented, details, caused_by, corrective_action, created_at')
+      .select('id, issue_group, management_level, status, date_presented, details, caused_by, action_steps, created_at')
       .eq('project_id', project.id)
       .order('created_at', { ascending: false })
     setRows(data ?? [])
@@ -1950,7 +2389,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
       date_bad:          false,
       details:           row.details           ?? '',
       caused_by:         row.caused_by         ?? '',
-      corrective_action: row.corrective_action ?? '',
+      action_steps: row.action_steps ?? '',
     })
     setModal('edit')
   }
@@ -1970,7 +2409,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
       date_presented:    form.date_presented    || null,
       details:           form.details.trim(),
       caused_by:         form.caused_by.trim()         || null,
-      corrective_action: form.corrective_action.trim() || null,
+      action_steps: form.action_steps.trim() || null,
     }
     const { error } = modal === 'add'
       ? await supabase.from('issues').insert([payload])
@@ -2042,7 +2481,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
       )}
 
       {loading ? (
-        <div className="flex justify-center py-12 text-sm text-gray-400">Loading…</div>
+        <TriangleLoader label="Loading issues…" />
       ) : rows.length === 0 ? (
         <div className="text-center py-12 text-sm text-gray-400 italic">No issues recorded for this project.</div>
       ) : filtered.length === 0 ? (
@@ -2130,7 +2569,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
                   {[
                     { label: 'Issue',             value: active.details },
                     { label: 'Caused By',         value: active.caused_by },
-                    { label: 'Corrective Action', value: active.corrective_action },
+                    { label: 'Action Steps', value: active.action_steps },
                   ].map(({ label, value }) => (
                     <div key={label}>
                       <div className="bg-gray-100 px-4 py-1.5 rounded-t-lg">
@@ -2195,8 +2634,8 @@ function IssuesTab({ project, isAdmin, showToast }) {
                 <textarea rows={3} value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root cause…" className={iCls + ' resize-none'} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Corrective Action</label>
-                <textarea rows={3} value={form.corrective_action} onChange={e => setForm(f => ({ ...f, corrective_action: e.target.value }))} placeholder="Steps taken or planned…" className={iCls + ' resize-none'} />
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Action Steps</label>
+                <textarea rows={3} value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or planned…" className={iCls + ' resize-none'} />
               </div>
             </div>
             <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
@@ -2473,7 +2912,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
   }
 
   if (loading) {
-    return <div className="flex items-center justify-center py-20 text-sm text-gray-400">Loading…</div>
+    return <TriangleLoader label="Loading milestones…" />
   }
 
   return (
@@ -2726,10 +3165,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         </div>
 
         {/* Tab content */}
-        <div className={`flex-1 overflow-y-auto px-6 ${['Completion (M4/M5)', 'Development', 'Compliance', 'Milestones', 'Issues & Concerns'].includes(tab) ? 'pb-5' : 'py-5'}`}>
+        <div className={`flex-1 overflow-y-auto px-6 ${['Completion (M4/M5)', 'Development', 'Permits', 'Milestones', 'Issues & Concerns'].includes(tab) ? 'pb-5' : 'py-5'}`}>
           {tab === 'Overview'          && <OverviewTab    project={project} isAdmin={isAdmin} onUpdated={handleUpdated} showToast={showToast} startEditing={startEditing} />}
           {tab === 'Development'       && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
-          {tab === 'Compliance'        && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
+          {tab === 'Permits'           && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Milestones'        && <MilestonesTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Issues & Concerns' && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
