@@ -73,7 +73,7 @@ export default function SignIn() {
   }
 
   return (
-    <div className="min-h-screen flex">
+    <div className="min-h-screen flex" style={{ backgroundColor: '#f8fafc' }}>
 
       {/* ── Left panel ── */}
       <div className="hidden lg:flex lg:w-1/2 bg-black flex-col items-center justify-center px-12 relative overflow-hidden">
