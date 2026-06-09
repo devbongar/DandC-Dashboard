@@ -293,7 +293,7 @@ export default function ProjectsPage() {
             <p className="text-gray-500 text-sm mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''} total</p>
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-end">
           {/* Export */}
           {projects.length > 0 && (
             <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-[#ed6055]/5 hover:border-[#ed6055]/30 hover:text-[#ed6055] text-gray-600 text-sm font-semibold transition">

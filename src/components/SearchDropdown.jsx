@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 // placeholder: search input placeholder text
 // icon: optional SVG path string shown in the trigger
 // disabled: grays out and disables the control
-export default function SearchDropdown({ options, value, onChange, emptyValue, emptyLabel, placeholder, icon, disabled = false, minWidth = 130 }) {
+export default function SearchDropdown({ options, value, onChange, emptyValue, emptyLabel, placeholder, icon, disabled = false, minWidth = 130, fluid = false }) {
   const [open, setOpen]   = useState(false)
   const [query, setQuery] = useState('')
   const ref               = useRef(null)
@@ -36,7 +36,7 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
   const select = (val) => { onChange(val); setOpen(false); setQuery('') }
 
   return (
-    <div ref={ref} className="relative flex-shrink-0">
+    <div ref={ref} className={`relative ${fluid ? 'w-full' : 'flex-shrink-0'}`}>
       {/* Trigger */}
       <button
         type="button"
@@ -47,8 +47,9 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
           borderColor: open ? '#ed6055' : '#e5e7eb',
           color: disabled ? '#9ca3af' : isEmptyVal ? '#9ca3af' : '#111827',
           boxShadow: open ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-          minWidth,
-          maxWidth: 200,
+          minWidth: fluid ? undefined : minWidth,
+          maxWidth: fluid ? undefined : 200,
+          width: fluid ? '100%' : undefined,
           cursor: disabled ? 'not-allowed' : 'pointer',
           opacity: disabled ? 0.6 : 1,
         }}

@@ -271,100 +271,122 @@ export default function UnitCompletionChart() {
 
       {/* Filter bar */}
       <div className="flex flex-col gap-2 mb-4">
-        {/* Row 1: Type toggle + Project picker + Province + City */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Type toggle — styled to match card context */}
+
+        {/* ── Mobile layout (< sm) ── */}
+        <div className="flex flex-col gap-2 sm:hidden">
+          {/* Type toggle — full width */}
           <div
-            className="flex items-center gap-0.5 flex-shrink-0 p-0.5 rounded-lg"
-            style={{
-              background: '#f3f4f6',
-              border: '1px solid #e5e7eb',
-              boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)',
-            }}
+            className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
+            style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
           >
             {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
               <button
                 key={t.key}
                 onClick={() => { setIs4ph(t.key); setProjectId('all'); setProvince(''); setCity('') }}
-                className="relative px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
                 style={is4ph === t.key ? {
                   background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
-                  color: '#fff',
-                  boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
-                } : {
-                  color: '#6b7280',
-                  background: 'transparent',
-                }}
+                  color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                } : { color: '#6b7280', background: 'transparent' }}
               >
                 {t.label}
               </button>
             ))}
           </div>
-
-          {/* Project picker — scoped by type */}
+          {/* Project — full width */}
           <SearchDropdown
-            options={(allProjects ?? [])
-              .filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project))
-              .sort((a, b) => a.name.localeCompare(b.name))
-              .map(p => ({ value: p.id, label: p.name }))
-            }
-            value={projectId}
-            onChange={setProjectId}
-            emptyValue="all"
-            emptyLabel="All Projects"
+            fluid
+            options={(allProjects ?? []).filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)).sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
+            value={projectId} onChange={setProjectId} emptyValue="all" emptyLabel="All Projects"
             placeholder="Search projects…"
             icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
-            minWidth={130}
           />
-
-          {/* Province */}
-          <SearchDropdown
-            options={availableProvinces.map(p => ({ value: p, label: p }))}
-            value={province}
-            onChange={v => { setProvince(v); setCity('') }}
-            emptyValue=""
-            emptyLabel="All Provinces"
-            placeholder="Search provinces…"
-            icon="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
-            minWidth={120}
-          />
-
-          {/* City */}
-          <SearchDropdown
-            options={availableCities.map(c => ({ value: c, label: c }))}
-            value={city}
-            onChange={setCity}
-            emptyValue=""
-            emptyLabel="All Cities"
-            placeholder="Search cities…"
-            icon="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"
-            minWidth={110}
-            disabled={!province || availableCities.length === 0}
-          />
-
-          {/* Time mode toggle */}
-          <div className="flex rounded-lg border border-gray-200 overflow-hidden ml-auto">
-          {TIME_MODES.map(m => (
-            <button
-              key={m.key}
-              onClick={() => setTimeMode(m.key)}
-              className={`px-3 py-1.5 text-xs font-semibold transition-colors ${
-                timeMode === m.key
-                  ? 'bg-[#ed6055] text-white'
-                  : 'bg-white text-gray-500 hover:bg-gray-50'
-              }`}
-            >
-              {m.label}
-            </button>
-          ))}
+          {/* Province + City — equal columns */}
+          <div className="grid grid-cols-2 gap-2">
+            <SearchDropdown
+              fluid
+              options={availableProvinces.map(p => ({ value: p, label: p }))}
+              value={province} onChange={v => { setProvince(v); setCity('') }}
+              emptyValue="" emptyLabel="All Provinces" placeholder="Search provinces…"
+              icon="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
+            />
+            <SearchDropdown
+              fluid
+              options={availableCities.map(c => ({ value: c, label: c }))}
+              value={city} onChange={setCity}
+              emptyValue="" emptyLabel="All Cities" placeholder="Search cities…"
+              icon="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"
+              disabled={!province || availableCities.length === 0}
+            />
+          </div>
+          {/* Time toggle — full width */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            {TIME_MODES.map(m => (
+              <button key={m.key} onClick={() => setTimeMode(m.key)}
+                className={`flex-1 py-1.5 text-xs font-semibold transition-colors ${timeMode === m.key ? 'bg-[#ed6055] text-white' : 'bg-white text-gray-500'}`}
+              >{m.label}</button>
+            ))}
           </div>
         </div>
+
+        {/* ── Desktop layout (sm+) ── */}
+        <div className="hidden sm:flex sm:flex-col sm:gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <div
+              className="flex items-center gap-0.5 flex-shrink-0 p-0.5 rounded-lg"
+              style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
+            >
+              {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => { setIs4ph(t.key); setProjectId('all'); setProvince(''); setCity('') }}
+                  className="relative px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                  style={is4ph === t.key ? {
+                    background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
+                    color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                  } : { color: '#6b7280', background: 'transparent' }}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
+            <SearchDropdown
+              options={(allProjects ?? []).filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)).sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
+              value={projectId} onChange={setProjectId} emptyValue="all" emptyLabel="All Projects"
+              placeholder="Search projects…" minWidth={130}
+              icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+            />
+            <SearchDropdown
+              options={availableProvinces.map(p => ({ value: p, label: p }))}
+              value={province} onChange={v => { setProvince(v); setCity('') }}
+              emptyValue="" emptyLabel="All Provinces" placeholder="Search provinces…" minWidth={120}
+              icon="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
+            />
+            <SearchDropdown
+              options={availableCities.map(c => ({ value: c, label: c }))}
+              value={city} onChange={setCity}
+              emptyValue="" emptyLabel="All Cities" placeholder="Search cities…" minWidth={110}
+              icon="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"
+              disabled={!province || availableCities.length === 0}
+            />
+          </div>
+          <div className="flex justify-end">
+            <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+              {TIME_MODES.map(m => (
+                <button key={m.key} onClick={() => setTimeMode(m.key)}
+                  className={`px-3 py-1.5 text-xs font-semibold transition-colors ${timeMode === m.key ? 'bg-[#ed6055] text-white' : 'bg-white text-gray-500 hover:bg-gray-50'}`}
+                >{m.label}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+
       </div>
 
 
       {/* Summary pills */}
       {!loading && allProjects !== null && (floors.length > 0 || completions.length > 0) && (
-        <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           {[
             { label: 'M4 — Unit Completion',    actual: totals.m4Actual, planned: totals.m4PlannedToday, total: totals.m4Total, rate: totals.m4Rate, status: totals.m4Status },
             { label: 'M5 — Handover to PMO', actual: totals.m5Actual, planned: totals.m5PlannedToday, total: totals.m5Total, rate: totals.m5Rate, status: totals.m5Status },
@@ -404,16 +426,16 @@ export default function UnitCompletionChart() {
               {/* Three stats */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
-                  <p className="text-xl font-bold text-gray-900 leading-none">{planned.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1 leading-snug">Planned PTD</p>
+                  <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{planned.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Planned PTD</p>
                 </div>
-                <div className="border-l border-gray-200 pl-3">
-                  <p className="text-xl font-bold text-green-600 leading-none">{actual.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1 leading-snug">Actual PTD</p>
+                <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                  <p className="text-base sm:text-xl font-bold text-green-600 leading-none">{actual.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Actual PTD</p>
                 </div>
-                <div className="border-l border-gray-200 pl-3">
-                  <p className="text-xl font-bold text-gray-400 leading-none">{total.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1 leading-snug">Total units</p>
+                <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                  <p className="text-base sm:text-xl font-bold text-gray-400 leading-none">{total.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Total units</p>
                 </div>
               </div>
             </div>
@@ -450,7 +472,7 @@ export default function UnitCompletionChart() {
                   </ResponsiveContainer>
                 </div>
                 {/* Scrollable bars */}
-                <div className="overflow-x-auto flex-1" ref={m4Ref}>
+                <div className="overflow-x-auto flex-1 min-w-0" ref={m4Ref}>
                   <div style={{ width: chartWidthPct }}>
                     <ResponsiveContainer width="100%" height={240}>
                       <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
@@ -486,7 +508,7 @@ export default function UnitCompletionChart() {
                   </ResponsiveContainer>
                 </div>
                 {/* Scrollable bars */}
-                <div className="overflow-x-auto flex-1" ref={m5Ref}>
+                <div className="overflow-x-auto flex-1 min-w-0" ref={m5Ref}>
                   <div style={{ width: chartWidthPct }}>
                     <ResponsiveContainer width="100%" height={240}>
                       <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>

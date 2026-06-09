@@ -3342,8 +3342,8 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-7xl max-h-[92vh] flex flex-col overflow-hidden"
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4">
+      <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full sm:max-w-7xl h-full sm:max-h-[92vh] flex flex-col overflow-hidden"
         style={{ borderTop: `4px solid ${phase?.color ?? '#ed6055'}` }}>
 
         {/* Modal header */}
@@ -3386,7 +3386,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         </div>
 
         {/* Tab content */}
-        <div className={`flex-1 overflow-y-auto px-6 ${tab === 'Overview' ? 'py-5' : 'pb-5'}`}>
+        <div className={`flex-1 overflow-y-auto px-3 sm:px-6 ${tab === 'Overview' ? 'py-4 sm:py-5' : 'pb-4 sm:pb-5'}`}>
           {tab === 'Overview'          && <OverviewTab    project={project} isAdmin={isAdmin} onUpdated={handleUpdated} showToast={showToast} startEditing={startEditing} />}
           {tab === 'Development'       && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Permits'           && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}

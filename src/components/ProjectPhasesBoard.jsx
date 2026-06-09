@@ -108,7 +108,7 @@ export default function ProjectPhasesBoard() {
       {loading ? (
         <div className="flex-1"><TriangleLoader label="Loading projects…" /></div>
       ) : (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 flex-1">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2 flex-1">
           {PHASES.map((phase) => {
             const phaseProjects = byPhase(phase.key)
             return (

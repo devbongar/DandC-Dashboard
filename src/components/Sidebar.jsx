@@ -71,7 +71,7 @@ export default function Sidebar({ profile, open, onClose }) {
       >
         {/* ── Header: Logo + Close ── */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-white/5 flex-shrink-0">
-          <Logo size="sm" variant="light" />
+          <Logo size="md" variant="white" />
           <button
             onClick={onClose}
             className="p-1.5 rounded-lg text-white/30 hover:text-white/70 hover:bg-white/[0.06] transition"

@@ -52,34 +52,33 @@ export default function DashboardLayout({ profile, children }) {
           <HamburgerIcon />
         </button>
 
-        {/* Logo */}
-        <div className="px-3 flex items-center flex-shrink-0">
+        {/* Logo — desktop only; on mobile it lives inside the sidebar drawer */}
+        <div className="px-2 sm:px-3 hidden sm:flex items-center flex-shrink-0">
           <Logo size="md" variant="white" />
         </div>
 
-        <div className="w-px h-8 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.15)' }} />
+        {/* Divider — desktop only */}
+        <div className="w-px h-8 flex-shrink-0 hidden sm:block" style={{ background: 'rgba(255,255,255,0.15)' }} />
 
         {/* Title */}
-        <div className="px-4 flex items-center min-w-0">
-          <span className="text-white text-base font-bold whitespace-nowrap tracking-wide sm:hidden">
-            D&amp;C Dashboard
-          </span>
-          <span className="text-white text-base font-bold whitespace-nowrap tracking-wide hidden sm:inline">
+        <div className="px-2 sm:px-4 flex items-center min-w-0 flex-shrink">
+          <span className="text-white text-sm sm:text-base font-bold truncate tracking-wide">
             Design &amp; Construction Dashboard
           </span>
         </div>
 
+        {/* Spacer */}
         <div className="flex-1" />
 
         {/* User menu */}
-        <div className="relative flex-shrink-0 px-5" ref={menuRef}>
+        <div className="relative flex-shrink-0 px-3 sm:px-5" ref={menuRef}>
           <button
             onClick={() => setMenuOpen(v => !v)}
             className="flex items-center gap-3 rounded-lg px-2 py-1 hover:bg-black/10 transition"
           >
-            <div className="text-right hidden sm:block">
-              <p className="text-white text-xs font-semibold leading-tight">{profile?.full_name ?? ''}</p>
-              <p className="text-xs leading-tight mt-0.5" style={{ color: 'rgba(255,255,255,0.75)' }}>
+            <div className="text-right hidden sm:block max-w-[130px] min-w-0">
+              <p className="text-white text-xs font-semibold leading-tight truncate">{profile?.full_name ?? ''}</p>
+              <p className="text-xs leading-tight mt-0.5 truncate" style={{ color: 'rgba(255,255,255,0.75)' }}>
                 {roleLabel}
               </p>
             </div>

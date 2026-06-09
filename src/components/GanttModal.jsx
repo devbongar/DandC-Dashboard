@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import TriangleLoader from './TriangleLoader'
 
@@ -41,7 +41,7 @@ function GanttBar({ start, end, color, toPx }) {
   )
 }
 
-function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false }) {
+function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W }) {
   const hasDates = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const bgBase   = isChild ? '#f9fafb' : '#ffffff'
 
@@ -54,7 +54,7 @@ function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToda
     >
       {/* Fixed-width label column — frozen */}
       <div
-        style={{ width: LABEL_W, minWidth: LABEL_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+        style={{ width: labelW, minWidth: labelW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
         className="sticky left-0 z-30 flex items-center pr-2 flex-shrink-0 self-stretch"
       >
         {isChild ? (
@@ -172,17 +172,7 @@ function computeParentDates(children) {
   }
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20 }) {
-  const headerScrollRef = useRef(null)
-  const bodyScrollRef   = useRef(null)
-  const syncingRef      = useRef(false)
-
-  const onBodyScroll = () => {
-    if (syncingRef.current) return
-    syncingRef.current = true
-    if (headerScrollRef.current) headerScrollRef.current.scrollLeft = bodyScrollRef.current.scrollLeft
-    syncingRef.current = false
-  }
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -234,13 +224,13 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const todayPx    = toPx(today)
   const showToday  = todayPx >= 0 && todayPx <= chartPxWidth
 
-  const totalW = LABEL_W + chartPxWidth
+  const totalW = labelW + chartPxWidth
 
   const axisHeader = (
     <>
       <div className="flex" style={{ width: totalW, minWidth: totalW, backgroundColor: '#f8fafc' }}>
         <div
-          style={{ width: LABEL_W, minWidth: LABEL_W, borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 10 }}
+          style={{ width: labelW, minWidth: labelW, borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 10 }}
           className="flex-shrink-0 flex items-center pl-3"
         >
           <span className="text-xs font-bold text-gray-700">Activity</span>
@@ -347,28 +337,20 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         todayStr={todayStr}
         isChild={isChild}
         isLastChild={isLastChild}
+        labelW={labelW}
       />
     ))
   })()
 
   return (
-    <div style={{ position: 'relative' }}>
-      {/* Sticky header — scrolls in sync with body via ref */}
-      <div
-        className="sticky top-0 z-40 overflow-x-auto"
-        ref={headerScrollRef}
-        style={{ overflowY: 'hidden', scrollbarWidth: 'none', msOverflowStyle: 'none' }}
-      >
-        <div style={{ width: totalW, minWidth: totalW }}>
+    <div className="flex-1 min-h-0 overflow-auto">
+      <div style={{ width: totalW, minWidth: totalW }}>
+        {/* Sticky axis header — sticks within this single scroll container */}
+        <div className="sticky top-0 z-40" style={{ backgroundColor: '#f8fafc' }}>
           {axisHeader}
         </div>
-      </div>
-
-      {/* Scrollable rows */}
-      <div className="overflow-x-auto" ref={bodyScrollRef} onScroll={onBodyScroll}>
-        <div style={{ width: totalW, minWidth: totalW }}>
-          {milestoneRows}
-        </div>
+        {/* Rows */}
+        {milestoneRows}
       </div>
     </div>
   )
@@ -378,7 +360,7 @@ const MONTH_NAMES = ['January','February','March','April','May','June','July','A
 const THIS_YEAR   = new Date().getFullYear()
 const YEARS       = Array.from({ length: 11 }, (_, i) => THIS_YEAR - 3 + i)
 
-function MonthYearPicker({ value, onChange, min, max }) {
+function MonthYearPicker({ value, onChange, min, max, fluid = false }) {
   const [selMonth, setSelMonth] = useState('')
   const [selYear,  setSelYear]  = useState('')
 
@@ -396,10 +378,10 @@ function MonthYearPicker({ value, onChange, min, max }) {
     else onChange('')
   }
 
-  const selectCls = 'px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white cursor-pointer'
+  const selectCls = `${fluid ? 'flex-1 min-w-0' : ''} px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white cursor-pointer`
 
   return (
-    <div className="flex items-center gap-1">
+    <div className={`flex items-center gap-1${fluid ? ' w-full' : ''}`}>
       <select value={selMonth} onChange={e => { setSelMonth(e.target.value); handleChange(e.target.value, selYear) }} className={selectCls}>
         <option value="">(Month)</option>
         {MONTH_NAMES.map((name, i) => {
@@ -418,6 +400,7 @@ function MonthYearPicker({ value, onChange, min, max }) {
 }
 
 export default function GanttModal({ project, onClose }) {
+  const [labelW, setLabelW] = useState(() => window.innerWidth < 640 ? 160 : LABEL_W)
   const [baselines, setBaselines]     = useState([])
   const [activeBL, setActiveBL]       = useState(null)
   const [milestones, setMilestones]   = useState([])
@@ -494,6 +477,12 @@ export default function GanttModal({ project, onClose }) {
     return () => { document.body.style.overflow = '' }
   }, [])
 
+  useEffect(() => {
+    const update = () => setLabelW(window.innerWidth < 640 ? 160 : LABEL_W)
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
+
   const phaseColor      = PHASE_COLORS[project.phase] ?? '#ed6055'
   const phaseMilestones = milestones.filter(m => m.phase === activePhase)
 
@@ -504,21 +493,21 @@ export default function GanttModal({ project, onClose }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
       <div
-        className="relative bg-white flex flex-col overflow-hidden rounded-xl w-3/4 h-[90vh] shadow-2xl"
+        className="relative bg-white flex flex-col overflow-hidden w-full h-full rounded-none sm:rounded-xl sm:w-3/4 sm:h-[90vh] shadow-2xl"
         style={{ borderTop: `4px solid ${phaseColor}` }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
+        <div className="px-4 sm:px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
           <div className="min-w-0 flex-1">
-            <h2 className="text-lg font-bold text-black leading-tight truncate">{project.name}</h2>
-            <p className="text-xs text-gray-400 mt-0.5">Milestone Gantt Chart</p>
+            <h2 className="text-base sm:text-lg font-bold text-black leading-tight truncate">{project.name}</h2>
+            <p className="text-xs text-gray-400 mt-0.5">Work Program</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
             <button
               disabled
               title="Coming soon"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white cursor-not-allowed select-none opacity-70"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white cursor-not-allowed select-none opacity-70"
               style={{ boxShadow: '0 2px 8px rgba(237,96,85,0.45), 0 1px 2px rgba(0,0,0,0.1)' }}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -530,7 +519,7 @@ export default function GanttModal({ project, onClose }) {
             <button
               disabled
               title="Coming soon"
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white cursor-not-allowed select-none opacity-70"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white cursor-not-allowed select-none opacity-70"
               style={{ boxShadow: '0 2px 8px rgba(237,96,85,0.45), 0 1px 2px rgba(0,0,0,0.1)' }}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -551,21 +540,23 @@ export default function GanttModal({ project, onClose }) {
         </div>
 
         {/* Phase tabs */}
-        <div className="px-6 pt-3 pb-0 flex gap-1 border-b border-gray-100 flex-shrink-0">
+        <div className="px-2 sm:px-6 pt-3 pb-0 flex gap-1 border-b border-gray-100 flex-shrink-0 overflow-x-auto overflow-y-hidden">
           {PHASES.map(p => {
             const count  = milestones.filter(m => m.phase === p.key).length
             const active = activePhase === p.key
+            const mobileLabel = p.key === 'execution_monitoring' ? 'Exec. & Mon.' : p.label
             return (
               <button
                 key={p.key}
                 onClick={() => setActivePhase(p.key)}
-                className={`px-3 py-2 text-xs font-semibold transition flex items-center gap-1.5 border-b-2 -mb-px ${
+                className={`px-3 py-2 text-xs font-semibold transition flex items-center gap-1.5 border-b-2 -mb-px whitespace-nowrap flex-shrink-0 ${
                   active
                     ? 'border-[#ed6055] text-[#ed6055]'
                     : 'border-transparent text-gray-400 hover:text-gray-600'
                 }`}
               >
-                {p.label}
+                <span className="sm:hidden">{mobileLabel}</span>
+                <span className="hidden sm:inline">{p.label}</span>
                 <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${
                   active ? 'bg-[#ed6055]/10 text-[#ed6055]' : 'text-gray-300'
                 }`}>{count}</span>
@@ -575,116 +566,178 @@ export default function GanttModal({ project, onClose }) {
         </div>
 
         {/* Toolbar */}
-        <div className="px-6 py-2.5 bg-gray-50 border-b border-gray-100 flex items-center gap-3 flex-shrink-0 flex-wrap">
+        <div className="bg-gray-50 border-b border-gray-100 flex-shrink-0">
 
-          {/* Baseline selector */}
-          {baselines.length > 0 && (
-            <>
+          {/* ── Mobile layout (< sm) ── */}
+          <div className="flex flex-col gap-2 px-3 py-2.5 sm:hidden">
+
+            {/* Time scale toggle — full width */}
+            <div
+              className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
+              style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
+            >
+              {TIME_SCALES.map(s => (
+                <button
+                  key={s.key}
+                  onClick={() => setTimeScale(s.key)}
+                  className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                  style={timeScale === s.key ? {
+                    background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
+                    color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                  } : { color: '#6b7280', background: 'transparent' }}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            {/* Baseline selector — full width (if present) */}
+            {baselines.length > 0 && (
               <select
                 value={activeBL ?? ''}
                 onChange={e => setActiveBL(e.target.value)}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
+                className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
               >
                 {baselines.map(b => (
                   <option key={b.id} value={b.id}>{b.label}</option>
                 ))}
               </select>
-              <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-            </>
-          )}
+            )}
 
-          {/* Time scale toggle */}
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5 flex-shrink-0">
-            {TIME_SCALES.map(s => (
-              <button
-                key={s.key}
-                onClick={() => setTimeScale(s.key)}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
-                  timeScale === s.key
-                    ? 'bg-[#ed6055] text-white shadow-sm'
-                    : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-
-          {/* Column width control */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Width</span>
-            <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <button
-                onClick={() => setColPx(v => Math.max(10, v - 5))}
-                className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
-                aria-label="Decrease column width"
-              >−</button>
-              <span className="px-2 text-[11px] font-semibold text-gray-700 tabular-nums border-x border-gray-200 min-w-[42px] text-center">
-                {colPx}px
-              </span>
-              <button
-                onClick={() => setColPx(v => Math.min(120, v + 5))}
-                className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
-                aria-label="Increase column width"
-              >+</button>
+            {/* Date range — From / To on one row */}
+            <div className="flex items-center gap-2">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">From</label>
+              <div className="flex-1 min-w-0">
+                <MonthYearPicker fluid value={fromMonth} onChange={setFromMonth} max={toMonth} />
+              </div>
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">To</label>
+              <div className="flex-1 min-w-0">
+                <MonthYearPicker fluid value={toMonth} onChange={setToMonth} min={fromMonth} />
+              </div>
+              {hasFilter && (
+                <button
+                  onClick={() => { setFromMonth(''); setToMonth('') }}
+                  className="flex-shrink-0 text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
+                >
+                  Clear
+                </button>
+              )}
             </div>
-            {!isDefaultWidth && (
-              <button
-                onClick={resetColPx}
-                className="text-[10px] text-gray-400 hover:text-[#ed6055] transition font-medium underline underline-offset-2"
-              >
-                reset
-              </button>
-            )}
           </div>
 
-          <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+          {/* ── Desktop layout (sm+) ── */}
+          <div className="hidden sm:flex items-center gap-3 px-6 py-2.5 flex-wrap">
 
-          {/* Date range */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">From</label>
-            <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">To</label>
-            <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
-            {hasFilter && (
-              <button
-                onClick={() => { setFromMonth(''); setToMonth('') }}
-                className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
-              >
-                Clear
-              </button>
+            {/* Baseline selector */}
+            {baselines.length > 0 && (
+              <>
+                <select
+                  value={activeBL ?? ''}
+                  onChange={e => setActiveBL(e.target.value)}
+                  className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
+                >
+                  {baselines.map(b => (
+                    <option key={b.id} value={b.id}>{b.label}</option>
+                  ))}
+                </select>
+                <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+              </>
             )}
+
+            {/* Time scale toggle */}
+            <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5 flex-shrink-0">
+              {TIME_SCALES.map(s => (
+                <button
+                  key={s.key}
+                  onClick={() => setTimeScale(s.key)}
+                  className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
+                    timeScale === s.key
+                      ? 'bg-[#ed6055] text-white shadow-sm'
+                      : 'text-gray-400 hover:text-gray-700'
+                  }`}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+
+            <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+
+            {/* Column width control */}
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Width</span>
+              <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
+                <button
+                  onClick={() => setColPx(v => Math.max(10, v - 5))}
+                  className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
+                  aria-label="Decrease column width"
+                >−</button>
+                <span className="px-2 text-[11px] font-semibold text-gray-700 tabular-nums border-x border-gray-200 min-w-[42px] text-center">
+                  {colPx}px
+                </span>
+                <button
+                  onClick={() => setColPx(v => Math.min(120, v + 5))}
+                  className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
+                  aria-label="Increase column width"
+                >+</button>
+              </div>
+              {!isDefaultWidth && (
+                <button
+                  onClick={resetColPx}
+                  className="text-[10px] text-gray-400 hover:text-[#ed6055] transition font-medium underline underline-offset-2"
+                >
+                  reset
+                </button>
+              )}
+            </div>
+
+            <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+
+            {/* Date range */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">From</label>
+              <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">To</label>
+              <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
+              {hasFilter && (
+                <button
+                  onClick={() => { setFromMonth(''); setToMonth('') }}
+                  className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
           </div>
+
         </div>
 
         {/* Legend — fixed strip, never scrolls */}
-        <div className="flex items-center justify-end gap-3 px-6 py-2 border-b border-gray-100 bg-white flex-shrink-0">
+        <div className="grid grid-cols-2 sm:flex sm:justify-end gap-x-3 gap-y-1.5 sm:gap-3 px-3 sm:px-6 py-2 border-b border-gray-100 bg-white flex-shrink-0">
           <span className="flex items-center gap-1.5 text-xs text-gray-500">
-            <span className="w-4 h-3 rounded inline-block bg-gray-400" />Planned
+            <span className="w-4 h-3 rounded inline-block flex-shrink-0 bg-gray-400" />Planned
           </span>
           <span className="flex items-center gap-1.5 text-xs text-gray-500">
-            <span className="w-4 h-3 rounded inline-block" style={{ backgroundColor: '#86efac' }} />Actual
+            <span className="w-4 h-3 rounded inline-block flex-shrink-0" style={{ backgroundColor: '#86efac' }} />Actual
           </span>
           <span className="flex items-center gap-1.5 text-xs text-gray-500">
-            <span className="w-4 h-3 rounded inline-block" style={{ backgroundColor: '#fde047' }} />Projected
+            <span className="w-4 h-3 rounded inline-block flex-shrink-0" style={{ backgroundColor: '#fde047' }} />Projected
           </span>
           <span className="flex items-center gap-1.5 text-xs text-gray-500">
-            <span className="inline-block w-0.5 h-3.5 bg-[#ed6055] rounded-full" />Today
+            <span className="inline-block w-0.5 h-3.5 flex-shrink-0 bg-[#ed6055] rounded-full" />Today
           </span>
         </div>
 
         {/* Body */}
-        <div className="flex-1 overflow-y-auto px-6 pb-3">
+        <div className="flex-1 min-h-0 flex flex-col px-0 sm:px-6">
           {loading ? (
             <TriangleLoader label="Loading milestones…" />
           ) : activeBL === null ? (
-            <div className="flex items-center justify-center py-20 text-sm text-gray-400 italic">
+            <div className="flex-1 flex items-center justify-center text-sm text-gray-400 italic">
               No milestone data yet. Import milestones from the project detail view.
             </div>
           ) : phaseMilestones.length === 0 ? (
-            <div className="flex items-center justify-center py-20 text-sm text-gray-400 italic">
+            <div className="flex-1 flex items-center justify-center text-sm text-gray-400 italic">
               No milestones for {PHASES.find(p => p.key === activePhase)?.label}.
             </div>
           ) : (
@@ -694,6 +747,7 @@ export default function GanttModal({ project, onClose }) {
               overrideMax={overrideMax}
               timeScale={timeScale}
               colPx={colPx}
+              labelW={labelW}
             />
           )}
         </div>
