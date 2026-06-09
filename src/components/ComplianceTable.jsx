@@ -301,7 +301,7 @@ export default function ComplianceTable() {
   const isEmpty = !loading && (projects.length === 0 || standardNames.length === 0)
 
   return (
-    <section className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col h-[480px] sm:h-[600px]">
+    <section className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col h-[600px]">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
@@ -439,14 +439,6 @@ export default function ComplianceTable() {
           </div>
         </div>
       )}
-
-      {/* Mobile notice */}
-      <div className="md:hidden flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-700 font-medium">
-        <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 8.25h3m-3 3h3m-3 3h3" />
-        </svg>
-        Rotate to landscape for the best experience
-      </div>
 
       {/* Table */}
       <div className="rounded-xl border border-gray-200 overflow-hidden flex-1 flex flex-col">
