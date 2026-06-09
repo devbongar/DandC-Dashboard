@@ -514,11 +514,35 @@ export default function GanttModal({ project, onClose }) {
             <h2 className="text-lg font-bold text-black leading-tight truncate">{project.name}</h2>
             <p className="text-xs text-gray-400 mt-0.5">Milestone Gantt Chart</p>
           </div>
-          <div className="flex items-center gap-4 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <button
+              disabled
+              title="Coming soon"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white cursor-not-allowed select-none opacity-70"
+              style={{ boxShadow: '0 2px 8px rgba(237,96,85,0.45), 0 1px 2px rgba(0,0,0,0.1)' }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M3 21l6.75-6.75M6.75 14.25L3 21m15.75-3.75L21 21M16.5 12a4.5 4.5 0 01-9 0m9 0V9a4.5 4.5 0 00-9 0v3m9 0H7.5" />
+              </svg>
+              S-Curve
+              <span className="text-[9px] font-bold bg-white/25 text-white px-1 py-0.5 rounded leading-none">Soon</span>
+            </button>
+            <button
+              disabled
+              title="Coming soon"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white cursor-not-allowed select-none opacity-70"
+              style={{ boxShadow: '0 2px 8px rgba(237,96,85,0.45), 0 1px 2px rgba(0,0,0,0.1)' }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+              </svg>
+              Progress Photos
+              <span className="text-[9px] font-bold bg-white/25 text-white px-1 py-0.5 rounded leading-none">Soon</span>
+            </button>
             {/* Close — proper touch target */}
             <button
               onClick={onClose}
-              className="p-2 -mr-2 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition"
+              className="p-2 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition"
               aria-label="Close"
             >
               <XIcon />

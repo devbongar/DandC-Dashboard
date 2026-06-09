@@ -45,10 +45,12 @@ function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholde
 
   return (
     <div ref={ref} className="relative flex-shrink-0">
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => open ? setOpen(false) : openDropdown()}
-        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-all"
+        onKeyDown={e => (e.key === 'Enter' || e.key === ' ') && (open ? setOpen(false) : openDropdown())}
+        className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-all select-none"
         style={{
           background: open ? '#fff' : '#fafafa',
           borderColor: open ? '#ed6055' : (!allSelected ? '#ed6055' : '#e5e7eb'),
@@ -85,7 +87,7 @@ function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholde
             <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
           </svg>
         )}
-      </button>
+      </div>
 
       {open && (
         <div
@@ -219,21 +221,26 @@ export default function ComplianceTable() {
   const [loading, setLoading]     = useState(true)
   const [filterProjects, setFilterProjects] = useState([])
   const [standardNames, setStandardNames]   = useState([])
+  const [highlightedNames, setHighlightedNames] = useState(new Set())
   const [sortOrder, setSortOrder] = useState('asc')
   const [type4ph, setType4ph]     = useState('all')
+  const [tooltip, setTooltip]     = useState(null) // { x, y, text }
 
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
     setLoading(true)
     const [permitsRes, projectsRes, standardsRes] = await Promise.all([
-      supabase.from('project_permits').select('id, project_id, permit_name, status, parent_id'),
+      supabase.from('project_permits').select('id, project_id, permit_name, status, remarks, parent_id'),
       supabase.from('projects').select('id, name, is_4ph_project').order('name'),
-      supabase.from('standard_permits').select('id, permit_name, parent_id').is('parent_id', null).order('sort_order'),
+      supabase.from('standard_permits').select('id, permit_name, parent_id, is_highlighted').is('parent_id', null).order('sort_order'),
     ])
     if (permitsRes.data)   setPermits(permitsRes.data)
     if (projectsRes.data)  setProjects(projectsRes.data)
-    if (standardsRes.data) setStandardNames(standardsRes.data.map(s => s.permit_name))
+    if (standardsRes.data) {
+      setStandardNames(standardsRes.data.map(s => s.permit_name))
+      setHighlightedNames(new Set(standardsRes.data.filter(s => s.is_highlighted).map(s => s.permit_name)))
+    }
     setLoading(false)
   }
 
@@ -243,7 +250,7 @@ export default function ComplianceTable() {
     const map = {}
     permits.filter(p => !p.parent_id).forEach(p => {
       if (!map[p.project_id]) map[p.project_id] = {}
-      map[p.project_id][p.permit_name] = p.status
+      map[p.project_id][p.permit_name] = { status: p.status, remarks: p.remarks ?? null }
     })
     return map
   }, [permits])
@@ -264,12 +271,27 @@ export default function ComplianceTable() {
     return list.map(p => ({ value: p.id, label: p.name }))
   }, [projects, type4ph])
 
+  const showTooltip = (e, text) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    setTooltip({ x: rect.left + rect.width / 2, y: rect.top, text })
+  }
+  const hideTooltip = () => setTooltip(null)
+
   const renderCell = (projectId, permitName) => {
-    const status = lookup[projectId]?.[permitName]
-    if (status === undefined)  return <NACell />
-    if (status === 'done')     return <DoneCell />
-    if (status === 'ongoing')  return <OngoingCell />
-    return <NotStartedCell />
+    const entry = lookup[projectId]?.[permitName]
+    if (!entry) return <NACell />
+    const { status, remarks } = entry
+    const icon = status === 'done' ? <DoneCell /> : status === 'ongoing' ? <OngoingCell /> : <NotStartedCell />
+    if (!remarks) return icon
+    return (
+      <div
+        className="cursor-pointer"
+        onMouseEnter={e => showTooltip(e, remarks)}
+        onMouseLeave={hideTooltip}
+      >
+        {icon}
+      </div>
+    )
   }
 
   const isEmpty = !loading && (projects.length === 0 || standardNames.length === 0)
@@ -397,30 +419,44 @@ export default function ComplianceTable() {
                 <tr>
                   {/* Top-left sticky corner */}
                   <th
-                    className="sticky left-0 top-0 z-30 border-b border-r border-gray-200 px-4 py-3 text-left min-w-[200px]"
-                    style={{ background: '#fff', borderTop: '2px solid #ed6055' }}
+                    className="sticky left-0 top-0 z-30 border-b border-r border-gray-200 min-w-[200px]"
+                    style={{ background: '#fff', borderTop: '3px solid #ed6055' }}
                   >
-                    <span className="text-xs font-bold text-gray-700">Project</span>
+                    <div className="flex items-end h-32 px-4 pb-3">
+                      <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Project</span>
+                    </div>
                   </th>
 
                   {/* Permit column headers — rotated */}
-                  {permitNames.map(name => (
-                    <th
-                      key={name}
-                      className="sticky top-0 z-20 border-b border-r border-gray-200"
-                      style={{ width: 52, minWidth: 52, background: '#fff', borderTop: '2px solid #ed6055' }}
-                    >
-                      <div className="flex items-end justify-center h-32 pb-3 px-1">
-                        <span
-                          title={name}
-                          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: 112 }}
-                          className="text-xs font-semibold text-gray-600 leading-tight overflow-hidden"
-                        >
-                          {name}
-                        </span>
-                      </div>
-                    </th>
-                  ))}
+                  {permitNames.map(name => {
+                    const hl = highlightedNames.has(name)
+                    return (
+                      <th
+                        key={name}
+                        className="sticky top-0 z-20 border-b border-r border-gray-200"
+                        style={{
+                          width: 52, minWidth: 52,
+                          background: hl ? '#fffbeb' : '#fafafa',
+                          borderTop: `3px solid ${hl ? '#f59e0b' : '#e5e7eb'}`,
+                        }}
+                      >
+                        <div className="flex flex-col items-center justify-end h-32 pb-2.5 px-1 gap-0.5">
+                          {hl && (
+                            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth={1}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
+                            </svg>
+                          )}
+                          <span
+                            title={name}
+                            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: 108 }}
+                            className={`leading-tight overflow-hidden ${hl ? 'text-[11px] font-bold text-amber-700' : 'text-[11px] font-medium text-gray-500'}`}
+                          >
+                            {name}
+                          </span>
+                        </div>
+                      </th>
+                    )
+                  })}
                 </tr>
               </thead>
 
@@ -435,8 +471,8 @@ export default function ComplianceTable() {
                     {permitNames.map(name => (
                       <td
                         key={name}
-                        className="border-r border-b border-gray-100 p-1.5 text-center align-middle bg-white"
-                        style={{ width: 52 }}
+                        className="border-r border-b border-gray-100 p-1.5 text-center align-middle"
+                        style={{ width: 52, background: highlightedNames.has(name) ? '#fffbeb' : '#fff' }}
                       >
                         {renderCell(proj.id, name)}
                       </td>
@@ -449,6 +485,17 @@ export default function ComplianceTable() {
         )}
       </div>
 
+      {tooltip && (
+        <div
+          className="fixed z-[200] pointer-events-none"
+          style={{ left: tooltip.x, top: tooltip.y - 10, transform: 'translate(-50%, -100%)' }}
+        >
+          <div className="bg-gray-900 text-white rounded-lg px-3 py-2 shadow-xl max-w-[240px] break-words text-left leading-relaxed whitespace-pre-wrap" style={{ fontSize: 16 }}>
+            {tooltip.text}
+          </div>
+          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
+        </div>
+      )}
     </section>
   )
 }

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase, fetchAll } from '../lib/supabaseClient'
 import TriangleLoader from './TriangleLoader'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid,
@@ -198,17 +198,13 @@ export default function UnitCompletionChart() {
         setFloors([]); setCompletions([]); setLoading(false); return
       }
 
-      const [fRes, cRes] = await Promise.all([
-        supabase.from('project_floors')
-          .select('project_id, num_units, m4_planned_end, m5_planned_end')
-          .in('project_id', filteredIds),
-        supabase.from('project_unit_completion')
-          .select('project_id, m4_date, m5_date')
-          .in('project_id', filteredIds),
+      const [fData, cData] = await Promise.all([
+        fetchAll(() => supabase.from('project_floors').select('project_id, num_units, m4_planned_end, m5_planned_end').in('project_id', filteredIds)),
+        fetchAll(() => supabase.from('project_unit_completion').select('project_id, m4_date, m5_date').in('project_id', filteredIds)),
       ])
 
-      setFloors(fRes.data ?? [])
-      setCompletions(cRes.data ?? [])
+      setFloors(fData)
+      setCompletions(cData)
       setLoading(false)
     }
 
@@ -400,18 +396,20 @@ export default function UnitCompletionChart() {
                     {rate}% &bull; {status === 'ahead' ? 'Ahead' : status === 'on-track' ? 'On Track' : 'Delayed'}
                   </span>
                 ) : (
-                  <span className="text-xs text-gray-300 italic flex-shrink-0">no plan set</span>
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0 bg-gray-100 text-gray-500 border border-gray-200">
+                    {total > 0 ? Math.round((actual / total) * 100) : 0}% Complete
+                  </span>
                 )}
               </div>
               {/* Three stats */}
               <div className="grid grid-cols-3 gap-2">
                 <div>
                   <p className="text-xl font-bold text-gray-900 leading-none">{planned.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1 leading-snug">Planned today</p>
+                  <p className="text-xs text-gray-400 mt-1 leading-snug">Planned PTD</p>
                 </div>
                 <div className="border-l border-gray-200 pl-3">
                   <p className="text-xl font-bold text-green-600 leading-none">{actual.toLocaleString()}</p>
-                  <p className="text-xs text-gray-400 mt-1 leading-snug">Actual</p>
+                  <p className="text-xs text-gray-400 mt-1 leading-snug">Actual PTD</p>
                 </div>
                 <div className="border-l border-gray-200 pl-3">
                   <p className="text-xl font-bold text-gray-400 leading-none">{total.toLocaleString()}</p>

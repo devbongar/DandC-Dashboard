@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
-import { supabase } from '../lib/supabaseClient'
+import { supabase, fetchAll } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr, toFloat, toInt } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
 import TriangleLoader from './TriangleLoader'
@@ -1695,7 +1695,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                           {PERMIT_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                         </select>
                       </td>
-                      <td className="px-4 py-2"><InlineInput value={form.remarks} onChange={v => setForm(p => ({ ...p, remarks: v }))} placeholder="Optional remarks" /></td>
+                      <td className="px-4 py-2"><textarea value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))} placeholder="Optional remarks" rows={2} className="w-full px-2 py-1.5 text-xs rounded border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ed6055] bg-white resize-y" /></td>
                       {isAdmin && <td className="px-4 py-2 whitespace-nowrap">
                         <button onClick={() => saveAndSync(l1.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button>
                         <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
@@ -1758,7 +1758,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                             {PERMIT_STATUSES.map(s => <option key={s.key} value={s.key}>{s.label}</option>)}
                           </select>
                         </td>
-                        <td className="px-4 py-2"><InlineInput value={form.remarks} onChange={v => setForm(p => ({ ...p, remarks: v }))} placeholder="Optional remarks" /></td>
+                        <td className="px-4 py-2"><textarea value={form.remarks} onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))} placeholder="Optional remarks" rows={2} className="w-full px-2 py-1.5 text-xs rounded border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ed6055] bg-white resize-y" /></td>
                         {isAdmin && <td className="px-4 py-2 whitespace-nowrap">
                           <button onClick={() => saveAndSync(child.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button>
                           <button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
@@ -1900,12 +1900,12 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                   {/* Remarks */}
                   <div>
                     <label className="block text-xs font-semibold text-gray-500 mb-1.5">Remarks <span className="font-normal text-gray-400">(optional)</span></label>
-                    <input
-                      type="text"
+                    <textarea
                       value={form.remarks ?? ''}
                       onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
                       placeholder="Add any notes…"
-                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black placeholder-gray-400"
+                      rows={3}
+                      className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black placeholder-gray-400 resize-y"
                     />
                   </div>
                 </div>
@@ -2963,6 +2963,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
 }
 
 function CompletionTab({ project, isAdmin, showToast }) {
+  const [buildingId, setBuildingId]                 = useState(null)
   const [floors, setFloors]                         = useState([])
   const [completions, setCompletions]               = useState([])
   const [parkingFloors, setParkingFloors]           = useState([])
@@ -2985,20 +2986,23 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
   const loadAll = async () => {
     setLoading(true)
-    const [{ data: fData }, { data: cData }, { data: pfData }, { data: pcData }] = await Promise.all([
-      supabase.from('project_floors').select('*').eq('project_id', project.id),
-      supabase.from('project_unit_completion').select('*').eq('project_id', project.id),
-      supabase.from('project_parking_floors').select('*').eq('project_id', project.id),
-      supabase.from('project_parking_unit_completion').select('*').eq('project_id', project.id),
+    let fq  = supabase.from('project_floors').select('*').eq('project_id', project.id)
+    let pfq = supabase.from('project_parking_floors').select('*').eq('project_id', project.id)
+    if (buildingId) { fq = fq.eq('building_id', buildingId); pfq = pfq.eq('building_id', buildingId) }
+    const [fData, cData, pfData, pcData] = await Promise.all([
+      fetchAll(() => fq),
+      fetchAll(() => supabase.from('project_unit_completion').select('*').eq('project_id', project.id)),
+      fetchAll(() => pfq),
+      fetchAll(() => supabase.from('project_parking_unit_completion').select('*').eq('project_id', project.id)),
     ])
     setFloors(sortFloors(fData))
-    setCompletions(cData ?? [])
+    setCompletions(cData)
     setParkingFloors(sortFloors(pfData))
-    setParkingCompletions(pcData ?? [])
+    setParkingCompletions(pcData)
     setLoading(false)
   }
 
-  useEffect(() => { loadAll() }, [project.id])
+  useEffect(() => { loadAll() }, [project.id, buildingId])
 
   const completionMap = useMemo(() => {
     const map = {}
@@ -3120,6 +3124,8 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
   return (
     <div>
+      <BuildingSelector projectId={project.id} isAdmin={false} buildingId={buildingId} onChange={setBuildingId} />
+
       {/* Legend + multi-select toolbar — sticky within the scrollable tab panel */}
       <div className="sticky top-0 z-20 bg-white py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
