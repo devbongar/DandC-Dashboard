@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- Background -->
+  <rect width="512" height="512" rx="80" fill="#3f3f3f"/>
+
+  <!-- Triangle cluster (scaled version of the PH1 logo motif) centered -->
+  <!-- Row 1: single triangle left -->
+  <polygon points="108,248 148,228 148,268" fill="#ed6055"/>
+
+  <!-- Row 2: two triangles -->
+  <polygon points="158,220 198,200 198,240" fill="#ed6055"/>
+  <polygon points="158,276 198,256 198,296" fill="#ed6055"/>
+
+  <!-- Row 3: three triangles (center column) -->
+  <polygon points="208,192 248,172 248,212" fill="#ed6055"/>
+  <polygon points="208,248 248,228 248,268" fill="#ed6055"/>
+  <polygon points="208,304 248,284 248,324" fill="#ed6055"/>
+
+  <!-- Row 4: two triangles -->
+  <polygon points="258,220 298,200 298,240" fill="#ed6055"/>
+  <polygon points="258,276 298,256 298,296" fill="#ed6055"/>
+
+  <!-- Row 5: single triangle right -->
+  <polygon points="308,248 348,228 348,268" fill="#ed6055"/>
+
+  <!-- "D&C" label -->
+  <text x="256" y="400" font-family="Arial, sans-serif" font-size="52" font-weight="700" fill="white" text-anchor="middle" letter-spacing="4">D&amp;C</text>
+</svg>
