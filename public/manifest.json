@@ -1,0 +1,25 @@
+{
+  "name": "D&C Dashboard",
+  "short_name": "D&C",
+  "description": "Design & Construction Project Dashboard",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#e4e7ec",
+  "theme_color": "#3f3f3f",
+  "icons": [
+    {
+      "src": "/logo.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
