@@ -69,6 +69,9 @@ export default function Sidebar({ profile, open, onClose }) {
           open ? 'translate-x-0' : '-translate-x-full',
         ].join(' ')}
       >
+        {/* Safe-area spacer — clears iOS status bar on PWA */}
+        <div style={{ height: 'env(safe-area-inset-top, 0px)', flexShrink: 0 }} />
+
         {/* ── Header: Logo + Close ── */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-white/5 flex-shrink-0">
           <Logo size="md" variant="white" />
