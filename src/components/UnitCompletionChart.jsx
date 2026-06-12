@@ -136,7 +136,7 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 // ── Main Component ────────────────────────────────────────────────────────────
-export default function UnitCompletionChart() {
+export default function UnitCompletionChart({ id }) {
   const [allProjects, setAllProjects]   = useState(null)
   const [floors, setFloors]             = useState([])
   const [completions, setCompletions]   = useState([])
@@ -279,7 +279,7 @@ const chartData = useMemo(
   }, [availableYears, timeMode])
 
   return (
-    <section className="bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col">
+    <section id={id} className="bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col">
       {/* Title */}
       <div className="flex items-center gap-2 mb-3">
         <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />

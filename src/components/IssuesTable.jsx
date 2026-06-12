@@ -43,7 +43,7 @@ function SectionBlock({ label, value }) {
   )
 }
 
-export default function IssuesTable() {
+export default function IssuesTable({ id }) {
   const [issues, setIssues]         = useState([])
   const [projects, setProjects]     = useState([])
   const [loading, setLoading]       = useState(true)
@@ -122,7 +122,7 @@ export default function IssuesTable() {
   }, [issues, projects, type4ph])
 
   return (
-    <section className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col" style={{ height: 600 }}>
+    <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col" style={{ height: 600 }}>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">

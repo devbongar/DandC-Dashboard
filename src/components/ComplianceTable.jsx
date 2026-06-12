@@ -216,7 +216,7 @@ const NACell = () => (
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function ComplianceTable() {
+export default function ComplianceTable({ id }) {
   const [permits, setPermits]     = useState([])
   const [projects, setProjects]   = useState([])
   const [loading, setLoading]     = useState(true)
@@ -301,7 +301,7 @@ export default function ComplianceTable() {
   const isEmpty = !loading && (projects.length === 0 || standardNames.length === 0)
 
   return (
-    <section className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col h-[600px]">
+    <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col h-[600px]">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">

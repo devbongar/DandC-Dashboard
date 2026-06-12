@@ -10,7 +10,7 @@ const PHASES = [
   { key: 'execution_monitoring', label: 'Execution & Monitoring', shortLabel: 'Exec' },
   { key: 'closeout',             label: 'Close-Out',             shortLabel: 'Close' },
 ]
-export default function ProjectPhasesBoard() {
+export default function ProjectPhasesBoard({ id }) {
   const [projects, setProjects]   = useState([])
   const [loading, setLoading]     = useState(true)
   const [toast, setToast]         = useState(null)
@@ -43,7 +43,7 @@ export default function ProjectPhasesBoard() {
   const byPhase = (key) => filteredProjects.filter(p => p.phase === key)
 
   return (
-    <section className="mb-0 h-full flex flex-col bg-white rounded-xl border border-gray-200 shadow p-4">
+    <section id={id} className="mb-0 h-full flex flex-col bg-white rounded-xl border border-gray-200 shadow p-4">
 
       {/* ── Section header ── */}
       <div className="flex items-center justify-between mb-3">
