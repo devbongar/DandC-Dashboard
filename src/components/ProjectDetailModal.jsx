@@ -135,14 +135,54 @@ function ReadValue({ value, accent }) {
   return <p className="text-sm font-semibold" style={{ color: accent ?? '#111' }}>{value || '—'}</p>
 }
 
-function SectionHeader({ title, action, sticky = false }) {
+function SectionHeader({ title, action, sticky = false, accent = '#ed6055' }) {
   return (
     <div className={`flex items-center justify-between mb-3 ${sticky ? 'sticky top-0 z-20 bg-white py-3' : ''}`}>
       <div className="flex items-center gap-2">
-        <div className="w-1 h-4 rounded-full bg-[#ed6055]" />
+        <div className="w-1 h-4 rounded-full" style={{ backgroundColor: accent }} />
         <h3 className="text-sm font-bold text-black">{title}</h3>
       </div>
       {action}
+    </div>
+  )
+}
+
+function MenuButton({ items, className = '' }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+  return (
+    <div className={`relative ${className}`} ref={ref}>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center justify-center w-7 h-7 rounded-lg border transition ${open ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}
+        title="More actions"
+      >
+        <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
+          <circle cx="10" cy="4.5" r="1.5" /><circle cx="10" cy="10" r="1.5" /><circle cx="10" cy="15.5" r="1.5" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+          {items.map((item, i) => item === null ? (
+            <div key={i} className="my-1 border-t border-gray-100" />
+          ) : (
+            <button
+              key={i}
+              onClick={() => { item.onClick(); setOpen(false) }}
+              className={`w-full text-left flex items-center gap-2 px-3 py-2 text-xs font-medium transition ${item.danger ? 'text-red-500 hover:bg-red-50' : 'text-gray-600 hover:bg-gray-50'}`}
+            >
+              {item.icon && <span className="flex-shrink-0 [&>svg]:w-3.5 [&>svg]:h-3.5">{item.icon}</span>}
+              {item.label}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -666,12 +706,244 @@ function AmenitiesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
 
 // ── Building Selector ─────────────────────────────────────────────────────────
 
-function BuildingSelector({ projectId, isAdmin, buildingId, onChange }) {
-  const [buildings, setBuildings] = useState([])
-  const [adding, setAdding]       = useState(false)
-  const [editId, setEditId]       = useState(null)
-  const [nameInput, setNameInput] = useState('')
-  const [deleteId, setDeleteId]   = useState(null)
+function BulkAddTowersModal({ projectId, existingNames, onDone, onCancel }) {
+  const [rows, setRows]     = useState(['', '', ''])
+  const [saving, setSaving] = useState(false)
+  const [err, setErr]       = useState('')
+
+  const setRow = (i, v) => setRows(r => r.map((x, j) => j === i ? v : x))
+  const addRow = () => setRows(r => [...r, ''])
+  const removeRow = (i) => setRows(r => r.filter((_, j) => j !== i))
+
+  const handle = async () => {
+    const names = rows.map(r => r.trim()).filter(Boolean)
+    if (names.length === 0) { setErr('Enter at least one name.'); return }
+    const dupeExisting = names.filter(n => existingNames.some(e => e.toLowerCase() === n.toLowerCase()))
+    if (dupeExisting.length > 0) { setErr(`Already exists: ${dupeExisting.join(', ')}`); return }
+    const dupeInternal = names.filter((n, i) => names.findIndex(x => x.toLowerCase() === n.toLowerCase()) !== i)
+    if (dupeInternal.length > 0) { setErr(`Duplicate names in list: ${[...new Set(dupeInternal)].join(', ')}`); return }
+    setSaving(true)
+    const base = existingNames.length
+    const inserts = names.map((name, i) => ({ project_id: projectId, name, sort_order: base + i }))
+    const { data, error } = await supabase.from('project_buildings').insert(inserts).select('*')
+    setSaving(false)
+    if (error) { setErr(error.message); return }
+    onDone(data ?? [])
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 max-h-[90vh] overflow-y-auto">
+        <h3 className="text-sm font-bold text-gray-900 mb-4">Bulk Add Towers / Locations</h3>
+        <div className="space-y-2">
+          {rows.map((val, i) => (
+            <div key={i} className="flex items-center gap-2">
+              <input
+                autoFocus={i === 0}
+                value={val}
+                onChange={e => setRow(i, e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') addRow() }}
+                placeholder={`e.g. Tower ${String.fromCharCode(65 + i)}`}
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40"
+              />
+              {rows.length > 1 && (
+                <button onClick={() => removeRow(i)} className="text-gray-300 hover:text-red-400 transition flex-shrink-0" title="Remove">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={addRow}
+          className="mt-3 flex items-center gap-1 text-xs font-semibold text-gray-400 hover:text-[#ed6055] transition"
+        >
+          <PlusIcon /> Add Row
+        </button>
+        {err && <p className="mt-2 text-xs text-red-500">{err}</p>}
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
+          <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
+            {saving ? 'Adding…' : 'Add Towers'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BulkDeleteTowersModal({ buildings, projectId, onDone, onCancel }) {
+  const [selected, setSelected] = useState(new Set())
+  const [saving, setSaving]     = useState(false)
+  const [err, setErr]           = useState('')
+
+  const allChecked = selected.size === buildings.length
+  const toggleAll  = () => setSelected(allChecked ? new Set() : new Set(buildings.map(b => b.id)))
+  const toggle     = (id) => setSelected(prev => { const next = new Set(prev); next.has(id) ? next.delete(id) : next.add(id); return next })
+
+  const handle = async () => {
+    if (selected.size === 0) { setErr('Select at least one tower to delete.'); return }
+    setSaving(true)
+    try {
+      for (const id of selected) {
+        await supabase.from('project_floors').delete().eq('building_id', id)
+        await supabase.from('project_parking_floors').delete().eq('building_id', id)
+        await supabase.from('project_buildings').delete().eq('id', id)
+      }
+      onDone([...selected])
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <h3 className="text-sm font-bold text-gray-900 mb-1">Bulk Delete Towers / Locations</h3>
+        <p className="text-xs text-gray-500 mb-4">Select towers to permanently delete, including all their floor data.</p>
+        <div className="border border-gray-200 rounded-lg overflow-hidden divide-y divide-gray-100 mb-3">
+          <label className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gray-50 bg-gray-50/80">
+            <input type="checkbox" checked={allChecked} onChange={toggleAll} className="accent-[#ed6055]" />
+            <span className="text-xs font-semibold text-gray-600">Select all</span>
+          </label>
+          {buildings.map(b => (
+            <label key={b.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gray-50 text-xs text-gray-700">
+              <input type="checkbox" checked={selected.has(b.id)} onChange={() => toggle(b.id)} className="accent-[#ed6055]" />
+              {b.name}
+            </label>
+          ))}
+        </div>
+        {selected.size > 0 && (
+          <p className="text-xs text-red-600 bg-red-50 rounded-lg px-3 py-2 mb-3">
+            {selected.size} tower{selected.size > 1 ? 's' : ''} and all their floor data will be permanently deleted.
+          </p>
+        )}
+        {err && <p className="text-xs text-red-500 mb-2">{err}</p>}
+        <div className="flex justify-end gap-2">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
+          <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-50">
+            {saving ? 'Deleting…' : `Delete${selected.size > 0 ? ` (${selected.size})` : ''}`}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
+  const [destIds, setDestIds]   = useState(new Set())
+  const [copyRes, setCopyRes]   = useState(true)
+  const [copyPark, setCopyPark] = useState(true)
+  const [saving, setSaving]     = useState(false)
+  const [err, setErr]           = useState('')
+
+  const sourceName = buildings.find(b => b.id === sourceId)?.name ?? ''
+  const targets    = buildings.filter(b => b.id !== sourceId)
+
+  const toggleDest = (id) => setDestIds(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  const handle = async () => {
+    if (destIds.size === 0) { setErr('Select at least one destination tower.'); return }
+    if (!copyRes && !copyPark) { setErr('Select at least one section to copy.'); return }
+    setSaving(true)
+    try {
+      let srcFloors = null, srcPark = null
+      if (copyRes) {
+        const { data } = await supabase.from('project_floors').select('*').eq('project_id', projectId).eq('building_id', sourceId)
+        srcFloors = data ?? []
+      }
+      if (copyPark) {
+        const { data } = await supabase.from('project_parking_floors').select('*').eq('project_id', projectId).eq('building_id', sourceId)
+        srcPark = data ?? []
+      }
+      for (const did of destIds) {
+        if (copyRes) {
+          await supabase.from('project_floors').delete().eq('project_id', projectId).eq('building_id', did)
+          if (srcFloors.length > 0) await supabase.from('project_floors').insert(srcFloors.map(({ id: _id, building_id: _bid, ...rest }) => ({ ...rest, building_id: did })))
+        }
+        if (copyPark) {
+          await supabase.from('project_parking_floors').delete().eq('project_id', projectId).eq('building_id', did)
+          if (srcPark.length > 0) await supabase.from('project_parking_floors').insert(srcPark.map(({ id: _id, building_id: _bid, ...rest }) => ({ ...rest, building_id: did })))
+        }
+      }
+      onDone()
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
+        <h3 className="text-sm font-bold text-gray-900 mb-1">Copy Configuration</h3>
+        <p className="text-xs text-gray-500 mb-4">Copy floor schedule from <span className="font-semibold text-gray-700">{sourceName}</span> to one or more towers.</p>
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1.5">Copy to</label>
+            <div className="border border-gray-200 rounded-lg divide-y divide-gray-100 overflow-hidden">
+              {targets.map(b => (
+                <label key={b.id} className="flex items-center gap-2.5 px-3 py-2 cursor-pointer hover:bg-gray-50 text-xs text-gray-700">
+                  <input type="checkbox" checked={destIds.has(b.id)} onChange={() => toggleDest(b.id)} className="accent-[#ed6055]" />
+                  {b.name}
+                </label>
+              ))}
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-medium text-gray-600">What to copy</label>
+            <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={copyRes} onChange={e => setCopyRes(e.target.checked)} className="accent-[#ed6055]" />
+              Residential Floors
+            </label>
+            <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
+              <input type="checkbox" checked={copyPark} onChange={e => setCopyPark(e.target.checked)} className="accent-[#ed6055]" />
+              Parking Floors
+            </label>
+          </div>
+          {destIds.size > 0 && (
+            <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+              Existing floors in the selected tower{destIds.size > 1 ? 's' : ''} will be replaced.
+            </p>
+          )}
+          {err && <p className="text-xs text-red-500">{err}</p>}
+        </div>
+        <div className="flex justify-end gap-2 mt-5">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
+          <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
+            {saving ? 'Copying…' : 'Copy'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = true, onCopyDone }) {
+  const [buildings, setBuildings]   = useState([])
+  const [adding, setAdding]         = useState(false)
+  const [bulkAdding, setBulkAdding]         = useState(false)
+  const [bulkDeleting, setBulkDeleting]     = useState(false)
+  const [copying, setCopying]               = useState(false)
+  const [editId, setEditId]         = useState(null)
+  const [nameInput, setNameInput]   = useState('')
+  const [deleteId, setDeleteId]     = useState(null)
+  const [moreOpen, setMoreOpen]     = useState(false)
+  const moreRef                     = useRef(null)
+
+  useEffect(() => {
+    if (!moreOpen) return
+    const handler = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [moreOpen])
 
   useEffect(() => { load() }, [projectId])
 
@@ -717,49 +989,100 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange }) {
 
   if (buildings.length === 0 && !isAdmin) return null
 
+  // First 3 pills always visible; if the selected building is beyond that, bubble it up
+  const PILL_LIMIT    = 3
+  const basePills     = buildings.slice(0, PILL_LIMIT)
+  const rawOverflow   = buildings.slice(PILL_LIMIT)
+  const selectedExtra = rawOverflow.find(b => b.id === buildingId)
+  const visiblePills  = selectedExtra ? [...basePills, selectedExtra] : basePills
+  const overflowPills = rawOverflow.filter(b => b.id !== buildingId)
+
+  const renderPill = (b) => (
+    editId === b.id ? (
+      <div key={b.id} className="flex items-center gap-1">
+        <input
+          autoFocus
+          value={nameInput}
+          onChange={e => setNameInput(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') renameBuilding(b.id); if (e.key === 'Escape') { setEditId(null); setNameInput('') } }}
+          className="text-xs border border-gray-300 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-[#ed6055]"
+        />
+        <button onClick={() => renameBuilding(b.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45]">Save</button>
+        <button onClick={() => { setEditId(null); setNameInput('') }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
+      </div>
+    ) : (
+      <div key={b.id} className="flex items-center gap-0.5 group">
+        <button
+          onClick={() => onChange(b.id)}
+          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${buildingId === b.id ? 'bg-[#ed6055] text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+        >
+          {b.name}
+        </button>
+        {isAdmin && (
+          <button
+            onClick={() => setDeleteId(b.id)}
+            className="opacity-0 group-hover:opacity-100 transition p-1 text-gray-400 hover:text-red-500"
+            title={`Delete ${b.name}`}
+          >
+            <TrashIcon />
+          </button>
+        )}
+      </div>
+    )
+  )
+
   return (
     <div className="flex items-center gap-2 flex-wrap mb-5">
-      {buildings.map(b => (
-        editId === b.id ? (
-          <div key={b.id} className="flex items-center gap-1">
-            <input
-              autoFocus
-              value={nameInput}
-              onChange={e => setNameInput(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') renameBuilding(b.id); if (e.key === 'Escape') { setEditId(null); setNameInput('') } }}
-              className="text-xs border border-gray-300 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-[#ed6055]"
-            />
-            <button onClick={() => renameBuilding(b.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45]">Save</button>
-            <button onClick={() => { setEditId(null); setNameInput('') }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-          </div>
-        ) : (
-          <div key={b.id} className="flex items-center gap-0.5 group">
-            <button
-              onClick={() => onChange(b.id)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${buildingId === b.id ? 'bg-black text-white' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-            >
-              {b.name}
-            </button>
-            {isAdmin && buildingId === b.id && (
-              <>
-                <button onClick={() => { setEditId(b.id); setNameInput(b.name) }} className="p-1 text-gray-300 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition"><PencilIcon /></button>
-                <button onClick={() => setDeleteId(b.id)} className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition"><TrashIcon /></button>
-              </>
-            )}
-          </div>
-        )
-      ))}
+      {visiblePills.map(renderPill)}
 
-      {isAdmin && !adding && (
-        <button
-          onClick={() => { setAdding(true); setNameInput('') }}
-          className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] transition"
-        >
-          <PlusIcon /> Add Building
-        </button>
+      {/* Overflow "+N more" dropdown */}
+      {overflowPills.length > 0 && (
+        <div className="relative" ref={moreRef}>
+          <button
+            onClick={() => setMoreOpen(v => !v)}
+            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${moreOpen ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+          >
+            +{overflowPills.length} more
+            <svg className={`w-3 h-3 transition-transform ${moreOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+          {moreOpen && (
+            <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[140px]">
+              {overflowPills.map(b => (
+                <button
+                  key={b.id}
+                  onClick={() => { onChange(b.id); setMoreOpen(false) }}
+                  className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition"
+                >
+                  {b.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
 
-      {adding && (
+      {isAdmin && canAdd && !adding && (
+        <>
+          <button
+            onClick={() => { setAdding(true); setNameInput('') }}
+            className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] transition"
+          >
+            <PlusIcon /> Add Tower/Location
+          </button>
+          {buildings.length > 0 && (
+            <MenuButton items={[
+              { label: 'Bulk Add Towers', icon: <PlusIcon />, onClick: () => setBulkAdding(true) },
+              ...(buildingId && buildings.length > 1 ? [{ label: 'Copy Config', icon: <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-4 10h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>, onClick: () => setCopying(true) }] : []),
+              null,
+              { label: 'Bulk Delete', icon: <TrashIcon />, onClick: () => setBulkDeleting(true), danger: true },
+            ]} />
+          )}
+        </>
+      )}
+
+      {canAdd && adding && (
         <div className="flex items-center gap-1">
           <input
             autoFocus
@@ -780,28 +1103,78 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange }) {
           onCancel={() => setDeleteId(null)}
         />
       )}
+
+      {bulkAdding && (
+        <BulkAddTowersModal
+          projectId={projectId}
+          existingNames={buildings.map(b => b.name)}
+          onDone={(newBuildings) => {
+            const updated = [...buildings, ...newBuildings]
+            setBuildings(updated)
+            if (newBuildings.length > 0) onChange(newBuildings[0].id)
+            setBulkAdding(false)
+          }}
+          onCancel={() => setBulkAdding(false)}
+        />
+      )}
+
+      {bulkDeleting && (
+        <BulkDeleteTowersModal
+          buildings={buildings}
+          projectId={projectId}
+          onDone={(deletedIds) => {
+            const remaining = buildings.filter(b => !deletedIds.includes(b.id))
+            setBuildings(remaining)
+            if (deletedIds.includes(buildingId)) onChange(remaining[0]?.id ?? null)
+            setBulkDeleting(false)
+          }}
+          onCancel={() => setBulkDeleting(false)}
+        />
+      )}
+
+      {copying && (
+        <CopyConfigModal
+          buildings={buildings}
+          sourceId={buildingId}
+          projectId={projectId}
+          onDone={() => { setCopying(false); onCopyDone?.() }}
+          onCancel={() => setCopying(false)}
+        />
+      )}
     </div>
   )
 }
 
 function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
-  const [from, setFrom]     = useState('')
-  const [to, setTo]         = useState('')
-  const [prefix, setPrefix] = useState('')
-  const [numUnits, setNumUnits] = useState('')
-  const [err, setErr]       = useState('')
+  const [from, setFrom]           = useState('')
+  const [to, setTo]               = useState('')
+  const [prefix, setPrefix]       = useState('')
+  const [numUnits, setNumUnits]   = useState('')
+  const [err, setErr]             = useState('')
+
+  const fieldCls = 'w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40'
+  const labelCls = 'block text-xs font-medium text-gray-600 mb-1'
+
+  const f = parseInt(from), t = parseInt(to)
+  const rangeValid = !isNaN(f) && !isNaN(t) && f <= t && (t - f) <= 99
+  const count = rangeValid ? t - f + 1 : 0
+
+  const previewLabels = () => {
+    if (!rangeValid) return ''
+    const labels = Array.from({ length: count }, (_, i) => prefix ? `${prefix}${f + i}` : String(f + i))
+    if (labels.length <= 4) return labels.join(', ')
+    return `${labels[0]}, ${labels[1]} … ${labels[labels.length - 1]}`
+  }
 
   const handle = () => {
-    const f = parseInt(from), t = parseInt(to)
-    if (isNaN(f) || isNaN(t) || f > t) { setErr('Enter a valid floor range (From ≤ To).'); return }
-    if (t - f > 99) { setErr('Maximum 100 floors at a time.'); return }
+    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be ≤ To.' : 'Maximum 100 floors at a time.'); return }
     setErr('')
     const floors = []
     for (let i = f; i <= t; i++) {
       floors.push({
-        physical_level: prefix ? `${prefix}${i}` : String(i),
-        marketing_level: null,
-        num_units: numUnits !== '' ? parseInt(numUnits) || null : null,
+        physical_level:   prefix ? `${prefix}${i}` : String(i),
+        marketing_level:  null,
+        num_units:        numUnits !== '' ? parseInt(numUnits) || null : null,
         m4_planned_start: null,
         m4_planned_end:   null,
         m5_planned_start: null,
@@ -818,24 +1191,35 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">From Floor #</label>
-              <input type="number" value={from} onChange={e => setFrom(e.target.value)} placeholder="1" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40" />
+              <label className={labelCls}>From Floor #</label>
+              <input type="number" value={from} onChange={e => setFrom(e.target.value)} placeholder="1" className={fieldCls} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">To Floor #</label>
-              <input type="number" value={to} onChange={e => setTo(e.target.value)} placeholder="40" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40" />
+              <label className={labelCls}>To Floor #</label>
+              <input type="number" value={to} onChange={e => setTo(e.target.value)} placeholder="40" className={fieldCls} />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">Level Prefix <span className="font-normal text-gray-400">(optional)</span></label>
-              <input value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="e.g. F or L" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40" />
+              <label className={labelCls}>Level Prefix <span className="font-normal text-gray-400">(optional)</span></label>
+              <input value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="e.g. F or L" className={fieldCls} />
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">{unitLabel} / Floor <span className="font-normal text-gray-400">(optional)</span></label>
-              <input type="number" value={numUnits} onChange={e => setNumUnits(e.target.value)} placeholder="0" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40" />
+              <label className={labelCls}>{unitLabel} / Floor <span className="font-normal text-gray-400">(optional)</span></label>
+              <input type="number" value={numUnits} onChange={e => setNumUnits(e.target.value)} placeholder="0" className={fieldCls} />
             </div>
           </div>
+
+          {rangeValid && (
+            <p className="text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2 leading-relaxed">
+              Will generate <span className="font-semibold text-gray-700">{count}</span> floor{count !== 1 ? 's' : ''}:{' '}
+              <span className="font-medium text-gray-600">{previewLabels()}</span>
+              {numUnits !== '' && parseInt(numUnits) > 0 && (
+                <> — <span className="font-semibold text-gray-700">{numUnits}</span> {unitLabel.toLowerCase()} each</>
+              )}
+            </p>
+          )}
+
           {err && <p className="text-xs text-red-500">{err}</p>}
         </div>
         <div className="flex justify-end gap-2 mt-5">
@@ -847,13 +1231,14 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
   )
 }
 
-function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refreshKey = 0 }) {
+function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refreshKey = 0, onSummaryChange }) {
   const [rows, setRows] = useState([])
   const [adding, setAdding] = useState(false)
   const [bulkAdding, setBulkAdding] = useState(false)
-  const [editId, setEditId] = useState(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editForms, setEditForms] = useState({})
+  const [newForm, setNewForm] = useState({})
   const [deleteId, setDeleteId] = useState(null)
-  const [form, setForm] = useState({})
 
   useEffect(() => { load() }, [projectId, buildingId, refreshKey])
   const load = async () => {
@@ -867,43 +1252,73 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
         return a.physical_level.localeCompare(b.physical_level)
       })
       setRows(data)
+      onSummaryChange?.({ floors: data.length, units: data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
     }
   }
   const blank = () => ({ physical_level: '', marketing_level: '', num_units: '', m4_planned_start: '', m4_planned_end: '', m5_planned_start: '', m5_planned_end: '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false })
-  const save = async (id) => {
-    const payload = { project_id: projectId, building_id: buildingId ?? null, physical_level: form.physical_level?.trim(), marketing_level: form.marketing_level?.trim() || null, num_units: form.num_units !== '' ? parseInt(form.num_units) : null, m4_planned_start: form.m4_planned_start || null, m4_planned_end: form.m4_planned_end || null, m5_planned_start: form.m5_planned_start || null, m5_planned_end: form.m5_planned_end || null }
-    if (!payload.physical_level) return
-    if (noNeg(payload.num_units)) { showToast('Values cannot be negative.', 'error'); return }
-    if (form.m4_start_bad || (form.m4_planned_start && !isValidDate(form.m4_planned_start))) { showToast('M4 Start Date is not a valid calendar date.', 'error'); return }
-    if (form.m4_end_bad   || (form.m4_planned_end   && !isValidDate(form.m4_planned_end)))   { showToast('M4 End Date is not a valid calendar date.', 'error'); return }
-    if (form.m5_start_bad || (form.m5_planned_start && !isValidDate(form.m5_planned_start))) { showToast('M5 Start Date is not a valid calendar date.', 'error'); return }
-    if (form.m5_end_bad   || (form.m5_planned_end   && !isValidDate(form.m5_planned_end)))   { showToast('M5 End Date is not a valid calendar date.', 'error'); return }
-    if (payload.m4_planned_start && payload.m4_planned_end && payload.m4_planned_end < payload.m4_planned_start) { showToast('M4 End Date cannot be earlier than M4 Start Date.', 'error'); return }
-    if (payload.m5_planned_start && payload.m5_planned_end && payload.m5_planned_end < payload.m5_planned_start) { showToast('M5 End Date cannot be earlier than M5 Start Date.', 'error'); return }
-    const { error } = id ? await supabase.from('project_floors').update(payload).eq('id', id) : await supabase.from('project_floors').insert(payload)
+  const toPayload = (f) => ({ project_id: projectId, building_id: buildingId ?? null, physical_level: f.physical_level?.trim(), marketing_level: f.marketing_level?.trim() || null, num_units: f.num_units !== '' ? parseInt(f.num_units) : null, m4_planned_start: f.m4_planned_start || null, m4_planned_end: f.m4_planned_end || null, m5_planned_start: f.m5_planned_start || null, m5_planned_end: f.m5_planned_end || null })
+  const validate = (f, label = '') => {
+    const p = toPayload(f); const pfx = label ? `${label}: ` : ''
+    if (!p.physical_level) { showToast(`${pfx}Physical level is required.`, 'error'); return false }
+    if (noNeg(p.num_units)) { showToast(`${pfx}Values cannot be negative.`, 'error'); return false }
+    if (f.m4_start_bad || (f.m4_planned_start && !isValidDate(f.m4_planned_start))) { showToast(`${pfx}M4 Start Date is not a valid calendar date.`, 'error'); return false }
+    if (f.m4_end_bad   || (f.m4_planned_end   && !isValidDate(f.m4_planned_end)))   { showToast(`${pfx}M4 End Date is not a valid calendar date.`, 'error'); return false }
+    if (f.m5_start_bad || (f.m5_planned_start && !isValidDate(f.m5_planned_start))) { showToast(`${pfx}M5 Start Date is not a valid calendar date.`, 'error'); return false }
+    if (f.m5_end_bad   || (f.m5_planned_end   && !isValidDate(f.m5_planned_end)))   { showToast(`${pfx}M5 End Date is not a valid calendar date.`, 'error'); return false }
+    if (p.m4_planned_start && p.m4_planned_end && p.m4_planned_end < p.m4_planned_start) { showToast(`${pfx}M4 End Date cannot be earlier than M4 Start Date.`, 'error'); return false }
+    if (p.m5_planned_start && p.m5_planned_end && p.m5_planned_end < p.m5_planned_start) { showToast(`${pfx}M5 End Date cannot be earlier than M5 Start Date.`, 'error'); return false }
+    return true
+  }
+  const saveAll = async () => {
+    for (const row of rows) {
+      const f = editForms[row.id] ?? {}
+      if (!validate(f, row.physical_level)) return
+      const { error } = await supabase.from('project_floors').update(toPayload(f)).eq('id', row.id)
+      if (error) { showToast(error.message, 'error'); return }
+    }
+    showToast('Updated.', 'success'); setEditMode(false); setEditForms({}); load()
+  }
+  const saveNew = async () => {
+    if (!validate(newForm)) return
+    const { error } = await supabase.from('project_floors').insert(toPayload(newForm))
     if (error) { showToast(error.message, 'error'); return }
-    showToast(id ? 'Updated.' : 'Added.', 'success'); setAdding(false); setEditId(null); load()
+    showToast('Added.', 'success'); setAdding(false); setNewForm({}); load()
   }
   const bulkSave = async (floors) => {
     const rows = floors.map(f => ({ ...f, project_id: projectId, building_id: buildingId ?? null }))
     const { error } = await supabase.from('project_floors').insert(rows)
     if (error) { showToast(error.message, 'error'); return }
     showToast(`${floors.length} floor${floors.length !== 1 ? 's' : ''} added.`, 'success')
-    setBulkAdding(false)
-    load()
+    setBulkAdding(false); load()
   }
   const del = async (id) => { await supabase.from('project_floors').delete().eq('id', id); load() }
+  const enterEdit = () => { setEditForms(Object.fromEntries(rows.map(r => [r.id, { physical_level: r.physical_level, marketing_level: r.marketing_level ?? '', num_units: r.num_units ?? '', m4_planned_start: r.m4_planned_start ?? '', m4_planned_end: r.m4_planned_end ?? '', m5_planned_start: r.m5_planned_start ?? '', m5_planned_end: r.m5_planned_end ?? '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false }]))); setEditMode(true) }
+  const cancelEdit = () => { setEditMode(false); setEditForms({}); setAdding(false); setNewForm({}) }
+  const setEF = (id, k, v) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k]: v } }))
+  const setEF2 = (id, k1, v1, k2, v2) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k1]: v1, [k2]: v2 } }))
+
+  const isEditing = editMode || adding
 
   return (
     <div className="mb-6">
-      <SectionHeader title="Floor Schedule (M4 / M5)" action={isAdmin && !adding && (
-        <div className="flex gap-1.5">
-          <button onClick={() => { setForm(blank()); setAdding(true) }} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"><PlusIcon /> Add One</button>
-          <button onClick={() => setBulkAdding(true)} className="text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition flex items-center gap-1"><PlusIcon /> Bulk Add</button>
-        </div>
+      <SectionHeader title="Residential Units" accent="#f59e0b" action={isAdmin && (
+        isEditing ? (
+          <div className="flex gap-1.5">
+            <button onClick={cancelEdit} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+            <button onClick={() => editMode ? saveAll() : saveNew()} className="text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition">Save</button>
+          </div>
+        ) : (
+          <div className="flex gap-1.5 items-center">
+            <button onClick={() => { setNewForm(blank()); setAdding(true) }} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"><PlusIcon /> Add Row</button>
+            <MenuButton items={[
+              { label: 'Bulk Add', icon: <PlusIcon />, onClick: () => setBulkAdding(true) },
+              ...(rows.length > 0 ? [{ label: 'Edit Rows', icon: <PencilIcon />, onClick: enterEdit }] : []),
+            ]} />
+          </div>
+        )
       )} />
       <div className="overflow-x-auto">
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-w-[900px]">
+        <div className={`bg-white rounded-xl border overflow-hidden min-w-[900px] transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
           <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-200">
@@ -922,24 +1337,25 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {rows.map(row => editId === row.id ? (
+              {rows.map(row => editMode ? (
                 <tr key={row.id}>
                   {(() => {
-                    const m4StartErr = form.m4_start_bad || !!(form.m4_planned_start && !isValidDate(form.m4_planned_start))
-                    const m4EndErr   = form.m4_end_bad   || !!(form.m4_planned_end   && !isValidDate(form.m4_planned_end))
-                    const m5StartErr = form.m5_start_bad || !!(form.m5_planned_start && !isValidDate(form.m5_planned_start))
-                    const m5EndErr   = form.m5_end_bad   || !!(form.m5_planned_end   && !isValidDate(form.m5_planned_end))
-                    const m4OrderErr = !m4StartErr && !m4EndErr && !!(form.m4_planned_start && form.m4_planned_end && form.m4_planned_end < form.m4_planned_start)
-                    const m5OrderErr = !m5StartErr && !m5EndErr && !!(form.m5_planned_start && form.m5_planned_end && form.m5_planned_end < form.m5_planned_start)
+                    const f = editForms[row.id] ?? {}
+                    const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
+                    const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
+                    const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
+                    const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
+                    const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
+                    const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
                     return <>
-                      <td className="px-2 py-1.5" style={{ minWidth: 120 }}><InlineInput value={form.physical_level} onChange={v => setForm(p => ({ ...p, physical_level: v }))} /></td>
-                      <td className="px-2 py-1.5" style={{ width: 72 }}><InlineInput value={form.marketing_level} onChange={v => setForm(p => ({ ...p, marketing_level: v }))} /></td>
-                      <td className="px-2 py-1.5" style={{ width: 64 }}><InlineInput type="number" value={form.num_units} onChange={v => setForm(p => ({ ...p, num_units: v }))} /></td>
-                      <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m4_planned_start} onChange={(v, bad) => setForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
-                      <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m4_planned_end}   onChange={(v, bad) => setForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
-                      <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m5_planned_start} onChange={(v, bad) => setForm(p => ({ ...p, m5_planned_start: v, m5_start_bad: !!bad }))} error={m5StartErr || m5OrderErr} /></td>
-                      <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m5_planned_end}   onChange={(v, bad) => setForm(p => ({ ...p, m5_planned_end:   v, m5_end_bad:   !!bad }))} error={m5EndErr   || m5OrderErr} /></td>
-                      <td className="px-2 py-1.5 whitespace-nowrap" style={{ width: 80 }}><button onClick={() => save(row.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button><button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button></td>
+                      <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setEF(row.id, 'physical_level', v)} /></td>
+                      <td className="px-2 py-1.5"><InlineInput value={f.marketing_level} onChange={v => setEF(row.id, 'marketing_level', v)} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setEF(row.id, 'num_units', v)} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setEF2(row.id, 'm4_planned_start', v, 'm4_start_bad', !!bad)} error={m4StartErr || m4OrderErr} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm4_planned_end',   v, 'm4_end_bad',   !!bad)} error={m4EndErr   || m4OrderErr} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setEF2(row.id, 'm5_planned_start', v, 'm5_start_bad', !!bad)} error={m5StartErr || m5OrderErr} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm5_planned_end',   v, 'm5_end_bad',   !!bad)} error={m5EndErr   || m5OrderErr} /></td>
+                      {isAdmin && <td />}
                     </>
                   })()}
                 </tr>
@@ -952,29 +1368,27 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_end)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_start)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_end)}</td>
-                  {isAdmin && <td className="px-3 py-2"><div className="flex gap-1">
-                    <button onClick={() => { setForm({ physical_level: row.physical_level, marketing_level: row.marketing_level ?? '', num_units: row.num_units ?? '', m4_planned_start: row.m4_planned_start ?? '', m4_planned_end: row.m4_planned_end ?? '', m5_planned_start: row.m5_planned_start ?? '', m5_planned_end: row.m5_planned_end ?? '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false }); setEditId(row.id) }} className="p-0.5 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
-                    <button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button>
-                  </div></td>}
+                  {isAdmin && <td className="px-3 py-2"><button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button></td>}
                 </tr>
               ))}
               {adding && (() => {
-                const m4StartErr = form.m4_start_bad || !!(form.m4_planned_start && !isValidDate(form.m4_planned_start))
-                const m4EndErr   = form.m4_end_bad   || !!(form.m4_planned_end   && !isValidDate(form.m4_planned_end))
-                const m5StartErr = form.m5_start_bad || !!(form.m5_planned_start && !isValidDate(form.m5_planned_start))
-                const m5EndErr   = form.m5_end_bad   || !!(form.m5_planned_end   && !isValidDate(form.m5_planned_end))
-                const m4OrderErr = !m4StartErr && !m4EndErr && !!(form.m4_planned_start && form.m4_planned_end && form.m4_planned_end < form.m4_planned_start)
-                const m5OrderErr = !m5StartErr && !m5EndErr && !!(form.m5_planned_start && form.m5_planned_end && form.m5_planned_end < form.m5_planned_start)
+                const f = newForm
+                const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
+                const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
+                const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
+                const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
+                const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
+                const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
                 return (
                   <tr>
-                    <td className="px-2 py-1.5" style={{ minWidth: 120 }}><InlineInput value={form.physical_level} onChange={v => setForm(p => ({ ...p, physical_level: v }))} placeholder="e.g. 1 or Outdoor" /></td>
-                    <td className="px-2 py-1.5" style={{ width: 72 }}><InlineInput value={form.marketing_level} onChange={v => setForm(p => ({ ...p, marketing_level: v }))} placeholder="RD" /></td>
-                    <td className="px-2 py-1.5" style={{ width: 64 }}><InlineInput type="number" value={form.num_units} onChange={v => setForm(p => ({ ...p, num_units: v }))} /></td>
-                    <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m4_planned_start} onChange={(v, bad) => setForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
-                    <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m4_planned_end}   onChange={(v, bad) => setForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
-                    <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m5_planned_start} onChange={(v, bad) => setForm(p => ({ ...p, m5_planned_start: v, m5_start_bad: !!bad }))} error={m5StartErr || m5OrderErr} /></td>
-                    <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m5_planned_end}   onChange={(v, bad) => setForm(p => ({ ...p, m5_planned_end:   v, m5_end_bad:   !!bad }))} error={m5EndErr   || m5OrderErr} /></td>
-                    <td className="px-2 py-1.5 whitespace-nowrap" style={{ width: 80 }}><button onClick={() => save(null)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button><button onClick={() => setAdding(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button></td>
+                    <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setNewForm(p => ({ ...p, physical_level: v }))} placeholder="e.g. 1 or Outdoor" /></td>
+                    <td className="px-2 py-1.5"><InlineInput value={f.marketing_level} onChange={v => setNewForm(p => ({ ...p, marketing_level: v }))} placeholder="RD" /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setNewForm(p => ({ ...p, num_units: v }))} /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_start: v, m5_start_bad: !!bad }))} error={m5StartErr || m5OrderErr} /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_end:   v, m5_end_bad:   !!bad }))} error={m5EndErr   || m5OrderErr} /></td>
+                    {isAdmin && <td />}
                   </tr>
                 )
               })()}
@@ -989,13 +1403,14 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
   )
 }
 
-function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refreshKey = 0 }) {
+function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refreshKey = 0, onSummaryChange }) {
   const [rows, setRows] = useState([])
   const [adding, setAdding] = useState(false)
   const [bulkAdding, setBulkAdding] = useState(false)
-  const [editId, setEditId] = useState(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editForms, setEditForms] = useState({})
+  const [newForm, setNewForm] = useState({})
   const [deleteId, setDeleteId] = useState(null)
-  const [form, setForm] = useState({})
 
   useEffect(() => { load() }, [projectId, buildingId, refreshKey])
   const load = async () => {
@@ -1009,49 +1424,79 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
         return a.physical_level.localeCompare(b.physical_level)
       })
       setRows(data)
+      onSummaryChange?.({ floors: data.length, units: data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
     }
   }
   const blank = () => ({ physical_level: '', marketing_level: '', num_units: '', m4_planned_start: '', m4_planned_end: '', m5_planned_start: '', m5_planned_end: '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false })
-  const save = async (id) => {
-    const payload = { project_id: projectId, physical_level: form.physical_level?.trim(), marketing_level: form.marketing_level?.trim() || null, num_units: form.num_units !== '' ? parseInt(form.num_units) : null, m4_planned_start: form.m4_planned_start || null, m4_planned_end: form.m4_planned_end || null, m5_planned_start: form.m5_planned_start || null, m5_planned_end: form.m5_planned_end || null }
-    if (!payload.physical_level) return
-    if (noNeg(payload.num_units)) { showToast('Values cannot be negative.', 'error'); return }
-    if (form.m4_start_bad || (form.m4_planned_start && !isValidDate(form.m4_planned_start))) { showToast('M4 Start Date is not a valid calendar date.', 'error'); return }
-    if (form.m4_end_bad   || (form.m4_planned_end   && !isValidDate(form.m4_planned_end)))   { showToast('M4 End Date is not a valid calendar date.', 'error'); return }
-    if (form.m5_start_bad || (form.m5_planned_start && !isValidDate(form.m5_planned_start))) { showToast('M5 Start Date is not a valid calendar date.', 'error'); return }
-    if (form.m5_end_bad   || (form.m5_planned_end   && !isValidDate(form.m5_planned_end)))   { showToast('M5 End Date is not a valid calendar date.', 'error'); return }
-    if (payload.m4_planned_start && payload.m4_planned_end && payload.m4_planned_end < payload.m4_planned_start) { showToast('M4 End Date cannot be earlier than M4 Start Date.', 'error'); return }
-    if (payload.m5_planned_start && payload.m5_planned_end && payload.m5_planned_end < payload.m5_planned_start) { showToast('M5 End Date cannot be earlier than M5 Start Date.', 'error'); return }
-    const { error } = id ? await supabase.from('project_parking_floors').update(payload).eq('id', id) : await supabase.from('project_parking_floors').insert({ ...payload, building_id: buildingId ?? null })
+  const toPayload = (f) => ({ project_id: projectId, building_id: buildingId ?? null, physical_level: f.physical_level?.trim(), marketing_level: f.marketing_level?.trim() || null, num_units: f.num_units !== '' ? parseInt(f.num_units) : null, m4_planned_start: f.m4_planned_start || null, m4_planned_end: f.m4_planned_end || null, m5_planned_start: f.m5_planned_start || null, m5_planned_end: f.m5_planned_end || null })
+  const validate = (f, label = '') => {
+    const p = toPayload(f); const pfx = label ? `${label}: ` : ''
+    if (!p.physical_level) { showToast(`${pfx}Physical level is required.`, 'error'); return false }
+    if (noNeg(p.num_units)) { showToast(`${pfx}Values cannot be negative.`, 'error'); return false }
+    if (f.m4_start_bad || (f.m4_planned_start && !isValidDate(f.m4_planned_start))) { showToast(`${pfx}M4 Start Date is not a valid calendar date.`, 'error'); return false }
+    if (f.m4_end_bad   || (f.m4_planned_end   && !isValidDate(f.m4_planned_end)))   { showToast(`${pfx}M4 End Date is not a valid calendar date.`, 'error'); return false }
+    if (f.m5_start_bad || (f.m5_planned_start && !isValidDate(f.m5_planned_start))) { showToast(`${pfx}M5 Start Date is not a valid calendar date.`, 'error'); return false }
+    if (f.m5_end_bad   || (f.m5_planned_end   && !isValidDate(f.m5_planned_end)))   { showToast(`${pfx}M5 End Date is not a valid calendar date.`, 'error'); return false }
+    if (p.m4_planned_start && p.m4_planned_end && p.m4_planned_end < p.m4_planned_start) { showToast(`${pfx}M4 End Date cannot be earlier than M4 Start Date.`, 'error'); return false }
+    if (p.m5_planned_start && p.m5_planned_end && p.m5_planned_end < p.m5_planned_start) { showToast(`${pfx}M5 End Date cannot be earlier than M5 Start Date.`, 'error'); return false }
+    return true
+  }
+  const saveAll = async () => {
+    for (const row of rows) {
+      const f = editForms[row.id] ?? {}
+      if (!validate(f, row.physical_level)) return
+      const { error } = await supabase.from('project_parking_floors').update(toPayload(f)).eq('id', row.id)
+      if (error) { showToast(error.message, 'error'); return }
+    }
+    showToast('Updated.', 'success'); setEditMode(false); setEditForms({}); load()
+  }
+  const saveNew = async () => {
+    if (!validate(newForm)) return
+    const { error } = await supabase.from('project_parking_floors').insert(toPayload(newForm))
     if (error) { showToast(error.message, 'error'); return }
-    showToast(id ? 'Updated.' : 'Added.', 'success'); setAdding(false); setEditId(null); load()
+    showToast('Added.', 'success'); setAdding(false); setNewForm({}); load()
   }
   const bulkSave = async (floors) => {
     const rows = floors.map(f => ({ ...f, project_id: projectId, building_id: buildingId ?? null }))
     const { error } = await supabase.from('project_parking_floors').insert(rows)
     if (error) { showToast(error.message, 'error'); return }
     showToast(`${floors.length} parking floor${floors.length !== 1 ? 's' : ''} added.`, 'success')
-    setBulkAdding(false)
-    load()
+    setBulkAdding(false); load()
   }
   const del = async (id) => { await supabase.from('project_parking_floors').delete().eq('id', id); load() }
+  const enterEdit = () => { setEditForms(Object.fromEntries(rows.map(r => [r.id, { physical_level: r.physical_level, marketing_level: r.marketing_level ?? '', num_units: r.num_units ?? '', m4_planned_start: r.m4_planned_start ?? '', m4_planned_end: r.m4_planned_end ?? '', m5_planned_start: r.m5_planned_start ?? '', m5_planned_end: r.m5_planned_end ?? '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false }]))); setEditMode(true) }
+  const cancelEdit = () => { setEditMode(false); setEditForms({}); setAdding(false); setNewForm({}) }
+  const setEF = (id, k, v) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k]: v } }))
+  const setEF2 = (id, k1, v1, k2, v2) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k1]: v1, [k2]: v2 } }))
+
+  const isEditing = editMode || adding
 
   return (
     <div>
-      <SectionHeader title="Parking Floor Schedule (M4 / M5)" action={isAdmin && !adding && (
-        <div className="flex gap-1.5">
-          <button onClick={() => { setForm(blank()); setAdding(true) }} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"><PlusIcon /> Add One</button>
-          <button onClick={() => setBulkAdding(true)} className="text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition flex items-center gap-1"><PlusIcon /> Bulk Add</button>
-        </div>
+      <SectionHeader title="Parking Units" accent="#3b82f6" action={isAdmin && (
+        isEditing ? (
+          <div className="flex gap-1.5">
+            <button onClick={cancelEdit} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition">Cancel</button>
+            <button onClick={() => editMode ? saveAll() : saveNew()} className="text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition">Save</button>
+          </div>
+        ) : (
+          <div className="flex gap-1.5 items-center">
+            <button onClick={() => { setNewForm(blank()); setAdding(true) }} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"><PlusIcon /> Add Row</button>
+            <MenuButton items={[
+              { label: 'Bulk Add', icon: <PlusIcon />, onClick: () => setBulkAdding(true) },
+              ...(rows.length > 0 ? [{ label: 'Edit Rows', icon: <PencilIcon />, onClick: enterEdit }] : []),
+            ]} />
+          </div>
+        )
       )} />
       <div className="overflow-x-auto">
-        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden min-w-[900px]">
+        <div className={`bg-white rounded-xl border overflow-hidden min-w-[900px] transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
           <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-200">
                 <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 72 }}>Phys. Level</th>
                 <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 72 }}>Mktg. Level</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 64 }}>Slots</th>
+                <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 64 }}>Spaces</th>
                 <th className="text-center px-3 py-2 font-semibold text-amber-500 uppercase tracking-wider" colSpan={2} style={{ minWidth: 120 }}>
                   <div>M4 Planned</div>
                   <div className="flex justify-around mt-0.5 normal-case tracking-normal font-medium text-[10px] text-amber-400"><span>Start Date</span><span>End Date</span></div>
@@ -1064,24 +1509,25 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {rows.map(row => editId === row.id ? (
+              {rows.map(row => editMode ? (
                 <tr key={row.id}>
                   {(() => {
-                    const m4StartErr = form.m4_start_bad || !!(form.m4_planned_start && !isValidDate(form.m4_planned_start))
-                    const m4EndErr   = form.m4_end_bad   || !!(form.m4_planned_end   && !isValidDate(form.m4_planned_end))
-                    const m5StartErr = form.m5_start_bad || !!(form.m5_planned_start && !isValidDate(form.m5_planned_start))
-                    const m5EndErr   = form.m5_end_bad   || !!(form.m5_planned_end   && !isValidDate(form.m5_planned_end))
-                    const m4OrderErr = !m4StartErr && !m4EndErr && !!(form.m4_planned_start && form.m4_planned_end && form.m4_planned_end < form.m4_planned_start)
-                    const m5OrderErr = !m5StartErr && !m5EndErr && !!(form.m5_planned_start && form.m5_planned_end && form.m5_planned_end < form.m5_planned_start)
+                    const f = editForms[row.id] ?? {}
+                    const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
+                    const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
+                    const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
+                    const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
+                    const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
+                    const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
                     return <>
-                      <td className="px-2 py-1.5" style={{ minWidth: 120 }}><InlineInput value={form.physical_level} onChange={v => setForm(p => ({ ...p, physical_level: v }))} /></td>
-                      <td className="px-2 py-1.5" style={{ width: 72 }}><InlineInput value={form.marketing_level} onChange={v => setForm(p => ({ ...p, marketing_level: v }))} /></td>
-                      <td className="px-2 py-1.5" style={{ width: 64 }}><InlineInput type="number" value={form.num_units} onChange={v => setForm(p => ({ ...p, num_units: v }))} /></td>
-                      <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m4_planned_start} onChange={(v, bad) => setForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
-                      <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m4_planned_end}   onChange={(v, bad) => setForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
-                      <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m5_planned_start} onChange={(v, bad) => setForm(p => ({ ...p, m5_planned_start: v, m5_start_bad: !!bad }))} error={m5StartErr || m5OrderErr} /></td>
-                      <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m5_planned_end}   onChange={(v, bad) => setForm(p => ({ ...p, m5_planned_end:   v, m5_end_bad:   !!bad }))} error={m5EndErr   || m5OrderErr} /></td>
-                      <td className="px-2 py-1.5 whitespace-nowrap" style={{ width: 80 }}><button onClick={() => save(row.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button><button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button></td>
+                      <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setEF(row.id, 'physical_level', v)} /></td>
+                      <td className="px-2 py-1.5"><InlineInput value={f.marketing_level} onChange={v => setEF(row.id, 'marketing_level', v)} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setEF(row.id, 'num_units', v)} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setEF2(row.id, 'm4_planned_start', v, 'm4_start_bad', !!bad)} error={m4StartErr || m4OrderErr} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm4_planned_end',   v, 'm4_end_bad',   !!bad)} error={m4EndErr   || m4OrderErr} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setEF2(row.id, 'm5_planned_start', v, 'm5_start_bad', !!bad)} error={m5StartErr || m5OrderErr} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm5_planned_end',   v, 'm5_end_bad',   !!bad)} error={m5EndErr   || m5OrderErr} /></td>
+                      {isAdmin && <td />}
                     </>
                   })()}
                 </tr>
@@ -1094,29 +1540,27 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_end)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_start)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_end)}</td>
-                  {isAdmin && <td className="px-3 py-2"><div className="flex gap-1">
-                    <button onClick={() => { setForm({ physical_level: row.physical_level, marketing_level: row.marketing_level ?? '', num_units: row.num_units ?? '', m4_planned_start: row.m4_planned_start ?? '', m4_planned_end: row.m4_planned_end ?? '', m5_planned_start: row.m5_planned_start ?? '', m5_planned_end: row.m5_planned_end ?? '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false }); setEditId(row.id) }} className="p-0.5 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
-                    <button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button>
-                  </div></td>}
+                  {isAdmin && <td className="px-3 py-2"><button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button></td>}
                 </tr>
               ))}
               {adding && (() => {
-                const m4StartErr = form.m4_start_bad || !!(form.m4_planned_start && !isValidDate(form.m4_planned_start))
-                const m4EndErr   = form.m4_end_bad   || !!(form.m4_planned_end   && !isValidDate(form.m4_planned_end))
-                const m5StartErr = form.m5_start_bad || !!(form.m5_planned_start && !isValidDate(form.m5_planned_start))
-                const m5EndErr   = form.m5_end_bad   || !!(form.m5_planned_end   && !isValidDate(form.m5_planned_end))
-                const m4OrderErr = !m4StartErr && !m4EndErr && !!(form.m4_planned_start && form.m4_planned_end && form.m4_planned_end < form.m4_planned_start)
-                const m5OrderErr = !m5StartErr && !m5EndErr && !!(form.m5_planned_start && form.m5_planned_end && form.m5_planned_end < form.m5_planned_start)
+                const f = newForm
+                const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
+                const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
+                const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
+                const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
+                const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
+                const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
                 return (
                   <tr>
-                    <td className="px-2 py-1.5" style={{ minWidth: 120 }}><InlineInput value={form.physical_level} onChange={v => setForm(p => ({ ...p, physical_level: v }))} placeholder="e.g. B1 or Roof Deck" /></td>
-                    <td className="px-2 py-1.5" style={{ width: 72 }}><InlineInput value={form.marketing_level} onChange={v => setForm(p => ({ ...p, marketing_level: v }))} /></td>
-                    <td className="px-2 py-1.5" style={{ width: 64 }}><InlineInput type="number" value={form.num_units} onChange={v => setForm(p => ({ ...p, num_units: v }))} /></td>
-                    <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m4_planned_start} onChange={(v, bad) => setForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
-                    <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m4_planned_end}   onChange={(v, bad) => setForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
-                    <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m5_planned_start} onChange={(v, bad) => setForm(p => ({ ...p, m5_planned_start: v, m5_start_bad: !!bad }))} error={m5StartErr || m5OrderErr} /></td>
-                    <td className="px-2 py-1.5" style={{ minWidth: 100 }}><InlineInput type="date" value={form.m5_planned_end}   onChange={(v, bad) => setForm(p => ({ ...p, m5_planned_end:   v, m5_end_bad:   !!bad }))} error={m5EndErr   || m5OrderErr} /></td>
-                    <td className="px-2 py-1.5 whitespace-nowrap" style={{ width: 80 }}><button onClick={() => save(null)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button><button onClick={() => setAdding(false)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button></td>
+                    <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setNewForm(p => ({ ...p, physical_level: v }))} placeholder="e.g. B1 or Roof Deck" /></td>
+                    <td className="px-2 py-1.5"><InlineInput value={f.marketing_level} onChange={v => setNewForm(p => ({ ...p, marketing_level: v }))} /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setNewForm(p => ({ ...p, num_units: v }))} /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_start: v, m5_start_bad: !!bad }))} error={m5StartErr || m5OrderErr} /></td>
+                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_end:   v, m5_end_bad:   !!bad }))} error={m5EndErr   || m5OrderErr} /></td>
+                    {isAdmin && <td />}
                   </tr>
                 )
               })()}
@@ -1126,7 +1570,7 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
         </div>
       </div>
       {deleteId !== null && <ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />}
-      {bulkAdding && <BulkAddFloorsModal unitLabel="Slots" onConfirm={bulkSave} onCancel={() => setBulkAdding(false)} />}
+      {bulkAdding && <BulkAddFloorsModal unitLabel="Spaces" onConfirm={bulkSave} onCancel={() => setBulkAdding(false)} />}
     </div>
   )
 }
@@ -1141,17 +1585,8 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
   const [importing, setImporting]         = useState(false)
   const [importErrors, setImportErrors]   = useState([])
 
-  if (!project.development_type) return (
-    <div className="text-center py-16 text-gray-400 text-sm">
-      <p className="mb-2">No development type set.</p>
-      <p className="text-xs">Set it in the <span className="font-semibold text-gray-500">Overview</span> tab to unlock this section.</p>
-    </div>
-  )
-
   const handleExport = async () => {
     const pid = project.id
-    const isCondo = project.development_type === 'condominium'
-    if (!isCondo) { showToast('Export is only available for condominium projects.', 'error'); return }
     const [flRes, pfRes, blRes] = await Promise.all([
       supabase.from('project_floors').select('*').eq('project_id', pid),
       supabase.from('project_parking_floors').select('*').eq('project_id', pid),
@@ -1180,8 +1615,6 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
     try {
       const sheets  = await parseWorkbook(file)
       const pid     = project.id
-      const isCondo = project.development_type === 'condominium'
-      if (!isCondo) { showToast('Import is only available for condominium projects.', 'error'); return }
 
       // ── 1. Build raw floor rows (building_id resolved after upsert) ──────────
       const mapFloor = r => ({
@@ -1264,38 +1697,23 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
     }
   }
 
-  const typeBadge = project.development_type === 'housing'
-    ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-blue-600 border border-blue-200">Housing</span>
-    : <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-purple-50 text-purple-600 border border-purple-200">Condominium</span>
-
-  if (project.development_type === 'housing') {
-    return (
-      <div>
-        <div className="sticky top-0 z-30 bg-white">
-          <div className="py-3">{typeBadge}</div>
-        </div>
-        <div className="py-8 text-center text-gray-400 text-sm">
-          Floor schedule is not available for housing projects.
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <CondominiumDevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} devRefreshKey={devRefreshKey} typeBadge={typeBadge} onExport={handleExport} onImport={handleImport} importing={importing} importErrors={importErrors} onDismissImportErrors={() => setImportErrors([])} />
+    <CondominiumDevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} devRefreshKey={devRefreshKey} onExport={handleExport} onImport={handleImport} importing={importing} importErrors={importErrors} onDismissImportErrors={() => setImportErrors([])} />
   )
 }
 
-function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey = 0, typeBadge, onExport, onImport, importing, importErrors = [], onDismissImportErrors }) {
-  const [floorRefreshKey, setFloorRefreshKey] = useState(0)
-  const [buildingId, setBuildingId]           = useState(null)
+function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey = 0, onExport, onImport, importing, importErrors = [], onDismissImportErrors }) {
+  const [floorRefreshKey, setFloorRefreshKey]     = useState(0)
+  const [buildingId, setBuildingId]               = useState(null)
+  const [resSummary, setResSummary]               = useState({ floors: 0, units: 0 })
+  const [parkSummary, setParkSummary]             = useState({ floors: 0, units: 0 })
 
   return (
     <div>
       <div className="sticky top-0 z-30 bg-white">
         <ImportErrorPanel errors={importErrors} onDismiss={onDismissImportErrors} />
-        <div className="py-3 flex items-center justify-between gap-2 flex-wrap">
-          {typeBadge}
+        <div className="flex items-center justify-between py-3 border-b border-gray-100 mb-5">
+          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Towers / Locations</span>
           <ExcelButtons onExport={onExport} onImport={onImport} importing={importing} />
         </div>
       </div>
@@ -1304,11 +1722,33 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
         projectId={project.id}
         isAdmin={isAdmin}
         buildingId={buildingId}
-        onChange={setBuildingId}
+        onChange={id => { setBuildingId(id); setResSummary({ floors: 0, units: 0 }); setParkSummary({ floors: 0, units: 0 }) }}
+        onCopyDone={() => { setResSummary({ floors: 0, units: 0 }); setParkSummary({ floors: 0, units: 0 }); setFloorRefreshKey(k => k + 1) }}
       />
 
-      <ProjectFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} />
-      <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} />
+      {buildingId && (resSummary.floors > 0 || parkSummary.floors > 0) && (
+        <div className="flex flex-wrap gap-3 mb-5">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-100 text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+            <span className="text-gray-500">Residential</span>
+            <span className="text-gray-300">·</span>
+            <span className="font-semibold text-gray-800">{resSummary.floors} floor{resSummary.floors !== 1 ? 's' : ''}</span>
+            <span className="text-gray-300">·</span>
+            <span className="font-semibold text-gray-800">{resSummary.units} unit{resSummary.units !== 1 ? 's' : ''}</span>
+          </div>
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-xs">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+            <span className="text-gray-500">Parking</span>
+            <span className="text-gray-300">·</span>
+            <span className="font-semibold text-gray-800">{parkSummary.floors} floor{parkSummary.floors !== 1 ? 's' : ''}</span>
+            <span className="text-gray-300">·</span>
+            <span className="font-semibold text-gray-800">{parkSummary.units} space{parkSummary.units !== 1 ? 's' : ''}</span>
+          </div>
+        </div>
+      )}
+
+      <ProjectFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setResSummary} />
+      <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} onSummaryChange={setParkSummary} />
     </div>
   )
 }
@@ -2903,8 +3343,8 @@ const cellKey = (type, floorId, unitNum) => `${type}:${floorId}:${unitNum}`
 
 const UNIT_STATUS_CONFIG = {
   none: { label: 'Not Started',              cell: 'bg-white text-gray-600 border-gray-200',      dot: 'bg-gray-300' },
-  m4:   { label: 'M4 – Construction Complete', cell: 'bg-yellow-300 text-yellow-900 border-yellow-400', dot: 'bg-yellow-400' },
-  m5:   { label: 'M5 – Handover Complete',    cell: 'bg-green-500 text-white border-green-600',   dot: 'bg-green-500' },
+  m4:   { label: 'M4 Complete', cell: 'bg-yellow-300 text-yellow-900 border-yellow-400', dot: 'bg-yellow-400' },
+  m5:   { label: 'M5 Handover', cell: 'bg-green-500 text-white border-green-600',   dot: 'bg-green-500' },
 }
 
 function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectMode, selectedCells, onToggleCell, onOpenCell, onToggleRow }) {
@@ -2929,13 +3369,13 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
             <tr key={floor.id} className="border-t border-gray-100">
               <td
                 onClick={isAdmin ? () => onToggleRow(type, floor) : undefined}
-                title={isAdmin ? `Select all in ${floor.physical_level}F` : undefined}
+                title={isAdmin ? `Select all in ${/^\d+$/.test(floor.physical_level) ? floor.physical_level + 'F' : floor.physical_level}` : undefined}
                 className={`px-3 py-1 font-semibold whitespace-nowrap sticky left-0 bg-white z-10 transition ${isAdmin ? 'text-gray-700 hover:text-[#ed6055] cursor-pointer select-none' : 'text-gray-700'}`}
-              >{floor.physical_level}F</td>
+              >{/^\d+$/.test(floor.physical_level) ? `${floor.physical_level}F` : floor.physical_level}</td>
               {Array.from({ length: maxU }, (_, i) => {
                 const unitNum = i + 1
                 if (unitNum > (floor.num_units ?? 0)) {
-                  return <td key={i} className="px-1 py-1 opacity-0 pointer-events-none"><span className="w-10 h-8 block" /></td>
+                  return <td key={i} className="px-1 py-1 opacity-0 pointer-events-none"><span className="w-11 h-11 block" /></td>
                 }
                 const c = cMap[`${floor.id}-${unitNum}`]
                 const status = c?.status ?? 'none'
@@ -2947,7 +3387,8 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
                     <button
                       onClick={isAdmin ? (multiSelectMode ? () => onToggleCell(type, floor, unitNum) : () => onOpenCell(type, floor, unitNum)) : undefined}
                       title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} — ${cfg.label}`}
-                      className={`w-10 h-8 rounded border text-[9px] font-bold transition ${cfg.cell} ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'ring-2 ring-[#ed6055] ring-offset-1' : (isAdmin && !multiSelectMode ? 'hover:opacity-75 hover:shadow-md' : '')}`}
+                      aria-label={`${type === 'parking' ? 'Parking' : 'Unit'} ${floor.physical_level}-${String(unitNum).padStart(2, '0')}: ${cfg.label}`}
+                      className={`w-11 h-11 rounded border text-[9px] font-bold transition ${cfg.cell} ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'ring-2 ring-[#ed6055] ring-offset-1' : (isAdmin && !multiSelectMode ? 'hover:opacity-75 hover:shadow-md' : '')}`}
                     >
                       {String(unitNum).padStart(2, '0')}
                     </button>
@@ -2980,8 +3421,8 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
   const sortFloors = arr => [...(arr ?? [])].sort((a, b) => {
     const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
-    if (!isNaN(na) && !isNaN(nb)) return nb - na
-    return b.physical_level.localeCompare(a.physical_level)
+    if (!isNaN(na) && !isNaN(nb)) return na - nb
+    return a.physical_level.localeCompare(b.physical_level)
   })
 
   const loadAll = async () => {
@@ -3028,20 +3469,32 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
   const saveCell = async () => {
     if (!selected) return
-    if (cellForm.m4_bad || (cellForm.m4_date && !isValidDate(cellForm.m4_date))) {
-      showToast('M4 date is not a valid calendar date.', 'error'); return
+    if (cellForm.status === 'm4') {
+      if (cellForm.m4_bad || (cellForm.m4_date && !isValidDate(cellForm.m4_date))) {
+        showToast('M4 date is not a valid calendar date.', 'error'); return
+      }
+      if (!cellForm.m4_date) { showToast('M4 date is required.', 'error'); return }
     }
-    if (cellForm.m5_bad || (cellForm.m5_date && !isValidDate(cellForm.m5_date))) {
-      showToast('M5 date is not a valid calendar date.', 'error'); return
-    }
-    if (cellForm.status === 'm5' && cellForm.m4_date && cellForm.m5_date && cellForm.m5_date < cellForm.m4_date) {
-      showToast('M5 date cannot be before M4 date.', 'error')
-      return
+    if (cellForm.status === 'm5') {
+      if (cellForm.m5_bad || (cellForm.m5_date && !isValidDate(cellForm.m5_date))) {
+        showToast('M5 date is not a valid calendar date.', 'error'); return
+      }
+      if (!cellForm.m5_date) { showToast('M5 date is required.', 'error'); return }
+      const existingM4 = selected.existing?.m4_date
+      if (existingM4 && cellForm.m5_date && cellForm.m5_date < existingM4) {
+        showToast('M5 date cannot be before M4 date.', 'error'); return
+      }
     }
     setSaving(true)
     const { type, floor, unitNum, existing } = selected
     const table = type === 'parking' ? 'project_parking_unit_completion' : 'project_unit_completion'
-    const payload = { project_id: project.id, floor_id: floor.id, unit_number: unitNum, status: cellForm.status, m4_date: cellForm.m4_date || null, m5_date: cellForm.m5_date || null, updated_at: new Date().toISOString() }
+    const payload = {
+      project_id: project.id, floor_id: floor.id, unit_number: unitNum, status: cellForm.status,
+      // M5: preserve existing m4_date; M4: use form date; none: null
+      m4_date: cellForm.status === 'm5' ? (existing?.m4_date || null) : (cellForm.status === 'm4' ? (cellForm.m4_date || null) : null),
+      m5_date: cellForm.status === 'm5' ? (cellForm.m5_date || null) : null,
+      updated_at: new Date().toISOString()
+    }
     const { error } = existing
       ? await supabase.from(table).update(payload).eq('id', existing.id)
       : await supabase.from(table).insert(payload)
@@ -3049,9 +3502,10 @@ function CompletionTab({ project, isAdmin, showToast }) {
     if (error) { showToast('Failed to save: ' + error.message, 'error'); return }
     showToast('Saved.', 'success')
     setSelected(null)
-    const { data } = await supabase.from(table).select('*').eq('project_id', project.id)
-    if (type === 'parking') setParkingCompletions(data ?? [])
-    else setCompletions(data ?? [])
+    // Use fetchAll to avoid the 1000-row default cap
+    const fresh = await fetchAll(() => supabase.from(table).select('*').eq('project_id', project.id))
+    if (type === 'parking') setParkingCompletions(fresh)
+    else setCompletions(fresh)
   }
 
   const toggleCell = (type, floor, unitNum) => {
@@ -3079,44 +3533,63 @@ function CompletionTab({ project, isAdmin, showToast }) {
   }
 
   const saveBulk = async () => {
-    if (bulkForm.m4_bad || (bulkForm.m4_date && !isValidDate(bulkForm.m4_date))) {
-      showToast('M4 date is not a valid calendar date.', 'error'); return
+    if (bulkForm.status === 'm4') {
+      if (bulkForm.m4_bad || (bulkForm.m4_date && !isValidDate(bulkForm.m4_date))) {
+        showToast('M4 date is not a valid calendar date.', 'error'); return
+      }
+      if (!bulkForm.m4_date) { showToast('M4 date is required.', 'error'); return }
     }
-    if (bulkForm.m5_bad || (bulkForm.m5_date && !isValidDate(bulkForm.m5_date))) {
-      showToast('M5 date is not a valid calendar date.', 'error'); return
-    }
-    if (bulkForm.status === 'm5' && bulkForm.m4_date && bulkForm.m5_date && bulkForm.m5_date < bulkForm.m4_date) {
-      showToast('M5 date cannot be before M4 date.', 'error'); return
+    if (bulkForm.status === 'm5') {
+      if (bulkForm.m5_bad || (bulkForm.m5_date && !isValidDate(bulkForm.m5_date))) {
+        showToast('M5 date is not a valid calendar date.', 'error'); return
+      }
+      if (!bulkForm.m5_date) { showToast('M5 date is required.', 'error'); return }
     }
     setBulkSaving(true)
     const promises = []
+    let skipped = 0
     selectedCells.forEach(key => {
       const [type, floorId, unitNumStr] = key.split(':')
       const unitNum  = parseInt(unitNumStr)
       const cMap     = type === 'parking' ? parkingCompletionMap : completionMap
       const existing = cMap[`${floorId}-${unitNum}`] ?? null
-      const table    = type === 'parking' ? 'project_parking_unit_completion' : 'project_unit_completion'
-      const payload  = { project_id: project.id, floor_id: floorId, unit_number: unitNum, status: bulkForm.status, m4_date: bulkForm.m4_date || null, m5_date: bulkForm.m5_date || null, updated_at: new Date().toISOString() }
+      // M5 can only be applied to units already tagged as M4 — skip others
+      if (bulkForm.status === 'm5' && existing?.status !== 'm4') { skipped++; return }
+      const table = type === 'parking' ? 'project_parking_unit_completion' : 'project_unit_completion'
+      const payload = {
+        project_id: project.id, floor_id: floorId, unit_number: unitNum, status: bulkForm.status,
+        // M5: preserve the unit's existing m4_date; M4: use bulk date; none: null
+        m4_date: bulkForm.status === 'm5' ? existing.m4_date : (bulkForm.status === 'm4' ? (bulkForm.m4_date || null) : null),
+        m5_date: bulkForm.status === 'm5' ? (bulkForm.m5_date || null) : null,
+        updated_at: new Date().toISOString()
+      }
       promises.push(existing
         ? supabase.from(table).update(payload).eq('id', existing.id)
         : supabase.from(table).insert(payload)
       )
     })
-    await Promise.all(promises)
-    setBulkSaving(false)
-    setBulkModal(false)
-    showToast(`${selectedCells.size} unit${selectedCells.size !== 1 ? 's' : ''} updated.`, 'success')
-    exitMultiSelect()
-    loadAll()
+    if (promises.length === 0) {
+      showToast('No eligible units to update. Units must be M4 Complete before setting M5.', 'error')
+      setBulkSaving(false); return
+    }
+    try {
+      await Promise.all(promises)
+      const saved = promises.length
+      const msg = skipped > 0
+        ? `${saved} unit${saved !== 1 ? 's' : ''} updated. ${skipped} skipped (not yet M4).`
+        : `${saved} unit${saved !== 1 ? 's' : ''} updated.`
+      showToast(msg, 'success')
+      exitMultiSelect()
+      loadAll()
+    } catch (err) {
+      showToast('Some units failed to save. Please try again.', 'error')
+    } finally {
+      setBulkSaving(false)
+      setBulkModal(false)
+    }
   }
 
-  if (project.development_type !== 'condominium') {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-2">
-        <p className="text-sm text-gray-400 italic">This tab is only available for condominium projects.</p>
-      </div>
-    )
-  }
+
 
   if (loading) {
     return <TriangleLoader label="Loading milestones…" />
@@ -3124,10 +3597,10 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
   return (
     <div>
-      <BuildingSelector projectId={project.id} isAdmin={false} buildingId={buildingId} onChange={setBuildingId} />
+      <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} />
 
       {/* Legend + multi-select toolbar — sticky within the scrollable tab panel */}
-      <div className="sticky top-0 z-20 bg-white py-3 flex flex-wrap items-center justify-between gap-3">
+      <div className="sticky top-0 z-20 bg-white py-3 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100">
         <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
           {Object.entries(UNIT_STATUS_CONFIG).map(([key, cfg]) => (
             <span key={key} className="flex items-center gap-1.5">
@@ -3184,7 +3657,12 @@ function CompletionTab({ project, isAdmin, showToast }) {
       {bulkModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40" onClick={() => setBulkModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-black mb-0.5">Set Status</h3>
+            <div className="flex items-start justify-between mb-0.5">
+              <h3 className="text-base font-bold text-black">Set Status</h3>
+              <button onClick={() => setBulkModal(false)} className="p-1 -mt-0.5 -mr-1 text-gray-300 hover:text-gray-500 transition" aria-label="Close">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
             <p className="text-xs text-gray-400 mb-4">Apply to {selectedCells.size} selected unit{selectedCells.size !== 1 ? 's' : ''}.</p>
             <div className="space-y-4">
               <div>
@@ -3197,37 +3675,39 @@ function CompletionTab({ project, isAdmin, showToast }) {
                         setBulkForm(f => ({
                           ...f,
                           status:  val,
-                          m4_date: (val === 'm4' || val === 'm5') ? (f.m4_date || today) : f.m4_date,
-                          m5_date: val === 'm5' ? (f.m5_date || today) : f.m5_date,
+                          m4_date: val === 'none' ? '' : val === 'm4' ? (f.m4_date || today) : f.m4_date,
+                          m5_date: val === 'none' ? '' : val === 'm5' ? (f.m5_date || today) : f.m5_date,
+                          m4_bad:  val === 'none' || val === 'm5' ? false : f.m4_bad,
+                          m5_bad:  val === 'none' ? false : f.m5_bad,
                         }))
                       }}
-                      className={`py-2 px-1 rounded-lg border-2 text-[10px] font-semibold text-center transition leading-tight ${bulkForm.status === val ? `${cfg.cell} border-current shadow-sm` : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}>
+                      className={`py-2 px-1 rounded-lg border-2 text-[10px] font-semibold text-center transition leading-tight ${bulkForm.status === val ? (val === 'none' ? 'bg-gray-100 text-gray-700 border-gray-400 shadow-sm' : `${cfg.cell} border-current shadow-sm`) : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}>
                       {cfg.label}
                     </button>
                   ))}
                 </div>
               </div>
-              {(bulkForm.status === 'm4' || bulkForm.status === 'm5') && (() => {
+              {bulkForm.status === 'm4' && (() => {
                 const m4DateErr = bulkForm.m4_bad || !!(bulkForm.m4_date && !isValidDate(bulkForm.m4_date))
-                const m5DateErr = bulkForm.m5_bad || !!(bulkForm.m5_date && !isValidDate(bulkForm.m5_date))
-                const m5Err = !!(bulkForm.status === 'm5' && bulkForm.m4_date && bulkForm.m5_date && !m4DateErr && !m5DateErr && bulkForm.m5_date < bulkForm.m4_date)
                 const errCls = `${inputCls} !border-red-400 !bg-red-50 !text-red-600 focus:!ring-red-400`
                 return (
-                  <>
-                    <div>
-                      <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M4 Date</label>
-                      <input type="date" value={bulkForm.m4_date} onChange={e => setBulkForm(f => ({ ...f, m4_date: e.target.value, m4_bad: e.target.validity.badInput }))} className={m4DateErr ? errCls : inputCls} />
-                      {m4DateErr && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
-                    </div>
-                    {bulkForm.status === 'm5' && (
-                      <div>
-                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M5 Date</label>
-                        <input type="date" value={bulkForm.m5_date} onChange={e => setBulkForm(f => ({ ...f, m5_date: e.target.value, m5_bad: e.target.validity.badInput }))} className={(m5DateErr || m5Err) ? errCls : inputCls} />
-                        {m5DateErr && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
-                        {m5Err && <p className="text-xs text-red-500 mt-1">M5 date cannot be before M4 date.</p>}
-                      </div>
-                    )}
-                  </>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M4 Date <span className="text-red-400">*</span></label>
+                    <input type="date" value={bulkForm.m4_date} onChange={e => setBulkForm(f => ({ ...f, m4_date: e.target.value, m4_bad: e.target.validity.badInput }))} className={m4DateErr ? errCls : inputCls} />
+                    {m4DateErr && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
+                  </div>
+                )
+              })()}
+              {bulkForm.status === 'm5' && (() => {
+                const m5DateErr = bulkForm.m5_bad || !!(bulkForm.m5_date && !isValidDate(bulkForm.m5_date))
+                const errCls = `${inputCls} !border-red-400 !bg-red-50 !text-red-600 focus:!ring-red-400`
+                return (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M5 Date <span className="text-red-400">*</span></label>
+                    <input type="date" value={bulkForm.m5_date} onChange={e => setBulkForm(f => ({ ...f, m5_date: e.target.value, m5_bad: e.target.validity.badInput }))} className={m5DateErr ? errCls : inputCls} />
+                    {m5DateErr && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
+                    <p className="text-[10px] text-amber-500 mt-1.5">Only units already tagged as M4 Complete will be updated. Others are skipped.</p>
+                  </div>
                 )
               })()}
             </div>
@@ -3245,57 +3725,75 @@ function CompletionTab({ project, isAdmin, showToast }) {
       {selected && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40" onClick={() => setSelected(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-black mb-0.5">
-              {selected.type === 'parking' ? 'Parking' : 'Unit'} {selected.floor.physical_level}-{String(selected.unitNum).padStart(2, '0')}
-            </h3>
+            <div className="flex items-start justify-between mb-0.5">
+              <h3 className="text-base font-bold text-black">
+                {selected.type === 'parking' ? 'Parking' : 'Unit'} {selected.floor.physical_level}-{String(selected.unitNum).padStart(2, '0')}
+              </h3>
+              <button onClick={() => setSelected(null)} className="p-1 -mt-0.5 -mr-1 text-gray-300 hover:text-gray-500 transition" aria-label="Close">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
             <p className="text-xs text-gray-400 mb-4">Set completion status and record date.</p>
             <div className="space-y-4">
               <div>
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</p>
                 <div className="grid grid-cols-3 gap-2">
-                  {Object.entries(UNIT_STATUS_CONFIG).map(([val, cfg]) => (
-                    <button key={val} onClick={() => {
-                        const today = new Date().toISOString().slice(0, 10)
-                        setCellForm(f => ({
-                          ...f,
-                          status:   val,
-                          m4_date:  (val === 'm4' || val === 'm5') ? (f.m4_date || today) : f.m4_date,
-                          m5_date:  val === 'm5' ? (f.m5_date || today) : f.m5_date,
-                        }))
-                      }}
-                      className={`py-2 px-1 rounded-lg border-2 text-[10px] font-semibold text-center transition leading-tight ${cellForm.status === val ? `${cfg.cell} border-current shadow-sm` : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}>
-                      {cfg.label}
-                    </button>
-                  ))}
+                  {Object.entries(UNIT_STATUS_CONFIG).map(([val, cfg]) => {
+                    const m5Locked = val === 'm5' && selected?.existing?.status !== 'm4'
+                    return (
+                      <button key={val}
+                        disabled={m5Locked}
+                        title={m5Locked ? 'Unit must be M4 Complete first' : undefined}
+                        onClick={() => {
+                          const today = new Date().toISOString().slice(0, 10)
+                          setCellForm(f => ({
+                            ...f,
+                            status:  val,
+                            m4_date: val === 'none' ? '' : val === 'm4' ? (f.m4_date || today) : f.m4_date,
+                            m5_date: val === 'none' ? '' : val === 'm5' ? (f.m5_date || today) : f.m5_date,
+                            m4_bad:  val === 'none' || val === 'm5' ? false : f.m4_bad,
+                            m5_bad:  val === 'none' ? false : f.m5_bad,
+                          }))
+                        }}
+                        className={`py-2 px-1 rounded-lg border-2 text-[10px] font-semibold text-center transition leading-tight ${m5Locked ? 'border-gray-100 text-gray-300 cursor-not-allowed opacity-40' : cellForm.status === val ? (val === 'none' ? 'bg-gray-100 text-gray-700 border-gray-400 shadow-sm' : `${cfg.cell} border-current shadow-sm`) : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}>
+                        {cfg.label}
+                      </button>
+                    )
+                  })}
                 </div>
               </div>
-              {(cellForm.status === 'm4' || cellForm.status === 'm5') && (() => {
+              {cellForm.status === 'm4' && (() => {
                 const m4DateErr = cellForm.m4_bad || !!(cellForm.m4_date && !isValidDate(cellForm.m4_date))
-                const m5DateErr = cellForm.m5_bad || !!(cellForm.m5_date && !isValidDate(cellForm.m5_date))
-                const m5Err = !!(cellForm.status === 'm5' && cellForm.m4_date && cellForm.m5_date && !m4DateErr && !m5DateErr && cellForm.m5_date < cellForm.m4_date)
                 const errCls = `${inputCls} !border-red-400 !bg-red-50 !text-red-600 focus:!ring-red-400`
                 return (
-                  <>
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M4 Date <span className="text-red-400">*</span></label>
+                    {selected?.existing?.m4_date && !isAdmin
+                      ? <p className="text-sm font-semibold text-gray-700 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">{fmt(selected.existing.m4_date)}</p>
+                      : <input type="date" value={cellForm.m4_date} onChange={e => setCellForm(f => ({ ...f, m4_date: e.target.value, m4_bad: e.target.validity.badInput }))} className={m4DateErr ? errCls : inputCls} />
+                    }
+                    {m4DateErr && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
+                  </div>
+                )
+              })()}
+              {cellForm.status === 'm5' && (() => {
+                const m5DateErr = cellForm.m5_bad || !!(cellForm.m5_date && !isValidDate(cellForm.m5_date))
+                const errCls = `${inputCls} !border-red-400 !bg-red-50 !text-red-600 focus:!ring-red-400`
+                return (
+                  <div className="space-y-3">
                     <div>
                       <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M4 Date</label>
-                      {selected?.existing?.m4_date && !isAdmin
-                        ? <p className="text-sm font-semibold text-gray-700 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">{fmt(selected.existing.m4_date)}</p>
-                        : <input type="date" value={cellForm.m4_date} onChange={e => setCellForm(f => ({ ...f, m4_date: e.target.value, m4_bad: e.target.validity.badInput }))} className={m4DateErr ? errCls : inputCls} />
-                      }
-                      {m4DateErr && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
+                      <p className="text-sm font-semibold text-gray-700 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">{fmt(selected.existing.m4_date)}</p>
                     </div>
-                    {cellForm.status === 'm5' && (
-                      <div>
-                        <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M5 Date</label>
-                        {selected?.existing?.m5_date && !isAdmin
-                          ? <p className="text-sm font-semibold text-gray-700 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">{fmt(selected.existing.m5_date)}</p>
-                          : <input type="date" value={cellForm.m5_date} onChange={e => setCellForm(f => ({ ...f, m5_date: e.target.value, m5_bad: e.target.validity.badInput }))} className={(m5DateErr || m5Err) ? errCls : inputCls} />
-                        }
-                        {m5DateErr && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
-                        {m5Err && <p className="text-xs text-red-500 mt-1">M5 date cannot be before M4 date.</p>}
-                      </div>
-                    )}
-                  </>
+                    <div>
+                      <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M5 Date <span className="text-red-400">*</span></label>
+                      {selected?.existing?.m5_date && !isAdmin
+                        ? <p className="text-sm font-semibold text-gray-700 px-3 py-2 bg-gray-50 rounded-lg border border-gray-200">{fmt(selected.existing.m5_date)}</p>
+                        : <input type="date" value={cellForm.m5_date} onChange={e => setCellForm(f => ({ ...f, m5_date: e.target.value, m5_bad: e.target.validity.badInput }))} className={m5DateErr ? errCls : inputCls} />
+                      }
+                      {m5DateErr && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
+                    </div>
+                  </div>
                 )
               })()}
             </div>
@@ -3326,9 +3824,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   }, [])
 
   const phase = PHASE_MAP[project.phase]
-  const tabs = project.development_type === 'condominium'
-    ? [...BASE_TABS, 'Completion (M4/M5)']
-    : BASE_TABS
+  const tabs = [...BASE_TABS, 'Completion (M4/M5)']
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
