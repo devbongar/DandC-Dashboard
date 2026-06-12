@@ -12,6 +12,36 @@ function getTodayLabel() {
   return `${yyyy} ${mm} ${dd}`
 }
 
+// Applied inside html2canvas onclone to fix CSS that breaks rendering:
+// - line-clamp hides text (uses overflow:hidden + webkit-line-clamp)
+// - recharts SVGs need explicit width/height to render
+function fixCloneForCapture(clonedDoc) {
+  clonedDoc.querySelectorAll('*').forEach(el => {
+    const s = el.style
+    // Fix line-clamp: restores hidden text
+    if (s.webkitLineClamp || s.overflow === 'hidden' || el.className?.includes?.('line-clamp')) {
+      s.webkitLineClamp = 'unset'
+      s.display = 'block'
+      s.overflow = 'visible'
+    }
+    // Fix recharts SVG: ensure explicit dimensions
+    if (el.tagName === 'svg' && !el.getAttribute('width')) {
+      const rect = el.getBoundingClientRect?.()
+      if (rect?.width) {
+        el.setAttribute('width', rect.width)
+        el.setAttribute('height', rect.height)
+      }
+    }
+  })
+  // Remove all line-clamp Tailwind classes by clearing overflow:hidden on text wrappers
+  clonedDoc.querySelectorAll('[class*="line-clamp"]').forEach(el => {
+    el.style.overflow = 'visible'
+    el.style.display = 'block'
+    el.style.webkitLineClamp = 'unset'
+    el.style.webkitBoxOrient = 'unset'
+  })
+}
+
 // Saves the full style attribute of each affected element, then removes
 // overflow/height constraints so html2canvas sees the fully expanded content.
 function expandPanel(panelEl) {
@@ -69,14 +99,18 @@ export default function PdfDownloadButton() {
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' })
       const pageW = pdf.internal.pageSize.getWidth() // 297mm
 
+      const captureOpts = {
+        useCORS: true,
+        logging: false,
+        scale: 2,
+        backgroundColor: '#ffffff',
+        onclone: (_clonedDoc) => fixCloneForCapture(_clonedDoc),
+      }
+
       // Page 1 — viewport snapshot (no expansion)
       const dashContent = document.getElementById('dashboard-content')
       if (dashContent) {
-        const canvas1 = await html2canvas(dashContent, {
-          useCORS: true,
-          logging: false,
-          scale: window.devicePixelRatio || 1,
-        })
+        const canvas1 = await html2canvas(dashContent, captureOpts)
         const imgH1 = (canvas1.height / canvas1.width) * pageW
         pdf.addImage(canvas1.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, pageW, imgH1)
       }
@@ -90,11 +124,7 @@ export default function PdfDownloadButton() {
         // Allow browser to re-layout before capturing
         await new Promise(r => setTimeout(r, 60))
 
-        const canvas = await html2canvas(panelEl, {
-          useCORS: true,
-          logging: false,
-          scale: window.devicePixelRatio || 1,
-        })
+        const canvas = await html2canvas(panelEl, captureOpts)
 
         restorePanel(saved)
 
