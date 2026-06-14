@@ -3905,7 +3905,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 
         {/* Dark hero header — contains project details + tabs */}
         <div className="flex-shrink-0 border-b border-gray-100"
-          style={{ background: 'linear-gradient(135deg, #1e293b 0%, #2d3f55 100%)' }}>
+          style={{ background: 'linear-gradient(135deg, #334155 0%, #4a6080 100%)' }}>
 
           {!heroEditing ? (
             /* ── Read mode ── */
@@ -4155,9 +4155,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
                 <button
                   key={t}
                   onClick={() => setTab(t)}
-                  className="flex items-center gap-1.5 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-all border-b-2 -mb-px"
+                  className="flex items-center gap-1.5 px-5 py-3 text-sm whitespace-nowrap transition-all border-b-[3px] -mb-px"
                   style={{
-                    color:        tab === t ? 'white' : 'rgba(255,255,255,0.45)',
+                    color:       tab === t ? 'white' : 'rgba(255,255,255,0.72)',
+                    fontWeight:  tab === t ? 700 : 500,
                     borderBottomColor: tab === t ? '#ed6055' : 'transparent',
                   }}
                 >
