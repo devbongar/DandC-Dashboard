@@ -1,8 +1,9 @@
 import { useState, useEffect, useMemo } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import GanttModal from './GanttModal'
+import ProjectDetailModal from './ProjectDetailModal'
 import SearchDropdown from './SearchDropdown'
 import TriangleLoader from './TriangleLoader'
+import useProfile from '../hooks/useProfile'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation',            shortLabel: 'Init' },
@@ -11,6 +12,8 @@ const PHASES = [
   { key: 'closeout',             label: 'Close-Out',             shortLabel: 'Close' },
 ]
 export default function ProjectPhasesBoard({ id }) {
+  const { profile }               = useProfile()
+  const isAdmin                   = profile?.role === 'admin'
   const [projects, setProjects]   = useState([])
   const [loading, setLoading]     = useState(true)
   const [toast, setToast]         = useState(null)
@@ -164,7 +167,12 @@ export default function ProjectPhasesBoard({ id }) {
       )}
 
       {selected && (
-        <GanttModal project={selected} onClose={() => setSelected(null)} />
+        <ProjectDetailModal
+          project={selected}
+          isAdmin={isAdmin}
+          onClose={() => setSelected(null)}
+          onProjectUpdated={(updated) => setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))}
+        />
       )}
 
       {toast && (
