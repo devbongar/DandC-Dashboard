@@ -3833,9 +3833,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   const [tab, setTab] = useState(startTab)
   const [toast, setToast] = useState(null)
   const [tabCounts, setTabCounts] = useState({ permits: null, milestones: null, issues: null })
-  const [heroEditing, setHeroEditing] = useState(startEditing)
-  const [heroForm,    setHeroForm]    = useState(() => startEditing ? buildHeroForm(initialProject) : {})
-  const [heroSaving,  setHeroSaving]  = useState(false)
+  const [heroEditing,  setHeroEditing]  = useState(startEditing)
+  const [heroForm,     setHeroForm]     = useState(() => startEditing ? buildHeroForm(initialProject) : {})
+  const [heroSaving,   setHeroSaving]   = useState(false)
+  const [heroExpanded, setHeroExpanded] = useState(true)
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -3903,109 +3904,128 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4">
       <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full sm:max-w-7xl h-full sm:max-h-[92vh] flex flex-col overflow-hidden">
 
-        {/* Dark hero header — contains project details + tabs */}
+        {/* Hero header — dark name strip + lighter collapsible details + tabs */}
         <div className="flex-shrink-0 border-b border-gray-100"
-          style={{ background: 'linear-gradient(135deg, #334155 0%, #4a6080 100%)' }}>
+          style={{ background: 'linear-gradient(135deg, #1e293b 0%, #2d3f55 100%)' }}>
 
           {!heroEditing ? (
             /* ── Read mode ── */
-            <div className="px-6 pt-5">
-              {/* Top row: name + actions */}
-              <div className="flex items-start justify-between gap-4 mb-1">
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2.5 flex-wrap mb-1">
-                    <h2 className="text-xl font-bold text-white leading-tight">{project.name}</h2>
-                    {project.is_4ph_project && (
-                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
-                        style={{ background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.25)', color: 'white' }}>
-                        4PH
-                      </span>
-                    )}
-                    {phase && (
-                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
-                        style={{ background: 'rgba(237,96,85,0.25)', borderColor: 'rgba(237,96,85,0.35)', color: '#fca5a5' }}>
-                        {phase.label}
-                      </span>
-                    )}
+            <>
+              {/* ── Zone 1: dark name strip (always visible) ── */}
+              <div className="px-6 pt-4 pb-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2.5 flex-wrap mb-1">
+                      <h2 className="text-xl font-bold text-white leading-tight">{project.name}</h2>
+                      {project.is_4ph_project && (
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
+                          style={{ background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.25)', color: 'white' }}>
+                          4PH
+                        </span>
+                      )}
+                      {phase && (
+                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
+                          style={{ background: 'rgba(237,96,85,0.25)', borderColor: 'rgba(237,96,85,0.35)', color: '#fca5a5' }}>
+                          {phase.label}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      {[
+                        project.development_type === 'housing' ? 'Housing' : project.development_type === 'condominium' ? 'Condominium' : null,
+                        project.city,
+                        project.province,
+                      ].filter(Boolean).join(' · ')}
+                    </p>
                   </div>
-                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                    {[
-                      project.development_type === 'housing' ? 'Housing' : project.development_type === 'condominium' ? 'Condominium' : null,
-                      project.city,
-                      project.province,
-                    ].filter(Boolean).join(' · ')}
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
-                  {isAdmin && (
+                  <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
                     <button
-                      onClick={() => { setHeroForm(buildHeroForm(project)); setHeroEditing(true) }}
+                      onClick={() => setHeroExpanded(e => !e)}
                       className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
                       style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
-                      title="Edit project details"
-                      aria-label="Edit project details"
+                      title={heroExpanded ? 'Collapse details' : 'Expand details'}
+                      aria-label={heroExpanded ? 'Collapse project details' : 'Expand project details'}
                     >
-                      <PencilIcon />
+                      <ChevronIcon up={heroExpanded} />
                     </button>
-                  )}
-                  <button
-                    onClick={onClose}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
-                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
-                    aria-label="Close"
-                  >
-                    <XIcon />
-                  </button>
+                    {isAdmin && (
+                      <button
+                        onClick={() => { setHeroForm(buildHeroForm(project)); setHeroEditing(true) }}
+                        className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
+                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
+                        title="Edit project details"
+                        aria-label="Edit project details"
+                      >
+                        <PencilIcon />
+                      </button>
+                    )}
+                    <button
+                      onClick={onClose}
+                      className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
+                      style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
+                      aria-label="Close"
+                    >
+                      <XIcon />
+                    </button>
+                  </div>
                 </div>
               </div>
 
-              {/* Fields grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 py-4 mt-2"
-                style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Project Code</p>
-                  <p className="text-sm font-bold text-white">{project.project_code || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>4PH Project</p>
-                  {project.is_4ph_project
-                    ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
-                        style={{ background: 'rgba(34,197,94,0.2)', borderColor: 'rgba(34,197,94,0.3)', color: '#86efac' }}>
-                        ✓ Yes
-                      </span>
-                    : <p className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>No</p>
-                  }
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Business Unit</p>
-                  <p className="text-sm font-bold text-white">{project.business_unit || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Dev Type</p>
-                  <p className="text-sm font-bold text-white capitalize">{project.development_type || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Province</p>
-                  <p className="text-sm font-bold text-white">{project.province || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>City / Municipality</p>
-                  <p className="text-sm font-bold text-white">{project.city || '—'}</p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Project Lot Area</p>
-                  <p className="text-sm font-bold text-white">
-                    {project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : '—'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Dev Area</p>
-                  <p className="text-sm font-bold text-white">
-                    {project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : '—'}
-                  </p>
+              {/* ── Zone 2: lighter details panel (collapsible) ── */}
+              <div style={{
+                maxHeight: heroExpanded ? '220px' : '0',
+                opacity:   heroExpanded ? 1 : 0,
+                overflow: 'hidden',
+                transition: 'max-height 0.25s ease, opacity 0.18s ease',
+                background: 'rgba(255,255,255,0.07)',
+                borderTop: '1px solid rgba(255,255,255,0.08)',
+              }}>
+                <div className="px-6 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 py-4">
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Project Code</p>
+                    <p className="text-sm font-bold text-white">{project.project_code || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>4PH Project</p>
+                    {project.is_4ph_project
+                      ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
+                          style={{ background: 'rgba(34,197,94,0.2)', borderColor: 'rgba(34,197,94,0.3)', color: '#86efac' }}>
+                          ✓ Yes
+                        </span>
+                      : <p className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>No</p>
+                    }
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Business Unit</p>
+                    <p className="text-sm font-bold text-white">{project.business_unit || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Dev Type</p>
+                    <p className="text-sm font-bold text-white capitalize">{project.development_type || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Province</p>
+                    <p className="text-sm font-bold text-white">{project.province || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>City / Municipality</p>
+                    <p className="text-sm font-bold text-white">{project.city || '—'}</p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Project Lot Area</p>
+                    <p className="text-sm font-bold text-white">
+                      {project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : '—'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Dev Area</p>
+                    <p className="text-sm font-bold text-white">
+                      {project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : '—'}
+                    </p>
+                  </div>
                 </div>
               </div>
-            </div>
+            </>
           ) : (
             /* ── Edit mode ── */
             <div className="px-6 pt-5 pb-4">
@@ -4251,6 +4271,12 @@ const DownloadIcon = () => (
 const UploadIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+  </svg>
+)
+const ChevronIcon = ({ up }) => (
+  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+    style={{ transform: up ? 'rotate(0deg)' : 'rotate(180deg)', transition: 'transform 0.2s ease' }}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
   </svg>
 )
 const PencilIcon = () => (
