@@ -39,7 +39,7 @@ const noNeg = (...vals) => vals.filter(v => v !== null && v !== undefined).some(
 
 const inputCls  = 'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white'
 
-const BASE_TABS = ['Overview', 'Development', 'Permits', 'Milestones', 'Issues & Concerns']
+const BASE_TABS = ['Development', 'Permits', 'Milestones', 'Issues & Concerns']
 
 const ISSUE_STATUS_CONFIG = {
   open:  { label: 'Open',  cls: 'bg-[#ed6055] text-white' },
@@ -3827,7 +3827,7 @@ function buildHeroForm(p) {
   }
 }
 
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Overview' }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Development' }) {
   const [project, setProject] = useState(initialProject)
   const [tab, setTab] = useState(startTab)
   const [toast, setToast] = useState(null)
@@ -4179,8 +4179,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         </div>
 
         {/* Tab content */}
-        <div className={`flex-1 overflow-y-auto px-3 sm:px-6 ${tab === 'Overview' ? 'py-4 sm:py-5' : 'pb-4 sm:pb-5'}`}>
-          {tab === 'Overview'          && <OverviewTab    project={project} isAdmin={isAdmin} onUpdated={handleUpdated} showToast={showToast} startEditing={startEditing} />}
+        <div className="flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5">
           {tab === 'Development'       && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Permits'           && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Milestones'        && <MilestonesTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
