@@ -3816,12 +3816,28 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   const [project, setProject] = useState(initialProject)
   const [tab, setTab] = useState(startTab)
   const [toast, setToast] = useState(null)
+  const [tabCounts, setTabCounts] = useState({ permits: null, milestones: null, issues: null })
 
   useEffect(() => {
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
   }, [])
+
+  useEffect(() => {
+    const pid = project.id
+    Promise.all([
+      supabase.from('project_permits').select('*', { count: 'exact', head: true }).eq('project_id', pid),
+      supabase.from('milestone_baselines').select('*', { count: 'exact', head: true }).eq('project_id', pid),
+      supabase.from('issues').select('*', { count: 'exact', head: true }).eq('project_id', pid).eq('status', 'open'),
+    ]).then(([permits, milestones, issues]) => {
+      setTabCounts({
+        permits:    permits.count    ?? 0,
+        milestones: milestones.count ?? 0,
+        issues:     issues.count     ?? 0,
+      })
+    })
+  }, [project.id])
 
   const phase = PHASE_MAP[project.phase]
   const tabs = [...BASE_TABS, 'Completion (M4/M5)']
