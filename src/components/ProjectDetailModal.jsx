@@ -3,6 +3,7 @@ import { supabase, fetchAll } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr, toFloat, toInt } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
 import TriangleLoader from './TriangleLoader'
+import { GanttContent } from './GanttModal'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,7 @@ const noNeg = (...vals) => vals.filter(v => v !== null && v !== undefined).some(
 
 const inputCls  = 'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white'
 
-const BASE_TABS = ['Development', 'Permits', 'Milestones', 'Issues & Concerns']
+const BASE_TABS = ['Development', 'Work Program', 'Permits', 'Milestones', 'Issues & Concerns']
 
 const ISSUE_STATUS_CONFIG = {
   open:  { label: 'Open',  cls: 'bg-[#ed6055] text-white' },
@@ -4179,8 +4180,9 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         </div>
 
         {/* Tab content */}
-        <div className="flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5">
+        <div className={tab === 'Work Program' ? 'flex-1 overflow-hidden flex flex-col' : 'flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'}>
           {tab === 'Development'       && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
+          {tab === 'Work Program'      && <GanttContent project={project} />}
           {tab === 'Permits'           && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Milestones'        && <MilestonesTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Issues & Concerns' && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
