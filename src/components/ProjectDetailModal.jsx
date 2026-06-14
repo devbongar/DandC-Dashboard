@@ -3812,11 +3812,29 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
 
+function buildHeroForm(p) {
+  return {
+    name:             p.name             ?? '',
+    project_code:     p.project_code     ?? '',
+    is_4ph_project:   p.is_4ph_project   ?? false,
+    business_unit:    p.business_unit    ?? '',
+    province:         p.province         ?? '',
+    city:             p.city             ?? '',
+    lot_area:         p.lot_area         ?? '',
+    developable_area: p.developable_area ?? '',
+    development_type: p.development_type ?? '',
+    phase:            p.phase            ?? '',
+  }
+}
+
 export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Overview' }) {
   const [project, setProject] = useState(initialProject)
   const [tab, setTab] = useState(startTab)
   const [toast, setToast] = useState(null)
   const [tabCounts, setTabCounts] = useState({ permits: null, milestones: null, issues: null })
+  const [heroEditing, setHeroEditing] = useState(startEditing)
+  const [heroForm,    setHeroForm]    = useState(() => startEditing ? buildHeroForm(initialProject) : {})
+  const [heroSaving,  setHeroSaving]  = useState(false)
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -3851,6 +3869,33 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
     const updated = { ...project, ...patch }
     setProject(updated)
     onProjectUpdated?.(updated)
+  }
+
+  const saveHero = async () => {
+    setHeroSaving(true)
+    const payload = {
+      name:             heroForm.name.trim(),
+      project_code:     heroForm.project_code.trim() || null,
+      is_4ph_project:   heroForm.is_4ph_project,
+      business_unit:    heroForm.business_unit     || null,
+      province:         heroForm.province          || null,
+      city:             heroForm.city              || null,
+      lot_area:         heroForm.lot_area         !== '' ? parseFloat(heroForm.lot_area)         : null,
+      developable_area: heroForm.developable_area !== '' ? parseFloat(heroForm.developable_area) : null,
+      development_type: heroForm.development_type  || null,
+      phase:            heroForm.phase             || null,
+    }
+    if (noNeg(payload.lot_area, payload.developable_area)) {
+      showToast('Values cannot be negative.', 'error')
+      setHeroSaving(false)
+      return
+    }
+    const { error } = await supabase.from('projects').update(payload).eq('id', project.id)
+    setHeroSaving(false)
+    if (error) { showToast('Failed to save: ' + error.message, 'error'); return }
+    showToast('Project updated.', 'success')
+    setHeroEditing(false)
+    handleUpdated(payload)
   }
 
   return (
