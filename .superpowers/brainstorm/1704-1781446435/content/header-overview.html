@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Revised Design — Overview in Header</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: #f1f5f9; min-height: 100vh; padding: 32px 24px; }
+
+  h1 { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 300px; gap: 24px; align-items: start; }
+
+  /* ── Modal ── */
+  .modal { background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.10); }
+
+  /* Hero */
+  .hero { background: linear-gradient(135deg, #1e293b 0%, #2d3f55 100%); padding: 20px 24px 0; position: relative; }
+
+  /* Top row: title + actions */
+  .hero-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 5px; }
+  .hero-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .hero-title h2 { font-size: 20px; font-weight: 800; color: white; letter-spacing: -0.3px; }
+  .badge-4ph { background: rgba(255,255,255,0.18); color: white; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.28); }
+  .hero-phase { background: rgba(237,96,85,0.25); color: #fca5a5; border: 1px solid rgba(237,96,85,0.35); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+
+  /* Action buttons top-right */
+  .hero-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; padding-top: 2px; }
+  .btn-icon { width: 28px; height: 28px; border-radius: 8px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; cursor: pointer; color: rgba(255,255,255,0.7); font-size: 13px; transition: all 0.15s; }
+  .btn-icon:hover { background: rgba(255,255,255,0.2); color: white; }
+  .btn-icon.edit { font-size: 12px; }
+
+  /* Meta row */
+  .hero-meta { font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 16px; }
+
+  /* Overview fields inside hero */
+  .hero-fields { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px 16px; padding: 14px 0 18px; border-top: 1px solid rgba(255,255,255,0.08); }
+  .hf-label { font-size: 8px; font-weight: 600; color: rgba(255,255,255,0.4); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 3px; }
+  .hf-value { font-size: 12px; font-weight: 700; color: white; line-height: 1.3; }
+  .hf-value.yes-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(34,197,94,0.2); color: #86efac; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 20px; border: 1px solid rgba(34,197,94,0.3); }
+
+  /* Tabs — sit at the bottom of the hero */
+  .tabs { display: flex; gap: 0; margin-top: 2px; }
+  .tab { padding: 10px 14px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px; transition: color 0.15s; }
+  .tab.active { color: white; border-bottom-color: #ed6055; }
+  .tab:hover:not(.active) { color: rgba(255,255,255,0.75); }
+  .tab-count { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.6); font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+  .tab-count.alert { background: rgba(237,96,85,0.35); color: #fca5a5; }
+
+  /* Tab body placeholder */
+  .tab-body { padding: 22px 24px; min-height: 200px; }
+  .tab-body-label { font-size: 11px; font-weight: 700; color: #0f172a; margin-bottom: 14px; display: flex; align-items: center; gap: 7px; }
+  .tab-body-label::before { content: ''; width: 3px; height: 14px; background: #ed6055; border-radius: 2px; display: block; }
+  .placeholder-rows { display: flex; flex-direction: column; gap: 8px; }
+  .ph-row { height: 36px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; }
+  .ph-row.header { background: #f1f5f9; height: 30px; }
+
+  /* ── Sidebar ── */
+  .sidebar { display: flex; flex-direction: column; gap: 14px; }
+  .note-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 14px 16px; }
+  .note-card h3 { font-size: 11px; font-weight: 800; color: #0f172a; margin-bottom: 10px; display: flex; align-items: center; gap-6px; gap: 6px; }
+  .note-card h3 .pip { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .note-card h3 .pip.red { background: #ed6055; }
+  .note-card h3 .pip.green { background: #22c55e; }
+  .note-card h3 .pip.blue { background: #3b82f6; }
+  .note-list { list-style: none; }
+  .note-list li { font-size: 11px; color: #475569; padding: 5px 0 5px 16px; position: relative; border-bottom: 1px solid #f8fafc; line-height: 1.5; }
+  .note-list li:last-child { border-bottom: none; }
+  .note-list li::before { content: ''; position: absolute; left: 4px; top: 11px; width: 5px; height: 5px; border-radius: 50%; background: #e2e8f0; }
+  .tag { display: inline-block; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-left: 4px; vertical-align: middle; }
+  .tag.fix { background: #fef3c7; color: #92400e; }
+  .tag.new { background: #dcfce7; color: #16a34a; }
+  .tag.removed { background: #fee2e2; color: #991b1b; }
+
+  .diff-row { display: flex; align-items: center; gap: 8px; padding: 6px 0; border-bottom: 1px solid #f8fafc; font-size: 11px; }
+  .diff-row:last-child { border-bottom: none; }
+  .diff-before { color: #94a3b8; text-decoration: line-through; flex: 1; }
+  .diff-arrow { color: #cbd5e1; font-size: 10px; }
+  .diff-after { color: #0f172a; font-weight: 600; flex: 1; }
+
+  .approve-bar { background: white; border-radius: 12px; border: 2px solid #ed6055; padding: 14px 16px; text-align: center; }
+  .approve-bar p { font-size: 12px; color: #475569; margin-bottom: 10px; line-height: 1.5; }
+  .approve-bar strong { color: #0f172a; }
+</style>
+</head>
+<body>
+
+<h1>Revised Design — Overview in Header</h1>
+<p class="subtitle">Project details live in the dark header. Tabs are for the 5 operational sections only.</p>
+
+<div class="layout">
+
+  <!-- LEFT: Full Mockup -->
+  <div class="modal">
+
+    <!-- Dark Hero with all project details -->
+    <div class="hero">
+
+      <div class="hero-top">
+        <div>
+          <div class="hero-title">
+            <h2>Jab Residences</h2>
+            <span class="badge-4ph">4PH</span>
+            <span class="hero-phase">Execution &amp; Monitoring</span>
+          </div>
+          <div class="hero-meta" style="margin-top:4px;">Condominium &nbsp;·&nbsp; Dasmariñas City, Cavite</div>
+        </div>
+        <div class="hero-actions">
+          <div class="btn-icon edit" title="Edit project details">✎</div>
+          <div class="btn-icon" title="Close">✕</div>
+        </div>
+      </div>
+
+      <!-- Overview fields embedded in header -->
+      <div class="hero-fields">
+        <div>
+          <div class="hf-label">Project Code</div>
+          <div class="hf-value">4PH Jab</div>
+        </div>
+        <div>
+          <div class="hf-label">4PH Project</div>
+          <div class="hf-value"><span class="yes-badge">✓ Yes</span></div>
+        </div>
+        <div>
+          <div class="hf-label">Business Unit</div>
+          <div class="hf-value">MDRI</div>
+        </div>
+        <div>
+          <div class="hf-label">Dev Type</div>
+          <div class="hf-value">Condominium</div>
+        </div>
+        <div>
+          <div class="hf-label">Province</div>
+          <div class="hf-value">Cavite</div>
+        </div>
+        <div>
+          <div class="hf-label">City / Municipality</div>
+          <div class="hf-value">Dasmariñas City</div>
+        </div>
+        <div>
+          <div class="hf-label">Project Lot Area</div>
+          <div class="hf-value">61,877 sqm</div>
+        </div>
+        <div>
+          <div class="hf-label">Dev Area</div>
+          <div class="hf-value">60,438.32 sqm</div>
+        </div>
+      </div>
+
+      <!-- Tabs: 5 operational sections only -->
+      <div class="tabs">
+        <div class="tab active">Development</div>
+        <div class="tab">Permits <span class="tab-count">3</span></div>
+        <div class="tab">Milestones <span class="tab-count">8</span></div>
+        <div class="tab">Issues <span class="tab-count alert">2</span></div>
+        <div class="tab">Completion (M4/M5)</div>
+      </div>
+    </div>
+
+    <!-- Tab content area -->
+    <div class="tab-body">
+      <div class="tab-body-label">Development</div>
+      <div class="placeholder-rows">
+        <div class="ph-row header"></div>
+        <div class="ph-row"></div>
+        <div class="ph-row"></div>
+        <div class="ph-row"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- RIGHT: Notes -->
+  <div class="sidebar">
+
+    <div class="note-card">
+      <h3><span class="pip red"></span>What changed</h3>
+      <div class="diff-row">
+        <div class="diff-before">Overview tab</div>
+        <div class="diff-arrow">→</div>
+        <div class="diff-after">Part of the header</div>
+      </div>
+      <div class="diff-row">
+        <div class="diff-before">KPI tiles (redundant)</div>
+        <div class="diff-arrow">→</div>
+        <div class="diff-after">Removed entirely</div>
+      </div>
+      <div class="diff-row">
+        <div class="diff-before">Edit Details button</div>
+        <div class="diff-arrow">→</div>
+        <div class="diff-after">✎ icon, top-right</div>
+      </div>
+      <div class="diff-row">
+        <div class="diff-before">6 tabs</div>
+        <div class="diff-arrow">→</div>
+        <div class="diff-after">5 tabs (no Overview)</div>
+      </div>
+      <div class="diff-row">
+        <div class="diff-before">"Yes" in red</div>
+        <div class="diff-arrow">→</div>
+        <div class="diff-after">✓ Yes in green badge</div>
+      </div>
+    </div>
+
+    <div class="note-card">
+      <h3><span class="pip green"></span>What stays the same</h3>
+      <ul class="note-list">
+        <li>All 5 tab contents — zero changes inside them</li>
+        <li>Tab count badges (live Permits, Milestones, Issues)</li>
+        <li>Issues count turns red when &gt; 0</li>
+        <li>Edit form logic — same fields, same save behavior</li>
+        <li>Close button still top-right</li>
+      </ul>
+    </div>
+
+    <div class="note-card">
+      <h3><span class="pip blue"></span>How edit works</h3>
+      <ul class="note-list">
+        <li>Click ✎ icon → header switches to edit mode</li>
+        <li>Fields become inputs inline in the dark header</li>
+        <li>Save / Cancel buttons replace the ✎ and ✕</li>
+        <li>On save → header returns to read view</li>
+        <li>No modal-inside-modal, no page navigation</li>
+      </ul>
+    </div>
+
+    <div class="approve-bar">
+      <p>Does this feel right? Reply <strong>"looks good"</strong> and I'll write up the implementation plan.</p>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>

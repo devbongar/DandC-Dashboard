@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Project Navigation — Design Approaches</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: #f1f5f9; min-height: 100vh; padding: 32px 24px; }
+
+  h1 { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 6px; }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+  .card { background: #fff; border-radius: 14px; border: 2px solid #e2e8f0; cursor: pointer; overflow: hidden; transition: all 0.2s; position: relative; }
+  .card:hover { border-color: #ed6055; box-shadow: 0 8px 24px rgba(237,96,85,0.12); transform: translateY(-2px); }
+  .card.selected { border-color: #ed6055; box-shadow: 0 0 0 4px rgba(237,96,85,0.15); }
+  .card.selected::after { content: '✓ Selected'; position: absolute; top: 10px; right: 10px; background: #ed6055; color: white; font-size: 10px; font-weight: 700; padding: 3px 8px; border-radius: 20px; }
+
+  .card-label { padding: 14px 16px 10px; border-bottom: 1px solid #f1f5f9; }
+  .card-label .letter { display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; background: #ed6055; color: white; font-size: 11px; font-weight: 800; border-radius: 6px; margin-right: 8px; }
+  .card-label h3 { display: inline; font-size: 13px; font-weight: 700; color: #0f172a; }
+  .card-label p { font-size: 11px; color: #64748b; margin-top: 5px; line-height: 1.4; }
+
+  .mockup-wrap { padding: 14px; background: #f8fafc; }
+
+  /* ── OPTION A: Enhanced Current ── */
+  .opt-a .modal { background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); font-size: 11px; }
+  .opt-a .modal-header { padding: 14px 16px 0; border-bottom: 1px solid #f1f5f9; }
+  .opt-a .modal-title { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .opt-a .modal-title h2 { font-size: 15px; font-weight: 800; color: #0f172a; }
+  .opt-a .badge-4ph { background: #ed6055; color: white; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 20px; }
+  .opt-a .modal-meta { display: flex; align-items: center; gap: 6px; font-size: 10px; color: #94a3b8; margin-bottom: 10px; }
+  .opt-a .phase-pill { background: rgba(237,96,85,0.1); color: #ed6055; border: 1px solid rgba(237,96,85,0.2); font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .opt-a .tabs { display: flex; gap: 0; }
+  .opt-a .tab { padding: 8px 12px; font-size: 10px; font-weight: 600; color: #94a3b8; border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; position: relative; }
+  .opt-a .tab.active { color: #ed6055; border-bottom-color: #ed6055; }
+  .opt-a .tab .dot { width: 5px; height: 5px; background: #22c55e; border-radius: 50%; display: inline-block; margin-left: 4px; vertical-align: middle; }
+  .opt-a .tab .count { background: #f1f5f9; color: #64748b; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 10px; margin-left: 4px; }
+  .opt-a .modal-body { padding: 14px 16px; }
+  .opt-a .summary-bar { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+  .opt-a .stat-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; }
+  .opt-a .stat-label { font-size: 8px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .opt-a .stat-value { font-size: 12px; font-weight: 700; color: #0f172a; }
+  .opt-a .stat-value.green { color: #16a34a; }
+  .opt-a .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .opt-a .field-label { font-size: 8px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .opt-a .field-value { font-size: 11px; font-weight: 700; color: #0f172a; }
+  .opt-a .edit-btn { display: inline-flex; align-items: center; gap: 4px; background: #ed6055; color: white; font-size: 9px; font-weight: 700; padding: 5px 10px; border-radius: 7px; float: right; margin-top: -2px; }
+
+  /* ── OPTION B: Left Rail ── */
+  .opt-b .modal { background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); display: flex; height: 260px; }
+  .opt-b .rail { width: 130px; background: #fafafa; border-right: 1px solid #f1f5f9; display: flex; flex-direction: column; flex-shrink: 0; }
+  .opt-b .rail-header { padding: 12px 12px 10px; border-bottom: 1px solid #f1f5f9; }
+  .opt-b .rail-header h2 { font-size: 11px; font-weight: 800; color: #0f172a; line-height: 1.3; }
+  .opt-b .rail-header .badge { background: #ed6055; color: white; font-size: 8px; font-weight: 800; padding: 1px 6px; border-radius: 20px; display: inline-block; margin-top: 4px; }
+  .opt-b .rail-header .phase { font-size: 8px; color: #ed6055; font-weight: 600; margin-top: 3px; }
+  .opt-b .rail-nav { padding: 8px 0; flex: 1; }
+  .opt-b .rail-item { display: flex; align-items: center; gap: 7px; padding: 7px 12px; font-size: 10px; font-weight: 600; color: #64748b; cursor: pointer; border-left: 2px solid transparent; }
+  .opt-b .rail-item.active { color: #ed6055; border-left-color: #ed6055; background: rgba(237,96,85,0.06); }
+  .opt-b .rail-item .icon { width: 14px; height: 14px; background: #e2e8f0; border-radius: 3px; flex-shrink: 0; }
+  .opt-b .rail-item.active .icon { background: rgba(237,96,85,0.2); }
+  .opt-b .rail-item .badge2 { margin-left: auto; background: #f1f5f9; color: #64748b; font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 10px; }
+  .opt-b .content-area { flex: 1; padding: 14px; overflow: hidden; font-size: 11px; }
+  .opt-b .content-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+  .opt-b .content-header h3 { font-size: 12px; font-weight: 700; color: #0f172a; }
+  .opt-b .edit-btn { display: inline-flex; align-items: center; gap: 4px; background: #ed6055; color: white; font-size: 9px; font-weight: 700; padding: 5px 10px; border-radius: 7px; }
+  .opt-b .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .opt-b .field-label { font-size: 8px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .opt-b .field-value { font-size: 11px; font-weight: 700; color: #0f172a; }
+  .opt-b .meta-row { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+  .opt-b .meta-chip { background: #f1f5f9; color: #475569; font-size: 9px; font-weight: 600; padding: 3px 8px; border-radius: 20px; }
+
+  /* ── OPTION C: Card-Dense ── */
+  .opt-c .modal { background: white; border-radius: 10px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 4px 16px rgba(0,0,0,0.08); font-size: 11px; }
+  .opt-c .modal-hero { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 14px 16px 0; position: relative; }
+  .opt-c .hero-title { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+  .opt-c .hero-title h2 { font-size: 15px; font-weight: 800; color: white; }
+  .opt-c .badge-4ph { background: rgba(255,255,255,0.2); color: white; font-size: 9px; font-weight: 800; padding: 2px 7px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.3); }
+  .opt-c .hero-meta { display: flex; align-items: center; gap: 6px; font-size: 10px; color: rgba(255,255,255,0.6); margin-bottom: 10px; }
+  .opt-c .hero-phase { background: rgba(237,96,85,0.3); color: #fca5a5; border: 1px solid rgba(237,96,85,0.4); font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 20px; }
+  .opt-c .tabs { display: flex; gap: 0; }
+  .opt-c .tab { padding: 8px 11px; font-size: 10px; font-weight: 600; color: rgba(255,255,255,0.5); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; }
+  .opt-c .tab.active { color: white; border-bottom-color: #ed6055; }
+  .opt-c .tab .count { background: rgba(255,255,255,0.15); color: rgba(255,255,255,0.7); font-size: 8px; font-weight: 700; padding: 1px 5px; border-radius: 10px; margin-left: 4px; }
+  .opt-c .modal-body { padding: 14px 16px; }
+  .opt-c .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 14px; }
+  .opt-c .kpi { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 8px 10px; text-align: center; }
+  .opt-c .kpi-val { font-size: 13px; font-weight: 800; color: #0f172a; }
+  .opt-c .kpi-lbl { font-size: 8px; color: #94a3b8; font-weight: 600; text-transform: uppercase; margin-top: 2px; }
+  .opt-c .kpi-lbl.green { color: #16a34a; }
+  .opt-c .section-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+  .opt-c .section-title { font-size: 11px; font-weight: 700; color: #0f172a; display: flex; align-items: center; gap: 5px; }
+  .opt-c .section-title::before { content: ''; width: 3px; height: 12px; background: #ed6055; border-radius: 2px; display: block; }
+  .opt-c .edit-btn { display: inline-flex; align-items: center; gap: 4px; background: #ed6055; color: white; font-size: 9px; font-weight: 700; padding: 5px 10px; border-radius: 7px; }
+  .opt-c .fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+  .opt-c .field-label { font-size: 8px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; }
+  .opt-c .field-value { font-size: 11px; font-weight: 700; color: #0f172a; }
+  .opt-c .field-value.yes-badge { display: inline-flex; background: #dcfce7; color: #16a34a; font-size: 9px; padding: 2px 8px; border-radius: 20px; border: 1px solid #bbf7d0; }
+
+  .improvements { margin-top: 20px; background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 16px 20px; }
+  .improvements h3 { font-size: 13px; font-weight: 700; color: #0f172a; margin-bottom: 10px; }
+  .imp-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .imp-col h4 { font-size: 10px; font-weight: 700; color: #ed6055; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 7px; display: flex; align-items: center; gap: 5px; }
+  .imp-col ul { list-style: none; }
+  .imp-col ul li { font-size: 10px; color: #475569; padding: 3px 0; padding-left: 14px; position: relative; line-height: 1.4; }
+  .imp-col ul li::before { content: '→'; position: absolute; left: 0; color: #94a3b8; font-size: 9px; }
+
+  .select-hint { text-align: center; font-size: 12px; color: #64748b; margin-top: 20px; font-weight: 500; }
+</style>
+<script>
+  let selected = null;
+  function pick(id) {
+    document.querySelectorAll('.card').forEach(c => c.classList.remove('selected'));
+    document.getElementById(id).classList.add('selected');
+    selected = id;
+    if (window.__brainstorm_select) window.__brainstorm_select(id, document.getElementById(id).querySelector('h3').textContent);
+  }
+</script>
+</head>
+<body>
+
+<h1>Project Navigation Pane — UI Approaches</h1>
+<p class="subtitle">Three directions for improving the modal. Click a card to select your preferred approach.</p>
+
+<div class="cards">
+
+  <!-- OPTION A -->
+  <div class="card opt-a" id="option-a" onclick="pick('option-a')">
+    <div class="card-label">
+      <span class="letter">A</span><h3>Enhanced Current</h3>
+      <p>Keep top-tab structure. Add data summary cards, fix color semantics, add tab indicators.</p>
+    </div>
+    <div class="mockup-wrap">
+      <div class="modal">
+        <div class="modal-header">
+          <div class="modal-title">
+            <h2>Jab Residences</h2>
+            <span class="badge-4ph">4PH</span>
+          </div>
+          <div class="modal-meta">
+            Condominium &nbsp;·&nbsp; Dasmariñas City, Cavite &nbsp;·&nbsp;
+            <span class="phase-pill">Execution &amp; Monitoring</span>
+          </div>
+          <div class="tabs">
+            <div class="tab active">Overview</div>
+            <div class="tab">Development <span class="dot"></span></div>
+            <div class="tab">Permits <span class="count">3</span></div>
+            <div class="tab">Milestones <span class="count">8</span></div>
+            <div class="tab">Issues <span class="count">2</span></div>
+            <div class="tab">Completion</div>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="summary-bar">
+            <div class="stat-card">
+              <div class="stat-label">Lot Area</div>
+              <div class="stat-value">61,877 sqm</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">Dev Area</div>
+              <div class="stat-value">60,438 sqm</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-label">4PH Status</div>
+              <div class="stat-value green">✓ Active</div>
+            </div>
+          </div>
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+            <span style="font-size:10px;font-weight:700;color:#0f172a;">Project Details</span>
+            <span class="edit-btn">✎ Edit Details</span>
+          </div>
+          <div class="fields">
+            <div><div class="field-label">Business Unit</div><div class="field-value">MDRI</div></div>
+            <div><div class="field-label">Development Type</div><div class="field-value">Condominium</div></div>
+            <div><div class="field-label">Province</div><div class="field-value">Cavite</div></div>
+            <div><div class="field-label">City</div><div class="field-value">Dasmariñas City</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION B -->
+  <div class="card opt-b" id="option-b" onclick="pick('option-b')">
+    <div class="card-label">
+      <span class="letter">B</span><h3>Left Rail Navigation</h3>
+      <p>Side panel replaces top tabs. Project identity always visible. More vertical space for content.</p>
+    </div>
+    <div class="mockup-wrap">
+      <div class="modal">
+        <div class="rail">
+          <div class="rail-header">
+            <h2>Jab Residences</h2>
+            <div class="badge">4PH</div>
+            <div class="phase">● Execution &amp; Monitoring</div>
+          </div>
+          <div class="rail-nav">
+            <div class="rail-item active">
+              <div class="icon"></div> Overview
+            </div>
+            <div class="rail-item">
+              <div class="icon"></div> Development
+            </div>
+            <div class="rail-item">
+              <div class="icon"></div> Permits <span class="badge2">3</span>
+            </div>
+            <div class="rail-item">
+              <div class="icon"></div> Milestones <span class="badge2">8</span>
+            </div>
+            <div class="rail-item">
+              <div class="icon"></div> Issues <span class="badge2">2</span>
+            </div>
+            <div class="rail-item">
+              <div class="icon"></div> Completion
+            </div>
+          </div>
+        </div>
+        <div class="content-area">
+          <div class="content-header">
+            <h3>Overview</h3>
+            <span class="edit-btn">✎ Edit</span>
+          </div>
+          <div class="meta-row">
+            <span class="meta-chip">MDRI</span>
+            <span class="meta-chip">Condominium</span>
+            <span class="meta-chip">Cavite</span>
+          </div>
+          <div class="fields">
+            <div><div class="field-label">Project Code</div><div class="field-value">4PH Jab</div></div>
+            <div><div class="field-label">Dev Type</div><div class="field-value">Condominium</div></div>
+            <div><div class="field-label">Lot Area</div><div class="field-value">61,877 sqm</div></div>
+            <div><div class="field-label">Dev Area</div><div class="field-value">60,438 sqm</div></div>
+            <div><div class="field-label">Province</div><div class="field-value">Cavite</div></div>
+            <div><div class="field-label">City</div><div class="field-value">Dasmariñas City</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- OPTION C -->
+  <div class="card opt-c" id="option-c" onclick="pick('option-c')">
+    <div class="card-label">
+      <span class="letter">C</span><h3>Dark Hero Header</h3>
+      <p>Branded dark header with KPI row. Tab counts visible. Fixed color semantics throughout.</p>
+    </div>
+    <div class="mockup-wrap">
+      <div class="modal">
+        <div class="modal-hero">
+          <div class="hero-title">
+            <h2>Jab Residences</h2>
+            <span class="badge-4ph">4PH</span>
+          </div>
+          <div class="hero-meta">
+            Condominium &nbsp;·&nbsp; Dasmariñas City, Cavite &nbsp;·&nbsp;
+            <span class="hero-phase">Execution &amp; Monitoring</span>
+          </div>
+          <div class="tabs">
+            <div class="tab active">Overview</div>
+            <div class="tab">Development</div>
+            <div class="tab">Permits <span class="count">3</span></div>
+            <div class="tab">Milestones <span class="count">8</span></div>
+            <div class="tab">Issues <span class="count">2</span></div>
+            <div class="tab">Completion</div>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="kpi-row">
+            <div class="kpi"><div class="kpi-val">61,877</div><div class="kpi-lbl">Lot (sqm)</div></div>
+            <div class="kpi"><div class="kpi-val">60,438</div><div class="kpi-lbl">Dev (sqm)</div></div>
+            <div class="kpi"><div class="kpi-val" style="color:#ed6055">2</div><div class="kpi-lbl" style="color:#ef4444">Open Issues</div></div>
+            <div class="kpi"><div class="kpi-val" style="color:#16a34a">8</div><div class="kpi-lbl green">Milestones</div></div>
+          </div>
+          <div class="section-row">
+            <div class="section-title">Project Details</div>
+            <span class="edit-btn">✎ Edit Details</span>
+          </div>
+          <div class="fields">
+            <div><div class="field-label">4PH Project</div><div class="field-value"><span class="yes-badge">✓ Yes</span></div></div>
+            <div><div class="field-label">Business Unit</div><div class="field-value">MDRI</div></div>
+            <div><div class="field-label">Dev Type</div><div class="field-value">Condominium</div></div>
+            <div><div class="field-label">Province</div><div class="field-value">Cavite</div></div>
+            <div><div class="field-label">City</div><div class="field-value">Dasmariñas City</div></div>
+            <div><div class="field-label">Project Code</div><div class="field-value">4PH Jab</div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="improvements">
+  <h3>Improvements applied across all options</h3>
+  <div class="imp-grid">
+    <div class="imp-col">
+      <h4>🎨 Color &amp; Semantics</h4>
+      <ul>
+        <li>"4PH: Yes" changed from red to green badge</li>
+        <li>Phase pill uses muted red (not error red)</li>
+        <li>Open issues shown in red, milestones in green</li>
+        <li>Consistent accent color usage throughout</li>
+      </ul>
+    </div>
+    <div class="imp-col">
+      <h4>📐 Layout &amp; Density</h4>
+      <ul>
+        <li>Whitespace reduced — content fills the panel</li>
+        <li>Edit button placed near the content it edits</li>
+        <li>Tab badges show live counts at a glance</li>
+        <li>KPI summary gives instant project snapshot</li>
+      </ul>
+    </div>
+    <div class="imp-col">
+      <h4>🧭 Navigation</h4>
+      <ul>
+        <li>Tab indicators signal which tabs have data</li>
+        <li>Option B: full nav always visible in rail</li>
+        <li>Project name/phase visible in all views</li>
+        <li>Edit action contextually scoped per section</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<p class="select-hint">Click a card above to select your preferred direction →</p>
+
+</body>
+</html>

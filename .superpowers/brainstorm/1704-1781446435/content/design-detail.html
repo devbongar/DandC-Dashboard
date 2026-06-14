@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Option C — Detailed Design</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Inter', sans-serif; background: #f1f5f9; min-height: 100vh; padding: 32px 24px; }
+
+  h1 { font-size: 18px; font-weight: 700; color: #0f172a; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #64748b; margin-bottom: 28px; }
+
+  .layout { display: grid; grid-template-columns: 1fr 320px; gap: 24px; align-items: start; }
+
+  /* ── Full Mockup ── */
+  .mockup-panel { background: white; border-radius: 16px; border: 1px solid #e2e8f0; overflow: hidden; box-shadow: 0 8px 32px rgba(0,0,0,0.10); }
+
+  /* Hero */
+  .hero { background: linear-gradient(135deg, #1e293b 0%, #334155 100%); padding: 20px 24px 0; position: relative; }
+  .hero-close { position: absolute; top: 14px; right: 16px; width: 26px; height: 26px; border-radius: 50%; background: rgba(255,255,255,0.1); display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.6); font-size: 14px; cursor: pointer; }
+  .hero-title { display: flex; align-items: center; gap: 10px; margin-bottom: 5px; }
+  .hero-title h2 { font-size: 20px; font-weight: 800; color: white; letter-spacing: -0.3px; }
+  .badge-4ph { background: rgba(255,255,255,0.18); color: white; font-size: 10px; font-weight: 800; padding: 3px 9px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.28); }
+  .hero-meta { display: flex; align-items: center; gap: 8px; font-size: 11px; color: rgba(255,255,255,0.55); margin-bottom: 16px; flex-wrap: wrap; }
+  .hero-sep { opacity: 0.4; }
+  .hero-phase { background: rgba(237,96,85,0.25); color: #fca5a5; border: 1px solid rgba(237,96,85,0.35); font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+
+  /* KPI Row */
+  .kpi-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
+  .kpi { background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12); border-radius: 10px; padding: 10px 12px; }
+  .kpi-val { font-size: 16px; font-weight: 800; color: white; letter-spacing: -0.5px; }
+  .kpi-val.red { color: #fca5a5; }
+  .kpi-val.green { color: #86efac; }
+  .kpi-label { font-size: 9px; color: rgba(255,255,255,0.45); font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 3px; }
+  .kpi-sub { font-size: 8px; color: rgba(255,255,255,0.3); margin-top: 1px; }
+
+  /* Tabs */
+  .tabs { display: flex; gap: 0; margin-top: 4px; }
+  .tab { padding: 10px 14px; font-size: 11px; font-weight: 600; color: rgba(255,255,255,0.45); border-bottom: 2px solid transparent; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px; transition: color 0.15s; }
+  .tab.active { color: white; border-bottom-color: #ed6055; }
+  .tab:hover:not(.active) { color: rgba(255,255,255,0.75); }
+  .tab-count { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.6); font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 10px; }
+  .tab.active .tab-count { background: rgba(237,96,85,0.35); color: #fca5a5; }
+  .tab-count.alert { background: rgba(237,96,85,0.3); color: #fca5a5; }
+
+  /* Body */
+  .body { padding: 20px 24px; }
+  .section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+  .section-title { display: flex; align-items: center; gap: 7px; font-size: 12px; font-weight: 700; color: #0f172a; }
+  .section-title::before { content: ''; width: 3px; height: 14px; background: #ed6055; border-radius: 2px; display: block; }
+  .edit-btn { display: inline-flex; align-items: center; gap-5px; gap: 5px; background: #ed6055; color: white; font-size: 10px; font-weight: 700; padding: 6px 12px; border-radius: 8px; cursor: pointer; }
+  .edit-btn:hover { background: #d94f45; }
+
+  .fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .field-label { font-size: 9px; font-weight: 600; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 3px; }
+  .field-value { font-size: 12px; font-weight: 700; color: #0f172a; }
+  .yes-badge { display: inline-flex; align-items: center; gap: 4px; background: #dcfce7; color: #16a34a; font-size: 10px; font-weight: 700; padding: 2px 9px; border-radius: 20px; border: 1px solid #bbf7d0; }
+
+  /* ── Sidebar: Change Notes ── */
+  .sidebar { display: flex; flex-direction: column; gap: 14px; }
+
+  .change-card { background: white; border-radius: 12px; border: 1px solid #e2e8f0; padding: 14px 16px; }
+  .change-card h3 { font-size: 11px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+  .change-card h3 .dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  .change-card h3 .dot.red { background: #ed6055; }
+  .change-card h3 .dot.blue { background: #3b82f6; }
+  .change-card h3 .dot.green { background: #22c55e; }
+  .change-card h3 .dot.purple { background: #a855f7; }
+
+  .change-list { list-style: none; }
+  .change-list li { font-size: 11px; color: #475569; padding: 5px 0; padding-left: 16px; position: relative; border-bottom: 1px solid #f8fafc; line-height: 1.5; }
+  .change-list li:last-child { border-bottom: none; }
+  .change-list li::before { content: ''; position: absolute; left: 4px; top: 11px; width: 5px; height: 5px; border-radius: 50%; background: #e2e8f0; }
+  .change-list li .tag { display: inline-block; background: #f1f5f9; color: #64748b; font-size: 9px; font-weight: 700; padding: 1px 6px; border-radius: 6px; margin-left: 4px; vertical-align: middle; }
+  .change-list li .tag.new { background: #dcfce7; color: #16a34a; }
+  .change-list li .tag.fix { background: #fef3c7; color: #92400e; }
+
+  .data-flow { background: #f8fafc; border-radius: 8px; padding: 10px 12px; font-size: 10px; color: #475569; line-height: 1.7; }
+  .data-flow code { background: #e2e8f0; padding: 1px 5px; border-radius: 4px; font-family: monospace; font-size: 9px; color: #334155; }
+
+  .approve-bar { background: white; border-radius: 12px; border: 2px solid #ed6055; padding: 14px 16px; text-align: center; }
+  .approve-bar p { font-size: 12px; color: #475569; margin-bottom: 10px; line-height: 1.5; }
+  .approve-bar strong { color: #0f172a; }
+  .approve-btn { display: inline-block; background: #ed6055; color: white; font-size: 12px; font-weight: 700; padding: 8px 20px; border-radius: 8px; cursor: pointer; width: 100%; }
+</style>
+</head>
+<body>
+
+<h1>Option C — Detailed Design</h1>
+<p class="subtitle">Full interactive mockup + what changes and where the data comes from</p>
+
+<div class="layout">
+
+  <!-- LEFT: Full Mockup -->
+  <div class="mockup-panel">
+    <div class="hero">
+      <div class="hero-close">✕</div>
+      <div class="hero-title">
+        <h2>Jab Residences</h2>
+        <span class="badge-4ph">4PH</span>
+      </div>
+      <div class="hero-meta">
+        Condominium
+        <span class="hero-sep">·</span>
+        Dasmariñas City, Cavite
+        <span class="hero-sep">·</span>
+        <span class="hero-phase">Execution &amp; Monitoring</span>
+      </div>
+
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="kpi-val">61,877</div>
+          <div class="kpi-label">Lot Area</div>
+          <div class="kpi-sub">sqm</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-val">60,438</div>
+          <div class="kpi-label">Dev Area</div>
+          <div class="kpi-sub">sqm</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-val red">2</div>
+          <div class="kpi-label">Open Issues</div>
+          <div class="kpi-sub">need attention</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-val green">8</div>
+          <div class="kpi-label">Milestones</div>
+          <div class="kpi-sub">tracked</div>
+        </div>
+      </div>
+
+      <div class="tabs">
+        <div class="tab active">Overview</div>
+        <div class="tab">Development</div>
+        <div class="tab">Permits <span class="tab-count">3</span></div>
+        <div class="tab">Milestones <span class="tab-count">8</span></div>
+        <div class="tab">Issues <span class="tab-count alert">2</span></div>
+        <div class="tab">Completion</div>
+      </div>
+    </div>
+
+    <div class="body">
+      <div class="section-header">
+        <div class="section-title">Project Details</div>
+        <div class="edit-btn">✎ Edit Details</div>
+      </div>
+      <div class="fields">
+        <div>
+          <div class="field-label">Project Name</div>
+          <div class="field-value">Jab Residences</div>
+        </div>
+        <div>
+          <div class="field-label">Project Code</div>
+          <div class="field-value">4PH Jab</div>
+        </div>
+        <div>
+          <div class="field-label">4PH Project</div>
+          <div class="field-value"><span class="yes-badge">✓ Yes</span></div>
+        </div>
+        <div>
+          <div class="field-label">Business Unit</div>
+          <div class="field-value">MDRI</div>
+        </div>
+        <div>
+          <div class="field-label">Development Type</div>
+          <div class="field-value">Condominium</div>
+        </div>
+        <div>
+          <div class="field-label">Province</div>
+          <div class="field-value">Cavite</div>
+        </div>
+        <div>
+          <div class="field-label">City / Municipality</div>
+          <div class="field-value">Dasmariñas City</div>
+        </div>
+        <div>
+          <div class="field-label">Project Lot Area</div>
+          <div class="field-value">61,877 sqm</div>
+        </div>
+        <div>
+          <div class="field-label">Project Dev Area</div>
+          <div class="field-value">60,438.32 sqm</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Change Notes -->
+  <div class="sidebar">
+
+    <div class="change-card">
+      <h3><span class="dot red"></span>Hero Header</h3>
+      <ul class="change-list">
+        <li>Dark gradient replaces plain white header</li>
+        <li>Project name, type, location, phase — all visible at a glance</li>
+        <li>Phase pill stays visible without scanning the page</li>
+        <li>Close button repositioned to top-right corner</li>
+      </ul>
+    </div>
+
+    <div class="change-card">
+      <h3><span class="dot blue"></span>Live KPI Tiles</h3>
+      <div class="data-flow">
+        <code>project.lot_area</code> — from existing project load<br>
+        <code>project.developable_area</code> — from existing project load<br>
+        <code>COUNT(*) issues WHERE status='open'</code> — new query<br>
+        <code>COUNT(*) milestones</code> — new query
+      </div>
+      <ul class="change-list" style="margin-top:8px;">
+        <li>2 parallel COUNT queries on modal open <span class="tag new">new</span></li>
+        <li>Lot + Dev area reused from existing project data</li>
+        <li>Open issues shown in red, milestones in green</li>
+      </ul>
+    </div>
+
+    <div class="change-card">
+      <h3><span class="dot green"></span>Tab Count Badges</h3>
+      <ul class="change-list">
+        <li>Permits, Milestones, Issues show live counts <span class="tag new">new</span></li>
+        <li>Issues count badge turns red when &gt; 0 <span class="tag new">new</span></li>
+        <li>3 lightweight COUNT queries run in parallel</li>
+        <li>Overview, Development, Completion — no count needed</li>
+      </ul>
+    </div>
+
+    <div class="change-card">
+      <h3><span class="dot purple"></span>Semantics Fixed</h3>
+      <ul class="change-list">
+        <li>"4PH: Yes" → green badge instead of red text <span class="tag fix">fix</span></li>
+        <li>Edit Details moved inline with section title <span class="tag fix">fix</span></li>
+        <li>Fields laid out in 3-column grid — less whitespace <span class="tag fix">fix</span></li>
+        <li>No other tab content changes — just Overview + header</li>
+      </ul>
+    </div>
+
+    <div class="approve-bar">
+      <p>Does this design look right? Reply <strong>"looks good"</strong> to proceed to implementation, or let me know what to adjust.</p>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
