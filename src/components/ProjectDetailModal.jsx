@@ -3900,46 +3900,282 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4">
-      <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full sm:max-w-7xl h-full sm:max-h-[92vh] flex flex-col overflow-hidden"
-        style={{ borderTop: `4px solid ${phase?.color ?? '#ed6055'}` }}>
+      <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full sm:max-w-7xl h-full sm:max-h-[92vh] flex flex-col overflow-hidden">
 
-        {/* Modal header */}
-        <div className="px-6 py-5 border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <h2 className="text-xl font-bold text-black leading-tight truncate">{project.name}</h2>
-              {project.is_4ph_project && <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-[#ed6055]/10 text-[#ed6055] border border-[#ed6055]/20 flex-shrink-0">4PH</span>}
+        {/* Dark hero header — contains project details + tabs */}
+        <div className="flex-shrink-0 border-b border-gray-100"
+          style={{ background: 'linear-gradient(135deg, #1e293b 0%, #2d3f55 100%)' }}>
+
+          {!heroEditing ? (
+            /* ── Read mode ── */
+            <div className="px-6 pt-5">
+              {/* Top row: name + actions */}
+              <div className="flex items-start justify-between gap-4 mb-1">
+                <div className="min-w-0">
+                  <div className="flex items-center gap-2.5 flex-wrap mb-1">
+                    <h2 className="text-xl font-bold text-white leading-tight">{project.name}</h2>
+                    {project.is_4ph_project && (
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
+                        style={{ background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.25)', color: 'white' }}>
+                        4PH
+                      </span>
+                    )}
+                    {phase && (
+                      <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
+                        style={{ background: 'rgba(237,96,85,0.25)', borderColor: 'rgba(237,96,85,0.35)', color: '#fca5a5' }}>
+                        {phase.label}
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                    {[
+                      project.development_type === 'housing' ? 'Housing' : project.development_type === 'condominium' ? 'Condominium' : null,
+                      project.city,
+                      project.province,
+                    ].filter(Boolean).join(' · ')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+                  {isAdmin && (
+                    <button
+                      onClick={() => { setHeroForm(buildHeroForm(project)); setHeroEditing(true) }}
+                      className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
+                      style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
+                      title="Edit project details"
+                      aria-label="Edit project details"
+                    >
+                      <PencilIcon />
+                    </button>
+                  )}
+                  <button
+                    onClick={onClose}
+                    className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
+                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
+                    aria-label="Close"
+                  >
+                    <XIcon />
+                  </button>
+                </div>
+              </div>
+
+              {/* Fields grid */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 py-4 mt-2"
+                style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Project Code</p>
+                  <p className="text-sm font-bold text-white">{project.project_code || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>4PH Project</p>
+                  {project.is_4ph_project
+                    ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
+                        style={{ background: 'rgba(34,197,94,0.2)', borderColor: 'rgba(34,197,94,0.3)', color: '#86efac' }}>
+                        ✓ Yes
+                      </span>
+                    : <p className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>No</p>
+                  }
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Business Unit</p>
+                  <p className="text-sm font-bold text-white">{project.business_unit || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Dev Type</p>
+                  <p className="text-sm font-bold text-white capitalize">{project.development_type || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Province</p>
+                  <p className="text-sm font-bold text-white">{project.province || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>City / Municipality</p>
+                  <p className="text-sm font-bold text-white">{project.city || '—'}</p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Project Lot Area</p>
+                  <p className="text-sm font-bold text-white">
+                    {project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.4)' }}>Dev Area</p>
+                  <p className="text-sm font-bold text-white">
+                    {project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : '—'}
+                  </p>
+                </div>
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {project.development_type && <span className="text-xs text-gray-400 capitalize">{project.development_type}</span>}
-              {(project.city || project.province) && <><span className="text-gray-300">·</span><span className="text-xs text-gray-400">{[project.city, project.province].filter(Boolean).join(', ')}</span></>}
-              {phase && <><span className="text-gray-300">·</span><span className={`text-xs font-semibold px-2 py-0.5 rounded-full border ${phase.badge}`}>{phase.label}</span></>}
+          ) : (
+            /* ── Edit mode ── */
+            <div className="px-6 pt-5 pb-4">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-base font-bold text-white">Edit Project Details</h2>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => setHeroEditing(false)}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
+                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.8)' }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={saveHero}
+                    disabled={heroSaving || !heroForm.name?.trim()}
+                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition"
+                  >
+                    {heroSaving ? 'Saving…' : 'Save Changes'}
+                  </button>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Project Name *</p>
+                  <input
+                    value={heroForm.name}
+                    onChange={e => setHeroForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
+                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                    placeholder="Project name"
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Project Code</p>
+                  <input
+                    value={heroForm.project_code}
+                    onChange={e => setHeroForm(f => ({ ...f, project_code: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
+                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                    placeholder="e.g. PRJ-001"
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Business Unit</p>
+                  <select
+                    value={heroForm.business_unit}
+                    onChange={e => setHeroForm(f => ({ ...f, business_unit: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                    style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(255,255,255,0.2)' }}
+                  >
+                    <option value="" className="text-black bg-white">— Select —</option>
+                    {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code} className="text-black bg-white">{u.code}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Development Type</p>
+                  <select
+                    value={heroForm.development_type}
+                    onChange={e => setHeroForm(f => ({ ...f, development_type: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                    style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(255,255,255,0.2)' }}
+                  >
+                    <option value="" className="text-black bg-white">— Select —</option>
+                    <option value="housing" className="text-black bg-white">Housing</option>
+                    <option value="condominium" className="text-black bg-white">Condominium</option>
+                  </select>
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Province</p>
+                  <Combobox
+                    options={PH_PROVINCES}
+                    value={heroForm.province}
+                    onChange={v => setHeroForm(f => ({ ...f, province: v, city: '' }))}
+                    placeholder="Type to search province…"
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>City / Municipality</p>
+                  <Combobox
+                    options={PH_CITIES[heroForm.province] ?? []}
+                    value={heroForm.city}
+                    onChange={v => setHeroForm(f => ({ ...f, city: v }))}
+                    placeholder="Type to search city…"
+                    disabled={!heroForm.province}
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Project Lot Area (sqm)</p>
+                  <input
+                    type="number" min="0"
+                    value={heroForm.lot_area}
+                    onChange={e => setHeroForm(f => ({ ...f, lot_area: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
+                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Dev Area (sqm)</p>
+                  <input
+                    type="number" min="0"
+                    value={heroForm.developable_area}
+                    onChange={e => setHeroForm(f => ({ ...f, developable_area: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
+                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
+                    placeholder="0"
+                  />
+                </div>
+                <div>
+                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Phase</p>
+                  <select
+                    value={heroForm.phase}
+                    onChange={e => setHeroForm(f => ({ ...f, phase: e.target.value }))}
+                    className="w-full px-3 py-2 text-sm rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
+                    style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(255,255,255,0.2)' }}
+                  >
+                    <option value="" className="text-black bg-white">— Select —</option>
+                    {PHASES.map(p => <option key={p.key} value={p.key} className="text-black bg-white">{p.label}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 sm:col-span-2 pt-1">
+                  <input
+                    type="checkbox" id="hero_4ph"
+                    checked={heroForm.is_4ph_project}
+                    onChange={e => setHeroForm(f => ({ ...f, is_4ph_project: e.target.checked }))}
+                    className="accent-[#ed6055] w-4 h-4"
+                  />
+                  <label htmlFor="hero_4ph" className="text-sm cursor-pointer select-none" style={{ color: 'rgba(255,255,255,0.8)' }}>
+                    4PH Project
+                  </label>
+                </div>
+              </div>
             </div>
+          )}
+
+          {/* Tab bar — sits at bottom of dark hero */}
+          <div className="flex overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            {tabs.map(t => {
+              const count =
+                t === 'Permits'           ? tabCounts.permits    :
+                t === 'Milestones'        ? tabCounts.milestones :
+                t === 'Issues & Concerns' ? tabCounts.issues     :
+                null
+              const isAlert = t === 'Issues & Concerns' && tabCounts.issues > 0
+              return (
+                <button
+                  key={t}
+                  onClick={() => setTab(t)}
+                  className="flex items-center gap-1.5 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-all border-b-2 -mb-px"
+                  style={{
+                    color:        tab === t ? 'white' : 'rgba(255,255,255,0.45)',
+                    borderBottomColor: tab === t ? '#ed6055' : 'transparent',
+                  }}
+                >
+                  {t}
+                  {count != null && (
+                    <span
+                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
+                      style={isAlert
+                        ? { background: 'rgba(237,96,85,0.35)', color: '#fca5a5' }
+                        : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)' }
+                      }
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              )
+            })}
           </div>
-          <button
-            onClick={onClose}
-            aria-label="Close"
-            className="p-2 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition flex-shrink-0"
-          >
-            <XIcon />
-          </button>
-        </div>
-
-        {/* Tabs */}
-        <div className="flex border-b border-gray-100 flex-shrink-0 overflow-x-auto bg-gray-50/50 scrollbar-none" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-          {tabs.map(t => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`px-5 py-3.5 text-sm font-semibold whitespace-nowrap transition-all border-b-2 -mb-px ${
-                tab === t
-                  ? 'border-[#ed6055] text-[#ed6055] bg-white'
-                  : 'border-transparent text-gray-400 hover:text-gray-700 hover:bg-white/60'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
         </div>
 
         {/* Tab content */}
