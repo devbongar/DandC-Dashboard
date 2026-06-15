@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { downloadWorkbook, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, Legend, ResponsiveContainer,
@@ -27,6 +28,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [editValue, setEditValue] = useState('')
   const [saving, setSaving]       = useState(false)
   const [toast, setToast]         = useState(null)
+  const [importing, setImporting] = useState(false)
+  const importRef                 = useRef(null)
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
@@ -137,6 +140,72 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     load()
   }
 
+  const handleExport = () => {
+    const columns = [
+      { key: 'period',    header: 'Period' },
+      { key: 'target',    header: 'Target %' },
+      { key: 'actual',    header: 'Actual %' },
+      { key: 'projected', header: 'Projected %' },
+    ]
+    const rows = pocData.map(r => ({
+      period:    formatPeriod(r.period_date),
+      target:    r.target_pct    ?? '',
+      actual:    r.actual_pct    ?? '',
+      projected: r.projected_pct ?? '',
+    }))
+    downloadWorkbook(
+      [{ sheetName: 'S-Curve POC', columns, rows }],
+      `s-curve-${project.project_code || project.name}-${new Date().toISOString().slice(0,10)}.xlsx`
+    )
+  }
+
+  const parsePeriodDate = (val) => {
+    if (!val) return null
+    const s = String(val).trim()
+    if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.slice(0, 7) + '-01'
+    const d = new Date(s + ' 01')
+    if (!isNaN(d)) {
+      const y = d.getFullYear()
+      const m = String(d.getMonth() + 1).padStart(2, '0')
+      return `${y}-${m}-01`
+    }
+    return null
+  }
+
+  const handleImport = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setImporting(true)
+    try {
+      const wb   = await parseWorkbook(file)
+      const rows = wb['S-Curve POC'] ?? Object.values(wb)[0] ?? []
+      if (!rows.length) { showToast('No rows found in file', 'error'); setImporting(false); return }
+
+      const upserts = []
+      for (const row of rows) {
+        const period_date = parsePeriodDate(row['Period'] ?? row['period'])
+        if (!period_date) continue
+        const target_pct    = toFloat(row['Target %']    ?? row['target_pct']    ?? row['target'])
+        const actual_pct    = toFloat(row['Actual %']    ?? row['actual_pct']    ?? row['actual'])
+        const projected_pct = toFloat(row['Projected %'] ?? row['projected_pct'] ?? row['projected'])
+        upserts.push({ project_id: project.id, period_date, target_pct, actual_pct, projected_pct })
+      }
+
+      if (!upserts.length) { showToast('No valid rows parsed', 'error'); setImporting(false); return }
+
+      const { error } = await supabase.from('project_poc')
+        .upsert(upserts, { onConflict: 'project_id,period_date' })
+      if (error) { showToast(error.message, 'error'); setImporting(false); return }
+
+      showToast(`Imported ${upserts.length} rows`)
+      load()
+    } catch {
+      showToast('Failed to read file', 'error')
+    }
+    setImporting(false)
+  }
+
   const handleAddMonth = async () => {
     let period_date
     if (pocData.length > 0) {
@@ -191,20 +260,56 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         </div>
       )}
 
-      <div className="flex items-center gap-2">
-        {['monthly', 'quarterly'].map(mode => (
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <div className="flex items-center gap-2">
+          {['monthly', 'quarterly'].map(mode => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              className="px-4 py-1.5 rounded-full text-xs font-semibold transition capitalize"
+              style={viewMode === mode
+                ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff' }
+                : { background: '#f3f4f6', color: '#6b7280' }
+              }
+            >
+              {mode}
+            </button>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
           <button
-            key={mode}
-            onClick={() => setViewMode(mode)}
-            className="px-4 py-1.5 rounded-full text-xs font-semibold transition capitalize"
-            style={viewMode === mode
-              ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff' }
-              : { background: '#f3f4f6', color: '#6b7280' }
-            }
+            onClick={handleExport}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition bg-white"
           >
-            {mode}
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Export
           </button>
-        ))}
+
+          {isAdmin && (
+            <>
+              <input
+                ref={importRef}
+                type="file"
+                accept=".xlsx,.xls,.csv"
+                onChange={handleImport}
+                className="hidden"
+              />
+              <button
+                onClick={() => importRef.current?.click()}
+                disabled={importing}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition bg-white disabled:opacity-50"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+                </svg>
+                {importing ? 'Importing…' : 'Import'}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       {pocData.length > 0 && (
