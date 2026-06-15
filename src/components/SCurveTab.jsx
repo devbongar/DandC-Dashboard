@@ -75,11 +75,13 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   }, [tableRows])
 
   const chartData = useMemo(() => {
+    const lastActualIdx = chartRows.reduce((last, r, i) => r.actual_pct != null ? i : last, -1)
+
     if (viewMode === 'monthly') {
       let cumTarget = 0, cumActual = 0, cumProjected = 0
-      return chartRows.map(r => {
+      return chartRows.map((r, i) => {
         const hasTarget   = r.target_pct    != null
-        const hasActual   = r.actual_pct    != null
+        const hasActual   = r.actual_pct    != null && i <= lastActualIdx
         const hasForecast = !hasActual && r.projected_pct != null
 
         if (hasTarget)   cumTarget    = Math.min(100, cumTarget + r.target_pct)
@@ -96,13 +98,16 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     }
 
     // Quarterly: sum monthly increments per quarter, then accumulate across quarters
+    const lastActualDate = lastActualIdx >= 0 ? chartRows[lastActualIdx].period_date : null
     const qMap = {}, qOrder = []
     for (const r of chartRows) {
       const q = toQuarter(r.period_date)
       if (!qMap[q]) { qMap[q] = { period: q, tSum: 0, aSum: 0, pSum: 0, hasT: false, hasA: false, hasP: false }; qOrder.push(q) }
-      if (r.target_pct != null)                      { qMap[q].tSum += r.target_pct;    qMap[q].hasT = true }
-      if (r.actual_pct != null)                      { qMap[q].aSum += r.actual_pct;    qMap[q].hasA = true }
-      if (!r.actual_pct && r.projected_pct != null)  { qMap[q].pSum += r.projected_pct; qMap[q].hasP = true }
+      const isPastLastActual = lastActualDate && r.period_date > lastActualDate
+      if (r.target_pct != null)                                          { qMap[q].tSum += r.target_pct;    qMap[q].hasT = true }
+      if (r.actual_pct != null && !isPastLastActual)                     { qMap[q].aSum += r.actual_pct;    qMap[q].hasA = true }
+      if (!qMap[q].hasA && !isPastLastActual && r.projected_pct != null) { qMap[q].pSum += r.projected_pct; qMap[q].hasP = true }
+      if (isPastLastActual && r.projected_pct != null)                   { qMap[q].pSum += r.projected_pct; qMap[q].hasP = true }
     }
 
     let cumT = 0, cumA = 0, cumP = 0
@@ -118,7 +123,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         projected: (d.hasA || d.hasP)  ? cumP : null,
       }
     })
-  }, [tableRows, viewMode])
+  }, [chartRows, viewMode])
 
   const handleSubmit = async (period_date, field) => {
     const numVal = parseFloat(editValue)
