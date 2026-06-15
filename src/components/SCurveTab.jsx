@@ -68,22 +68,48 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
   const chartData = useMemo(() => {
     if (viewMode === 'monthly') {
-      return tableRows.map(r => ({
-        period:    formatPeriod(r.period_date),
-        target:    r.target_pct,
-        actual:    r.actual_pct,
-        projected: r.projected_display,
-      }))
+      let cumTarget = 0, cumActual = 0, cumProjected = 0
+      return tableRows.map(r => {
+        const hasTarget   = r.target_pct    != null
+        const hasActual   = r.actual_pct    != null
+        const hasForecast = !hasActual && r.projected_pct != null
+
+        if (hasTarget)   cumTarget    = Math.min(100, cumTarget + r.target_pct)
+        if (hasActual)   { cumActual = Math.min(100, cumActual + r.actual_pct); cumProjected = cumActual }
+        if (hasForecast) cumProjected = Math.min(100, cumProjected + r.projected_pct)
+
+        return {
+          period:    formatPeriod(r.period_date),
+          target:    hasTarget                    ? cumTarget    : null,
+          actual:    hasActual                    ? cumActual    : null,
+          projected: (hasActual || hasForecast)   ? cumProjected : null,
+        }
+      })
     }
-    const quarters = {}
+
+    // Quarterly: sum monthly increments per quarter, then accumulate across quarters
+    const qMap = {}, qOrder = []
     for (const r of tableRows) {
       const q = toQuarter(r.period_date)
-      if (!quarters[q]) quarters[q] = { period: q, target: null, actual: null, projected: null }
-      if (r.target_pct    != null) quarters[q].target    = r.target_pct
-      if (r.actual_pct    != null) quarters[q].actual    = r.actual_pct
-      if (r.projected_display != null) quarters[q].projected = r.projected_display
+      if (!qMap[q]) { qMap[q] = { period: q, tSum: 0, aSum: 0, pSum: 0, hasT: false, hasA: false, hasP: false }; qOrder.push(q) }
+      if (r.target_pct != null)               { qMap[q].tSum += r.target_pct;    qMap[q].hasT = true }
+      if (r.actual_pct != null)               { qMap[q].aSum += r.actual_pct;    qMap[q].hasA = true }
+      if (!r.actual_pct && r.projected_pct != null) { qMap[q].pSum += r.projected_pct; qMap[q].hasP = true }
     }
-    return Object.values(quarters)
+
+    let cumT = 0, cumA = 0, cumP = 0
+    return qOrder.map(q => {
+      const d = qMap[q]
+      if (d.hasT) cumT = Math.min(100, cumT + d.tSum)
+      if (d.hasA) { cumA = Math.min(100, cumA + d.aSum); cumP = cumA }
+      if (d.hasP) cumP = Math.min(100, cumP + d.pSum)
+      return {
+        period:    q,
+        target:    d.hasT              ? cumT : null,
+        actual:    d.hasA              ? cumA : null,
+        projected: (d.hasA || d.hasP)  ? cumP : null,
+      }
+    })
   }, [tableRows, viewMode])
 
   const handleSubmit = async (period_date, field) => {
