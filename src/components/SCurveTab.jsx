@@ -75,32 +75,34 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   }, [tableRows])
 
   const chartData = useMemo(() => {
-    const lastTargetIdx    = chartRows.reduce((last, r, i) => r.target_pct != null ? i : last, -1)
-    const lastActualIdx    = chartRows.reduce((last, r, i) => r.actual_pct != null ? i : last, -1)
+    // "has data" means a positive value was recorded — 0 and null both mean "no data for display"
+    const lastTargetIdx    = chartRows.reduce((last, r, i) => r.target_pct    > 0 ? i : last, -1)
+    const lastActualIdx    = chartRows.reduce((last, r, i) => r.actual_pct    > 0 ? i : last, -1)
     const lastProjectedIdx = chartRows.reduce((last, r, i) =>
-      (r.actual_pct != null || r.projected_pct != null) ? i : last, -1)
+      (r.actual_pct > 0 || r.projected_pct > 0) ? i : last, -1)
 
     if (viewMode === 'monthly') {
       let cumTarget = 0, cumActual = 0, cumProjected = 0
       return chartRows.map((r, i) => {
-        const hasTarget   = r.target_pct    != null && i <= lastTargetIdx
-        const hasActual   = r.actual_pct    != null && i <= lastActualIdx
-        const hasForecast = !hasActual && r.projected_pct != null && i <= lastProjectedIdx
+        // always accumulate (0 doesn't change cumulative, but keeps sync correct)
+        if (r.target_pct    != null) cumTarget    = Math.min(100, cumTarget + r.target_pct)
+        if (r.actual_pct    != null) { cumActual  = Math.min(100, cumActual + r.actual_pct); cumProjected = cumActual }
+        if (!r.actual_pct && r.projected_pct != null) cumProjected = Math.min(100, cumProjected + r.projected_pct)
 
-        if (hasTarget)   cumTarget    = Math.min(100, cumTarget + r.target_pct)
-        if (hasActual)   { cumActual  = Math.min(100, cumActual + r.actual_pct); cumProjected = cumActual }
-        if (hasForecast) cumProjected = Math.min(100, cumProjected + r.projected_pct)
+        const showTarget   = r.target_pct    > 0 && i <= lastTargetIdx
+        const showActual   = r.actual_pct    > 0 && i <= lastActualIdx
+        const showForecast = r.projected_pct > 0 && !r.actual_pct && i <= lastProjectedIdx
 
         return {
           period:    formatPeriod(r.period_date),
-          target:    hasTarget                              ? cumTarget    : null,
-          actual:    hasActual                              ? cumActual    : null,
-          projected: (hasActual || hasForecast)             ? cumProjected : null,
+          target:    showTarget                   ? cumTarget    : null,
+          actual:    showActual                   ? cumActual    : null,
+          projected: (showActual || showForecast) ? cumProjected : null,
         }
       })
     }
 
-    // Quarterly: sum monthly increments per quarter, then accumulate across quarters
+    // Quarterly: sum positive monthly increments per quarter, then accumulate across quarters
     const lastTargetDate    = lastTargetIdx    >= 0 ? chartRows[lastTargetIdx].period_date    : null
     const lastActualDate    = lastActualIdx    >= 0 ? chartRows[lastActualIdx].period_date    : null
     const lastProjectedDate = lastProjectedIdx >= 0 ? chartRows[lastProjectedIdx].period_date : null
@@ -109,10 +111,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     for (const r of chartRows) {
       const q = toQuarter(r.period_date)
       if (!qMap[q]) { qMap[q] = { period: q, tSum: 0, aSum: 0, pSum: 0, hasT: false, hasA: false, hasP: false }; qOrder.push(q) }
-      if (r.target_pct    != null && (!lastTargetDate    || r.period_date <= lastTargetDate))    { qMap[q].tSum += r.target_pct;    qMap[q].hasT = true }
-      if (r.actual_pct    != null && (!lastActualDate    || r.period_date <= lastActualDate))    { qMap[q].aSum += r.actual_pct;    qMap[q].hasA = true }
-      if (r.projected_pct != null && (!lastProjectedDate || r.period_date <= lastProjectedDate) && !qMap[q].hasA) { qMap[q].pSum += r.projected_pct; qMap[q].hasP = true }
-      if (r.actual_pct    == null && r.projected_pct != null && (!lastProjectedDate || r.period_date <= lastProjectedDate)) { qMap[q].pSum += r.projected_pct; qMap[q].hasP = true }
+      if (r.target_pct > 0    && (!lastTargetDate    || r.period_date <= lastTargetDate))    { qMap[q].tSum += r.target_pct;    qMap[q].hasT = true }
+      if (r.actual_pct > 0    && (!lastActualDate    || r.period_date <= lastActualDate))    { qMap[q].aSum += r.actual_pct;    qMap[q].hasA = true }
+      if (r.projected_pct > 0 && !r.actual_pct && (!lastProjectedDate || r.period_date <= lastProjectedDate)) { qMap[q].pSum += r.projected_pct; qMap[q].hasP = true }
     }
 
     let cumT = 0, cumA = 0, cumP = 0
