@@ -187,9 +187,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
   const handleExport = () => {
     const columns = [
-      { key: 'period',    header: 'Period' },
+      { key: 'period',    header: 'Period (locked)' },
       { key: 'target',    header: 'Target %' },
-      { key: 'actual',    header: 'Actual %' },
+      { key: 'actual',    header: 'Actual % (locked)' },
       { key: 'projected', header: 'Projected %' },
     ]
     const rows = pocData.map(r => ({
@@ -198,8 +198,10 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       actual:    r.actual_pct    ?? '',
       projected: r.projected_pct ?? '',
     }))
+    // Lock Period (col 1) and Actual % (col 3) — only Target and Projected are editable
+    const lockedCells = rows.map(() => [1, 3])
     downloadWorkbook(
-      [{ sheetName: 'S-Curve POC', columns, rows }],
+      [{ sheetName: 'S-Curve POC', columns, rows, protectSheet: true, lockedCells }],
       `s-curve-${project.project_code || project.name}-${new Date().toISOString().slice(0,10)}.xlsx`
     )
   }
@@ -229,12 +231,12 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
       const upserts = []
       for (const row of rows) {
-        const period_date = parsePeriodDate(row['Period'] ?? row['period'])
+        const period_date   = parsePeriodDate(row['Period (locked)'] ?? row['Period'] ?? row['period'])
         if (!period_date) continue
         const target_pct    = toFloat(row['Target %']    ?? row['target_pct']    ?? row['target'])
-        const actual_pct    = toFloat(row['Actual %']    ?? row['actual_pct']    ?? row['actual'])
         const projected_pct = toFloat(row['Projected %'] ?? row['projected_pct'] ?? row['projected'])
-        upserts.push({ project_id: project.id, period_date, target_pct, actual_pct, projected_pct })
+        // actual_pct is intentionally excluded — actual values are never overwritten by import
+        upserts.push({ project_id: project.id, period_date, target_pct, projected_pct })
       }
 
       if (!upserts.length) { showToast('No valid rows parsed', 'error'); setImporting(false); return }
