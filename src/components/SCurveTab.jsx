@@ -66,10 +66,18 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     }))
   }, [pocData])
 
+  const chartRows = useMemo(() => {
+    const lastIdx = tableRows.reduce((last, r, i) => {
+      const hasAny = r.target_pct != null || r.actual_pct != null || r.projected_pct != null
+      return hasAny ? i : last
+    }, -1)
+    return lastIdx >= 0 ? tableRows.slice(0, lastIdx + 1) : []
+  }, [tableRows])
+
   const chartData = useMemo(() => {
     if (viewMode === 'monthly') {
       let cumTarget = 0, cumActual = 0, cumProjected = 0
-      return tableRows.map(r => {
+      return chartRows.map(r => {
         const hasTarget   = r.target_pct    != null
         const hasActual   = r.actual_pct    != null
         const hasForecast = !hasActual && r.projected_pct != null
@@ -89,7 +97,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
     // Quarterly: sum monthly increments per quarter, then accumulate across quarters
     const qMap = {}, qOrder = []
-    for (const r of tableRows) {
+    for (const r of chartRows) {
       const q = toQuarter(r.period_date)
       if (!qMap[q]) { qMap[q] = { period: q, tSum: 0, aSum: 0, pSum: 0, hasT: false, hasA: false, hasP: false }; qOrder.push(q) }
       if (r.target_pct != null)                      { qMap[q].tSum += r.target_pct;    qMap[q].hasT = true }
@@ -466,9 +474,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                             setEditCell({ period_date: row.period_date, field })
                             setEditValue(displayVal != null ? String(displayVal) : '')
                           }}
-                          className={`text-left ${canEdit ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} text-gray-700`}
+                          className={`text-left transition-colors ${canEdit ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} ${displayVal != null ? 'text-gray-700' : canEdit ? 'text-gray-300 hover:text-[#ed6055]' : 'text-gray-200'}`}
                         >
-                          {displayVal != null ? displayVal + '%' : '—'}
+                          {displayVal != null ? displayVal + '%' : (canEdit ? 'click to add' : '—')}
                         </button>
                       )}
                     </td>
