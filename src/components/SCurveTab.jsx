@@ -84,10 +84,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     if (viewMode === 'monthly') {
       let cumTarget = 0, cumActual = 0, cumProjected = 0
       return chartRows.map((r, i) => {
-        // always accumulate (0 doesn't change cumulative, but keeps sync correct)
-        if (r.target_pct    != null) cumTarget    = Math.min(100, cumTarget + r.target_pct)
-        if (r.actual_pct    != null) { cumActual  = Math.min(100, cumActual + r.actual_pct); cumProjected = cumActual }
-        if (!r.actual_pct && r.projected_pct != null) cumProjected = Math.min(100, cumProjected + r.projected_pct)
+        if (r.target_pct > 0) cumTarget = Math.min(100, cumTarget + r.target_pct)
+        if (r.actual_pct > 0) { cumActual = Math.min(100, cumActual + r.actual_pct); cumProjected = cumActual }
+        else if (r.projected_pct > 0) cumProjected = Math.min(100, cumProjected + r.projected_pct)
 
         const showTarget   = r.target_pct    > 0 && i <= lastTargetIdx
         const showActual   = r.actual_pct    > 0 && i <= lastActualIdx
