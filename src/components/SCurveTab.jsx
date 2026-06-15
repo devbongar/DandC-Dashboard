@@ -434,9 +434,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   const hasPending = pendingMap[row.period_date]?.[field]
                   const notEditable = field === 'projected_pct' && !row.projected_editable
 
-                  const displayVal = field === 'projected_pct'
-                    ? row.projected_display
-                    : row[field]
+                  const rawVal = field === 'projected_pct' ? row.projected_display : row[field]
+                  const displayVal = rawVal > 0 ? rawVal : null
 
                   return (
                     <td key={field} className="px-4 py-2 border-r border-gray-100 last:border-r-0">
