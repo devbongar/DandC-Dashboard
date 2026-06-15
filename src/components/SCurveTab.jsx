@@ -61,8 +61,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const tableRows = useMemo(() => {
     return pocData.map(row => ({
       ...row,
-      projected_display:  row.actual_pct != null ? row.actual_pct : row.projected_pct,
-      projected_editable: row.actual_pct == null,
+      projected_display:  row.actual_pct > 0 ? row.actual_pct : row.projected_pct,
+      projected_editable: !(row.actual_pct > 0),
     }))
   }, [pocData])
 
