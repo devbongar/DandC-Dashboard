@@ -3,20 +3,69 @@ import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  Tooltip, Legend,
 } from 'recharts'
 
-const FIELD_LABELS = { target_pct: 'Target %', actual_pct: 'Actual %', projected_pct: 'Projected %' }
+const COL_W   = 80  // px per data column — shared by chart x-axis and table
+const LABEL_W = 88  // px for Y-axis / sticky Series column
+
+const FIELD_LABELS = { target_pct: 'Planned %', actual_pct: 'Actual %', projected_pct: 'Projected %' }
+
 
 const formatPeriod = (dateStr) => {
   const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+  const mon = d.toLocaleDateString('en-US', { month: 'short' })
+  const yr  = String(d.getFullYear()).slice(2)
+  return `${mon} '${yr}`
 }
 
 const toQuarter = (dateStr) => {
   const d = new Date(dateStr + 'T00:00:00')
   const q = Math.floor(d.getMonth() / 3) + 1
   return `Q${q} ${d.getFullYear()}`
+}
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
+const THIS_YEAR   = new Date().getFullYear()
+const YEARS       = Array.from({ length: 11 }, (_, i) => THIS_YEAR - 3 + i)
+
+function MonthYearPicker({ value, onChange, min, max }) {
+  const [selMonth, setSelMonth] = useState('')
+  const [selYear,  setSelYear]  = useState('')
+
+  useEffect(() => {
+    if (value) {
+      const [y, m] = value.split('-')
+      setSelYear(y); setSelMonth(m)
+    } else {
+      setSelYear(''); setSelMonth('')
+    }
+  }, [value])
+
+  const handleChange = (month, year) => {
+    if (month && year) onChange(`${year}-${month}`)
+    else onChange('')
+  }
+
+  const selectCls = "px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white cursor-pointer"
+
+  return (
+    <div className="flex items-center gap-1">
+      <select value={selMonth} onChange={e => { setSelMonth(e.target.value); handleChange(e.target.value, selYear) }} className={selectCls}>
+        <option value="">(Month)</option>
+        {MONTH_NAMES.map((name, i) => {
+          const m = String(i + 1).padStart(2, '0')
+          const ym = selYear ? `${selYear}-${m}` : null
+          const disabled = (min && ym && ym < min) || (max && ym && ym > max)
+          return <option key={m} value={m} disabled={!!disabled}>{name}</option>
+        })}
+      </select>
+      <select value={selYear} onChange={e => { setSelYear(e.target.value); handleChange(selMonth, e.target.value) }} className={selectCls}>
+        <option value="">(Year)</option>
+        {YEARS.map(y => <option key={y} value={String(y)}>{y}</option>)}
+      </select>
+    </div>
+  )
 }
 
 export default function SCurveTab({ project, isAdmin, canEdit }) {
@@ -30,6 +79,23 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [toast, setToast]         = useState(null)
   const [importing, setImporting] = useState(false)
   const importRef                 = useRef(null)
+
+  const dateRangeKey = `scurve_dateRange_${project.id}`
+  const [fromMonth, setFromMonthRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(dateRangeKey))?.from ?? '' } catch { return '' }
+  })
+  const [toMonth, setToMonthRaw] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(dateRangeKey))?.to ?? '' } catch { return '' }
+  })
+  const setFromMonth = (v) => {
+    setFromMonthRaw(v)
+    try { localStorage.setItem(dateRangeKey, JSON.stringify({ from: v, to: toMonth })) } catch {}
+  }
+  const setToMonth = (v) => {
+    setToMonthRaw(v)
+    try { localStorage.setItem(dateRangeKey, JSON.stringify({ from: fromMonth, to: v })) } catch {}
+  }
+  const hasDateFilter = fromMonth || toMonth
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
@@ -81,9 +147,12 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     const lastProjectedIdx = chartRows.reduce((last, r, i) =>
       (r.actual_pct > 0 || r.projected_pct > 0) ? i : last, -1)
 
+    // Compute full cumulative series first (all months), then slice to date range.
+    // This keeps cumulative values correct even when a From date is set.
+    let full
     if (viewMode === 'monthly') {
       let cumTarget = 0, cumActual = 0, cumProjected = 0
-      return chartRows.map((r, i) => {
+      full = chartRows.map((r, i) => {
         if (r.target_pct > 0) cumTarget = Math.min(100, cumTarget + r.target_pct)
         if (r.actual_pct > 0) { cumActual = Math.min(100, cumActual + r.actual_pct); cumProjected = cumActual }
         else if (r.projected_pct > 0) cumProjected = Math.min(100, cumProjected + r.projected_pct)
@@ -97,38 +166,45 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           target:    showTarget                   ? cumTarget    : null,
           actual:    showActual                   ? cumActual    : null,
           projected: (showActual || showForecast) ? cumProjected : null,
+          _date:     r.period_date,
+        }
+      })
+    } else {
+      // Quarterly: sum positive monthly increments per quarter, then accumulate across quarters
+      const lastTargetDate    = lastTargetIdx    >= 0 ? chartRows[lastTargetIdx].period_date    : null
+      const lastActualDate    = lastActualIdx    >= 0 ? chartRows[lastActualIdx].period_date    : null
+      const lastProjectedDate = lastProjectedIdx >= 0 ? chartRows[lastProjectedIdx].period_date : null
+
+      const qMap = {}, qOrder = []
+      for (const r of chartRows) {
+        const q = toQuarter(r.period_date)
+        if (!qMap[q]) { qMap[q] = { period: q, tSum: 0, aSum: 0, pSum: 0, hasT: false, hasA: false, hasP: false, firstDate: r.period_date }; qOrder.push(q) }
+        if (r.target_pct > 0    && (!lastTargetDate    || r.period_date <= lastTargetDate))    { qMap[q].tSum += r.target_pct;    qMap[q].hasT = true }
+        if (r.actual_pct > 0    && (!lastActualDate    || r.period_date <= lastActualDate))    { qMap[q].aSum += r.actual_pct;    qMap[q].hasA = true }
+        if (r.projected_pct > 0 && !r.actual_pct && (!lastProjectedDate || r.period_date <= lastProjectedDate)) { qMap[q].pSum += r.projected_pct; qMap[q].hasP = true }
+      }
+
+      let cumT = 0, cumA = 0, cumP = 0
+      full = qOrder.map(q => {
+        const d = qMap[q]
+        if (d.hasT) cumT = Math.min(100, cumT + d.tSum)
+        if (d.hasA) { cumA = Math.min(100, cumA + d.aSum); cumP = cumA }
+        if (d.hasP) cumP = Math.min(100, cumP + d.pSum)
+        return {
+          period:    q,
+          target:    d.hasT              ? cumT : null,
+          actual:    d.hasA              ? cumA : null,
+          projected: (d.hasA || d.hasP)  ? cumP : null,
+          _date:     d.firstDate,
         }
       })
     }
 
-    // Quarterly: sum positive monthly increments per quarter, then accumulate across quarters
-    const lastTargetDate    = lastTargetIdx    >= 0 ? chartRows[lastTargetIdx].period_date    : null
-    const lastActualDate    = lastActualIdx    >= 0 ? chartRows[lastActualIdx].period_date    : null
-    const lastProjectedDate = lastProjectedIdx >= 0 ? chartRows[lastProjectedIdx].period_date : null
-
-    const qMap = {}, qOrder = []
-    for (const r of chartRows) {
-      const q = toQuarter(r.period_date)
-      if (!qMap[q]) { qMap[q] = { period: q, tSum: 0, aSum: 0, pSum: 0, hasT: false, hasA: false, hasP: false }; qOrder.push(q) }
-      if (r.target_pct > 0    && (!lastTargetDate    || r.period_date <= lastTargetDate))    { qMap[q].tSum += r.target_pct;    qMap[q].hasT = true }
-      if (r.actual_pct > 0    && (!lastActualDate    || r.period_date <= lastActualDate))    { qMap[q].aSum += r.actual_pct;    qMap[q].hasA = true }
-      if (r.projected_pct > 0 && !r.actual_pct && (!lastProjectedDate || r.period_date <= lastProjectedDate)) { qMap[q].pSum += r.projected_pct; qMap[q].hasP = true }
-    }
-
-    let cumT = 0, cumA = 0, cumP = 0
-    return qOrder.map(q => {
-      const d = qMap[q]
-      if (d.hasT) cumT = Math.min(100, cumT + d.tSum)
-      if (d.hasA) { cumA = Math.min(100, cumA + d.aSum); cumP = cumA }
-      if (d.hasP) cumP = Math.min(100, cumP + d.pSum)
-      return {
-        period:    q,
-        target:    d.hasT              ? cumT : null,
-        actual:    d.hasA              ? cumA : null,
-        projected: (d.hasA || d.hasP)  ? cumP : null,
-      }
-    })
-  }, [chartRows, viewMode])
+    let result = full
+    if (fromMonth) result = result.filter(d => d._date.slice(0, 7) >= fromMonth)
+    if (toMonth)   result = result.filter(d => d._date.slice(0, 7) <= toMonth)
+    return result
+  }, [chartRows, viewMode, fromMonth, toMonth])
 
   const handleSubmit = async (period_date, field) => {
     const numVal = parseFloat(editValue)
@@ -307,20 +383,54 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       )}
 
       <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex items-center gap-2">
-          {['monthly', 'quarterly'].map(mode => (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-2">
+            {['monthly', 'quarterly'].map(mode => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className="px-4 py-1.5 rounded-full text-xs font-semibold transition capitalize"
+                style={viewMode === mode
+                  ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff' }
+                  : { background: '#f3f4f6', color: '#6b7280' }
+                }
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-6 h-0.5 rounded bg-gray-400 inline-block" />
+              <span className="w-2.5 h-2.5 rounded-sm inline-block bg-gray-400 opacity-30 -ml-4 mr-1" />
+              Planned
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-0.5 rounded bg-green-400 inline-block" />
+              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
+              <span className="w-3 h-0.5 rounded bg-green-400 inline-block" />
+              Actual
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span style={{ background: 'repeating-linear-gradient(90deg,#fde047 0,#fde047 5px,transparent 5px,transparent 8px)', height: 2, width: 24, display:'inline-block', borderRadius: 2 }} />
+              Projected
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">From</span>
+          <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
+          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">To</span>
+          <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
+          {hasDateFilter && (
             <button
-              key={mode}
-              onClick={() => setViewMode(mode)}
-              className="px-4 py-1.5 rounded-full text-xs font-semibold transition capitalize"
-              style={viewMode === mode
-                ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff' }
-                : { background: '#f3f4f6', color: '#6b7280' }
-              }
+              onClick={() => { setFromMonth(''); setToMonth('') }}
+              className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
             >
-              {mode}
+              Clear
             </button>
-          ))}
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -358,53 +468,106 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         </div>
       </div>
 
-      {pocData.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <ResponsiveContainer width="100%" height={280}>
-            <ComposedChart data={chartData} margin={{ top: 8, right: 16, bottom: 0, left: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-              <XAxis dataKey="period" fontSize={11} tickLine={false} axisLine={{ stroke: '#e5e7eb' }} />
-              <YAxis
-                domain={[0, 100]}
-                tickFormatter={v => v + '%'}
-                tickLine={false}
-                axisLine={false}
-                fontSize={11}
-                label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#9ca3af' } }}
-              />
-              <Tooltip formatter={(val) => val != null ? val + '%' : '—'} />
-              <Legend />
-              <Area
-                dataKey="target"
-                name="Target"
-                stroke="#9ca3af"
-                fill="#9ca3af"
-                fillOpacity={0.15}
-                strokeWidth={2}
-                dot={false}
-                connectNulls
-              />
-              <Line
-                dataKey="actual"
-                name="Actual"
-                stroke="#86efac"
-                strokeWidth={2.5}
-                dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }}
-                connectNulls
-              />
-              <Line
-                dataKey="projected"
-                name="Projected"
-                stroke="#fde047"
-                strokeWidth={2}
-                strokeDasharray="5 3"
-                dot={false}
-                connectNulls
-              />
-            </ComposedChart>
-          </ResponsiveContainer>
-        </div>
-      )}
+      {chartData.length > 0 && (() => {
+        const chartWidth = LABEL_W + COL_W * chartData.length
+        return (
+          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <div className="overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
+              <div style={{ width: chartWidth, minWidth: chartWidth }}>
+
+                {/* Chart — fixed width so X-axis ticks land on column centres */}
+                <ComposedChart
+                  width={chartWidth}
+                  height={280}
+                  data={chartData}
+                  margin={{ top: 8, right: 0, bottom: 0, left: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis
+                    dataKey="period"
+                    tick={false}
+                    tickLine={false}
+                    axisLine={{ stroke: '#e5e7eb' }}
+                    padding={{ left: COL_W / 2, right: COL_W / 2 }}
+                    height={8}
+                  />
+                  <YAxis
+                    width={LABEL_W}
+                    domain={[0, 100]}
+                    tickFormatter={v => v + '%'}
+                    tickLine={false}
+                    axisLine={false}
+                    fontSize={11}
+                    label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#9ca3af' } }}
+                  />
+                  <Tooltip formatter={(val) => val != null ? val.toFixed(2) + '%' : '—'} />
+                  <Area
+                    dataKey="target"
+                    name="Planned"
+                    stroke="#9ca3af"
+                    fill="#9ca3af"
+                    fillOpacity={0.15}
+                    strokeWidth={2}
+                    dot={false}
+                    connectNulls
+                  />
+                  <Line
+                    dataKey="actual"
+                    name="Actual"
+                    stroke="#86efac"
+                    strokeWidth={2.5}
+                    dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }}
+                    connectNulls
+                  />
+                  <Line
+                    dataKey="projected"
+                    name="Projected"
+                    stroke="#fde047"
+                    strokeWidth={2}
+                    strokeDasharray="5 3"
+                    dot={false}
+                    connectNulls
+                  />
+                </ComposedChart>
+
+                {/* Cumulative % table — same column widths as chart, same scroll container */}
+                <table className="text-xs border-t border-gray-100" style={{ width: chartWidth, tableLayout: 'fixed' }}>
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100">
+                      <th style={{ width: LABEL_W, minWidth: LABEL_W }} className="text-left px-3 py-2 font-bold text-gray-500 sticky left-0 bg-gray-50 z-10 border-r border-gray-100">Series</th>
+                      {chartData.map(d => (
+                        <th key={d.period} style={{ width: COL_W }} className="text-center px-1 py-2 font-medium text-gray-400 whitespace-nowrap">{d.period}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[
+                      { label: 'Planned',   key: 'target',    color: '#9ca3af' },
+                      { label: 'Actual',    key: 'actual',    color: '#86efac' },
+                      { label: 'Projected', key: 'projected', color: '#fde047' },
+                    ].map(({ label, key, color }) => (
+                      <tr key={key} className="border-b border-gray-50 last:border-b-0 hover:bg-gray-50/50">
+                        <td style={{ width: LABEL_W, minWidth: LABEL_W }} className="px-3 py-2 sticky left-0 bg-white z-10 border-r border-gray-100">
+                          <div className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+                            <span className="font-semibold text-gray-600">{label}</span>
+                          </div>
+                        </td>
+                        {chartData.map(d => (
+                          <td key={d.period} style={{ width: COL_W }} className="text-center px-1 py-2 tabular-nums text-gray-700">
+                            {d[key] != null ? `${d[key].toFixed(2)}%` : <span className="text-gray-200">—</span>}
+                          </td>
+                        ))}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+              </div>
+            </div>
+          </div>
+        )
+      })()}
 
       {pocData.length === 0 && !loading && (
         <div className="py-10 text-center">
@@ -417,7 +580,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         <table className="w-full text-xs">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
-              {['Period', 'Target %', 'Actual %', 'Projected %'].map(h => (
+              {['Period', 'Planned %', 'Actual %', 'Projected %'].map(h => (
                 <th key={h} className="text-left px-4 py-2.5 font-bold text-gray-600 uppercase tracking-wider text-xs border-r border-gray-200 last:border-r-0">
                   {h}
                 </th>

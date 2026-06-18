@@ -8,6 +8,7 @@ import ProjectDetailModal from '../components/ProjectDetailModal'
 import TriangleLoader from '../components/TriangleLoader'
 import { downloadWorkbook, parseWorkbook, toFloat } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
+import ReportBuilderModal from '../components/ReportBuilderModal'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation',            color: '#94a3b8', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -41,13 +42,13 @@ const normaliseBU = val => {
   return BU_LABEL_TO_CODE[val.toLowerCase()] ?? val
 }
 
-const EMPTY_FORM = { name: '', project_code: '', is_4ph_project: false, business_unit: '', province: '', city: '', lot_area: '', developable_area: '', development_type: '', num_floors: '', num_units: '', phase: '' }
+const EMPTY_FORM = { name: '', project_code: '', is_4ph_project: false, business_unit: '', province: '', city: '', lot_area: '', developable_area: '', development_type: '', num_floors: '', num_units: '', phase: '', project_brief: '' }
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
 
 const EXPORT_COLS = [
   { key: 'name',             header: 'Project Name' },
-  { key: 'project_code',     header: 'Project Code' },
+  { key: 'project_code',     header: 'Project Short Name' },
   { key: 'is_4ph_project',   header: 'Is 4PH Project' },
   { key: 'business_unit',    header: 'Business Unit' },
   { key: 'province',         header: 'Province' },
@@ -117,6 +118,7 @@ export default function ProjectsPage() {
   const [toast, setToast]           = useState(null)
   const [importing, setImporting]   = useState(false)
   const [importResults, setImportResults] = useState(null)
+  const [showReportBuilder, setShowReportBuilder] = useState(false)
   const importRef = useRef(null)
 
   useEffect(() => { fetchProjects() }, [])
@@ -174,6 +176,7 @@ export default function ProjectsPage() {
       num_floors:       isCondo && form.num_floors !== '' ? parseInt(form.num_floors) : null,
       num_units:        isCondo && form.num_units  !== '' ? parseInt(form.num_units)  : null,
       phase:            form.phase || null,
+      project_brief:    form.project_brief.trim() || null,
     }
 
     if ([payload.lot_area, payload.developable_area, payload.num_floors, payload.num_units].filter(v => v !== null).some(v => v < 0)) {
@@ -294,6 +297,13 @@ export default function ProjectsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
+          {/* Report Builder */}
+          {projects.length > 0 && (
+            <button onClick={() => setShowReportBuilder(true)} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-[#ed6055]/5 hover:border-[#ed6055]/30 hover:text-[#ed6055] text-gray-600 text-sm font-semibold transition">
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+              Report
+            </button>
+          )}
           {/* Export */}
           {projects.length > 0 && (
             <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-[#ed6055]/5 hover:border-[#ed6055]/30 hover:text-[#ed6055] text-gray-600 text-sm font-semibold transition">
@@ -509,105 +519,117 @@ export default function ProjectsPage() {
         />
       )}
 
+      {/* ── Report Builder ── */}
+      {showReportBuilder && (
+        <ReportBuilderModal
+          onClose={() => setShowReportBuilder(false)}
+          defaultScope="all_projects"
+        />
+      )}
+
       {/* ── Add / Edit Modal ── */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowForm(false)} />
-          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-lg z-10 overflow-y-auto max-h-[90vh]">
+          <div className="relative bg-white rounded-2xl shadow-xl w-full max-w-4xl z-10 overflow-y-auto max-h-[90vh]">
             <div className="px-6 pt-6 pb-4 border-b border-gray-100" style={{ borderTop: '4px solid #ed6055' }}>
               <h3 className="text-lg font-bold text-black">Add Project</h3>
               <p className="text-sm text-gray-400 mt-0.5">Fill in the details for the new project.</p>
             </div>
-            <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <FormField label="Project Name" required>
-                  <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Tower Block A" className={inputCls} />
-                </FormField>
-                <FormField label="Project Code">
-                  <input value={form.project_code} onChange={e => setForm(f => ({ ...f, project_code: e.target.value }))} placeholder="e.g. PRJ-001" className={inputCls} />
-                </FormField>
-                <div className="sm:col-span-2 flex items-center gap-2">
-                  <input
-                    id="is_4ph"
-                    type="checkbox"
-                    checked={form.is_4ph_project}
-                    onChange={e => setForm(f => ({ ...f, is_4ph_project: e.target.checked }))}
-                    className="w-4 h-4 rounded border-gray-300 text-[#ed6055] focus:ring-[#ed6055]"
-                  />
-                  <label htmlFor="is_4ph" className="text-sm font-medium text-gray-700 cursor-pointer select-none">4PH Project</label>
-                </div>
-                <FormField label="Business Unit">
-                  <select value={form.business_unit} onChange={e => setForm(f => ({ ...f, business_unit: e.target.value }))} className={inputCls}>
-                    <option value="">— Select Business Unit —</option>
-                    {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code}>{u.code}</option>)}
-                  </select>
-                </FormField>
-                <FormField label="Province">
-                  <select value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value, city: '' }))} className={inputCls}>
-                    <option value="">— Select Province —</option>
-                    {PH_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </FormField>
-                <FormField label="City / Municipality">
-                  <select value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} disabled={!form.province} className={`${inputCls} ${!form.province ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                    <option value="">— Select City —</option>
-                    {(PH_CITIES[form.province] ?? []).map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
-                </FormField>
-                <FormField label="Project Lot Area (sqm)">
-                  <input type="number" min="0" step="0.01" value={form.lot_area} onChange={e => setForm(f => ({ ...f, lot_area: e.target.value }))} placeholder="e.g. 5000" className={`${inputCls} ${form.lot_area !== '' && Number(form.lot_area) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
-                </FormField>
-                <FormField label="Project Developable Area (sqm)">
-                  <input type="number" min="0" step="0.01" value={form.developable_area} onChange={e => setForm(f => ({ ...f, developable_area: e.target.value }))} placeholder="e.g. 4500" className={`${inputCls} ${form.developable_area !== '' && Number(form.developable_area) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
-                </FormField>
-                <FormField label="Development Type">
-                  <select value={form.development_type} onChange={e => setForm(f => ({ ...f, development_type: e.target.value, num_floors: '', num_units: '' }))} className={inputCls}>
-                    <option value="">— Select Type —</option>
-                    <option value="housing">Housing</option>
-                    <option value="condominium">Condominium</option>
-                  </select>
-                </FormField>
-                {form.development_type === 'condominium' && (
-                  <>
-                    <FormField label="Number of Floors" required>
-                      <input
-                        required
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={form.num_floors}
-                        onChange={e => setForm(f => ({ ...f, num_floors: e.target.value }))}
-                        placeholder="e.g. 20"
-                        className={`${inputCls} ${form.num_floors !== '' && Number(form.num_floors) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`}
-                      />
-                    </FormField>
-                    <FormField label="Number of Units" required>
-                      <input
-                        required
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={form.num_units}
-                        onChange={e => setForm(f => ({ ...f, num_units: e.target.value }))}
-                        placeholder="e.g. 500"
-                        className={`${inputCls} ${form.num_units !== '' && Number(form.num_units) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`}
-                      />
-                    </FormField>
-                  </>
-                )}
-                <FormField label="Phase">
-                  <select value={form.phase} onChange={e => setForm(f => ({ ...f, phase: e.target.value }))} className={inputCls}>
-                    <option value="">— Select Phase —</option>
-                    {PHASES.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-                  </select>
-                </FormField>
-              </div>
-              <div className="flex gap-3 pt-1">
-                <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
-                <button type="submit" disabled={submitting} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] hover:bg-[#d94f45] text-white text-sm font-semibold transition disabled:opacity-60">
+            <form onSubmit={handleSubmit} className="px-6 pb-6 pt-4 space-y-5">
+
+              {/* Buttons top-right */}
+              <div className="flex justify-end gap-2">
+                <button type="button" onClick={() => setShowForm(false)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+                <button type="submit" disabled={submitting || !form.name.trim()} className="px-3 py-1.5 rounded-lg bg-[#ed6055] hover:bg-[#d94f45] text-white text-sm font-semibold transition disabled:opacity-60">
                   {submitting ? 'Adding…' : 'Add Project'}
                 </button>
               </div>
+
+              {/* Project Brief card */}
+              <div className="bg-gray-50 rounded-xl px-4 py-4">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Project Brief</p>
+                <textarea
+                  value={form.project_brief}
+                  onChange={e => setForm(f => ({ ...f, project_brief: e.target.value }))}
+                  rows={4}
+                  placeholder="Write a summary of the project — scope, objectives, key details, stakeholders…"
+                  className={`${inputCls} resize-y`}
+                />
+              </div>
+
+              {/* Project Details card */}
+              <div className="bg-gray-50 rounded-xl px-4 py-4">
+                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Project Details</p>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
+                  <FormField label="Project Name" required>
+                    <input required value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="e.g. Tower Block A" className={inputCls} />
+                  </FormField>
+                  <FormField label="Project Short Name">
+                    <input value={form.project_code} onChange={e => setForm(f => ({ ...f, project_code: e.target.value }))} placeholder="e.g. PRJ-001" className={inputCls} />
+                  </FormField>
+                  <FormField label="4PH Project">
+                    <div className="flex items-center gap-2 mt-1">
+                      <input
+                        id="is_4ph"
+                        type="checkbox"
+                        checked={form.is_4ph_project}
+                        onChange={e => setForm(f => ({ ...f, is_4ph_project: e.target.checked }))}
+                        className="accent-[#ed6055] w-4 h-4"
+                      />
+                      <label htmlFor="is_4ph" className="text-sm text-gray-600 cursor-pointer select-none">Yes</label>
+                    </div>
+                  </FormField>
+                  <FormField label="Business Unit">
+                    <select value={form.business_unit} onChange={e => setForm(f => ({ ...f, business_unit: e.target.value }))} className={inputCls}>
+                      <option value="">— Select —</option>
+                      {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code}>{u.code}</option>)}
+                    </select>
+                  </FormField>
+                  <FormField label="Development Type">
+                    <select value={form.development_type} onChange={e => setForm(f => ({ ...f, development_type: e.target.value, num_floors: '', num_units: '' }))} className={inputCls}>
+                      <option value="">— Select —</option>
+                      <option value="housing">Housing</option>
+                      <option value="condominium">Condominium</option>
+                    </select>
+                  </FormField>
+                  <FormField label="Province">
+                    <select value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value, city: '' }))} className={inputCls}>
+                      <option value="">— Select —</option>
+                      {PH_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  </FormField>
+                  <FormField label="City / Municipality">
+                    <select value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} disabled={!form.province} className={`${inputCls} ${!form.province ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <option value="">— Select —</option>
+                      {(PH_CITIES[form.province] ?? []).map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                  </FormField>
+                  <FormField label="Project Lot Area (sqm)">
+                    <input type="number" min="0" step="0.01" value={form.lot_area} onChange={e => setForm(f => ({ ...f, lot_area: e.target.value }))} placeholder="0" className={`${inputCls} ${form.lot_area !== '' && Number(form.lot_area) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
+                  </FormField>
+                  <FormField label="Project Developable Area (sqm)">
+                    <input type="number" min="0" step="0.01" value={form.developable_area} onChange={e => setForm(f => ({ ...f, developable_area: e.target.value }))} placeholder="0" className={`${inputCls} ${form.developable_area !== '' && Number(form.developable_area) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
+                  </FormField>
+                  <FormField label="Phase">
+                    <select value={form.phase} onChange={e => setForm(f => ({ ...f, phase: e.target.value }))} className={inputCls}>
+                      <option value="">— Select —</option>
+                      {PHASES.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+                    </select>
+                  </FormField>
+                  {form.development_type === 'condominium' && (
+                    <>
+                      <FormField label="Number of Floors" required>
+                        <input required type="number" min="1" step="1" value={form.num_floors} onChange={e => setForm(f => ({ ...f, num_floors: e.target.value }))} placeholder="e.g. 20" className={`${inputCls} ${form.num_floors !== '' && Number(form.num_floors) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
+                      </FormField>
+                      <FormField label="Number of Units" required>
+                        <input required type="number" min="1" step="1" value={form.num_units} onChange={e => setForm(f => ({ ...f, num_units: e.target.value }))} placeholder="e.g. 500" className={`${inputCls} ${form.num_units !== '' && Number(form.num_units) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
+                      </FormField>
+                    </>
+                  )}
+                </div>
+              </div>
+
             </form>
           </div>
         </div>
@@ -702,9 +724,9 @@ export default function ProjectsPage() {
 function FormField({ label, required, children }) {
   return (
     <div>
-      <label className="block text-xs font-medium text-gray-700 mb-1.5">
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">
         {label}{required && <span className="text-[#ed6055] ml-0.5">*</span>}
-      </label>
+      </p>
       {children}
     </div>
   )

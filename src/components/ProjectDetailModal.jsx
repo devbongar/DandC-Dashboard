@@ -6,6 +6,7 @@ import TriangleLoader from './TriangleLoader'
 import { GanttContent } from './GanttModal'
 import SCurveTab from './SCurveTab'
 import useProfile from '../hooks/useProfile'
+import ReportBuilderModal from './ReportBuilderModal'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -42,7 +43,7 @@ const noNeg = (...vals) => vals.filter(v => v !== null && v !== undefined).some(
 
 const inputCls  = 'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white'
 
-const BASE_TABS = ['Development', 'Work Program', 'S-Curve', 'Permits', 'Milestones', 'Issues & Concerns']
+const BASE_TABS = ['Project Info', 'Planned M4/M5', 'Completion (M4/M5)', 'Work Program', 'S-Curve', 'Permits', 'Milestones', 'Issues & Concerns', 'Photos']
 
 const ISSUE_STATUS_CONFIG = {
   open:  { label: 'Open',  cls: 'bg-[#ed6055] text-white' },
@@ -321,6 +322,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
     developable_area: project.developable_area ?? '',
     development_type: project.development_type ?? '',
     phase:            project.phase ?? '',
+    project_brief:    project.project_brief ?? '',
   })
 
   const [editing, setEditing] = useState(startEditing)
@@ -346,6 +348,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
       developable_area: form.developable_area !== '' ? parseFloat(form.developable_area) : null,
       development_type: form.development_type || null,
       phase:            form.phase || null,
+      project_brief:    form.project_brief.trim() || null,
     }
     if (noNeg(payload.lot_area, payload.developable_area)) { showToast('Values cannot be negative.', 'error'); setSaving(false); return }
     const { error } = await supabase.from('projects').update(payload).eq('id', project.id)
@@ -360,99 +363,136 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   if (editing) return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Field label="Project Name *">
-          <input value={f('name')} onChange={e => set('name', e.target.value)} className={inputCls} placeholder="Project name" />
-        </Field>
-        <Field label="Project Code">
-          <input value={f('project_code')} onChange={e => set('project_code', e.target.value)} className={inputCls} placeholder="e.g. PRJ-001" />
-        </Field>
-        <div className="sm:col-span-2 flex items-center gap-2">
-          <input type="checkbox" id="edit_4ph" checked={f('is_4ph_project')} onChange={e => set('is_4ph_project', e.target.checked)} className="accent-[#ed6055] w-4 h-4" />
-          <label htmlFor="edit_4ph" className="text-sm text-gray-600 cursor-pointer select-none">4PH Project</label>
-        </div>
-        <Field label="Business Unit">
-          <select value={f('business_unit')} onChange={e => set('business_unit', e.target.value)} className={inputCls}>
-            <option value="">— Select Business Unit —</option>
-            {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code}>{u.code}</option>)}
-          </select>
-        </Field>
-        <Field label="Province">
-          <Combobox
-            options={PH_PROVINCES}
-            value={f('province')}
-            onChange={v => { set('province', v); set('city', '') }}
-            placeholder="Type to search province…"
-          />
-        </Field>
-        <Field label="City / Municipality">
-          <Combobox
-            options={PH_CITIES[f('province')] ?? []}
-            value={f('city')}
-            onChange={v => set('city', v)}
-            placeholder="Type to search city…"
-            disabled={!f('province')}
-          />
-        </Field>
-        <Field label="Project Lot Area (sqm)">
-          <input type="number" min="0" value={f('lot_area')} onChange={e => set('lot_area', e.target.value)} placeholder="0" className={`${inputCls} ${f('lot_area') !== '' && Number(f('lot_area')) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
-        </Field>
-        <Field label="Project Developable Area (sqm)">
-          <input type="number" min="0" value={f('developable_area')} onChange={e => set('developable_area', e.target.value)} placeholder="0" className={`${inputCls} ${f('developable_area') !== '' && Number(f('developable_area')) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
-        </Field>
-        <Field label="Development Type">
-          <select value={f('development_type')} onChange={e => set('development_type', e.target.value)} className={inputCls}>
-            <option value="">— Select —</option>
-            <option value="housing">Housing</option>
-            <option value="condominium">Condominium</option>
-          </select>
-        </Field>
-        <Field label="Phase">
-          <select value={f('phase')} onChange={e => set('phase', e.target.value)} className={inputCls}>
-            <option value="">— Select —</option>
-            {PHASES.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-          </select>
-        </Field>
-      </div>
-      <div className="flex gap-3">
-        <button onClick={() => setEditing(false)} className="flex-1 py-2 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
-        <button onClick={save} disabled={saving || !form.name?.trim()} className="flex-1 py-2 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
+    <div className="space-y-5">
+      <div className="flex justify-end gap-2">
+        <button onClick={() => setEditing(false)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+        <button onClick={save} disabled={saving || !form.name?.trim()} className="px-3 py-1.5 rounded-lg bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
           {saving ? 'Saving…' : 'Save Changes'}
         </button>
       </div>
+
+      {/* Project Brief card */}
+      <div className="bg-gray-50 rounded-xl px-4 py-4">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Project Brief</p>
+        <textarea
+          value={f('project_brief')}
+          onChange={e => set('project_brief', e.target.value)}
+          rows={4}
+          placeholder="Write a summary of the project — scope, objectives, key details, stakeholders…"
+          className={`${inputCls} resize-y`}
+        />
+      </div>
+
+      {/* Project Details card */}
+      <div className="bg-gray-50 rounded-xl px-4 py-4">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Project Details</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
+          <Field label="Project Name *">
+            <input value={f('name')} onChange={e => set('name', e.target.value)} className={inputCls} placeholder="Project name" />
+          </Field>
+          <Field label="Project Short Name">
+            <input value={f('project_code')} onChange={e => set('project_code', e.target.value)} className={inputCls} placeholder="e.g. PRJ-001" />
+          </Field>
+          <Field label="4PH Project">
+            <div className="flex items-center gap-2 mt-1">
+              <input type="checkbox" id="edit_4ph" checked={f('is_4ph_project')} onChange={e => set('is_4ph_project', e.target.checked)} className="accent-[#ed6055] w-4 h-4" />
+              <label htmlFor="edit_4ph" className="text-sm text-gray-600 cursor-pointer select-none">Yes</label>
+            </div>
+          </Field>
+          <Field label="Business Unit">
+            <select value={f('business_unit')} onChange={e => set('business_unit', e.target.value)} className={inputCls}>
+              <option value="">— Select —</option>
+              {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code}>{u.code}</option>)}
+            </select>
+          </Field>
+          <Field label="Development Type">
+            <select value={f('development_type')} onChange={e => set('development_type', e.target.value)} className={inputCls}>
+              <option value="">— Select —</option>
+              <option value="housing">Housing</option>
+              <option value="condominium">Condominium</option>
+            </select>
+          </Field>
+          <Field label="Province">
+            <Combobox
+              options={PH_PROVINCES}
+              value={f('province')}
+              onChange={v => { set('province', v); set('city', '') }}
+              placeholder="Type to search province…"
+            />
+          </Field>
+          <Field label="City / Municipality">
+            <Combobox
+              options={PH_CITIES[f('province')] ?? []}
+              value={f('city')}
+              onChange={v => set('city', v)}
+              placeholder="Type to search city…"
+              disabled={!f('province')}
+            />
+          </Field>
+          <Field label="Project Lot Area (sqm)">
+            <input type="number" min="0" value={f('lot_area')} onChange={e => set('lot_area', e.target.value)} placeholder="0" className={`${inputCls} ${f('lot_area') !== '' && Number(f('lot_area')) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
+          </Field>
+          <Field label="Project Developable Area (sqm)">
+            <input type="number" min="0" value={f('developable_area')} onChange={e => set('developable_area', e.target.value)} placeholder="0" className={`${inputCls} ${f('developable_area') !== '' && Number(f('developable_area')) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
+          </Field>
+          <Field label="Phase">
+            <select value={f('phase')} onChange={e => set('phase', e.target.value)} className={inputCls}>
+              <option value="">— Select —</option>
+              {PHASES.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+            </select>
+          </Field>
+        </div>
+      </div>
+
     </div>
   )
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-        <div className="col-span-2 sm:col-span-3 bg-gray-50 rounded-xl px-4 py-3 flex items-start justify-between gap-2">
-          <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <Field label="Project Name"><ReadValue value={project.name} /></Field>
-            <Field label="Project Code"><ReadValue value={project.project_code} /></Field>
-          </div>
-          {isAdmin && (
-            <button onClick={startEdit} className="flex-shrink-0 flex items-center gap-1.5 mt-0.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold text-white bg-[#ed6055] hover:bg-[#d94f45] transition">
-              <PencilIcon /> Edit Details
-            </button>
+      {isAdmin && (
+        <div className="flex justify-end">
+          <button
+            onClick={startEdit}
+            className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-[#ed6055] hover:bg-gray-100 border border-gray-200 bg-white transition"
+            title="Edit project details"
+          >
+            <PencilIcon />
+          </button>
+        </div>
+      )}
+
+      {(project.project_brief || isAdmin) && (
+        <div className="bg-gray-50 rounded-xl px-4 py-4">
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Project Brief</p>
+          {project.project_brief ? (
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.project_brief}</p>
+          ) : (
+            <p className="text-sm text-gray-400 italic">No project brief yet. Click Edit Details to add one.</p>
           )}
         </div>
-        <Field label="4PH Project">
-          <ReadValue value={project.is_4ph_project ? 'Yes' : 'No'} accent={project.is_4ph_project ? '#ed6055' : undefined} />
-        </Field>
-        <Field label="Business Unit"><ReadValue value={formatBU(project.business_unit)} /></Field>
-        <Field label="Development Type">
-          <ReadValue value={project.development_type ? (project.development_type === 'housing' ? 'Housing' : 'Condominium') : null} />
-        </Field>
-        <Field label="Province"><ReadValue value={project.province} /></Field>
-        <Field label="City / Municipality"><ReadValue value={project.city} /></Field>
-        <Field label="Project Lot Area">
-          <ReadValue value={project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : null} />
-        </Field>
-        <Field label="Project Developable Area">
-          <ReadValue value={project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : null} />
-        </Field>
+      )}
+
+      <div className="bg-gray-50 rounded-xl px-4 py-4">
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Project Details</p>
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
+          <Field label="Project Name"><ReadValue value={project.name} /></Field>
+          <Field label="Project Short Name"><ReadValue value={project.project_code} /></Field>
+          <Field label="4PH Project">
+            <ReadValue value={project.is_4ph_project ? 'Yes' : 'No'} accent={project.is_4ph_project ? '#ed6055' : undefined} />
+          </Field>
+          <Field label="Business Unit"><ReadValue value={formatBU(project.business_unit)} /></Field>
+          <Field label="Development Type">
+            <ReadValue value={project.development_type ? (project.development_type === 'housing' ? 'Housing' : 'Condominium') : null} />
+          </Field>
+          <Field label="Province"><ReadValue value={project.province} /></Field>
+          <Field label="City / Municipality"><ReadValue value={project.city} /></Field>
+          <Field label="Project Lot Area">
+            <ReadValue value={project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : null} />
+          </Field>
+          <Field label="Project Developable Area">
+            <ReadValue value={project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : null} />
+          </Field>
+        </div>
       </div>
     </div>
   )
@@ -3350,7 +3390,7 @@ const UNIT_STATUS_CONFIG = {
   m5:   { label: 'M5 Handover', cell: 'bg-green-500 text-white border-green-600',   dot: 'bg-green-500' },
 }
 
-function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectMode, selectedCells, onToggleCell, onOpenCell, onToggleRow }) {
+function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectMode, selectedCells, onToggleCell, onOpenCell, onFloorClick }) {
   if (floorList.length === 0) return (
     <p className="text-xs text-gray-400 italic py-4">{emptyMsg}</p>
   )
@@ -3359,7 +3399,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
       <table className="border-collapse text-xs">
         <thead>
           <tr>
-            <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider sticky left-0 bg-white z-10 min-w-[64px]">Floor</th>
+            <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider sticky left-0 bg-white z-10 min-w-[80px]">Floor</th>
             {Array.from({ length: maxU }, (_, i) => (
               <th key={i} className="px-1 py-1.5 text-center text-[10px] font-semibold text-gray-400 min-w-[44px]">
                 {String(i + 1).padStart(2, '0')}
@@ -3370,11 +3410,15 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
         <tbody>
           {floorList.map(floor => (
             <tr key={floor.id} className="border-t border-gray-100">
-              <td
-                onClick={isAdmin ? () => onToggleRow(type, floor) : undefined}
-                title={isAdmin ? `Select all in ${/^\d+$/.test(floor.physical_level) ? floor.physical_level + 'F' : floor.physical_level}` : undefined}
-                className={`px-3 py-1 font-semibold whitespace-nowrap sticky left-0 bg-white z-10 transition ${isAdmin ? 'text-gray-700 hover:text-[#ed6055] cursor-pointer select-none' : 'text-gray-700'}`}
-              >{/^\d+$/.test(floor.physical_level) ? `${floor.physical_level}F` : floor.physical_level}</td>
+              <td className="px-3 py-1 whitespace-nowrap sticky left-0 bg-white z-10">
+                <div className="flex items-center gap-1">
+                  <span
+                    onClick={isAdmin ? () => onFloorClick(type, floor) : undefined}
+                    title={isAdmin ? `Set status for ${/^\d+$/.test(floor.physical_level) ? floor.physical_level + 'F' : floor.physical_level}` : undefined}
+                    className={`font-semibold transition ${isAdmin ? 'text-gray-700 hover:text-[#ed6055] cursor-pointer select-none' : 'text-gray-700'}`}
+                  >{/^\d+$/.test(floor.physical_level) ? `${floor.physical_level}F` : floor.physical_level}</span>
+                </div>
+              </td>
               {Array.from({ length: maxU }, (_, i) => {
                 const unitNum = i + 1
                 if (unitNum > (floor.num_units ?? 0)) {
@@ -3406,6 +3450,475 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
   )
 }
 
+// ── PhotosTab ─────────────────────────────────────────────────────────────────
+
+const PHOTO_TAGS = ['Foundation', 'Structural', 'MEP', 'Finishing', 'Facade', 'Landscaping', 'Issues', 'Progress', 'Inspection']
+
+const fmtPhotoMonth = (ym) => {
+  const d = new Date(ym + '-01T00:00:00')
+  return d.toLocaleDateString('en-US', { month: 'short' }) + " '" + String(d.getFullYear()).slice(2)
+}
+
+const fmtPhotoDate = (dateStr) => {
+  if (!dateStr) return 'Unknown date'
+  const d   = new Date(dateStr + 'T00:00:00')
+  const now = new Date()
+  const ymd = (dt) => dt.toISOString().slice(0, 10)
+  if (ymd(d) === ymd(now)) return 'Today'
+  const yesterday = new Date(now); yesterday.setDate(now.getDate() - 1)
+  if (ymd(d) === ymd(yesterday)) return 'Yesterday'
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
+}
+
+// ── Upload Screen ─────────────────────────────────────────────────────────────
+
+function UploadScreen({ project, showToast, onBack, onUploaded }) {
+  const [files, setFiles]           = useState([])
+  const [previews, setPreviews]     = useState([])
+  const [uploadDate, setUploadDate] = useState(() => new Date().toLocaleDateString('en-CA'))
+  const [uploadTags, setUploadTags] = useState([])
+  const [uploading, setUploading]   = useState(false)
+  const [dragging, setDragging]     = useState(false)
+  const fileRef = useRef(null)
+
+  useEffect(() => () => previews.forEach(u => URL.revokeObjectURL(u)), [previews])
+
+  const addFiles = (fileList) => {
+    const imgs = Array.from(fileList).filter(f => f.type.startsWith('image/'))
+    if (!imgs.length) return
+    setFiles(prev => [...prev, ...imgs])
+    setPreviews(prev => [...prev, ...imgs.map(f => URL.createObjectURL(f))])
+  }
+
+  const removeFile = (idx) => {
+    URL.revokeObjectURL(previews[idx])
+    setFiles(prev => prev.filter((_, i) => i !== idx))
+    setPreviews(prev => prev.filter((_, i) => i !== idx))
+  }
+
+  const toggleTag = (tag) =>
+    setUploadTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag])
+
+  const doUpload = async () => {
+    if (!files.length) return
+    setUploading(true)
+    let ok = 0
+    for (const file of files) {
+      const ext  = file.name.split('.').pop().toLowerCase()
+      const path = `${project.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
+      const { error } = await supabase.storage.from('project-photos').upload(path, file)
+      if (error) { showToast(`Failed: ${file.name}`, 'error'); continue }
+      await supabase.from('project_photos').insert({
+        project_id: project.id, storage_path: path, file_name: file.name,
+        tags: uploadTags, photo_date: uploadDate,
+      })
+      ok++
+    }
+    setUploading(false)
+    if (ok) { showToast(`${ok} photo${ok > 1 ? 's' : ''} uploaded`); onUploaded() }
+  }
+
+  return (
+    <div className="py-4">
+      <button onClick={onBack} className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition mb-6">
+        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+        </svg>
+        Back to Photos
+      </button>
+
+      {/* Settings card */}
+      <div className="bg-gray-50 rounded-xl border border-gray-100 p-4 mb-5 space-y-4">
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Photo Date</p>
+          <input type="date" value={uploadDate} max={new Date().toISOString().slice(0, 10)}
+            max={new Date().toLocaleDateString('en-CA')}
+            onChange={e => setUploadDate(e.target.value)}
+            className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white" />
+        </div>
+        <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Tags</p>
+          <div className="flex flex-wrap gap-2">
+            {PHOTO_TAGS.map(tag => (
+              <button key={tag} onClick={() => toggleTag(tag)}
+                className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition ${uploadTags.includes(tag) ? 'bg-[#ed6055] text-white border-[#ed6055]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                {tag}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Drop zone */}
+      <div
+        className={`rounded-xl border-2 border-dashed flex flex-col items-center justify-center py-10 cursor-pointer transition select-none ${dragging ? 'border-[#ed6055] bg-[#ed6055]/5' : 'border-gray-200 hover:border-gray-300 bg-gray-50'}`}
+        onClick={() => fileRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragging(true) }}
+        onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget)) setDragging(false) }}
+        onDrop={e => { e.preventDefault(); setDragging(false); addFiles(e.dataTransfer.files) }}
+      >
+        <svg className="w-8 h-8 text-gray-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+        </svg>
+        <p className="text-sm font-medium text-gray-400">Drop photos here or <span className="text-[#ed6055]">browse</span></p>
+        <p className="text-xs text-gray-300 mt-1">JPG, PNG, GIF, WebP</p>
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden"
+          onChange={e => { addFiles(e.target.files); e.target.value = '' }} />
+      </div>
+
+      {/* Preview grid */}
+      {files.length > 0 && (
+        <div className="mt-4">
+          <p className="text-xs text-gray-400 mb-3">{files.length} photo{files.length !== 1 ? 's' : ''} selected</p>
+          <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-2.5">
+            {files.map((file, i) => (
+              <div key={i} className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100">
+                <img src={previews[i]} alt={file.name} className="w-full h-full object-cover" />
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition" />
+                <button onClick={() => removeFile(i)}
+                  className="absolute top-1.5 right-1.5 w-5 h-5 rounded-full bg-black/60 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-500">
+                  <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+                <p className="absolute bottom-0 left-0 right-0 px-1.5 py-1 text-[9px] text-white/80 bg-black/40 truncate opacity-0 group-hover:opacity-100 transition">{file.name}</p>
+              </div>
+            ))}
+            <div onClick={() => fileRef.current?.click()}
+              className="aspect-square rounded-xl border-2 border-dashed border-gray-200 hover:border-gray-300 flex flex-col items-center justify-center cursor-pointer transition gap-1">
+              <svg className="w-5 h-5 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              <p className="text-[10px] text-gray-300 font-medium">Add more</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className="mt-6 flex items-center gap-3">
+        <button onClick={doUpload} disabled={!files.length || uploading}
+          className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 transition">
+          {uploading ? 'Uploading…' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
+        </button>
+        <button onClick={onBack} className="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 transition">Cancel</button>
+      </div>
+    </div>
+  )
+}
+
+// ── Photos Gallery ────────────────────────────────────────────────────────────
+
+function PhotosTab({ project, isAdmin, showToast }) {
+  const [photos, setPhotos]               = useState([])
+  const [loading, setLoading]             = useState(true)
+  const [lightbox, setLightbox]           = useState(null)
+  const [showUploadScreen, setShowUpload] = useState(false)
+  const [filterMonth, setFilterMonth]     = useState('')
+  const [filterTags, setFilterTags]       = useState([])
+  const [sortOrder, setSortOrder]         = useState('newest')
+  const [monthOpen, setMonthOpen]         = useState(false)
+  const [tagOpen, setTagOpen]             = useState(false)
+
+  const load = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('project_photos')
+      .select('*')
+      .eq('project_id', project.id)
+      .order('photo_date', { ascending: false })
+    setPhotos(data ?? [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [project.id])
+
+  const getUrl = (path) =>
+    supabase.storage.from('project-photos').getPublicUrl(path).data.publicUrl
+
+  const months = useMemo(() => {
+    const seen = new Set()
+    photos.forEach(p => { const m = (p.photo_date ?? p.created_at)?.slice(0, 7); if (m) seen.add(m) })
+    return [...seen].sort().reverse()
+  }, [photos])
+
+  const existingTags = useMemo(() => {
+    const seen = new Set()
+    photos.forEach(p => (p.tags ?? []).forEach(t => seen.add(t)))
+    return PHOTO_TAGS.filter(t => seen.has(t))
+  }, [photos])
+
+  const filteredPhotos = useMemo(() => {
+    const result = photos.filter(p => {
+      if (filterMonth && !(p.photo_date ?? p.created_at)?.startsWith(filterMonth)) return false
+      if (filterTags.length && !filterTags.every(t => (p.tags ?? []).includes(t))) return false
+      return true
+    })
+    result.sort((a, b) => {
+      const da = a.photo_date ?? a.created_at?.slice(0, 10) ?? ''
+      const db = b.photo_date ?? b.created_at?.slice(0, 10) ?? ''
+      return sortOrder === 'newest' ? db.localeCompare(da) : da.localeCompare(db)
+    })
+    return result
+  }, [photos, filterMonth, filterTags, sortOrder])
+
+  const groupedPhotos = useMemo(() => {
+    const map = new Map()
+    filteredPhotos.forEach((photo, idx) => {
+      const day = photo.photo_date ?? photo.created_at?.slice(0, 10) ?? 'unknown'
+      if (!map.has(day)) map.set(day, [])
+      map.get(day).push({ ...photo, _flatIdx: idx })
+    })
+    return [...map.entries()].map(([day, items]) => ({ day, items }))
+  }, [filteredPhotos])
+
+  const toggleFilterTag = (tag) =>
+    setFilterTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag])
+
+  const handleDelete = async (photo, e) => {
+    e.stopPropagation()
+    if (!window.confirm(`Delete "${photo.file_name}"?`)) return
+    await supabase.storage.from('project-photos').remove([photo.storage_path])
+    await supabase.from('project_photos').delete().eq('id', photo.id)
+    showToast('Photo deleted')
+    setLightbox(null)
+    load()
+  }
+
+  if (loading) return <TriangleLoader label="Loading photos…" />
+
+  if (showUploadScreen) return (
+    <UploadScreen project={project} showToast={showToast}
+      onBack={() => setShowUpload(false)}
+      onUploaded={() => { setShowUpload(false); load() }} />
+  )
+
+  const hasFilters = !!(filterMonth || filterTags.length)
+
+  return (
+    <div className="py-4">
+      {/* Toolbar */}
+      <div className="mb-5 flex items-center gap-2 flex-wrap">
+        {isAdmin && (
+          <button onClick={() => setShowUpload(true)}
+            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+            </svg>
+            Upload Photos
+          </button>
+        )}
+        {photos.length > 0 && (
+          <>
+            {/* Month dropdown */}
+            {months.length > 0 && (
+              <div className="relative">
+                <button onClick={() => { setMonthOpen(o => !o); setTagOpen(false) }}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border transition ${filterMonth ? 'border-gray-700 bg-gray-700 text-white' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                  {filterMonth ? fmtPhotoMonth(filterMonth) : 'Month'}
+                  <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                {monthOpen && (
+                  <>
+                    <div className="fixed inset-0 z-[9]" onClick={() => setMonthOpen(false)} />
+                    <div className="absolute top-full mt-1 z-10 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[140px] py-1">
+                      <button onClick={() => { setFilterMonth(''); setMonthOpen(false) }}
+                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${!filterMonth ? 'font-semibold text-[#ed6055]' : 'text-gray-600'}`}>
+                        All months
+                      </button>
+                      {months.map(m => (
+                        <button key={m} onClick={() => { setFilterMonth(m); setMonthOpen(false) }}
+                          className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${filterMonth === m ? 'font-semibold text-[#ed6055]' : 'text-gray-600'}`}>
+                          {fmtPhotoMonth(m)}
+                        </button>
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {/* Tag dropdown */}
+            {existingTags.length > 0 && (
+              <div className="relative">
+                <button onClick={() => { setTagOpen(o => !o); setMonthOpen(false) }}
+                  className={`flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border transition ${filterTags.length ? 'border-[#ed6055] bg-[#ed6055] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
+                  {filterTags.length ? `${filterTags.length} Tag${filterTags.length > 1 ? 's' : ''}` : 'Tag'}
+                  <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                  </svg>
+                </button>
+                {tagOpen && (
+                  <>
+                    <div className="fixed inset-0 z-[9]" onClick={() => setTagOpen(false)} />
+                    <div className="absolute top-full mt-1 z-10 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[160px] py-1">
+                      {existingTags.map(tag => (
+                        <button key={tag} onClick={() => toggleFilterTag(tag)}
+                          className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2.5 text-gray-700">
+                          <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center transition ${filterTags.includes(tag) ? 'bg-[#ed6055] border-[#ed6055]' : 'border-gray-300'}`}>
+                            {filterTags.includes(tag) && (
+                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                              </svg>
+                            )}
+                          </span>
+                          {tag}
+                        </button>
+                      ))}
+                      {filterTags.length > 0 && (
+                        <div className="border-t border-gray-100 mt-1 pt-1">
+                          <button onClick={() => { setFilterTags([]); setTagOpen(false) }}
+                            className="w-full px-3 py-1.5 text-left text-xs text-gray-400 hover:text-gray-600">Clear tags</button>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
+            )}
+            {/* Sort */}
+            <button onClick={() => setSortOrder(s => s === 'newest' ? 'oldest' : 'newest')}
+              className="flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 transition">
+              <svg className={`w-3.5 h-3.5 transition-transform ${sortOrder === 'oldest' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />
+              </svg>
+              {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
+            </button>
+            {hasFilters && (
+              <button onClick={() => { setFilterMonth(''); setFilterTags([]) }}
+                className="text-xs text-gray-400 hover:text-gray-600 transition underline">Clear</button>
+            )}
+          </>
+        )}
+      </div>
+
+      {/* Grid */}
+      {filteredPhotos.length === 0 ? (
+        <div className="py-16 text-center">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+            <svg className="w-7 h-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+          </div>
+          {hasFilters ? (
+            <>
+              <p className="text-sm text-gray-400">No photos match the current filters</p>
+              <button onClick={() => { setFilterMonth(''); setFilterTags([]) }} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-gray-400">No photos yet</p>
+              {isAdmin && <p className="text-xs text-gray-400 mt-1">Click "Upload Photos" to get started</p>}
+            </>
+          )}
+        </div>
+      ) : (
+        <>
+          <p className="text-xs text-gray-400 mb-4">
+            {filteredPhotos.length}{hasFilters ? ` of ${photos.length}` : ''} photo{filteredPhotos.length !== 1 ? 's' : ''}
+          </p>
+          <div className="space-y-6">
+            {groupedPhotos.map(({ day, items }) => (
+              <div key={day}>
+                <p className="text-sm font-semibold text-gray-700 mb-2.5">{fmtPhotoDate(day)}</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                  {items.map(photo => (
+                    <div key={photo.id}
+                      className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm hover:shadow-md transition"
+                      onClick={() => setLightbox(photo._flatIdx)}>
+                      <img src={getUrl(photo.storage_path)} alt={photo.file_name}
+                        className="w-full h-full object-cover transition duration-200 group-hover:scale-105" />
+                      {(photo.tags ?? []).length > 0 && (
+                        <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+                          {(photo.tags ?? []).slice(0, 2).map(tag => (
+                            <span key={tag} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/50 text-white backdrop-blur-sm leading-none">{tag}</span>
+                          ))}
+                          {(photo.tags ?? []).length > 2 && (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/50 text-white leading-none">+{(photo.tags ?? []).length - 2}</span>
+                          )}
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end">
+                        <p className="px-2 pb-2 text-[10px] text-white font-medium opacity-0 group-hover:opacity-100 transition truncate w-full drop-shadow">{photo.file_name}</p>
+                      </div>
+                      {isAdmin && (
+                        <button onClick={e => handleDelete(photo, e)}
+                          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-500"
+                          title="Delete photo">
+                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+
+      {/* Lightbox */}
+      {lightbox !== null && filteredPhotos[lightbox] && (
+        <div className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center" onClick={() => setLightbox(null)}>
+          <button
+            className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
+            onClick={() => setLightbox(null)}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          {lightbox > 0 && (
+            <button
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
+              onClick={e => { e.stopPropagation(); setLightbox(l => l - 1) }}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+          )}
+          {lightbox < filteredPhotos.length - 1 && (
+            <button
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
+              onClick={e => { e.stopPropagation(); setLightbox(l => l + 1) }}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+          )}
+          <img
+            src={getUrl(filteredPhotos[lightbox].storage_path)}
+            alt={filteredPhotos[lightbox].file_name}
+            className="max-w-[88vw] max-h-[80vh] object-contain rounded-lg shadow-2xl"
+            onClick={e => e.stopPropagation()} />
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
+            {(filteredPhotos[lightbox].tags ?? []).length > 0 && (
+              <div className="flex gap-1.5 flex-wrap justify-center">
+                {(filteredPhotos[lightbox].tags ?? []).map(tag => (
+                  <span key={tag} className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#ed6055]/80 text-white backdrop-blur-sm">{tag}</span>
+                ))}
+              </div>
+            )}
+            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm">
+              <span className="text-xs text-white/70 max-w-[200px] truncate">{filteredPhotos[lightbox].file_name}</span>
+              <span className="text-xs text-white/40">·</span>
+              <span className="text-xs text-white/50">{lightbox + 1} / {filteredPhotos.length}</span>
+              {isAdmin && (
+                <>
+                  <span className="text-xs text-white/40">·</span>
+                  <button onClick={e => handleDelete(filteredPhotos[lightbox], e)}
+                    className="text-xs text-red-400 hover:text-red-300 transition font-medium">Delete</button>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function CompletionTab({ project, isAdmin, showToast }) {
   const [buildingId, setBuildingId]                 = useState(null)
   const [floors, setFloors]                         = useState([])
@@ -3421,8 +3934,13 @@ function CompletionTab({ project, isAdmin, showToast }) {
   const [bulkModal, setBulkModal]                   = useState(false)
   const [bulkForm, setBulkForm]                     = useState({ status: 'none', m4_date: '', m5_date: '', m4_bad: false, m5_bad: false })
   const [bulkSaving, setBulkSaving]                 = useState(false)
+  const [floorModal, setFloorModal]                 = useState(null)  // { type, floor, stats:{none,m4,m5}, total }
+  const [floorModalStatus, setFloorModalStatus]     = useState('none')
+  const [floorModalDate, setFloorModalDate]         = useState('')
+  const [floorModalDateBad, setFloorModalDateBad]   = useState(false)
+  const [floorModalSaving, setFloorModalSaving]     = useState(false)
 
-  const sortFloors = arr => [...(arr ?? [])].sort((a, b) => {
+  const sortFloors = arr =>[...(arr ?? [])].sort((a, b) => {
     const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
     if (!isNaN(na) && !isNaN(nb)) return na - nb
     return a.physical_level.localeCompare(b.physical_level)
@@ -3522,17 +4040,75 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
   const exitMultiSelect = () => { setMultiSelectMode(false); setSelectedCells(new Set()) }
 
-  const toggleRow = (type, floor) => {
+  const openFloorModal = (type, floor) => {
+    const cMap = type === 'parking' ? parkingCompletionMap : completionMap
     const count = floor.num_units ?? 0
-    if (count === 0) return
-    if (!multiSelectMode) setMultiSelectMode(true)
-    const keys = Array.from({ length: count }, (_, i) => cellKey(type, floor.id, i + 1))
-    setSelectedCells(prev => {
-      const next = new Set(prev)
-      const allSelected = keys.every(k => next.has(k))
-      keys.forEach(k => allSelected ? next.delete(k) : next.add(k))
-      return next
-    })
+    let none = 0, m4 = 0, m5 = 0
+    for (let i = 1; i <= count; i++) {
+      const s = cMap[`${floor.id}-${i}`]?.status ?? 'none'
+      if (s === 'm4') m4++
+      else if (s === 'm5') m5++
+      else none++
+    }
+    setFloorModal({ type, floor, stats: { none, m4, m5 }, total: count })
+    setFloorModalStatus('none')
+    setFloorModalDate('')
+    setFloorModalDateBad(false)
+  }
+
+  const saveFloorModal = async () => {
+    if (floorModalStatus === 'm4') {
+      if (floorModalDateBad || (floorModalDate && !isValidDate(floorModalDate))) {
+        showToast('M4 date is not a valid calendar date.', 'error'); return
+      }
+      if (!floorModalDate) { showToast('M4 date is required.', 'error'); return }
+    }
+    if (floorModalStatus === 'm5') {
+      if (floorModalDateBad || (floorModalDate && !isValidDate(floorModalDate))) {
+        showToast('M5 date is not a valid calendar date.', 'error'); return
+      }
+      if (!floorModalDate) { showToast('M5 date is required.', 'error'); return }
+    }
+    setFloorModalSaving(true)
+    const { type, floor } = floorModal
+    const table = type === 'parking' ? 'project_parking_unit_completion' : 'project_unit_completion'
+    const cMap = type === 'parking' ? parkingCompletionMap : completionMap
+    const count = floor.num_units ?? 0
+    const promises = []
+    let skipped = 0
+    for (let i = 1; i <= count; i++) {
+      const existing = cMap[`${floor.id}-${i}`] ?? null
+      if (floorModalStatus === 'm5' && existing?.status !== 'm4') { skipped++; continue }
+      const payload = {
+        project_id: project.id, floor_id: floor.id, unit_number: i,
+        status: floorModalStatus,
+        m4_date: floorModalStatus === 'm5' ? existing.m4_date : (floorModalStatus === 'm4' ? (floorModalDate || null) : null),
+        m5_date: floorModalStatus === 'm5' ? (floorModalDate || null) : null,
+        updated_at: new Date().toISOString(),
+      }
+      promises.push(existing
+        ? supabase.from(table).update(payload).eq('id', existing.id)
+        : supabase.from(table).insert(payload)
+      )
+    }
+    if (promises.length === 0) {
+      showToast('No eligible units to update. Units must be M4 Complete before setting M5.', 'error')
+      setFloorModalSaving(false); return
+    }
+    try {
+      await Promise.all(promises)
+      const saved = promises.length
+      const msg = skipped > 0
+        ? `${saved} unit${saved !== 1 ? 's' : ''} updated. ${skipped} skipped (not yet M4).`
+        : `${saved} unit${saved !== 1 ? 's' : ''} updated.`
+      showToast(msg, 'success')
+      setFloorModal(null)
+      loadAll()
+    } catch (err) {
+      showToast('Some units failed to save. Please try again.', 'error')
+    } finally {
+      setFloorModalSaving(false)
+    }
   }
 
   const saveBulk = async () => {
@@ -3645,7 +4221,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
         <SectionHeader title="Unit Floors" />
         <UnitGrid floorList={floors} cMap={completionMap} maxU={maxUnits} type="unit" emptyMsg="No unit floors defined yet. Add them in the Development tab."
           isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
-          onToggleCell={toggleCell} onOpenCell={openCell} onToggleRow={toggleRow} />
+          onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
       </div>
 
       {/* Parking floors */}
@@ -3653,8 +4229,99 @@ function CompletionTab({ project, isAdmin, showToast }) {
         <SectionHeader title="Parking Floors" />
         <UnitGrid floorList={parkingFloors} cMap={parkingCompletionMap} maxU={maxParkingUnits} type="parking" emptyMsg="No parking floors defined yet. Add them in the Development tab."
           isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
-          onToggleCell={toggleCell} onOpenCell={openCell} onToggleRow={toggleRow} />
+          onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
       </div>
+
+      {/* Floor status modal */}
+      {floorModal && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40" onClick={() => setFloorModal(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+            <div className="flex items-start justify-between mb-1">
+              <h3 className="text-base font-bold text-black">
+                {floorModal.type === 'parking' ? 'Parking' : 'Floor'} {/^\d+$/.test(floorModal.floor.physical_level) ? `${floorModal.floor.physical_level}F` : floorModal.floor.physical_level}
+              </h3>
+              <button onClick={() => setFloorModal(null)} className="p-1 -mt-0.5 -mr-1 text-gray-300 hover:text-gray-500 transition">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+              </button>
+            </div>
+            <p className="text-xs text-gray-400 mb-4">{floorModal.total} units total</p>
+
+            {/* Breakdown */}
+            <div className="flex items-center gap-2 mb-5">
+              {floorModal.stats.none > 0 && (
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-semibold">
+                  <span className="w-2 h-2 rounded-sm bg-gray-300 inline-block" />
+                  {floorModal.stats.none} Not Tagged
+                </span>
+              )}
+              {floorModal.stats.m4 > 0 && (
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-yellow-50 text-yellow-700 text-[11px] font-semibold border border-yellow-200">
+                  <span className="w-2 h-2 rounded-sm bg-yellow-400 inline-block" />
+                  {floorModal.stats.m4} M4
+                </span>
+              )}
+              {floorModal.stats.m5 > 0 && (
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-50 text-green-700 text-[11px] font-semibold border border-green-200">
+                  <span className="w-2 h-2 rounded-sm bg-green-400 inline-block" />
+                  {floorModal.stats.m5} M5
+                </span>
+              )}
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Set all units to</p>
+                <div className="grid grid-cols-3 gap-2">
+                  {Object.entries(UNIT_STATUS_CONFIG).map(([val, cfg]) => (
+                    <button key={val}
+                      onClick={() => {
+                        const today = new Date().toISOString().slice(0, 10)
+                        setFloorModalStatus(val)
+                        setFloorModalDate(val === 'none' ? '' : today)
+                        setFloorModalDateBad(false)
+                      }}
+                      className={`py-2 px-1 rounded-lg border-2 text-[10px] font-semibold text-center transition leading-tight ${floorModalStatus === val ? (val === 'none' ? 'bg-gray-100 text-gray-700 border-gray-400 shadow-sm' : `${cfg.cell} border-current shadow-sm`) : 'border-gray-100 text-gray-400 hover:border-gray-200'}`}>
+                      {cfg.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {floorModalStatus === 'm4' && (() => {
+                const err = floorModalDateBad || !!(floorModalDate && !isValidDate(floorModalDate))
+                const errCls = `${inputCls} !border-red-400 !bg-red-50 !text-red-600 focus:!ring-red-400`
+                return (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M4 Date <span className="text-red-400">*</span></label>
+                    <input type="date" value={floorModalDate} onChange={e => { setFloorModalDate(e.target.value); setFloorModalDateBad(e.target.validity.badInput) }} className={err ? errCls : inputCls} />
+                    {err && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
+                  </div>
+                )
+              })()}
+
+              {floorModalStatus === 'm5' && (() => {
+                const err = floorModalDateBad || !!(floorModalDate && !isValidDate(floorModalDate))
+                const errCls = `${inputCls} !border-red-400 !bg-red-50 !text-red-600 focus:!ring-red-400`
+                return (
+                  <div>
+                    <label className="block text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">M5 Date <span className="text-red-400">*</span></label>
+                    <input type="date" value={floorModalDate} onChange={e => { setFloorModalDate(e.target.value); setFloorModalDateBad(e.target.validity.badInput) }} className={err ? errCls : inputCls} />
+                    {err && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
+                    <p className="text-[10px] text-amber-500 mt-1.5">Only units already tagged as M4 will be updated. Others are skipped.</p>
+                  </div>
+                )
+              })()}
+            </div>
+
+            <div className="flex gap-3 mt-5">
+              <button onClick={() => setFloorModal(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+              <button onClick={saveFloorModal} disabled={floorModalSaving || floorModalStatus === 'none'} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
+                {floorModalSaving ? 'Saving…' : 'Apply'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bulk status modal */}
       {bulkModal && (
@@ -3815,31 +4482,13 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
 
-function buildHeroForm(p) {
-  return {
-    name:             p.name             ?? '',
-    project_code:     p.project_code     ?? '',
-    is_4ph_project:   p.is_4ph_project   ?? false,
-    business_unit:    p.business_unit    ?? '',
-    province:         p.province         ?? '',
-    city:             p.city             ?? '',
-    lot_area:         p.lot_area         ?? '',
-    developable_area: p.developable_area ?? '',
-    development_type: p.development_type ?? '',
-    phase:            p.phase            ?? '',
-  }
-}
-
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Development' }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info' }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
-  const [tab, setTab] = useState(startTab)
+  const [tab, setTab] = useState(startEditing ? 'Project Info' : startTab)
   const [toast, setToast] = useState(null)
   const [tabCounts, setTabCounts] = useState({ permits: null, milestones: null, issues: null })
-  const [heroEditing,  setHeroEditing]  = useState(startEditing)
-  const [heroForm,     setHeroForm]     = useState(() => startEditing ? buildHeroForm(initialProject) : {})
-  const [heroSaving,   setHeroSaving]   = useState(false)
-  const [heroExpanded, setHeroExpanded] = useState(true)
+  const [showReportBuilder, setShowReportBuilder] = useState(false)
 
   useEffect(() => {
     const prev = document.body.style.overflow
@@ -3863,7 +4512,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   }, [project.id])
 
   const phase = PHASE_MAP[project.phase]
-  const tabs = [...BASE_TABS, 'Completion (M4/M5)']
+  const tabs = BASE_TABS
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
@@ -3876,33 +4525,6 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
     onProjectUpdated?.(updated)
   }
 
-  const saveHero = async () => {
-    setHeroSaving(true)
-    const payload = {
-      name:             heroForm.name.trim(),
-      project_code:     heroForm.project_code.trim() || null,
-      is_4ph_project:   heroForm.is_4ph_project,
-      business_unit:    heroForm.business_unit     || null,
-      province:         heroForm.province          || null,
-      city:             heroForm.city              || null,
-      lot_area:         heroForm.lot_area         !== '' ? parseFloat(heroForm.lot_area)         : null,
-      developable_area: heroForm.developable_area !== '' ? parseFloat(heroForm.developable_area) : null,
-      development_type: heroForm.development_type  || null,
-      phase:            heroForm.phase             || null,
-    }
-    if (noNeg(payload.lot_area, payload.developable_area)) {
-      showToast('Values cannot be negative.', 'error')
-      setHeroSaving(false)
-      return
-    }
-    const { error } = await supabase.from('projects').update(payload).eq('id', project.id)
-    setHeroSaving(false)
-    if (error) { showToast('Failed to save: ' + error.message, 'error'); return }
-    showToast('Project updated.', 'success')
-    setHeroEditing(false)
-    handleUpdated(payload)
-  }
-
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4">
       <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full sm:max-w-7xl h-full sm:max-h-[92vh] flex flex-col overflow-hidden">
@@ -3911,259 +4533,67 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         <div className="flex-shrink-0 border-b border-gray-100"
           style={{ background: 'linear-gradient(135deg, #1e293b 0%, #2d3f55 100%)' }}>
 
-          {!heroEditing ? (
-            /* ── Read mode ── */
-            <>
-              {/* ── Zone 1: dark name strip (always visible) ── */}
-              <div className="px-6 pt-4 pb-4">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2.5 flex-wrap mb-1">
-                      <h2 className="text-xl font-bold text-white leading-tight">{project.name}</h2>
-                      {project.is_4ph_project && (
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
-                          style={{ background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.25)', color: 'white' }}>
-                          4PH
-                        </span>
-                      )}
-                      {phase && (
-                        <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
-                          style={{ background: 'rgba(237,96,85,0.25)', borderColor: 'rgba(237,96,85,0.35)', color: '#fca5a5' }}>
-                          {phase.label}
-                        </span>
-                      )}
-                    </div>
-                    <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                      {[
-                        project.development_type === 'housing' ? 'Housing' : project.development_type === 'condominium' ? 'Condominium' : null,
-                        project.city,
-                        project.province,
-                      ].filter(Boolean).join(' · ')}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
-                    <button
-                      onClick={() => setHeroExpanded(e => !e)}
-                      className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
-                      style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
-                      title={heroExpanded ? 'Collapse details' : 'Expand details'}
-                      aria-label={heroExpanded ? 'Collapse project details' : 'Expand project details'}
-                    >
-                      <ChevronIcon up={heroExpanded} />
-                    </button>
-                    {isAdmin && (
-                      <button
-                        onClick={() => { setHeroForm(buildHeroForm(project)); setHeroEditing(true) }}
-                        className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
-                        style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
-                        title="Edit project details"
-                        aria-label="Edit project details"
-                      >
-                        <PencilIcon />
-                      </button>
-                    )}
-                    <button
-                      onClick={onClose}
-                      className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
-                      style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
-                      aria-label="Close"
-                    >
-                      <XIcon />
-                    </button>
-                  </div>
+          {/* ── Zone 1: dark name strip ── */}
+          <div className="px-6 pt-4 pb-4">
+            <div className="flex items-start justify-between gap-4">
+              <div className="min-w-0">
+                <div className="flex items-center gap-2.5 flex-wrap mb-1">
+                  <h2 className="text-xl font-bold text-white leading-tight">{project.name}</h2>
+                  {project.is_4ph_project && (
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
+                      style={{ background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.25)', color: 'white' }}>
+                      4PH
+                    </span>
+                  )}
+                  {phase && (
+                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
+                      style={{ background: 'rgba(237,96,85,0.25)', borderColor: 'rgba(237,96,85,0.35)', color: '#fca5a5' }}>
+                      {phase.label}
+                    </span>
+                  )}
                 </div>
+                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                  {[
+                    project.development_type === 'housing' ? 'Housing' : project.development_type === 'condominium' ? 'Condominium' : null,
+                    project.city,
+                    project.province,
+                  ].filter(Boolean).join(' · ')}
+                </p>
               </div>
-
-              {/* ── Zone 2: lighter details panel (collapsible) ── */}
-              <div style={{
-                maxHeight: heroExpanded ? '220px' : '0',
-                opacity:   heroExpanded ? 1 : 0,
-                overflow: 'hidden',
-                transition: 'max-height 0.25s ease, opacity 0.18s ease',
-                background: 'rgba(255,255,255,0.07)',
-                borderTop: '1px solid rgba(255,255,255,0.08)',
-              }}>
-                <div className="px-6 grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-3 py-4">
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Project Code</p>
-                    <p className="text-sm font-bold text-white">{project.project_code || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>4PH Project</p>
-                    {project.is_4ph_project
-                      ? <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full border"
-                          style={{ background: 'rgba(34,197,94,0.2)', borderColor: 'rgba(34,197,94,0.3)', color: '#86efac' }}>
-                          ✓ Yes
-                        </span>
-                      : <p className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>No</p>
-                    }
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Business Unit</p>
-                    <p className="text-sm font-bold text-white">{project.business_unit || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Dev Type</p>
-                    <p className="text-sm font-bold text-white capitalize">{project.development_type || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Province</p>
-                    <p className="text-sm font-bold text-white">{project.province || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>City / Municipality</p>
-                    <p className="text-sm font-bold text-white">{project.city || '—'}</p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Project Lot Area</p>
-                    <p className="text-sm font-bold text-white">
-                      {project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : '—'}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.45)' }}>Dev Area</p>
-                    <p className="text-sm font-bold text-white">
-                      {project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : '—'}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </>
-          ) : (
-            /* ── Edit mode ── */
-            <div className="px-6 pt-5 pb-4">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-base font-bold text-white">Edit Project Details</h2>
-                <div className="flex gap-2">
+              <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
+                <button
+                  onClick={() => setShowReportBuilder(true)}
+                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold transition-all"
+                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}
+                  title="Generate report"
+                >
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                  </svg>
+                  Report
+                </button>
+                {isAdmin && (
                   <button
-                    onClick={() => setHeroEditing(false)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold transition"
-                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', color: 'rgba(255,255,255,0.8)' }}
+                    onClick={() => setTab('Project Info')}
+                    className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
+                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
+                    title="Edit project details"
+                    aria-label="Edit project details"
                   >
-                    Cancel
+                    <PencilIcon />
                   </button>
-                  <button
-                    onClick={saveHero}
-                    disabled={heroSaving || !heroForm.name?.trim()}
-                    className="px-3 py-1.5 rounded-lg text-xs font-semibold bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition"
-                  >
-                    {heroSaving ? 'Saving…' : 'Save Changes'}
-                  </button>
-                </div>
-              </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Project Name *</p>
-                  <input
-                    value={heroForm.name}
-                    onChange={e => setHeroForm(f => ({ ...f, name: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
-                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
-                    placeholder="Project name"
-                  />
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Project Code</p>
-                  <input
-                    value={heroForm.project_code}
-                    onChange={e => setHeroForm(f => ({ ...f, project_code: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
-                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
-                    placeholder="e.g. PRJ-001"
-                  />
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Business Unit</p>
-                  <select
-                    value={heroForm.business_unit}
-                    onChange={e => setHeroForm(f => ({ ...f, business_unit: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
-                    style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(255,255,255,0.2)' }}
-                  >
-                    <option value="" className="text-black bg-white">— Select —</option>
-                    {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code} className="text-black bg-white">{u.code}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Development Type</p>
-                  <select
-                    value={heroForm.development_type}
-                    onChange={e => setHeroForm(f => ({ ...f, development_type: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
-                    style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(255,255,255,0.2)' }}
-                  >
-                    <option value="" className="text-black bg-white">— Select —</option>
-                    <option value="housing" className="text-black bg-white">Housing</option>
-                    <option value="condominium" className="text-black bg-white">Condominium</option>
-                  </select>
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Province</p>
-                  <Combobox
-                    options={PH_PROVINCES}
-                    value={heroForm.province}
-                    onChange={v => setHeroForm(f => ({ ...f, province: v, city: '' }))}
-                    placeholder="Type to search province…"
-                  />
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>City / Municipality</p>
-                  <Combobox
-                    options={PH_CITIES[heroForm.province] ?? []}
-                    value={heroForm.city}
-                    onChange={v => setHeroForm(f => ({ ...f, city: v }))}
-                    placeholder="Type to search city…"
-                    disabled={!heroForm.province}
-                  />
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Project Lot Area (sqm)</p>
-                  <input
-                    type="number" min="0"
-                    value={heroForm.lot_area}
-                    onChange={e => setHeroForm(f => ({ ...f, lot_area: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
-                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Dev Area (sqm)</p>
-                  <input
-                    type="number" min="0"
-                    value={heroForm.developable_area}
-                    onChange={e => setHeroForm(f => ({ ...f, developable_area: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-lg text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-white/30"
-                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)' }}
-                    placeholder="0"
-                  />
-                </div>
-                <div>
-                  <p className="text-[9px] font-semibold uppercase tracking-wider mb-1" style={{ color: 'rgba(255,255,255,0.5)' }}>Phase</p>
-                  <select
-                    value={heroForm.phase}
-                    onChange={e => setHeroForm(f => ({ ...f, phase: e.target.value }))}
-                    className="w-full px-3 py-2 text-sm rounded-lg text-white focus:outline-none focus:ring-2 focus:ring-white/30"
-                    style={{ background: 'rgba(30,41,59,0.9)', border: '1px solid rgba(255,255,255,0.2)' }}
-                  >
-                    <option value="" className="text-black bg-white">— Select —</option>
-                    {PHASES.map(p => <option key={p.key} value={p.key} className="text-black bg-white">{p.label}</option>)}
-                  </select>
-                </div>
-                <div className="flex items-center gap-2 sm:col-span-2 pt-1">
-                  <input
-                    type="checkbox" id="hero_4ph"
-                    checked={heroForm.is_4ph_project}
-                    onChange={e => setHeroForm(f => ({ ...f, is_4ph_project: e.target.checked }))}
-                    className="accent-[#ed6055] w-4 h-4"
-                  />
-                  <label htmlFor="hero_4ph" className="text-sm cursor-pointer select-none" style={{ color: 'rgba(255,255,255,0.8)' }}>
-                    4PH Project
-                  </label>
-                </div>
+                )}
+                <button
+                  onClick={onClose}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
+                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
+                  aria-label="Close"
+                >
+                  <XIcon />
+                </button>
               </div>
             </div>
-          )}
+          </div>
 
           {/* Tab bar — sits at bottom of dark hero */}
           <div className="flex overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -4205,13 +4635,15 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 
         {/* Tab content */}
         <div className={tab === 'Work Program' ? 'flex-1 overflow-hidden flex flex-col' : 'flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'}>
-          {tab === 'Development'       && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
+          {tab === 'Project Info'      && <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} />}
+          {tab === 'Planned M4/M5'     && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Work Program'      && <GanttContent project={project} />}
           {tab === 'S-Curve'           && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'updater'} />}
           {tab === 'Permits'           && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Milestones'        && <MilestonesTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Issues & Concerns' && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
+          {tab === 'Photos'            && <PhotosTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
         </div>
       </div>
 
@@ -4226,6 +4658,14 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           }
           {toast.message}
         </div>
+      )}
+
+      {showReportBuilder && (
+        <ReportBuilderModal
+          onClose={() => setShowReportBuilder(false)}
+          defaultProject={{ id: project.id, name: project.name }}
+          defaultScope="this_project"
+        />
       )}
     </div>
   )
