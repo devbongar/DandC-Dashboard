@@ -610,7 +610,7 @@ function MonthYearPicker({ value, onChange, min, max, fluid = false }) {
   )
 }
 
-export function GanttContent({ project }) {
+export function GanttContent({ project, isAdmin = false, showToast = () => {} }) {
   const [labelW, setLabelW] = useState(() => window.innerWidth < 640 ? 160 : LABEL_W)
   const [baselines, setBaselines]     = useState([])
   const [activeBL, setActiveBL]       = useState(null)
@@ -653,6 +653,11 @@ export function GanttContent({ project }) {
     return next
   })
 
+  const [editId, setEditId]       = useState(null)
+  const [form, setForm]           = useState({})
+  const [deleteId, setDeleteId]   = useState(null)
+  const [showDates, setShowDates] = useState(true)
+
   useEffect(() => {
     const loadBaselines = async () => {
       const { data } = await supabase
@@ -667,21 +672,76 @@ export function GanttContent({ project }) {
     loadBaselines()
   }, [project.id])
 
+  const loadMilestones = async (blId) => {
+    setLoading(true)
+    const { data } = await supabase
+      .from('project_milestones')
+      .select('*')
+      .eq('project_id', project.id)
+      .eq('baseline_id', blId ?? activeBL)
+      .order('sort_order')
+    setMilestones(data ?? [])
+    setLoading(false)
+  }
+
   useEffect(() => {
     if (!activeBL) { setMilestones([]); setLoading(false); return }
-    const loadMilestones = async () => {
-      setLoading(true)
-      const { data } = await supabase
-        .from('project_milestones')
-        .select('*')
-        .eq('project_id', project.id)
-        .eq('baseline_id', activeBL)
-        .order('sort_order')
-      setMilestones(data ?? [])
-      setLoading(false)
-    }
     loadMilestones()
   }, [project.id, activeBL])
+
+  const handleSave = async (id) => {
+    const actual_start = form.actual_start || null
+    const actual_end   = form.actual_end   || null
+    const payload = {
+      project_id:      project.id,
+      phase:           activePhase,
+      milestone_name:  form.milestone_name?.trim(),
+      planned_start:   form.planned_start   || null,
+      planned_end:     form.planned_end     || null,
+      actual_start,
+      actual_end,
+      projected_start: actual_start ?? (form.projected_start || null),
+      projected_end:   actual_end   ?? (form.projected_end   || null),
+      parent_id:       form.parent_id ?? null,
+    }
+    if (!payload.milestone_name) return
+    if (form.planned_start_bad   || (form.planned_start   && !isValidDate(form.planned_start)))   { showToast('Planned Start is not a valid date.',   'error'); return }
+    if (form.planned_end_bad     || (form.planned_end     && !isValidDate(form.planned_end)))     { showToast('Planned End is not a valid date.',     'error'); return }
+    if (form.actual_start_bad    || (form.actual_start    && !isValidDate(form.actual_start)))    { showToast('Actual Start is not a valid date.',    'error'); return }
+    if (form.actual_end_bad      || (form.actual_end      && !isValidDate(form.actual_end)))      { showToast('Actual End is not a valid date.',      'error'); return }
+    if (form.projected_start_bad || (form.projected_start && !isValidDate(form.projected_start))) { showToast('Projected Start is not a valid date.', 'error'); return }
+    if (form.projected_end_bad   || (form.projected_end   && !isValidDate(form.projected_end)))   { showToast('Projected End is not a valid date.',   'error'); return }
+    if (payload.planned_start   && payload.planned_end   && payload.planned_end   < payload.planned_start)   { showToast('Planned end must be on or after planned start.',   'error'); return }
+    if (payload.actual_start    && payload.actual_end    && payload.actual_end    < payload.actual_start)    { showToast('Actual end must be on or after actual start.',     'error'); return }
+    if (payload.projected_start && payload.projected_end && payload.projected_end < payload.projected_start) { showToast('Projected end must be on or after projected start.','error'); return }
+    const { error } = await supabase.from('project_milestones').update(payload).eq('id', id)
+    if (error) { showToast(error.message, 'error'); return }
+    showToast('Updated.', 'success')
+    setEditId(null)
+    loadMilestones()
+  }
+
+  const handleDelete = async (id) => {
+    await supabase.from('project_milestones').delete().eq('id', id)
+    loadMilestones()
+  }
+
+  const handleEdit = (m) => {
+    setForm({
+      milestone_name:  m.milestone_name,
+      planned_start:   m.planned_start   ?? '',
+      planned_end:     m.planned_end     ?? '',
+      actual_start:    m.actual_start    ?? '',
+      actual_end:      m.actual_end      ?? '',
+      projected_start: m.actual_start    ?? m.projected_start ?? '',
+      projected_end:   m.actual_end      ?? m.projected_end   ?? '',
+      parent_id:       m.parent_id       ?? null,
+      planned_start_bad: false, planned_end_bad: false,
+      actual_start_bad:  false, actual_end_bad:  false,
+      projected_start_bad: false, projected_end_bad: false,
+    })
+    setEditId(m.id)
+  }
 
   useEffect(() => {
     const update = () => setLabelW(window.innerWidth < 640 ? 160 : LABEL_W)
@@ -906,9 +966,25 @@ export function GanttContent({ project }) {
             timeScale={timeScale}
             colPx={colPx}
             labelW={labelW}
+            showDates={showDates}
+            editId={editId}
+            form={form}
+            setForm={setForm}
+            onSave={handleSave}
+            onCancelEdit={() => setEditId(null)}
+            onEdit={handleEdit}
+            onDelete={(id) => setDeleteId(id)}
+            isAdmin={isAdmin}
+            showToast={showToast}
           />
         )}
       </div>
+      {deleteId !== null && (
+        <GConfirmDeleteModal
+          onConfirm={() => { handleDelete(deleteId); setDeleteId(null) }}
+          onCancel={() => setDeleteId(null)}
+        />
+      )}
     </>
   )
 }
