@@ -722,7 +722,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleDelete = async (id) => {
-    await supabase.from('project_milestones').delete().eq('id', id)
+    const { error } = await supabase.from('project_milestones').delete().eq('id', id)
+    if (error) { showToast(error.message, 'error'); return }
+    showToast('Deleted.', 'success')
     loadMilestones()
   }
 
