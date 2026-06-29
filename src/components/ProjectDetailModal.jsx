@@ -4093,7 +4093,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         <div className={tab === 'Work Program' ? 'flex-1 overflow-hidden flex flex-col' : 'flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'}>
           {tab === 'Project Info'      && <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} />}
           {tab === 'Planned M4/M5'     && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
-          {tab === 'Work Program'      && <GanttContent project={project} />}
+          {tab === 'Work Program'      && <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'S-Curve'           && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'updater'} />}
           {tab === 'Permits'           && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           {tab === 'Issues & Concerns' && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
