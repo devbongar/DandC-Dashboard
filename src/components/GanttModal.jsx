@@ -21,6 +21,10 @@ const PAD     = 7 * 86400000
 const LABEL_W = 320
 const DEFAULT_COL_PX = { day: 20, week: 20, month: 20 }
 
+const DATE_COL_W   = 100  // width of each individual date cell (px)
+const DATE_GROUP_W = DATE_COL_W * 2  // two cols per group (start + end)
+const DATE_COLS_W  = DATE_GROUP_W * 3  // three groups: planned, actual, projected
+
 const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
 
 const isValidDate = (str) => {
@@ -153,56 +157,113 @@ function GanttBar({ start, end, color, toPx }) {
   )
 }
 
-function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W }) {
+function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false }) {
   const hasDates = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const bgBase   = isChild ? '#f9fafb' : '#ffffff'
 
+  const hasActualStart = isEditing ? !!form.actual_start : false
+  const hasActualEnd   = isEditing ? !!form.actual_end   : false
+  const projStartVal   = isEditing ? (hasActualStart ? form.actual_start : form.projected_start) : undefined
+  const projEndVal     = isEditing ? (hasActualEnd   ? form.actual_end   : form.projected_end)   : undefined
+
+  const plannedStartErr   = isEditing && (form.planned_start_bad   || !!(form.planned_start   && !isValidDate(form.planned_start)))
+  const plannedEndErr     = isEditing && (form.planned_end_bad     || !!(form.planned_end     && !isValidDate(form.planned_end)))
+  const actualStartErr    = isEditing && (form.actual_start_bad    || !!(form.actual_start    && !isValidDate(form.actual_start)))
+  const actualEndErr      = isEditing && (form.actual_end_bad      || !!(form.actual_end      && !isValidDate(form.actual_end)))
+  const projectedStartErr = isEditing && !hasActualStart && (form.projected_start_bad || !!(form.projected_start && !isValidDate(form.projected_start)))
+  const projectedEndErr   = isEditing && !hasActualEnd   && (form.projected_end_bad   || !!(form.projected_end   && !isValidDate(form.projected_end)))
+
+  const dateCell = (content) => (
+    <div style={{ width: DATE_COL_W, minWidth: DATE_COL_W }} className="px-1.5 py-1 text-xs border-r border-gray-100 flex items-center min-h-[52px]">
+      {content}
+    </div>
+  )
+
   return (
     <div
-      className="flex items-center border-b border-gray-100 transition-colors"
+      className="flex items-center border-b border-gray-100 transition-colors group"
       style={{ backgroundColor: bgBase }}
       onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#eff6ff' }}
       onMouseLeave={e => { e.currentTarget.style.backgroundColor = bgBase }}
     >
-      {/* Fixed-width label column — frozen */}
+      {/* Frozen panel: label + date columns */}
       <div
-        style={{ width: labelW, minWidth: labelW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
-        className="sticky left-0 z-30 flex items-center pr-2 flex-shrink-0 self-stretch"
+        style={{ width: labelW + (showDates ? DATE_COLS_W : 0), minWidth: labelW + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+        className="sticky left-0 z-30 flex items-center flex-shrink-0 self-stretch"
       >
-        {isChild ? (
-          /* Indent + L-shaped connector */
-          <div className="flex items-center flex-shrink-0" style={{ width: 28, alignSelf: 'stretch', position: 'relative' }}>
-            {/* Vertical line (full height, cut at midpoint for last child) */}
-            <div
-              className="absolute left-3.5"
-              style={{
-                top: 0,
-                bottom: isLastChild ? '50%' : 0,
-                width: 1.5,
-                backgroundColor: '#d1d5db',
-              }}
-            />
-            {/* Horizontal stub */}
-            <div
-              className="absolute"
-              style={{ left: '14px', top: '50%', width: 10, height: 1.5, backgroundColor: '#d1d5db' }}
-            />
-          </div>
-        ) : (
-          <div className="flex-shrink-0" style={{ width: 28 }} />
-        )}
-
-        <span className={`flex-shrink-0 tabular-nums text-right mr-1.5 ${isChild ? 'text-[10px] text-gray-300 w-10' : 'text-xs font-semibold text-gray-400 w-6'}`}>
-          {isChild ? seq : `${seq}.`}
-        </span>
-        <p
-          className={`text-xs truncate leading-tight flex-1 min-w-0 ${
-            isChild ? 'text-gray-500 pl-0.5' : 'font-bold text-gray-800'
-          }`}
-          title={m.milestone_name}
+        {/* Activity name */}
+        <div
+          style={{ width: labelW, minWidth: labelW, borderRight: showDates ? '1px solid #e5e7eb' : 'none', backgroundColor: 'inherit' }}
+          className="flex items-center pr-2 flex-shrink-0 self-stretch"
         >
-          {m.milestone_name}
-        </p>
+          {isChild ? (
+            <div className="flex items-center flex-shrink-0" style={{ width: 28, alignSelf: 'stretch', position: 'relative' }}>
+              <div className="absolute left-3.5" style={{ top: 0, bottom: isLastChild ? '50%' : 0, width: 1.5, backgroundColor: '#d1d5db' }} />
+              <div className="absolute" style={{ left: '14px', top: '50%', width: 10, height: 1.5, backgroundColor: '#d1d5db' }} />
+            </div>
+          ) : (
+            <div className="flex-shrink-0" style={{ width: 28 }} />
+          )}
+          <span className={`flex-shrink-0 tabular-nums text-right mr-1.5 ${isChild ? 'text-[10px] text-gray-300 w-10' : 'text-xs font-semibold text-gray-400 w-6'}`}>
+            {isChild ? seq : `${seq}.`}
+          </span>
+          {isEditing ? (
+            <GInlineInput value={form.milestone_name} onChange={v => setForm(p => ({ ...p, milestone_name: v }))} />
+          ) : (
+            <p
+              className={`text-xs truncate leading-tight flex-1 min-w-0 ${isChild ? 'text-gray-500 pl-0.5' : 'font-bold text-gray-800'}`}
+              title={m.milestone_name}
+            >
+              {m.milestone_name}
+            </p>
+          )}
+          {isAdmin && !isEditing && (
+            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition ml-1 flex-shrink-0">
+              <button onClick={() => onEdit(m)} className="p-1 text-gray-300 hover:text-blue-500 transition">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
+              </button>
+              <button onClick={() => onDelete(m.id)} className="p-1 text-gray-300 hover:text-red-500 transition">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+              </button>
+            </div>
+          )}
+          {isEditing && (
+            <div className="flex items-center gap-1 ml-1 flex-shrink-0">
+              <button onClick={onSave} className="text-[10px] font-bold text-[#ed6055] hover:text-[#d94f45] whitespace-nowrap">Save</button>
+              <button onClick={onCancelEdit} className="text-[10px] text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+          )}
+        </div>
+
+        {/* Date columns */}
+        {showDates && (
+          <div className="flex self-stretch">
+            {dateCell(isEditing
+              ? <GInlineInput type="date" value={form.planned_start} onChange={(v, bad) => setForm(p => ({ ...p, planned_start: v, planned_start_bad: !!bad }))} max={form.planned_end || undefined} error={plannedStartErr} />
+              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_start)}</span>
+            )}
+            {dateCell(isEditing
+              ? <GInlineInput type="date" value={form.planned_end} onChange={(v, bad) => setForm(p => ({ ...p, planned_end: v, planned_end_bad: !!bad }))} min={form.planned_start || undefined} error={plannedEndErr} />
+              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
+            )}
+            {dateCell(isEditing
+              ? <GInlineInput type="date" value={form.actual_start} onChange={(v, bad) => setForm(p => ({ ...p, actual_start: v, actual_start_bad: !!bad, projected_start: v || p.projected_start }))} max={form.actual_end || undefined} error={actualStartErr} />
+              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start)}</span>
+            )}
+            {dateCell(isEditing
+              ? <GInlineInput type="date" value={form.actual_end} onChange={(v, bad) => setForm(p => ({ ...p, actual_end: v, actual_end_bad: !!bad, projected_end: v || p.projected_end }))} min={form.actual_start || undefined} error={actualEndErr} />
+              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end)}</span>
+            )}
+            {dateCell(isEditing
+              ? <GInlineInput type="date" value={projStartVal} onChange={(v, bad) => setForm(p => ({ ...p, projected_start: v, projected_start_bad: !!bad }))} max={projEndVal || undefined} error={projectedStartErr} disabled={hasActualStart} />
+              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start ?? m.projected_start)}</span>
+            )}
+            {dateCell(isEditing
+              ? <GInlineInput type="date" value={projEndVal} onChange={(v, bad) => setForm(p => ({ ...p, projected_end: v, projected_end_bad: !!bad }))} min={projStartVal || undefined} error={projectedEndErr} disabled={hasActualEnd} />
+              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end ?? m.projected_end)}</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Bar area */}
@@ -284,7 +345,7 @@ function computeParentDates(children) {
   }
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {} }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -336,16 +397,45 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const todayPx    = toPx(today)
   const showToday  = todayPx >= 0 && todayPx <= chartPxWidth
 
-  const totalW = labelW + chartPxWidth
+  const totalW = labelW + (showDates ? DATE_COLS_W : 0) + chartPxWidth
 
   const axisHeader = (
     <>
       <div className="flex" style={{ width: totalW, minWidth: totalW, backgroundColor: '#f8fafc' }}>
         <div
-          style={{ width: labelW, minWidth: labelW, borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 10 }}
-          className="flex-shrink-0 flex items-center pl-3"
+          style={{ width: labelW + (showDates ? DATE_COLS_W : 0), minWidth: labelW + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 10 }}
+          className="flex-shrink-0 flex items-center"
         >
-          <span className="text-xs font-bold text-gray-700">Activity</span>
+          {/* Activity name column */}
+          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-2 self-stretch border-r border-gray-200">
+            <span className="text-xs font-bold text-gray-700">Activity</span>
+          </div>
+          {/* Date group headers — only when visible */}
+          {showDates && (
+            <div className="flex" style={{ width: DATE_COLS_W }}>
+              <div style={{ width: DATE_GROUP_W }} className="flex flex-col items-center justify-center border-r border-gray-200 py-1">
+                <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wide">Planned</span>
+                <div className="flex w-full mt-0.5">
+                  <span className="flex-1 text-center text-[9px] text-blue-400 border-r border-gray-100">Start</span>
+                  <span className="flex-1 text-center text-[9px] text-blue-400">End</span>
+                </div>
+              </div>
+              <div style={{ width: DATE_GROUP_W }} className="flex flex-col items-center justify-center border-r border-gray-200 py-1">
+                <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide">Actual</span>
+                <div className="flex w-full mt-0.5">
+                  <span className="flex-1 text-center text-[9px] text-red-400 border-r border-gray-100">Start</span>
+                  <span className="flex-1 text-center text-[9px] text-red-400">End</span>
+                </div>
+              </div>
+              <div style={{ width: DATE_GROUP_W }} className="flex flex-col items-center justify-center py-1">
+                <span className="text-[10px] font-bold text-green-600 uppercase tracking-wide">Projected</span>
+                <div className="flex w-full mt-0.5">
+                  <span className="flex-1 text-center text-[9px] text-green-500 border-r border-gray-100">Start</span>
+                  <span className="flex-1 text-center text-[9px] text-green-500">End</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
         <div style={{ width: chartPxWidth, minWidth: chartPxWidth, position: 'relative', overflow: 'hidden' }}>
           {/* Row 1 */}
@@ -450,6 +540,15 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         isChild={isChild}
         isLastChild={isLastChild}
         labelW={labelW}
+        showDates={showDates}
+        isEditing={editId === m.id}
+        form={form}
+        setForm={setForm}
+        onSave={onSave}
+        onCancelEdit={onCancelEdit}
+        onEdit={onEdit}
+        onDelete={onDelete}
+        isAdmin={isAdmin}
       />
     ))
   })()
