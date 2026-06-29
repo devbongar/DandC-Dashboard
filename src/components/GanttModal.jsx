@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
 
 const PHASES = [
@@ -19,6 +20,117 @@ const PHASE_COLORS = {
 const PAD     = 7 * 86400000
 const LABEL_W = 320
 const DEFAULT_COL_PX = { day: 20, week: 20, month: 20 }
+
+const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
+
+const isValidDate = (str) => {
+  if (!str) return true
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(str)) return false
+  const d = new Date(str + 'T00:00:00')
+  if (isNaN(d.getTime())) return false
+  const [y, m, day] = str.split('-').map(Number)
+  return d.getFullYear() === y && d.getMonth() + 1 === m && d.getDate() === day
+}
+
+const isValidRawDate = (val) => {
+  if (!val && val !== 0) return true
+  if (val instanceof Date) return !isNaN(val.getTime())
+  const str = String(val).trim()
+  if (!str) return true
+  if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+    const d = new Date(str + 'T00:00:00')
+    if (isNaN(d.getTime())) return false
+    const [y, m, day] = str.split('-').map(Number)
+    return d.getFullYear() === y && d.getMonth() + 1 === m && d.getDate() === day
+  }
+  return !isNaN(Date.parse(str))
+}
+
+const MILESTONE_PHASE_MAP_OUT = {
+  initiation: 'Initiation',
+  planning: 'Planning',
+  execution_monitoring: 'Execution & Monitoring',
+  closeout: 'Close-Out',
+}
+const MILESTONE_PHASE_MAP_IN = Object.fromEntries(
+  Object.entries(MILESTONE_PHASE_MAP_OUT).map(([k, v]) => [v, k])
+)
+
+function GInlineInput({ value, onChange, type = 'text', placeholder = '', min, max, error, disabled = false }) {
+  const resolvedMin = min !== undefined ? min : (type === 'number' ? 0 : undefined)
+  return (
+    <input
+      type={type}
+      value={value ?? ''}
+      onChange={e => !disabled && onChange(e.target.value, type === 'date' ? e.target.validity.badInput : undefined)}
+      placeholder={placeholder}
+      min={resolvedMin}
+      max={max}
+      disabled={disabled}
+      className={`w-full px-2 py-1.5 text-xs rounded border focus:outline-none focus:ring-1 bg-white transition ${
+        disabled
+          ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+          : error
+            ? 'border-red-400 bg-red-50 focus:ring-red-400 text-red-600'
+            : 'border-gray-200 focus:ring-[#ed6055]'
+      }`}
+    />
+  )
+}
+
+function GConfirmDeleteModal({ onConfirm, onCancel }) {
+  return (
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+        <h3 className="text-base font-bold text-black mb-1">Delete this milestone?</h3>
+        <p className="text-sm text-gray-500 mb-5">This action cannot be undone.</p>
+        <div className="flex gap-3">
+          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+          <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition">Delete</button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function GImportErrorPanel({ errors, onDismiss }) {
+  if (!errors.length) return null
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 p-3 mb-2 mx-6">
+      <div className="flex items-start justify-between gap-2 mb-2">
+        <p className="text-sm font-bold text-red-700">
+          Import blocked — {errors.length} error{errors.length !== 1 ? 's' : ''} found.
+        </p>
+        <button onClick={onDismiss} className="text-red-400 hover:text-red-600 text-xs font-medium flex-shrink-0">Dismiss</button>
+      </div>
+      <ul className="space-y-1">
+        {errors.map((e, i) => (
+          <li key={i} className="text-xs text-red-600 flex items-start gap-1.5">
+            <span className="flex-shrink-0 mt-0.5">•</span><span>{e}</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
+
+function GExcelButtons({ onExport, onImport, importing = false }) {
+  const ref = useRef(null)
+  return (
+    <div className="flex items-center gap-1">
+      <button onClick={onExport} className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" /></svg>
+        Export
+      </button>
+      <button onClick={() => ref.current?.click()} disabled={importing} className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50">
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
+        {importing ? 'Importing…' : 'Import'}
+      </button>
+      <input ref={ref} type="file" accept=".xlsx,.xls" className="hidden"
+        onChange={e => { const f = e.target.files[0]; if (f) onImport(f); e.target.value = '' }} />
+    </div>
+  )
+}
 
 function parseDate(str) {
   const [y, m, d] = str.split('-').map(Number)
