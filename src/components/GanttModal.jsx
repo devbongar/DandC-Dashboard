@@ -661,6 +661,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [adding, setAdding]           = useState(false)
   const [newBLName, setNewBLName]     = useState('')
   const [showNewBLModal, setShowNewBLModal] = useState(false)
+  const [importing, setImporting]               = useState(false)
+  const [importErrors, setImportErrors]         = useState([])
+  const [pendingImportFile, setPendingImportFile] = useState(null)
+  const [deleteBLId, setDeleteBLId]             = useState(null)
 
   useEffect(() => {
     const loadBaselines = async () => {
@@ -793,6 +797,163 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     showToast(`Baseline "${label}" created.`, 'success')
   }
 
+  const handleExport = async () => {
+    const exportRows = []
+    PHASES.forEach(({ key: phase }) => {
+      const pRows   = milestones.filter(r => r.phase === phase)
+      const parents = pRows.filter(r => !r.parent_id)
+      const idToName = Object.fromEntries(pRows.map(r => [r.id, r.milestone_name]))
+      parents.forEach(parent => {
+        const children = pRows.filter(r => r.parent_id === parent.id)
+        if (children.length > 0) {
+          children.forEach(c => exportRows.push({ ...c, _parentName: parent.milestone_name }))
+        } else {
+          exportRows.push({ ...parent, _parentName: null })
+        }
+      })
+    })
+    const blLabel = baselines.find(b => b.id === activeBL)?.label ?? ''
+    downloadWorkbook([{
+      data: exportRows.map(r => ({
+        phase:            MILESTONE_PHASE_MAP_OUT[r.phase] ?? r.phase,
+        milestone_name:   r.milestone_name,
+        parent_name:      r._parentName ?? '',
+        planned_start:    r.planned_start    ?? '',
+        planned_end:      r.planned_end      ?? '',
+        actual_start:     r.actual_start     ?? '',
+        actual_end:       r.actual_end       ?? '',
+        projected_start:  r.projected_start  ?? '',
+        projected_end:    r.projected_end    ?? '',
+      })),
+      columns: [
+        { key: 'phase',           header: 'Phase' },
+        { key: 'milestone_name',  header: 'Milestone Name' },
+        { key: 'parent_name',     header: 'Parent Milestone' },
+        { key: 'planned_start',   header: 'Planned Start' },
+        { key: 'planned_end',     header: 'Planned End' },
+        { key: 'actual_start',    header: 'Actual Start' },
+        { key: 'actual_end',      header: 'Actual End' },
+        { key: 'projected_start', header: 'Projected Start' },
+        { key: 'projected_end',   header: 'Projected End' },
+      ],
+      sheetName: 'Milestones',
+    }], `${project.name}_milestones${blLabel ? `_${blLabel}` : ''}.xlsx`)
+  }
+
+  const handleImportRequest = (file) => {
+    setPendingImportFile(file)
+    setNewBLName('')
+  }
+
+  const handleImport = async (file, label) => {
+    setImporting(true); setImportErrors([])
+    try {
+      const sheets  = await parseWorkbook(file)
+      const pid     = project.id
+      const rawRows = sheets['Milestones'] ?? Object.values(sheets)[0] ?? []
+
+      const newRows = []
+      let legacyParentName = null
+      rawRows.forEach((r, i) => {
+        const rawName   = String(r['Milestone Name'] ?? '').trim()
+        const parentCol = String(r['Parent Milestone'] ?? '').trim()
+        const legacySub = rawName.startsWith('- ')
+        const name      = legacySub ? rawName.slice(2).trim() : rawName
+        if (!name) return
+        const parentName = parentCol || (legacySub ? legacyParentName : null)
+        if (!legacySub) legacyParentName = name
+        newRows.push({
+          project_id:      pid,
+          phase:           MILESTONE_PHASE_MAP_IN[r['Phase']] ?? 'initiation',
+          milestone_name:  name,
+          planned_start:   toDateStr(r['Planned Start']),
+          planned_end:     toDateStr(r['Planned End']),
+          actual_start:    toDateStr(r['Actual Start']),
+          actual_end:      toDateStr(r['Actual End']),
+          projected_start: toDateStr(r['Projected Start']),
+          projected_end:   toDateStr(r['Projected End']),
+          sort_order:      i,
+          _parentName:     parentName,
+        })
+      })
+
+      const errors = []
+      rawRows.forEach((r, i) => {
+        const rawName = String(r['Milestone Name'] ?? '').trim()
+        const name    = rawName.startsWith('- ') ? rawName.slice(2).trim() : rawName
+        if (!name) return
+        const lbl = `Row ${i + 2} "${name}"`
+        if (r['Planned Start']   && !isValidRawDate(r['Planned Start']))   errors.push(`${lbl}: Planned Start is not a valid date.`)
+        if (r['Planned End']     && !isValidRawDate(r['Planned End']))     errors.push(`${lbl}: Planned End is not a valid date.`)
+        if (r['Actual Start']    && !isValidRawDate(r['Actual Start']))    errors.push(`${lbl}: Actual Start is not a valid date.`)
+        if (r['Actual End']      && !isValidRawDate(r['Actual End']))      errors.push(`${lbl}: Actual End is not a valid date.`)
+        if (r['Projected Start'] && !isValidRawDate(r['Projected Start'])) errors.push(`${lbl}: Projected Start is not a valid date.`)
+        if (r['Projected End']   && !isValidRawDate(r['Projected End']))   errors.push(`${lbl}: Projected End is not a valid date.`)
+      })
+      if (errors.length === 0) {
+        newRows.forEach((r, i) => {
+          const lbl = `Row ${i + 2} "${r.milestone_name}"`
+          if (r.planned_start   && r.planned_end   && r.planned_end   < r.planned_start)   errors.push(`${lbl}: Planned End cannot be before Planned Start.`)
+          if (r.actual_start    && r.actual_end    && r.actual_end    < r.actual_start)    errors.push(`${lbl}: Actual End cannot be before Actual Start.`)
+          if (r.projected_start && r.projected_end && r.projected_end < r.projected_start) errors.push(`${lbl}: Projected End cannot be before Projected Start.`)
+        })
+      }
+      if (errors.length > 0) { setImportErrors(errors); return }
+
+      const { data: blData, error: blErr } = await supabase
+        .from('milestone_baselines')
+        .insert({ project_id: pid, label })
+        .select('id').single()
+      if (blErr) throw blErr
+      const blId = blData.id
+
+      const uniqueParentNames = [...new Set(newRows.map(r => r._parentName).filter(Boolean))]
+      const parentNameToDbId = {}
+      if (uniqueParentNames.length > 0) {
+        const { data: ins, error: pErr } = await supabase
+          .from('project_milestones')
+          .insert(uniqueParentNames.map((name, i) => ({
+            project_id: pid, baseline_id: blId,
+            phase: newRows.find(r => r._parentName === name)?.phase ?? 'initiation',
+            milestone_name: name, sort_order: -(uniqueParentNames.length - i),
+          })))
+          .select('id')
+        if (pErr) throw pErr
+        uniqueParentNames.forEach((name, i) => { parentNameToDbId[name] = ins[i].id })
+      }
+
+      const { error: cErr } = await supabase.from('project_milestones').insert(
+        newRows.map(({ _parentName, ...rest }) => ({
+          ...rest, baseline_id: blId,
+          parent_id: _parentName ? (parentNameToDbId[_parentName] ?? null) : null,
+        }))
+      )
+      if (cErr) throw cErr
+
+      const { data: newBLs } = await supabase
+        .from('milestone_baselines')
+        .select('id, label, created_at')
+        .eq('project_id', pid)
+        .order('created_at', { ascending: true })
+      if (newBLs) { setBaselines(newBLs); setActiveBL(blId) }
+      showToast(`Imported as "${label}".`, 'success')
+    } catch (err) {
+      showToast('Import failed: ' + err.message, 'error')
+    } finally {
+      setImporting(false)
+    }
+  }
+
+  const handleDeleteBaseline = async (blId) => {
+    await supabase.from('project_milestones').delete().eq('baseline_id', blId)
+    const { error } = await supabase.from('milestone_baselines').delete().eq('id', blId)
+    if (error) { showToast(error.message, 'error'); return }
+    showToast('Baseline deleted.', 'success')
+    const remaining = baselines.filter(b => b.id !== blId)
+    setBaselines(remaining)
+    setActiveBL(remaining.length > 0 ? remaining[remaining.length - 1].id : null)
+  }
+
   useEffect(() => {
     const update = () => setLabelW(window.innerWidth < 640 ? 160 : LABEL_W)
     window.addEventListener('resize', update)
@@ -811,6 +972,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
   return (
     <>
+      <GImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
       {/* Phase tabs */}
       <div className="px-2 sm:px-6 pt-3 pb-0 flex gap-1 border-b border-gray-100 flex-shrink-0 overflow-x-auto overflow-y-hidden">
         {PHASES.map(p => {
@@ -981,15 +1143,55 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             )}
           </div>
 
-          {isAdmin && (
+          <div className="ml-auto flex items-center gap-2 flex-wrap">
+            {/* Show/hide date columns toggle */}
             <button
-              onClick={() => { setNewBLName(''); setShowNewBLModal(true) }}
-              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0 ml-auto"
+              onClick={() => setShowDates(v => !v)}
+              title={showDates ? 'Hide date columns' : 'Show date columns'}
+              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
             >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              New BL
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                {showDates
+                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
+                  : <><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></>
+                }
+              </svg>
+              {showDates ? 'Hide dates' : 'Show dates'}
             </button>
-          )}
+
+            <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+
+            {/* Delete baseline */}
+            {isAdmin && activeBL && (
+              <button
+                onClick={() => setDeleteBLId(activeBL)}
+                className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition flex-shrink-0"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                Del BL
+              </button>
+            )}
+
+            {/* New BL button */}
+            {isAdmin && (
+              <button
+                onClick={() => { setNewBLName(''); setShowNewBLModal(true) }}
+                className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                New BL
+              </button>
+            )}
+
+            {/* Export/Import */}
+            {activeBL && (
+              <GExcelButtons
+                onExport={handleExport}
+                onImport={handleImportRequest}
+                importing={importing}
+              />
+            )}
+          </div>
         </div>
 
       </div>
@@ -1100,6 +1302,56 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 onClick={handleCreateBaseline}
                 className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >Create</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Pending import — name the baseline */}
+      {pendingImportFile && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setPendingImportFile(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-black mb-1">Name this baseline</h3>
+            <p className="text-sm text-gray-500 mb-4">Give a name to identify this baseline (e.g. BL0, Initial, Revised).</p>
+            <input
+              autoFocus
+              type="text"
+              value={newBLName}
+              onChange={e => setNewBLName(e.target.value)}
+              onKeyDown={e => {
+                if (e.key === 'Enter' && newBLName.trim()) {
+                  const f = pendingImportFile; const l = newBLName.trim()
+                  setPendingImportFile(null); handleImport(f, l)
+                }
+              }}
+              placeholder="e.g. BL0"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] mb-5"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setPendingImportFile(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+              <button
+                disabled={!newBLName.trim()}
+                onClick={() => { const f = pendingImportFile; const l = newBLName.trim(); setPendingImportFile(null); handleImport(f, l) }}
+                className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >Import</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Delete baseline confirm */}
+      {deleteBLId !== null && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setDeleteBLId(null)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-black mb-1">Delete baseline?</h3>
+            <p className="text-sm text-gray-500 mb-1">
+              You are about to delete <span className="font-semibold text-gray-700">{baselines.find(b => b.id === deleteBLId)?.label}</span>.
+            </p>
+            <p className="text-sm text-gray-500 mb-5">All milestones in this baseline will be permanently removed. This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteBLId(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+              <button
+                onClick={() => { handleDeleteBaseline(deleteBLId); setDeleteBLId(null) }}
+                className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition"
+              >Delete</button>
             </div>
           </div>
         </div>
