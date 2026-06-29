@@ -99,7 +99,7 @@ function GImportErrorPanel({ errors, onDismiss }) {
     <div className="rounded-xl border border-red-200 bg-red-50 p-3 mb-2 mx-6">
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="text-sm font-bold text-red-700">
-          Import blocked — {errors.length} error{errors.length !== 1 ? 's' : ''} found.
+          Import blocked — {errors.length} error{errors.length !== 1 ? 's' : ''} found. Fix the file and try again.
         </p>
         <button onClick={onDismiss} className="text-red-400 hover:text-red-600 text-xs font-medium flex-shrink-0">Dismiss</button>
       </div>
