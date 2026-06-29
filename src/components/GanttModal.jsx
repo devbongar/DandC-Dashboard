@@ -657,6 +657,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [form, setForm]           = useState({})
   const [deleteId, setDeleteId]   = useState(null)
   const [showDates, setShowDates] = useState(true)
+  const [addForm, setAddForm]         = useState(null)  // null = hidden; {} = showing add row
+  const [adding, setAdding]           = useState(false)
+  const [newBLName, setNewBLName]     = useState('')
+  const [showNewBLModal, setShowNewBLModal] = useState(false)
 
   useEffect(() => {
     const loadBaselines = async () => {
@@ -743,6 +747,48 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       projected_start_bad: false, projected_end_bad: false,
     })
     setEditId(m.id)
+  }
+
+  const handleAdd = async () => {
+    if (!addForm?.milestone_name?.trim()) return
+    setAdding(true)
+    const actual_start = addForm.actual_start || null
+    const actual_end   = addForm.actual_end   || null
+    const payload = {
+      project_id:      project.id,
+      baseline_id:     activeBL,
+      phase:           activePhase,
+      milestone_name:  addForm.milestone_name.trim(),
+      planned_start:   addForm.planned_start   || null,
+      planned_end:     addForm.planned_end     || null,
+      actual_start,
+      actual_end,
+      projected_start: actual_start ?? (addForm.projected_start || null),
+      projected_end:   actual_end   ?? (addForm.projected_end   || null),
+      sort_order:      milestones.filter(m => m.phase === activePhase).length,
+    }
+    const { error } = await supabase.from('project_milestones').insert(payload)
+    setAdding(false)
+    if (error) { showToast(error.message, 'error'); return }
+    setAddForm(null)
+    showToast('Milestone added.', 'success')
+    loadMilestones()
+  }
+
+  const handleCreateBaseline = async () => {
+    const label = newBLName.trim()
+    if (!label) return
+    const { data, error } = await supabase
+      .from('milestone_baselines')
+      .insert({ project_id: project.id, label })
+      .select('id, label, created_at')
+      .single()
+    if (error) { showToast(error.message, 'error'); return }
+    setBaselines(prev => [...prev, data])
+    setActiveBL(data.id)
+    setNewBLName('')
+    setShowNewBLModal(false)
+    showToast(`Baseline "${label}" created.`, 'success')
   }
 
   useEffect(() => {
@@ -928,6 +974,16 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
               </button>
             )}
           </div>
+
+          {isAdmin && (
+            <button
+              onClick={() => { setNewBLName(''); setShowNewBLModal(true) }}
+              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0 ml-auto"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+              New BL
+            </button>
+          )}
         </div>
 
       </div>
@@ -981,11 +1037,66 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           />
         )}
       </div>
+      {/* Add milestone row — admin only, visible when a baseline is active */}
+      {isAdmin && activeBL && (
+        <div className="px-6 py-2 border-t border-gray-100 bg-white flex-shrink-0">
+          {addForm ? (
+            <div className="flex items-center gap-2 flex-wrap">
+              <input
+                autoFocus
+                type="text"
+                value={addForm.milestone_name ?? ''}
+                onChange={e => setAddForm(p => ({ ...p, milestone_name: e.target.value }))}
+                placeholder="Milestone name…"
+                className="flex-1 min-w-[160px] px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
+                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAddForm(null) }}
+              />
+              <button onClick={handleAdd} disabled={adding} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] px-2 py-1.5 disabled:opacity-50">
+                {adding ? 'Adding…' : 'Add'}
+              </button>
+              <button onClick={() => setAddForm(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5">Cancel</button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setAddForm({ milestone_name: '', planned_start: '', planned_end: '', actual_start: '', actual_end: '', projected_start: '', projected_end: '' })}
+              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+              Add milestone
+            </button>
+          )}
+        </div>
+      )}
       {deleteId !== null && (
         <GConfirmDeleteModal
           onConfirm={() => { handleDelete(deleteId); setDeleteId(null) }}
           onCancel={() => setDeleteId(null)}
         />
+      )}
+      {showNewBLModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setShowNewBLModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-black mb-1">Name this baseline</h3>
+            <p className="text-sm text-gray-500 mb-4">Give a name to identify this baseline (e.g. BL0, Initial, Revised).</p>
+            <input
+              autoFocus
+              type="text"
+              value={newBLName}
+              onChange={e => setNewBLName(e.target.value)}
+              onKeyDown={e => { if (e.key === 'Enter' && newBLName.trim()) handleCreateBaseline() }}
+              placeholder="e.g. BL0"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] mb-5"
+            />
+            <div className="flex gap-3">
+              <button onClick={() => setShowNewBLModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+              <button
+                disabled={!newBLName.trim()}
+                onClick={handleCreateBaseline}
+                className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >Create</button>
+            </div>
+          </div>
+        </div>
       )}
     </>
   )
