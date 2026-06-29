@@ -802,7 +802,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     PHASES.forEach(({ key: phase }) => {
       const pRows   = milestones.filter(r => r.phase === phase)
       const parents = pRows.filter(r => !r.parent_id)
-      const idToName = Object.fromEntries(pRows.map(r => [r.id, r.milestone_name]))
       parents.forEach(parent => {
         const children = pRows.filter(r => r.parent_id === parent.id)
         if (children.length > 0) {
@@ -945,7 +944,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleDeleteBaseline = async (blId) => {
-    await supabase.from('project_milestones').delete().eq('baseline_id', blId)
+    const { error: mErr } = await supabase.from('project_milestones').delete().eq('baseline_id', blId)
+    if (mErr) { showToast(mErr.message, 'error'); return }
     const { error } = await supabase.from('milestone_baselines').delete().eq('id', blId)
     if (error) { showToast(error.message, 'error'); return }
     showToast('Baseline deleted.', 'success')
