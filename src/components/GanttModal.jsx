@@ -750,6 +750,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleAdd = async () => {
+    if (!activeBL) { showToast('No baseline selected.', 'error'); return }
     if (!addForm?.milestone_name?.trim()) return
     setAdding(true)
     const actual_start = addForm.actual_start || null
@@ -784,6 +785,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       .select('id, label, created_at')
       .single()
     if (error) { showToast(error.message, 'error'); return }
+    if (!data) { showToast('Failed to create baseline.', 'error'); return }
     setBaselines(prev => [...prev, data])
     setActiveBL(data.id)
     setNewBLName('')
@@ -796,6 +798,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [])
+
+  useEffect(() => {
+    setAddForm(null)
+  }, [activePhase])
 
   const phaseMilestones = milestones.filter(m => m.phase === activePhase)
 
