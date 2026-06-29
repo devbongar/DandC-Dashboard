@@ -229,7 +229,7 @@ function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToda
           )}
           {isEditing && (
             <div className="flex items-center gap-1 ml-1 flex-shrink-0">
-              <button onClick={onSave} className="text-[10px] font-bold text-[#ed6055] hover:text-[#d94f45] whitespace-nowrap">Save</button>
+              <button onClick={() => onSave(m.id)} className="text-[10px] font-bold text-[#ed6055] hover:text-[#d94f45] whitespace-nowrap">Save</button>
               <button onClick={onCancelEdit} className="text-[10px] text-gray-400 hover:text-gray-600">✕</button>
             </div>
           )}
@@ -813,7 +813,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     })
     const blLabel = baselines.find(b => b.id === activeBL)?.label ?? ''
     downloadWorkbook([{
-      data: exportRows.map(r => ({
+      rows: exportRows.map(r => ({
         phase:            MILESTONE_PHASE_MAP_OUT[r.phase] ?? r.phase,
         milestone_name:   r.milestone_name,
         parent_name:      r._parentName ?? '',
