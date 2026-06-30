@@ -943,6 +943,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [showDeps,     setShowDeps]     = useState(true)
   const [linkModal, setLinkModal] = useState(null)   // { fromId } when open
   const [linkForm,  setLinkForm]  = useState({ toId: '', type: 'FS' })
+  const [linking,   setLinking]   = useState(false)
   const [newBLName, setNewBLName]     = useState('')
   const [showNewBLModal, setShowNewBLModal] = useState(false)
   const [importing, setImporting]               = useState(false)
@@ -964,6 +965,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       setAddChildParentId(null)
       setAddChildPhase(null)
       setAddChildForm(null)
+      setLinkModal(null)
+      setLinkForm({ toId: '', type: 'FS' })
     }
     loadBaselines()
   }, [project.id])
@@ -1086,6 +1089,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setAddChildParentId(null)
     setAddChildPhase(null)
     setAddChildForm(null)
+    setLinkModal(null)
+    setLinkForm({ toId: '', type: 'FS' })
     setNewBLName('')
     setShowNewBLModal(false)
     showToast(`Baseline "${label}" created.`, 'success')
@@ -1228,7 +1233,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         .select('id, label, created_at')
         .eq('project_id', pid)
         .order('created_at', { ascending: true })
-      if (newBLs) { setBaselines(newBLs); setActiveBL(blId); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }
+      if (newBLs) { setBaselines(newBLs); setActiveBL(blId); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null); setLinkModal(null); setLinkForm({ toId: '', type: 'FS' }) }
       showToast(`Imported as "${label}".`, 'success')
     } catch (err) {
       showToast('Import failed: ' + err.message, 'error')
@@ -1250,6 +1255,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setAddChildParentId(null)
     setAddChildPhase(null)
     setAddChildForm(null)
+    setLinkModal(null)
+    setLinkForm({ toId: '', type: 'FS' })
   }
 
   useEffect(() => {
@@ -1315,18 +1322,27 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const handleCreateDep = async () => {
     if (!linkModal?.fromId || !linkForm.toId || !activeBL) return
     if (linkModal.fromId === linkForm.toId) { showToast('Cannot link a task to itself.', 'error'); return }
-    const { error } = await supabase.from('milestone_dependencies').insert({
-      project_id:  project.id,
-      baseline_id: activeBL,
-      from_id:     linkModal.fromId,
-      to_id:       linkForm.toId,
-      type:        linkForm.type,
-    })
-    if (error) { showToast(error.message, 'error'); return }
-    setLinkModal(null)
-    setLinkForm({ toId: '', type: 'FS' })
-    await loadMilestones(activeBL)
-    showToast('Dependency added.', 'success')
+    const alreadyExists = dependencies.some(
+      d => d.from_id === linkModal.fromId && d.to_id === linkForm.toId && d.type === linkForm.type
+    )
+    if (alreadyExists) { showToast('This dependency already exists.', 'error'); return }
+    setLinking(true)
+    try {
+      const { error } = await supabase.from('milestone_dependencies').insert({
+        project_id:  project.id,
+        baseline_id: activeBL,
+        from_id:     linkModal.fromId,
+        to_id:       linkForm.toId,
+        type:        linkForm.type,
+      })
+      if (error) { showToast(error.message, 'error'); return }
+      setLinkModal(null)
+      setLinkForm({ toId: '', type: 'FS' })
+      await loadMilestones(activeBL)
+      showToast('Dependency added.', 'success')
+    } finally {
+      setLinking(false)
+    }
   }
 
   const handleDeleteDep = async (depId) => {
@@ -1374,7 +1390,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           {baselines.length > 0 && (
             <select
               value={activeBL ?? ''}
-              onChange={e => { setActiveBL(e.target.value); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
+              onChange={e => { setActiveBL(e.target.value); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null); setLinkModal(null); setLinkForm({ toId: '', type: 'FS' }) }}
               className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
             >
               {baselines.map(b => (
@@ -1412,7 +1428,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             <>
               <select
                 value={activeBL ?? ''}
-                onChange={e => { setActiveBL(e.target.value); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
+                onChange={e => { setActiveBL(e.target.value); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null); setLinkModal(null); setLinkForm({ toId: '', type: 'FS' }) }}
                 className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
               >
                 {baselines.map(b => (
@@ -1760,7 +1776,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 Cancel
               </button>
               <button
-                disabled={!linkForm.toId}
+                disabled={!linkForm.toId || linking}
                 onClick={handleCreateDep}
                 className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >
