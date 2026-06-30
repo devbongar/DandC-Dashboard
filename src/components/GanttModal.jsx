@@ -189,7 +189,7 @@ function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDa
   )
 }
 
-function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false }) {
+function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null }) {
   const hasDates = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const bgBase   = isChild ? '#f9fafb' : '#ffffff'
 
@@ -228,26 +228,40 @@ function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToda
           style={{ width: labelW, minWidth: labelW, borderRight: showDates ? '1px solid #e5e7eb' : 'none', backgroundColor: 'inherit' }}
           className="flex items-center pr-2 flex-shrink-0 self-stretch"
         >
-          {isChild ? (
-            <div className="flex items-center flex-shrink-0" style={{ width: 28, alignSelf: 'stretch', position: 'relative' }}>
-              <div className="absolute left-3.5" style={{ top: 0, bottom: isLastChild ? '50%' : 0, width: 1.5, backgroundColor: '#d1d5db' }} />
-              <div className="absolute" style={{ left: '14px', top: '50%', width: 10, height: 1.5, backgroundColor: '#d1d5db' }} />
-            </div>
-          ) : (
-            <div className="flex-shrink-0" style={{ width: 28 }} />
-          )}
-          <span className={`flex-shrink-0 tabular-nums text-right mr-1.5 ${isChild ? 'text-[10px] text-gray-300 w-10' : 'text-xs font-semibold text-gray-400 w-6'}`}>
-            {isChild ? seq : `${seq}.`}
+          {/* Depth indent + expand/collapse toggle */}
+          <div className="flex items-center flex-shrink-0" style={{ width: 16 + depth * 16 }}>
+            {hasChildren ? (
+              <button
+                onClick={e => { e.stopPropagation(); onToggleCollapse(m.id) }}
+                className="flex items-center justify-center text-gray-300 hover:text-gray-500 transition"
+                style={{ width: 16, height: 16, flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              >
+                <span style={{ fontSize: 8, display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform .15s' }}>▼</span>
+              </button>
+            ) : (
+              <span style={{ width: 16, flexShrink: 0, display: 'inline-block' }} />
+            )}
+          </div>
+          <span className={`flex-shrink-0 tabular-nums text-right mr-1.5 ${depth > 0 ? 'text-[10px] text-gray-300 w-10' : 'text-xs font-semibold text-gray-400 w-6'}`}>
+            {depth > 0 ? seq : `${seq}.`}
           </span>
           {isEditing ? (
             <GInlineInput value={form.milestone_name} onChange={v => setForm(p => ({ ...p, milestone_name: v }))} />
           ) : (
             <p
-              className={`text-xs truncate leading-tight flex-1 min-w-0 ${isChild ? 'text-gray-500 pl-0.5' : 'font-bold text-gray-800'}`}
+              className={`text-xs truncate leading-tight flex-1 min-w-0 ${depth > 0 ? 'text-gray-500 pl-0.5' : 'font-bold text-gray-800'}`}
               title={m.milestone_name}
             >
               {m.milestone_name}
             </p>
+          )}
+          {isAdmin && !isEditing && depth < 3 && onAddChild && (
+            <button
+              onClick={e => { e.stopPropagation(); onAddChild(m.id, m.phase) }}
+              title="Add sub-task"
+              className="opacity-0 group-hover:opacity-100 ml-1 flex-shrink-0 text-gray-300 hover:text-[#ed6055] transition text-sm leading-none"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >+</button>
           )}
           {isAdmin && !isEditing && (
             <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition ml-1 flex-shrink-0">
@@ -377,7 +391,7 @@ function computeParentDates(children) {
   }
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -565,33 +579,78 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     )
 
     if (!isCollapsed) {
-      const parents = phaseMils.filter(m => !m.parent_id)
-      parents.forEach((parent, pi) => {
-        const children  = phaseMils.filter(m => m.parent_id === parent.id)
-        const m         = children.length ? { ...parent, ...computeParentDates(children) } : parent
-        const parentSeq = pi + 1
+      const flatNodes = buildTree(phaseMils, collapsedIds)
+
+      flatNodes.forEach((node) => {
+        // Roll up dates from direct children for parent display
+        const directChildren = flatNodes.filter(n => n.parent_id === node.id)
+        const displayM = (node.hasChildren && directChildren.length)
+          ? { ...node, ...computeParentDates(directChildren) }
+          : node
+
+        // Build sequence number by walking up the parent chain
+        const buildSeq = (n) => {
+          const siblings = flatNodes.filter(x => x.parent_id === n.parent_id && x.phase === n.phase)
+          const idx = siblings.indexOf(n) + 1
+          if (!n.parent_id) return String(idx)
+          const parentNode = flatNodes.find(x => x.id === n.parent_id)
+          return parentNode ? `${buildSeq(parentNode)}.${idx}` : String(idx)
+        }
+        const seq = buildSeq(node)
+
         rows.push(
           <MilestoneRow
-            key={m.id} m={m} seq={String(parentSeq)}
+            key={node.id}
+            m={displayM}
+            seq={seq}
+            depth={node.depth}
+            hasChildren={node.hasChildren}
+            isCollapsed={collapsedIds.has(node.id)}
+            onToggleCollapse={onToggleCollapse}
+            onAddChild={isAdmin ? onAddChild : null}
             toPx={toPx} chartPxWidth={chartPxWidth} gridDates={gridDates}
             todayPx={todayPx} showToday={showToday} todayStr={todayStr}
-            isChild={false} isLastChild={false} labelW={labelW} showDates={showDates}
-            isEditing={editId === m.id} form={form} setForm={setForm}
+            isChild={node.depth > 0} isLastChild={false}
+            labelW={labelW} showDates={showDates}
+            isEditing={editId === node.id} form={form} setForm={setForm}
             onSave={onSave} onCancelEdit={onCancelEdit} onEdit={onEdit} onDelete={onDelete}
             isAdmin={isAdmin}
           />
         )
-        children.forEach((child, ci) => rows.push(
-          <MilestoneRow
-            key={child.id} m={child} seq={`${parentSeq}.${ci + 1}`}
-            toPx={toPx} chartPxWidth={chartPxWidth} gridDates={gridDates}
-            todayPx={todayPx} showToday={showToday} todayStr={todayStr}
-            isChild={true} isLastChild={ci === children.length - 1} labelW={labelW} showDates={showDates}
-            isEditing={editId === child.id} form={form} setForm={setForm}
-            onSave={onSave} onCancelEdit={onCancelEdit} onEdit={onEdit} onDelete={onDelete}
-            isAdmin={isAdmin}
-          />
-        ))
+
+        // Inline add-child row immediately after the node whose id matches addChildParentId
+        if (addChildParentId === node.id) {
+          const childDepth = Math.min(node.depth + 1, 3)
+          rows.push(
+            <div key={`add-child-${node.id}`}
+                 className="flex border-b border-gray-100"
+                 style={{ width: totalW, minWidth: totalW, minHeight: 42, alignItems: 'center', background: '#fafbfd', display: 'flex' }}>
+              <div className="sticky left-0 flex items-center gap-2 bg-inherit"
+                   style={{ paddingLeft: 16 + childDepth * 16 }}>
+                <input
+                  autoFocus type="text"
+                  value={addChildForm?.milestone_name ?? ''}
+                  onChange={e => onAddChildFormChange(f => ({ ...f, milestone_name: e.target.value }))}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') onAddChildSave()
+                    if (e.key === 'Escape') onCancelAddChild()
+                  }}
+                  placeholder="Sub-task name…"
+                  className="px-2 py-1 text-xs rounded border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
+                  style={{ minWidth: 180 }}
+                />
+                <button onClick={onAddChildSave} disabled={addingChild}
+                        className="text-[10px] font-bold text-[#ed6055] hover:text-[#d94f45] disabled:opacity-50"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
+                  {addingChild ? '…' : 'Save'}
+                </button>
+                <button onClick={onCancelAddChild}
+                        className="text-[10px] text-gray-400 hover:text-gray-600"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
+              </div>
+            </div>
+          )
+        }
       })
 
       // Add-milestone row per phase
@@ -712,6 +771,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [milestones, setMilestones]   = useState([])
   const [loading, setLoading]         = useState(true)
   const [collapsedPhases, setCollapsedPhases] = useState(new Set())
+  const [collapsedIds,     setCollapsedIds]     = useState(new Set())
+  const [addChildParentId, setAddChildParentId] = useState(null)
+  const [addChildPhase,    setAddChildPhase]    = useState(null)
+  const [addChildForm,     setAddChildForm]     = useState(null)
+  const [addingChild,      setAddingChild]      = useState(false)
   const dateRangeKey = `gantt_dateRange_${project.id}`
   const [fromMonth, setFromMonthRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(dateRangeKey))?.from ?? '' } catch { return '' }
@@ -772,6 +836,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       setBaselines(bls)
       setActiveBL(bls.length > 0 ? bls[bls.length - 1].id : null)
       setAddForm(null)
+      setAddChildParentId(null)
+      setAddChildPhase(null)
+      setAddChildForm(null)
     }
     loadBaselines()
   }, [project.id])
@@ -891,6 +958,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setBaselines(prev => [...prev, data])
     setActiveBL(data.id)
     setAddForm(null)
+    setAddChildParentId(null)
+    setAddChildPhase(null)
+    setAddChildForm(null)
     setNewBLName('')
     setShowNewBLModal(false)
     showToast(`Baseline "${label}" created.`, 'success')
@@ -1033,7 +1103,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         .select('id, label, created_at')
         .eq('project_id', pid)
         .order('created_at', { ascending: true })
-      if (newBLs) { setBaselines(newBLs); setActiveBL(blId); setAddForm(null) }
+      if (newBLs) { setBaselines(newBLs); setActiveBL(blId); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }
       showToast(`Imported as "${label}".`, 'success')
     } catch (err) {
       showToast('Import failed: ' + err.message, 'error')
@@ -1052,6 +1122,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setBaselines(remaining)
     setActiveBL(remaining.length > 0 ? remaining[remaining.length - 1].id : null)
     setAddForm(null)
+    setAddChildParentId(null)
+    setAddChildPhase(null)
+    setAddChildForm(null)
   }
 
   useEffect(() => {
@@ -1066,6 +1139,52 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       next.has(key) ? next.delete(key) : next.add(key)
       return next
     })
+  }
+
+  const handleToggleCollapse = (id) => {
+    setCollapsedIds(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
+
+  const handleAddChild = async () => {
+    if (!activeBL || !addChildParentId) return
+    if (!addChildForm?.milestone_name?.trim()) return
+    setAddingChild(true)
+    try {
+      const { data: siblings, error: sibErr } = await supabase
+        .from('project_milestones')
+        .select('sort_order')
+        .eq('parent_id', addChildParentId)
+        .order('sort_order', { ascending: false })
+        .limit(1)
+      if (sibErr) { showToast(sibErr.message, 'error'); return }
+      const nextSort = siblings?.length ? (siblings[0].sort_order ?? 0) + 1 : 0
+      const { error } = await supabase.from('project_milestones').insert({
+        project_id:     project.id,
+        baseline_id:    activeBL,
+        phase:          addChildPhase,
+        parent_id:      addChildParentId,
+        milestone_name: addChildForm.milestone_name.trim(),
+        sort_order:     nextSort,
+      })
+      if (error) { showToast(error.message, 'error'); return }
+      setAddChildParentId(null)
+      setAddChildPhase(null)
+      setAddChildForm(null)
+      await loadMilestones(activeBL)
+      showToast('Sub-task added.', 'success')
+    } finally {
+      setAddingChild(false)
+    }
+  }
+
+  const handleCancelAddChild = () => {
+    setAddChildParentId(null)
+    setAddChildPhase(null)
+    setAddChildForm(null)
   }
 
   const overrideMin = fromMonth ? (() => { const [y, m] = fromMonth.split('-').map(Number); return new Date(y, m - 1, 1) })() : null
@@ -1106,7 +1225,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           {baselines.length > 0 && (
             <select
               value={activeBL ?? ''}
-              onChange={e => { setActiveBL(e.target.value); setAddForm(null) }}
+              onChange={e => { setActiveBL(e.target.value); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
               className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
             >
               {baselines.map(b => (
@@ -1144,7 +1263,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             <>
               <select
                 value={activeBL ?? ''}
-                onChange={e => { setActiveBL(e.target.value); setAddForm(null) }}
+                onChange={e => { setActiveBL(e.target.value); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
                 className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
               >
                 {baselines.map(b => (
@@ -1322,6 +1441,15 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             onAdd={handleAdd}
             adding={adding}
             activeBL={activeBL}
+            collapsedIds={collapsedIds}
+            onToggleCollapse={handleToggleCollapse}
+            onAddChild={(id, phase) => { setAddChildParentId(id); setAddChildPhase(phase); setAddChildForm({ milestone_name: '' }) }}
+            addChildParentId={addChildParentId}
+            addChildForm={addChildForm}
+            onAddChildFormChange={setAddChildForm}
+            onAddChildSave={handleAddChild}
+            onCancelAddChild={handleCancelAddChild}
+            addingChild={addingChild}
           />
         )}
       </div>
