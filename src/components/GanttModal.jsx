@@ -383,12 +383,9 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     .filter(Boolean)
     .map(d => parseDate(d).getTime())
 
-  if (allDates.length === 0) {
-    return <div className="text-center py-12 text-sm text-gray-400 italic">No dates set on any milestone.</div>
-  }
-
-  const rawMin  = new Date(Math.min(...allDates) - PAD)
-  const rawMax  = new Date(Math.max(...allDates) + PAD)
+  const hasDatesFallback = allDates.length === 0
+  const rawMin  = hasDatesFallback ? new Date() : new Date(Math.min(...allDates) - PAD)
+  const rawMax  = hasDatesFallback ? new Date(new Date().setFullYear(new Date().getFullYear() + 1)) : new Date(Math.max(...allDates) + PAD)
   const minDate = overrideMin ?? new Date(rawMin.getFullYear(), rawMin.getMonth(), rawMin.getDate())
   const maxDate = overrideMax ?? new Date(rawMax.getFullYear(), rawMax.getMonth(), rawMax.getDate() + 1)
 
@@ -646,12 +643,20 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   return (
     <div className="flex-1 min-h-0 overflow-auto">
       <div style={{ width: totalW, minWidth: totalW }}>
-        {/* Sticky axis header — sticks within this single scroll container */}
-        <div className="sticky top-0 z-40" style={{ backgroundColor: '#f8fafc' }}>
-          {axisHeader}
-        </div>
-        {/* Rows */}
+        {/* Sticky axis header — only when there are dates to show */}
+        {allDates.length > 0 && (
+          <div className="sticky top-0 z-40" style={{ backgroundColor: '#f8fafc' }}>
+            {axisHeader}
+          </div>
+        )}
+        {/* Rows — phase headers and add buttons always render */}
         {milestoneRows}
+        {/* No-dates placeholder — only when baseline is empty */}
+        {allDates.length === 0 && (
+          <div className="flex items-center justify-center py-12 text-sm text-gray-400">
+            Add milestones above to see the Gantt chart.
+          </div>
+        )}
       </div>
     </div>
   )
@@ -766,6 +771,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       const bls = data ?? []
       setBaselines(bls)
       setActiveBL(bls.length > 0 ? bls[bls.length - 1].id : null)
+      setAddForm(null)
     }
     loadBaselines()
   }, [project.id])
@@ -884,6 +890,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     if (!data) { showToast('Failed to create baseline.', 'error'); return }
     setBaselines(prev => [...prev, data])
     setActiveBL(data.id)
+    setAddForm(null)
     setNewBLName('')
     setShowNewBLModal(false)
     showToast(`Baseline "${label}" created.`, 'success')
@@ -1026,7 +1033,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         .select('id, label, created_at')
         .eq('project_id', pid)
         .order('created_at', { ascending: true })
-      if (newBLs) { setBaselines(newBLs); setActiveBL(blId) }
+      if (newBLs) { setBaselines(newBLs); setActiveBL(blId); setAddForm(null) }
       showToast(`Imported as "${label}".`, 'success')
     } catch (err) {
       showToast('Import failed: ' + err.message, 'error')
@@ -1044,6 +1051,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const remaining = baselines.filter(b => b.id !== blId)
     setBaselines(remaining)
     setActiveBL(remaining.length > 0 ? remaining[remaining.length - 1].id : null)
+    setAddForm(null)
   }
 
   useEffect(() => {
@@ -1098,7 +1106,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           {baselines.length > 0 && (
             <select
               value={activeBL ?? ''}
-              onChange={e => setActiveBL(e.target.value)}
+              onChange={e => { setActiveBL(e.target.value); setAddForm(null) }}
               className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
             >
               {baselines.map(b => (
@@ -1136,7 +1144,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             <>
               <select
                 value={activeBL ?? ''}
-                onChange={e => setActiveBL(e.target.value)}
+                onChange={e => { setActiveBL(e.target.value); setAddForm(null) }}
                 className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
               >
                 {baselines.map(b => (
