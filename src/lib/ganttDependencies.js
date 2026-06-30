@@ -85,7 +85,7 @@ export function calcArrowPath(type, fromBar, toBar) {
   }
   if (type === 'SS') {
     // Left edge of A → left edge of B
-    const mx = Math.min(fx1 - IND, tx1 - IND)
+    const mx = Math.max(0, Math.min(fx1 - IND, tx1 - IND))
     return `M ${fx1} ${fy} L ${mx} ${fy} L ${mx} ${ty} L ${tx1} ${ty}`
   }
   if (type === 'FF') {
@@ -95,7 +95,7 @@ export function calcArrowPath(type, fromBar, toBar) {
   }
   if (type === 'SF') {
     // Left edge of A → right edge of B
-    const mx = Math.min(fx1 - IND, tx2 - IND)
+    const mx = Math.max(0, Math.min(fx1 - IND, tx2 - IND))
     return `M ${fx1} ${fy} L ${mx} ${fy} L ${mx} ${ty} L ${tx2} ${ty}`
   }
   return ''
