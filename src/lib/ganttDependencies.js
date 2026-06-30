@@ -57,15 +57,21 @@ export function buildTree(milestones, collapsedIds = new Set()) {
 }
 
 // Returns true when the dependency constraint is violated using planned dates.
-// Uses ISO string comparison (lexicographic = chronological for YYYY-MM-DD).
-export function isViolated(type, fromM, toM) {
+// lagDays: successor must start/end this many days after the anchor; default 0.
+export function isViolated(type, fromM, toM, lagDays = 0) {
   const fS = fromM.planned_start, fE = fromM.planned_end
   const tS = toM.planned_start,   tE = toM.planned_end
   if (!fS || !fE || !tS || !tE) return false
-  if (type === 'FS') return tS < fE   // to starts before from ends
-  if (type === 'SS') return tS < fS   // to starts before from starts
-  if (type === 'FF') return tE < fE   // to ends before from ends
-  if (type === 'SF') return tE < fS   // to ends before from starts
+  const addDays = (isoStr, days) => {
+    if (!days) return isoStr
+    const d = new Date(isoStr + 'T00:00:00')
+    d.setDate(d.getDate() + days)
+    return d.toISOString().slice(0, 10)
+  }
+  if (type === 'FS') return tS < addDays(fE, lagDays)
+  if (type === 'SS') return tS < addDays(fS, lagDays)
+  if (type === 'FF') return tE < addDays(fE, lagDays)
+  if (type === 'SF') return tE < addDays(fS, lagDays)
   return false
 }
 
@@ -99,4 +105,40 @@ export function calcArrowPath(type, fromBar, toBar) {
     return `M ${fx1} ${fy} L ${mx} ${fy} L ${mx} ${ty} L ${tx2} ${ty}`
   }
   return ''
+}
+
+// Parses predecessor text like "3FS,2SS+5,1" into structured objects.
+// rowNumToId: Map<number, string> mapping display row number to milestone UUID.
+// Returns array of { fromId, type, lagDays } or null if any token is invalid.
+export function parsePredecessors(text, rowNumToId) {
+  if (!text?.trim()) return []
+  const tokens = text.split(',').map(s => s.trim()).filter(Boolean)
+  const result = []
+  for (const token of tokens) {
+    const m = token.match(/^(\d+)(FS|SS|FF|SF)?(\+(\d+))?$/i)
+    if (!m) return null
+    const rowNum  = parseInt(m[1], 10)
+    const type    = m[2]?.toUpperCase() ?? 'FS'
+    const lagDays = m[4] ? parseInt(m[4], 10) : 0
+    const fromId  = rowNumToId.get(rowNum)
+    if (!fromId) return null
+    result.push({ fromId, type, lagDays })
+  }
+  return result
+}
+
+// Formats an array of dependency rows into predecessor text like "3FS,2SS+5".
+// idToRowNum: Map<string, number> mapping milestone UUID to display row number.
+// deps: array of { from_id, type, lag_days } (DB shape).
+export function formatPredecessors(deps, idToRowNum) {
+  if (!deps?.length) return ''
+  return deps
+    .map(d => {
+      const rowNum = idToRowNum.get(d.from_id)
+      if (rowNum == null) return null
+      const lag = (d.lag_days ?? 0) > 0 ? `+${d.lag_days}` : ''
+      return `${rowNum}${d.type}${lag}`
+    })
+    .filter(Boolean)
+    .join(',')
 }
