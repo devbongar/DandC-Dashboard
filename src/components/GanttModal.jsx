@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
+import { buildTree } from '../lib/ganttDependencies'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
@@ -16,6 +17,10 @@ const PHASE_COLORS = {
   execution_monitoring: '#ed6055',
   closeout:             '#22c55e',
 }
+
+const TASK_ROW_H  = 52   // px — matches min-h-[52px] on MilestoneRow date cells
+const PHASE_ROW_H = 36   // px — collapsible phase group header height
+const AXIS_H      = 56   // px — sticky month/year axis header height
 
 const PAD     = 7 * 86400000
 const LABEL_W = 320
@@ -154,6 +159,33 @@ function GanttBar({ start, end, color, toPx }) {
       style={{ left, width: Math.max(w, 2), backgroundColor: color, top: '50%', transform: 'translateY(-50%)', height: 18 }}
       title={`${start} → ${end}`}
     />
+  )
+}
+
+function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDates, chartPxWidth }) {
+  return (
+    <div
+      className="flex items-center cursor-pointer select-none"
+      style={{ width: totalW, minWidth: totalW, height: PHASE_ROW_H, backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
+      onClick={onToggle}
+    >
+      <div
+        className="sticky left-0 z-20 flex items-center gap-1.5 self-stretch flex-shrink-0"
+        style={{ width: labelW + (showDates ? DATE_COLS_W : 0), minWidth: labelW + (showDates ? DATE_COLS_W : 0), paddingLeft: 12, borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}
+      >
+        <span
+          style={{
+            fontSize: 9, color: '#94a3b8', display: 'inline-block',
+            transform: isCollapsed ? 'rotate(-90deg)' : 'none',
+            transition: 'transform .2s',
+          }}
+        >▼</span>
+        <span style={{ fontSize: 11, fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '.06em' }}>
+          {label}
+        </span>
+      </div>
+      <div style={{ width: chartPxWidth, minWidth: chartPxWidth, height: '100%', backgroundColor: '#f8fafc' }} />
+    </div>
   )
 }
 
@@ -345,7 +377,7 @@ function computeParentDates(children) {
   }
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {} }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -516,42 +548,100 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     </>
   )
 
-  const milestoneRows = (() => {
-    const parents = milestones.filter(m => !m.parent_id)
+  const milestoneRows = PHASES.flatMap(({ key, label }) => {
+    const phaseMils   = milestones.filter(m => m.phase === key)
+    const isCollapsed = collapsedPhases.has(key)
     const rows = []
-    parents.forEach((parent, pi) => {
-      const parentSeq = pi + 1
-      const children  = milestones.filter(m => m.parent_id === parent.id)
-      const m = children.length ? { ...parent, ...computeParentDates(children) } : parent
-      rows.push({ m, isChild: false, isLastChild: false, seq: String(parentSeq) })
-      children.forEach((child, ci) => rows.push({ m: child, isChild: true, isLastChild: ci === children.length - 1, seq: `${parentSeq}.${ci + 1}` }))
-    })
-    return rows.map(({ m, isChild, isLastChild, seq }) => (
-      <MilestoneRow
-        key={m.id}
-        m={m}
-        seq={seq}
-        toPx={toPx}
-        chartPxWidth={chartPxWidth}
-        gridDates={gridDates}
-        todayPx={todayPx}
-        showToday={showToday}
-        todayStr={todayStr}
-        isChild={isChild}
-        isLastChild={isLastChild}
+
+    // Phase group header
+    rows.push(
+      <PhaseGroupHeader
+        key={`phase-${key}`}
+        label={label}
+        isCollapsed={isCollapsed}
+        onToggle={() => onTogglePhase(key)}
+        totalW={totalW}
         labelW={labelW}
         showDates={showDates}
-        isEditing={editId === m.id}
-        form={form}
-        setForm={setForm}
-        onSave={onSave}
-        onCancelEdit={onCancelEdit}
-        onEdit={onEdit}
-        onDelete={onDelete}
-        isAdmin={isAdmin}
+        chartPxWidth={chartPxWidth}
       />
-    ))
-  })()
+    )
+
+    if (!isCollapsed) {
+      const parents = phaseMils.filter(m => !m.parent_id)
+      parents.forEach((parent, pi) => {
+        const children  = phaseMils.filter(m => m.parent_id === parent.id)
+        const m         = children.length ? { ...parent, ...computeParentDates(children) } : parent
+        const parentSeq = pi + 1
+        rows.push(
+          <MilestoneRow
+            key={m.id} m={m} seq={String(parentSeq)}
+            toPx={toPx} chartPxWidth={chartPxWidth} gridDates={gridDates}
+            todayPx={todayPx} showToday={showToday} todayStr={todayStr}
+            isChild={false} isLastChild={false} labelW={labelW} showDates={showDates}
+            isEditing={editId === m.id} form={form} setForm={setForm}
+            onSave={onSave} onCancelEdit={onCancelEdit} onEdit={onEdit} onDelete={onDelete}
+            isAdmin={isAdmin}
+          />
+        )
+        children.forEach((child, ci) => rows.push(
+          <MilestoneRow
+            key={child.id} m={child} seq={`${parentSeq}.${ci + 1}`}
+            toPx={toPx} chartPxWidth={chartPxWidth} gridDates={gridDates}
+            todayPx={todayPx} showToday={showToday} todayStr={todayStr}
+            isChild={true} isLastChild={ci === children.length - 1} labelW={labelW} showDates={showDates}
+            isEditing={editId === child.id} form={form} setForm={setForm}
+            onSave={onSave} onCancelEdit={onCancelEdit} onEdit={onEdit} onDelete={onDelete}
+            isAdmin={isAdmin}
+          />
+        ))
+      })
+
+      // Add-milestone row per phase
+      if (isAdmin && activeBL) {
+        if (addForm?.phase === key) {
+          rows.push(
+            <div key={`add-${key}`} className="flex items-center gap-2 flex-wrap px-4 py-2 border-b border-gray-100 bg-gray-50"
+                 style={{ width: totalW, minWidth: totalW }}>
+              <div className="sticky left-0 flex items-center gap-2 flex-wrap bg-gray-50" style={{ minWidth: labelW }}>
+                <input
+                  autoFocus type="text"
+                  value={addForm.milestone_name ?? ''}
+                  onChange={e => onAddFormChange(f => ({ ...f, milestone_name: e.target.value }))}
+                  placeholder="Milestone name…"
+                  className="flex-1 min-w-[160px] px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
+                />
+                <button
+                  onClick={onAdd} disabled={adding}
+                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50"
+                >{adding ? '…' : 'Save'}</button>
+                <button
+                  onClick={() => onAddFormChange(null)}
+                  className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600"
+                >Cancel</button>
+              </div>
+            </div>
+          )
+        } else {
+          rows.push(
+            <div key={`add-btn-${key}`}
+                 style={{ width: totalW, minWidth: totalW, height: 32, display: 'flex', alignItems: 'center', borderBottom: '1px solid #f9fafb' }}>
+              <div className="sticky left-0" style={{ paddingLeft: 16 }}>
+                <button
+                  onClick={() => onAddFormChange({ phase: key, milestone_name: '' })}
+                  className="text-[11px] font-semibold text-gray-400 hover:text-[#ed6055] transition flex items-center gap-1"
+                >
+                  <span className="text-base leading-none">+</span> Add milestone
+                </button>
+              </div>
+            </div>
+          )
+        }
+      }
+    }
+
+    return rows
+  })
 
   return (
     <div className="flex-1 min-h-0 overflow-auto">
@@ -616,7 +706,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [activeBL, setActiveBL]       = useState(null)
   const [milestones, setMilestones]   = useState([])
   const [loading, setLoading]         = useState(true)
-  const [activePhase, setActivePhase] = useState('initiation')
+  const [collapsedPhases, setCollapsedPhases] = useState(new Set())
   const dateRangeKey = `gantt_dateRange_${project.id}`
   const [fromMonth, setFromMonthRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(dateRangeKey))?.from ?? '' } catch { return '' }
@@ -702,7 +792,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const actual_end   = form.actual_end   || null
     const payload = {
       project_id:      project.id,
-      phase:           activePhase,
+      phase:           form.phase,
       milestone_name:  form.milestone_name?.trim(),
       planned_start:   form.planned_start   || null,
       planned_end:     form.planned_end     || null,
@@ -739,6 +829,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const handleEdit = (m) => {
     setForm({
       milestone_name:  m.milestone_name,
+      phase:           m.phase,
       planned_start:   m.planned_start   ?? '',
       planned_end:     m.planned_end     ?? '',
       actual_start:    m.actual_start    ?? '',
@@ -755,6 +846,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
   const handleAdd = async () => {
     if (!activeBL) { showToast('No baseline selected.', 'error'); return }
+    if (!addForm?.phase) return
     if (!addForm?.milestone_name?.trim()) return
     setAdding(true)
     const actual_start = addForm.actual_start || null
@@ -762,7 +854,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const payload = {
       project_id:      project.id,
       baseline_id:     activeBL,
-      phase:           activePhase,
+      phase:           addForm.phase,
       milestone_name:  addForm.milestone_name.trim(),
       planned_start:   addForm.planned_start   || null,
       planned_end:     addForm.planned_end     || null,
@@ -770,7 +862,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       actual_end,
       projected_start: actual_start ?? (addForm.projected_start || null),
       projected_end:   actual_end   ?? (addForm.projected_end   || null),
-      sort_order:      milestones.filter(m => m.phase === activePhase).length,
+      sort_order:      milestones.filter(m => m.phase === addForm.phase).length,
     }
     const { error } = await supabase.from('project_milestones').insert(payload)
     setAdding(false)
@@ -960,11 +1052,13 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  useEffect(() => {
-    setAddForm(null)
-  }, [activePhase])
-
-  const phaseMilestones = milestones.filter(m => m.phase === activePhase)
+  const handleTogglePhase = (key) => {
+    setCollapsedPhases(prev => {
+      const next = new Set(prev)
+      next.has(key) ? next.delete(key) : next.add(key)
+      return next
+    })
+  }
 
   const overrideMin = fromMonth ? (() => { const [y, m] = fromMonth.split('-').map(Number); return new Date(y, m - 1, 1) })() : null
   const overrideMax = toMonth   ? (() => { const [y, m] = toMonth.split('-').map(Number);   return new Date(y, m, 0) })()    : null
@@ -973,31 +1067,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   return (
     <>
       <GImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
-      {/* Phase tabs */}
-      <div className="px-2 sm:px-6 pt-3 pb-0 flex gap-1 border-b border-gray-100 flex-shrink-0 overflow-x-auto overflow-y-hidden">
-        {PHASES.map(p => {
-          const count  = milestones.filter(m => m.phase === p.key).length
-          const active = activePhase === p.key
-          const mobileLabel = p.key === 'execution_monitoring' ? 'Exec. & Mon.' : p.label
-          return (
-            <button
-              key={p.key}
-              onClick={() => setActivePhase(p.key)}
-              className={`px-3 py-2 text-xs font-semibold transition flex items-center gap-1.5 border-b-2 -mb-px whitespace-nowrap flex-shrink-0 ${
-                active
-                  ? 'border-[#ed6055] text-[#ed6055]'
-                  : 'border-transparent text-gray-400 hover:text-gray-600'
-              }`}
-            >
-              <span className="sm:hidden">{mobileLabel}</span>
-              <span className="hidden sm:inline">{p.label}</span>
-              <span className={`text-[10px] font-bold px-1 py-0.5 rounded ${
-                active ? 'bg-[#ed6055]/10 text-[#ed6055]' : 'text-gray-300'
-              }`}>{count}</span>
-            </button>
-          )
-        })}
-      </div>
 
       {/* Toolbar */}
       <div className="bg-gray-50 border-b border-gray-100 flex-shrink-0">
@@ -1220,13 +1289,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           <div className="flex-1 flex items-center justify-center text-sm text-gray-400 italic">
             No milestone data yet. Import milestones from the project detail view.
           </div>
-        ) : phaseMilestones.length === 0 ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-gray-400 italic">
-            No milestones for {PHASES.find(p => p.key === activePhase)?.label}.
-          </div>
         ) : (
           <GanttChart
-            milestones={phaseMilestones}
+            milestones={milestones}
             overrideMin={overrideMin}
             overrideMax={overrideMax}
             timeScale={timeScale}
@@ -1242,39 +1307,16 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             onDelete={(id) => setDeleteId(id)}
             isAdmin={isAdmin}
             showToast={showToast}
+            collapsedPhases={collapsedPhases}
+            onTogglePhase={handleTogglePhase}
+            addForm={addForm}
+            onAddFormChange={setAddForm}
+            onAdd={handleAdd}
+            adding={adding}
+            activeBL={activeBL}
           />
         )}
       </div>
-      {/* Add milestone row — admin only, visible when a baseline is active */}
-      {isAdmin && activeBL && (
-        <div className="px-6 py-2 border-t border-gray-100 bg-white flex-shrink-0">
-          {addForm ? (
-            <div className="flex items-center gap-2 flex-wrap">
-              <input
-                autoFocus
-                type="text"
-                value={addForm.milestone_name ?? ''}
-                onChange={e => setAddForm(p => ({ ...p, milestone_name: e.target.value }))}
-                placeholder="Milestone name…"
-                className="flex-1 min-w-[160px] px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
-                onKeyDown={e => { if (e.key === 'Enter') handleAdd(); if (e.key === 'Escape') setAddForm(null) }}
-              />
-              <button onClick={handleAdd} disabled={adding} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] px-2 py-1.5 disabled:opacity-50">
-                {adding ? 'Adding…' : 'Add'}
-              </button>
-              <button onClick={() => setAddForm(null)} className="text-xs text-gray-400 hover:text-gray-600 px-2 py-1.5">Cancel</button>
-            </div>
-          ) : (
-            <button
-              onClick={() => setAddForm({ milestone_name: '', planned_start: '', planned_end: '', actual_start: '', actual_end: '', projected_start: '', projected_end: '' })}
-              className="flex items-center gap-1.5 text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-              Add milestone
-            </button>
-          )}
-        </div>
-      )}
       {deleteId !== null && (
         <GConfirmDeleteModal
           onConfirm={() => { handleDelete(deleteId); setDeleteId(null) }}
