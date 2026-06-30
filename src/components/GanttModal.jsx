@@ -583,9 +583,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
 
       flatNodes.forEach((node) => {
         // Roll up dates from direct children for parent display
-        const directChildren = flatNodes.filter(n => n.parent_id === node.id)
-        const displayM = (node.hasChildren && directChildren.length)
-          ? { ...node, ...computeParentDates(directChildren) }
+        const displayM = (node.hasChildren && node.children.length)
+          ? { ...node, ...computeParentDates(node.children) }
           : node
 
         // Build sequence number by walking up the parent chain
@@ -639,7 +638,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                   className="px-2 py-1 text-xs rounded border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
                   style={{ minWidth: 180 }}
                 />
-                <button onClick={onAddChildSave} disabled={addingChild}
+                <button onClick={onAddChildSave} disabled={addingChild || !addChildForm?.milestone_name?.trim()}
                         className="text-[10px] font-bold text-[#ed6055] hover:text-[#d94f45] disabled:opacity-50"
                         style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                   {addingChild ? '…' : 'Save'}
