@@ -407,7 +407,7 @@ function buildTicks(minDate, maxDate, timeScale) {
     while (cur <= maxDate) { if (cur >= minDate) ticks.push(new Date(cur)); cur.setDate(cur.getDate() + 7) }
   } else {
     const cur = new Date(minDate.getFullYear(), minDate.getMonth(), 1)
-    while (cur <= maxDate) { if (cur >= minDate) ticks.push(new Date(cur)); cur.setDate(cur.getDate() + 7) }
+    while (cur <= maxDate) { if (cur >= minDate) ticks.push(new Date(cur)); cur.setMonth(cur.getMonth() + 1) }
   }
   return ticks
 }
@@ -1097,33 +1097,37 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleExport = async () => {
-    const exportRows = []
-    PHASES.forEach(({ key: phase }) => {
-      const pRows   = milestones.filter(r => r.phase === phase)
-      const parents = pRows.filter(r => !r.parent_id)
-      parents.forEach(parent => {
-        const children = pRows.filter(r => r.parent_id === parent.id)
-        if (children.length > 0) {
-          children.forEach(c => exportRows.push({ ...c, _parentName: parent.milestone_name }))
-        } else {
-          exportRows.push({ ...parent, _parentName: null })
-        }
-      })
+    const allVisible = buildTree(milestones, new Set())
+
+    const buildSeqForExport = (node, allNodes) => {
+      const siblings = allNodes.filter(x => x.parent_id === node.parent_id && x.phase === node.phase)
+      const idx = siblings.indexOf(node) + 1
+      if (!node.parent_id) return String(idx)
+      const parentNode = allNodes.find(x => x.id === node.parent_id)
+      return parentNode ? `${buildSeqForExport(parentNode, allNodes)}.${idx}` : String(idx)
+    }
+
+    const exportRows = allVisible.map(node => {
+      const parentNode = node.parent_id ? allVisible.find(x => x.id === node.parent_id) : null
+      return {
+        seq:             buildSeqForExport(node, allVisible),
+        phase:           MILESTONE_PHASE_MAP_OUT?.[node.phase] ?? node.phase,
+        milestone_name:  node.milestone_name,
+        parent_name:     parentNode?.milestone_name ?? '',
+        planned_start:   node.planned_start   ?? '',
+        planned_end:     node.planned_end     ?? '',
+        actual_start:    node.actual_start    ?? '',
+        actual_end:      node.actual_end      ?? '',
+        projected_start: node.projected_start ?? '',
+        projected_end:   node.projected_end   ?? '',
+      }
     })
+
     const blLabel = baselines.find(b => b.id === activeBL)?.label ?? ''
     downloadWorkbook([{
-      rows: exportRows.map(r => ({
-        phase:            MILESTONE_PHASE_MAP_OUT[r.phase] ?? r.phase,
-        milestone_name:   r.milestone_name,
-        parent_name:      r._parentName ?? '',
-        planned_start:    r.planned_start    ?? '',
-        planned_end:      r.planned_end      ?? '',
-        actual_start:     r.actual_start     ?? '',
-        actual_end:       r.actual_end       ?? '',
-        projected_start:  r.projected_start  ?? '',
-        projected_end:    r.projected_end    ?? '',
-      })),
+      rows: exportRows,
       columns: [
+        { key: 'seq',             header: 'Seq' },
         { key: 'phase',           header: 'Phase' },
         { key: 'milestone_name',  header: 'Milestone Name' },
         { key: 'parent_name',     header: 'Parent Milestone' },
@@ -1790,7 +1794,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   )
 }
 
-export default function GanttModal({ project, onClose }) {
+export default function GanttModal({ project, onClose, isAdmin = false, showToast = () => {} }) {
   useEffect(() => {
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = '' }
@@ -1845,7 +1849,7 @@ export default function GanttModal({ project, onClose }) {
             </button>
           </div>
         </div>
-        <GanttContent project={project} />
+        <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} />
       </div>
     </div>
   )
