@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
-import { buildTree } from '../lib/ganttDependencies'
+import { buildTree, isViolated, calcArrowPath } from '../lib/ganttDependencies'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
@@ -391,7 +391,7 @@ function computeParentDates(children) {
   }
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], showDeps = true }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -698,9 +698,32 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     return rows
   })
 
+  // Compute y-center of each milestone row for SVG arrow anchoring.
+  // Walk the same order that milestoneRows renders: phase header, then flatNodes, then add rows.
+  // AXIS_H is NOT included here — the SVG is positioned with top=AXIS_H, so y=0 in SVG = top of first row.
+  const yCenterById = {}
+  let yAcc = 0
+  PHASES.forEach(({ key }) => {
+    yAcc += PHASE_ROW_H  // phase group header
+    if (!collapsedPhases.has(key)) {
+      const phaseMils = milestones.filter(m => m.phase === key)
+      const flatNodes = buildTree(phaseMils, collapsedIds)
+      flatNodes.forEach(node => {
+        yCenterById[node.id] = yAcc + TASK_ROW_H / 2
+        yAcc += TASK_ROW_H
+        if (addChildParentId === node.id) yAcc += 42  // inline add-child row
+      })
+      // add-milestone button or form row per phase
+      if (isAdmin && activeBL) {
+        yAcc += addForm?.phase === key ? 48 : 32
+      }
+    }
+  })
+  const svgH = yAcc
+
   return (
     <div className="flex-1 min-h-0 overflow-auto">
-      <div style={{ width: totalW, minWidth: totalW }}>
+      <div style={{ width: totalW, minWidth: totalW, position: 'relative' }}>
         {/* Sticky axis header — only when there are dates to show */}
         {allDates.length > 0 && (
           <div className="sticky top-0 z-40" style={{ backgroundColor: '#f8fafc' }}>
@@ -709,6 +732,66 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         )}
         {/* Rows — phase headers and add buttons always render */}
         {milestoneRows}
+        {/* SVG dependency arrow overlay */}
+        {showDeps && dependencies.length > 0 && (
+          <svg
+            style={{
+              position: 'absolute',
+              top: AXIS_H,
+              left: labelW + (showDates ? DATE_COLS_W : 0),
+              pointerEvents: 'none',
+              zIndex: 2,
+              overflow: 'visible',
+            }}
+            width={chartPxWidth}
+            height={svgH}
+          >
+            <defs>
+              <marker id="arr-coral" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L0,7 L7,3.5 z" fill="#ed6055"/>
+              </marker>
+              <marker id="arr-red" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+                <path d="M0,0 L0,7 L7,3.5 z" fill="#ef4444"/>
+              </marker>
+            </defs>
+
+            {dependencies.map(dep => {
+              const fromM = milestones.find(m => m.id === dep.from_id)
+              const toM   = milestones.find(m => m.id === dep.to_id)
+              if (!fromM || !toM) return null
+              const fy = yCenterById[dep.from_id]
+              const ty = yCenterById[dep.to_id]
+              if (fy == null || ty == null) return null  // one row is in a collapsed group
+
+              const toDate = s => s ? new Date(s + 'T00:00:00') : null
+              const fS = toDate(fromM.planned_start)
+              const fE = toDate(fromM.planned_end)
+              const tS = toDate(toM.planned_start)
+              const tE = toDate(toM.planned_end)
+              if (!fS || !fE || !tS || !tE) return null
+
+              const fx1 = toPx(fS), fx2 = toPx(fE)
+              const tx1 = toPx(tS), tx2 = toPx(tE)
+              const violated = isViolated(dep.type, fromM, toM)
+              const path     = calcArrowPath(dep.type, { x1: fx1, x2: fx2, yMid: fy }, { x1: tx1, x2: tx2, yMid: ty })
+              const color    = violated ? '#ef4444' : '#ed6055'
+              const markerId = violated ? 'arr-red' : 'arr-coral'
+
+              return (
+                <path
+                  key={dep.id}
+                  d={path}
+                  stroke={color}
+                  strokeWidth={1.5}
+                  fill="none"
+                  strokeDasharray={violated ? '5,3' : undefined}
+                  markerEnd={`url(#${markerId})`}
+                  opacity={0.85}
+                />
+              )
+            })}
+          </svg>
+        )}
         {/* No-dates placeholder — only when baseline is empty */}
         {allDates.length === 0 && (
           <div className="flex items-center justify-center py-12 text-sm text-gray-400">
@@ -817,6 +900,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [showDates, setShowDates] = useState(true)
   const [addForm, setAddForm]         = useState(null)  // null = hidden; {} = showing add row
   const [adding, setAdding]           = useState(false)
+  const [dependencies, setDependencies] = useState([])
+  const [showDeps,     setShowDeps]     = useState(true)
   const [newBLName, setNewBLName]     = useState('')
   const [showNewBLModal, setShowNewBLModal] = useState(false)
   const [importing, setImporting]               = useState(false)
@@ -844,13 +929,13 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
   const loadMilestones = async (blId) => {
     setLoading(true)
-    const { data } = await supabase
-      .from('project_milestones')
-      .select('*')
-      .eq('project_id', project.id)
-      .eq('baseline_id', blId ?? activeBL)
-      .order('sort_order')
-    setMilestones(data ?? [])
+    const resolvedId = blId ?? activeBL
+    const [{ data: ms }, { data: deps }] = await Promise.all([
+      supabase.from('project_milestones').select('*').eq('project_id', project.id).eq('baseline_id', resolvedId).order('sort_order'),
+      supabase.from('milestone_dependencies').select('*').eq('baseline_id', resolvedId),
+    ])
+    setMilestones(ms ?? [])
+    setDependencies(deps ?? [])
     setLoading(false)
   }
 
@@ -1354,6 +1439,17 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
               {showDates ? 'Hide dates' : 'Show dates'}
             </button>
 
+            <button
+              onClick={() => setShowDeps(v => !v)}
+              title={showDeps ? 'Hide dependency arrows' : 'Show dependency arrows'}
+              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+              </svg>
+              {showDeps ? 'Hide deps' : 'Show deps'}
+            </button>
+
             <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
 
             {/* Delete baseline */}
@@ -1449,6 +1545,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             onAddChildSave={handleAddChild}
             onCancelAddChild={handleCancelAddChild}
             addingChild={addingChild}
+            dependencies={dependencies}
+            showDeps={showDeps}
           />
         )}
       </div>
