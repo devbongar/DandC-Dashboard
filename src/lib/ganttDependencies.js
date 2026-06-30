@@ -12,7 +12,7 @@ export const DEP_TYPES = [
 // Returns nodes in depth-first display order, each with:
 //   .depth (0–3), .children (array), .hasChildren (bool)
 export function buildTree(milestones, collapsedIds = new Set()) {
-  if (!milestones.length) return []
+  if (!Array.isArray(milestones) || !milestones.length) return []
 
   const byId = {}
   milestones.forEach(m => {
@@ -29,11 +29,13 @@ export function buildTree(milestones, collapsedIds = new Set()) {
     }
   })
 
-  function assignDepth(node, d) {
+  function assignDepth(node, d, visited = new Set()) {
+    if (visited.has(node.id)) return
+    visited.add(node.id)
     node.depth = Math.min(d, 3) // cap at depth 3 (level 4)
     node.children
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      .forEach(c => assignDepth(c, d + 1))
+      .forEach(c => assignDepth(c, d + 1, visited))
   }
   roots
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
