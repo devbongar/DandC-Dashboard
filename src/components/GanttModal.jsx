@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
-import { buildTree, isViolated, calcArrowPath } from '../lib/ganttDependencies'
+import { buildTree, isViolated, calcArrowPath, DEP_TYPES } from '../lib/ganttDependencies'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
@@ -189,7 +189,7 @@ function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDa
   )
 }
 
-function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null }) {
+function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, onLink = null, dependencies = [], allMilestones = [], onDeleteDep = () => {} }) {
   const hasDates = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const bgBase   = isChild ? '#f9fafb' : '#ffffff'
 
@@ -255,6 +255,41 @@ function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToda
               {m.milestone_name}
             </p>
           )}
+          {isAdmin && !isEditing && onLink && (
+            <button
+              onClick={e => { e.stopPropagation(); onLink(m.id) }}
+              title="Add dependency"
+              className="opacity-0 group-hover:opacity-100 flex-shrink-0 text-gray-300 hover:text-[#ed6055] transition ml-1"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            >
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+              </svg>
+            </button>
+          )}
+          {(() => {
+            const incoming = dependencies.filter(d => d.to_id === m.id)
+            if (!incoming.length) return null
+            return incoming.map(dep => {
+              const fromM    = allMilestones.find(x => x.id === dep.from_id)
+              const violated = fromM ? isViolated(dep.type, fromM, m) : false
+              const fromName = fromM?.milestone_name ?? '?'
+              return (
+                <span
+                  key={dep.id}
+                  onClick={e => { e.stopPropagation(); if (isAdmin) onDeleteDep(dep.id) }}
+                  title={`${violated ? '⚠ Violated — ' : ''}${dep.type}: depends on "${fromName}"${isAdmin ? '. Click to remove.' : ''}`}
+                  className={`text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0 cursor-pointer select-none ${
+                    violated
+                      ? 'bg-red-50 text-red-500'
+                      : `bg-gray-100 text-gray-400 ${isAdmin ? 'hover:bg-red-50 hover:text-red-400' : ''}`
+                  }`}
+                >
+                  ←{dep.type}
+                </span>
+              )
+            })
+          })()}
           {isAdmin && !isEditing && depth < 3 && onAddChild && (
             <button
               onClick={e => { e.stopPropagation(); onAddChild(m.id, m.phase) }}
@@ -391,7 +426,7 @@ function computeParentDates(children) {
   }
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], showDeps = true }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], showDeps = true, onLink = null, onDeleteDep = () => {} }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -614,6 +649,10 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             isEditing={editId === node.id} form={form} setForm={setForm}
             onSave={onSave} onCancelEdit={onCancelEdit} onEdit={onEdit} onDelete={onDelete}
             isAdmin={isAdmin}
+            onLink={onLink}
+            dependencies={dependencies}
+            allMilestones={milestones}
+            onDeleteDep={onDeleteDep}
           />
         )
 
@@ -902,6 +941,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [adding, setAdding]           = useState(false)
   const [dependencies, setDependencies] = useState([])
   const [showDeps,     setShowDeps]     = useState(true)
+  const [linkModal, setLinkModal] = useState(null)   // { fromId } when open
+  const [linkForm,  setLinkForm]  = useState({ toId: '', type: 'FS' })
   const [newBLName, setNewBLName]     = useState('')
   const [showNewBLModal, setShowNewBLModal] = useState(false)
   const [importing, setImporting]               = useState(false)
@@ -1271,6 +1312,30 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setAddChildForm(null)
   }
 
+  const handleCreateDep = async () => {
+    if (!linkModal?.fromId || !linkForm.toId || !activeBL) return
+    if (linkModal.fromId === linkForm.toId) { showToast('Cannot link a task to itself.', 'error'); return }
+    const { error } = await supabase.from('milestone_dependencies').insert({
+      project_id:  project.id,
+      baseline_id: activeBL,
+      from_id:     linkModal.fromId,
+      to_id:       linkForm.toId,
+      type:        linkForm.type,
+    })
+    if (error) { showToast(error.message, 'error'); return }
+    setLinkModal(null)
+    setLinkForm({ toId: '', type: 'FS' })
+    await loadMilestones(activeBL)
+    showToast('Dependency added.', 'success')
+  }
+
+  const handleDeleteDep = async (depId) => {
+    const { error } = await supabase.from('milestone_dependencies').delete().eq('id', depId)
+    if (error) { showToast(error.message, 'error'); return }
+    await loadMilestones(activeBL)
+    showToast('Dependency removed.', 'success')
+  }
+
   const overrideMin = fromMonth ? (() => { const [y, m] = fromMonth.split('-').map(Number); return new Date(y, m - 1, 1) })() : null
   const overrideMax = toMonth   ? (() => { const [y, m] = toMonth.split('-').map(Number);   return new Date(y, m, 0) })()    : null
   const hasFilter   = fromMonth || toMonth
@@ -1547,6 +1612,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             addingChild={addingChild}
             dependencies={dependencies}
             showDeps={showDeps}
+            onLink={id => { setLinkModal({ fromId: id }); setLinkForm({ toId: '', type: 'FS' }) }}
+            onDeleteDep={handleDeleteDep}
           />
         )}
       </div>
@@ -1627,6 +1694,78 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 onClick={() => { handleDeleteBaseline(deleteBLId); setDeleteBLId(null) }}
                 className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition"
               >Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Link dependency modal */}
+      {linkModal && (
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40"
+          onClick={() => setLinkModal(null)}
+        >
+          <div
+            className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="text-base font-bold text-black mb-1">Add dependency</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              From: <span className="font-semibold text-gray-700">
+                {milestones.find(m => m.id === linkModal.fromId)?.milestone_name}
+              </span>
+            </p>
+
+            <label className="block text-xs font-semibold text-gray-600 mb-1">
+              This task is the predecessor of
+            </label>
+            <select
+              value={linkForm.toId}
+              onChange={e => setLinkForm(f => ({ ...f, toId: e.target.value }))}
+              className="w-full px-3 py-2 rounded-xl border border-gray-200 text-sm text-black mb-4 focus:outline-none focus:ring-2 focus:ring-[#ed6055]"
+            >
+              <option value="">Select task…</option>
+              {milestones
+                .filter(m => m.id !== linkModal.fromId)
+                .map(m => (
+                  <option key={m.id} value={m.id}>
+                    [{MILESTONE_PHASE_MAP_OUT?.[m.phase] ?? m.phase}] {m.milestone_name}
+                  </option>
+                ))
+              }
+            </select>
+
+            <label className="block text-xs font-semibold text-gray-600 mb-2">Dependency type</label>
+            <div className="grid grid-cols-4 gap-2 mb-2">
+              {DEP_TYPES.map(({ value }) => (
+                <button
+                  key={value}
+                  onClick={() => setLinkForm(f => ({ ...f, type: value }))}
+                  className={`py-2 rounded-xl border text-xs font-bold transition ${
+                    linkForm.type === value
+                      ? 'bg-[#ed6055] text-white border-[#ed6055]'
+                      : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                  }`}
+                >{value}</button>
+              ))}
+            </div>
+            <p className="text-xs text-gray-400 mb-5">
+              {DEP_TYPES.find(d => d.value === linkForm.type)?.desc}
+            </p>
+
+            <div className="flex gap-3">
+              <button
+                onClick={() => setLinkModal(null)}
+                className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={!linkForm.toId}
+                onClick={handleCreateDep}
+                className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Add link
+              </button>
             </div>
           </div>
         </div>
