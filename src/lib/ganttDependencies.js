@@ -137,7 +137,7 @@ export function formatPredecessors(deps, idToRowNum) {
       const rowNum = idToRowNum.get(d.from_id)
       if (rowNum == null) return null
       const lag = (d.lag_days ?? 0) > 0 ? `+${d.lag_days}` : ''
-      return `${rowNum}${d.type}${lag}`
+      return `${rowNum}${d.type ?? 'FS'}${lag}`
     })
     .filter(Boolean)
     .join(',')
