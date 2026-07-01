@@ -142,3 +142,89 @@ export function formatPredecessors(deps, idToRowNum) {
     .filter(Boolean)
     .join(',')
 }
+
+// Computes planned_start / planned_end for all schedulable leaf tasks using CPM forward pass.
+// milestones: project_milestones rows for the active baseline (must include .duration, .parent_id, .id)
+// dependencies: milestone_dependencies rows for the active baseline
+// startDate: ISO date string (YYYY-MM-DD) — the project start anchor
+// Returns { [milestoneId]: { planned_start, planned_end } } on success, or { error: 'circular' } on cycle.
+export function scheduleMilestones(milestones, dependencies, startDate) {
+  if (!startDate || !milestones?.length) return {}
+
+  const addDays = (isoStr, days) => {
+    const d = new Date(isoStr + 'T00:00:00')
+    d.setDate(d.getDate() + days)
+    return d.toISOString().slice(0, 10)
+  }
+
+  // 1. Identify parent tasks (any id that appears as parent_id of another row)
+  const parentIds = new Set(milestones.map(m => m.parent_id).filter(Boolean))
+
+  // 2. Schedulable leaf tasks: not a parent, duration is a positive integer
+  const leafTasks = milestones.filter(
+    m => !parentIds.has(m.id) && m.duration != null && Number.isInteger(m.duration) && m.duration > 0
+  )
+  if (!leafTasks.length) return {}
+
+  const leafIds = new Set(leafTasks.map(m => m.id))
+  // Only dependencies where both endpoints are schedulable leaf tasks
+  const relevantDeps = dependencies.filter(d => leafIds.has(d.from_id) && leafIds.has(d.to_id))
+
+  // 3. Build adjacency structures for Kahn's algorithm
+  const successors = {}   // id → array of dependency rows whose from_id === id
+  const inDegree   = {}   // id → count of incoming edges
+  leafTasks.forEach(m => { successors[m.id] = []; inDegree[m.id] = 0 })
+  relevantDeps.forEach(dep => {
+    successors[dep.from_id].push(dep)
+    inDegree[dep.to_id]++
+  })
+
+  // 4. Kahn's topological sort (BFS)
+  const queue = leafTasks.filter(m => inDegree[m.id] === 0).map(m => m.id)
+  const order = []
+  while (queue.length > 0) {
+    const id = queue.shift()
+    order.push(id)
+    successors[id].forEach(dep => {
+      inDegree[dep.to_id]--
+      if (inDegree[dep.to_id] === 0) queue.push(dep.to_id)
+    })
+  }
+  if (order.length !== leafTasks.length) return { error: 'circular' }
+
+  // 5. Forward pass
+  const byId = {}
+  leafTasks.forEach(m => { byId[m.id] = m })
+  const computed = {}  // id → { planned_start, planned_end }
+
+  order.forEach(id => {
+    const m = byId[id]
+    const incomingDeps = relevantDeps.filter(d => d.to_id === id)
+
+    let plannedStart
+    if (!incomingDeps.length) {
+      plannedStart = startDate
+    } else {
+      const anchors = incomingDeps.flatMap(dep => {
+        const from = computed[dep.from_id]
+        if (!from) return []
+        const type   = dep.type     ?? 'FS'
+        const lag    = dep.lag_days ?? 0
+        const dur    = m.duration
+        if (type === 'FS') return [addDays(from.planned_end,   lag + 1)]
+        if (type === 'SS') return [addDays(from.planned_start, lag)]
+        if (type === 'FF') return [addDays(from.planned_end,   lag - dur + 1)]
+        if (type === 'SF') return [addDays(from.planned_start, lag - dur + 1)]
+        return []
+      })
+      plannedStart = anchors.length ? anchors.sort().at(-1) : startDate
+    }
+
+    computed[id] = {
+      planned_start: plannedStart,
+      planned_end:   addDays(plannedStart, m.duration - 1),
+    }
+  })
+
+  return computed
+}

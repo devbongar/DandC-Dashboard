@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
-import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors } from '../lib/ganttDependencies'
+import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors, scheduleMilestones } from '../lib/ganttDependencies'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
