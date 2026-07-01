@@ -27,6 +27,7 @@ const LABEL_W = 320
 const ROW_NUM_W  = 36   // # column (sequential row number)
 const PRED_COL_W = 96   // Predecessors editable column
 const DEFAULT_COL_PX = { day: 20, week: 20, month: 20 }
+const DUR_COL_W = 72   // Duration column — visible in Auto mode only
 
 const DATE_COL_W   = 100  // width of each individual date cell (px)
 const DATE_GROUP_W = DATE_COL_W * 2  // two cols per group (start + end)
@@ -164,7 +165,7 @@ function GanttBar({ start, end, color, toPx }) {
   )
 }
 
-function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDates, chartPxWidth }) {
+function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDates, chartPxWidth, isAutoMode = false }) {
   return (
     <div
       className="flex items-center cursor-pointer select-none"
@@ -173,7 +174,7 @@ function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDa
     >
       <div
         className="sticky left-0 z-20 flex items-center gap-1.5 self-stretch flex-shrink-0"
-        style={{ width: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), paddingLeft: 12, borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}
+        style={{ width: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), paddingLeft: 12, borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}
       >
         <span
           style={{
@@ -240,7 +241,68 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null }) {
+function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(duration != null ? String(duration) : '')
+  const cancelRef = useRef(false)
+
+  useEffect(() => {
+    if (!editing) setValue(duration != null ? String(duration) : '')
+  }, [duration, editing])
+
+  if (hasChildren) {
+    return <div className="text-xs text-gray-300 px-2 flex items-center min-h-[24px]">—</div>
+  }
+
+  if (!isAdmin) {
+    return (
+      <div className="text-xs text-gray-400 px-2 flex items-center min-h-[24px]">
+        {duration != null ? duration : <span className="text-gray-200">—</span>}
+      </div>
+    )
+  }
+
+  if (!editing) {
+    return (
+      <div
+        onClick={() => setEditing(true)}
+        className="text-xs text-gray-400 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-yellow-50 hover:text-yellow-700 transition"
+        title="Click to edit duration (calendar days)"
+      >
+        {duration != null ? duration : <span className="text-gray-200 select-none">—</span>}
+      </div>
+    )
+  }
+
+  return (
+    <input
+      autoFocus
+      type="number"
+      min={1}
+      value={value}
+      onChange={e => setValue(e.target.value)}
+      onBlur={() => {
+        if (cancelRef.current) { cancelRef.current = false; return }
+        setEditing(false)
+        onSave(value === '' ? null : Math.max(1, parseInt(value, 10)))
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter') {
+          e.preventDefault(); cancelRef.current = true; setEditing(false)
+          onSave(value === '' ? null : Math.max(1, parseInt(value, 10)))
+        }
+        if (e.key === 'Escape') {
+          e.preventDefault(); cancelRef.current = true; setEditing(false)
+          setValue(duration != null ? String(duration) : '')
+        }
+      }}
+      className="text-xs px-2 py-0.5 rounded border border-[#ed6055] focus:outline-none w-full"
+      placeholder="days"
+    />
+  )
+}
+
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, onSaveDuration = () => {} }) {
   const hasDates = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const bgBase   = isChild ? '#f9fafb' : '#ffffff'
 
@@ -271,7 +333,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
     >
       {/* Frozen panel: # col + label + predecessors + date columns */}
       <div
-        style={{ width: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+        style={{ width: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
         className="sticky left-0 z-30 flex items-center flex-shrink-0 self-stretch"
       >
         {/* # column */}
@@ -335,6 +397,20 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
             </div>
           )}
         </div>
+        {/* Duration column — Auto mode only */}
+        {isAutoMode && (
+          <div
+            style={{ width: DUR_COL_W, minWidth: DUR_COL_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+            className="flex items-center flex-shrink-0 self-stretch px-1"
+          >
+            <DurationCell
+              duration={m.duration ?? null}
+              hasChildren={hasChildren}
+              onSave={onSaveDuration}
+              isAdmin={isAdmin && !isEditing}
+            />
+          </div>
+        )}
         {/* Predecessors column */}
         <div
           style={{ width: PRED_COL_W, minWidth: PRED_COL_W, borderRight: showDates ? '1px solid #e5e7eb' : 'none', backgroundColor: 'inherit' }}
@@ -346,11 +422,11 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         {/* Date columns */}
         {showDates && (
           <div className="flex self-stretch">
-            {dateCell(isEditing
+            {dateCell(isEditing && !isAutoMode
               ? <GInlineInput type="date" value={form.planned_start} onChange={(v, bad) => setForm(p => ({ ...p, planned_start: v, planned_start_bad: !!bad }))} max={form.planned_end || undefined} error={plannedStartErr} />
               : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_start)}</span>
             )}
-            {dateCell(isEditing
+            {dateCell(isEditing && !isAutoMode
               ? <GInlineInput type="date" value={form.planned_end} onChange={(v, bad) => setForm(p => ({ ...p, planned_end: v, planned_end_bad: !!bad }))} min={form.planned_start || undefined} error={plannedEndErr} />
               : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
             )}
@@ -453,7 +529,7 @@ function computeParentDates(children) {
   }
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], showDeps = true, onSavePreds = () => {} }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], showDeps = true, onSavePreds = () => {}, isAutoMode = false, onSaveDuration = () => {} }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -502,7 +578,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const todayPx    = toPx(today)
   const showToday  = todayPx >= 0 && todayPx <= chartPxWidth
 
-  const totalW = ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0) + chartPxWidth
+  const totalW = ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0) + chartPxWidth
 
   // Sequential row numbers for visible task rows (collapsed rows excluded)
   const idToRowNum = new Map()
@@ -523,7 +599,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     <>
       <div className="flex" style={{ width: totalW, minWidth: totalW, backgroundColor: '#f8fafc' }}>
         <div
-          style={{ width: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 10 }}
+          style={{ width: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 10 }}
           className="flex-shrink-0 flex items-center"
         >
           {/* # column header */}
@@ -534,6 +610,12 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
           <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-2 self-stretch border-r border-gray-200 flex-shrink-0">
             <span className="text-xs font-bold text-gray-700">Activity</span>
           </div>
+          {/* Duration column header — Auto mode only */}
+          {isAutoMode && (
+            <div style={{ width: DUR_COL_W, minWidth: DUR_COL_W }} className="flex items-center justify-center self-stretch border-r border-gray-200 flex-shrink-0">
+              <span className="text-xs font-bold text-yellow-600">Dur.</span>
+            </div>
+          )}
           {/* Predecessors column header */}
           <div style={{ width: PRED_COL_W, minWidth: PRED_COL_W }} className="flex items-center px-2 self-stretch border-r border-gray-200 flex-shrink-0">
             <span className="text-xs font-bold text-gray-700">Predecessors</span>
@@ -660,6 +742,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         labelW={labelW}
         showDates={showDates}
         chartPxWidth={chartPxWidth}
+        isAutoMode={isAutoMode}
       />
     )
 
@@ -691,6 +774,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             isEditing={editId === node.id} form={form} setForm={setForm}
             onSave={onSave} onCancelEdit={onCancelEdit} onEdit={onEdit} onDelete={onDelete}
             isAdmin={isAdmin}
+            isAutoMode={isAutoMode}
+            onSaveDuration={(dur) => onSaveDuration(node.id, dur)}
           />
         )
 
@@ -815,7 +900,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             style={{
               position: 'absolute',
               top: AXIS_H,
-              left: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0),
+              left: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0),
               pointerEvents: 'none',
               zIndex: 2,
               overflow: 'visible',
@@ -1806,6 +1891,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             dependencies={dependencies}
             showDeps={showDeps}
             onSavePreds={handleSavePreds}
+            isAutoMode={isAutoMode}
+            onSaveDuration={() => {}}
           />
         )}
       </div>
