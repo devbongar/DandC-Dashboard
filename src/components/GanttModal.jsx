@@ -923,6 +923,55 @@ function MonthYearPicker({ value, onChange, min, max, fluid = false }) {
   )
 }
 
+function BaselineStartDateField({ startDate, isAutoMode, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(startDate ?? '')
+  const cancelRef = useRef(false)
+
+  useEffect(() => {
+    if (!editing) setValue(startDate ?? '')
+  }, [startDate, editing])
+
+  if (!isAutoMode) return null
+
+  if (!editing) {
+    return (
+      <div className="flex items-center gap-1.5">
+        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">Start</span>
+        <button
+          onClick={() => setEditing(true)}
+          className="text-xs font-semibold text-gray-600 hover:text-[#ed6055] transition underline underline-offset-2"
+          title="Click to set project start date"
+        >
+          {startDate ? new Date(startDate + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : <span className="text-gray-300">Not set</span>}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="flex items-center gap-1">
+      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">Start</span>
+      <input
+        autoFocus
+        type="date"
+        value={value}
+        onChange={e => setValue(e.target.value)}
+        onBlur={() => {
+          if (cancelRef.current) { cancelRef.current = false; return }
+          setEditing(false)
+          onSave(value)
+        }}
+        onKeyDown={e => {
+          if (e.key === 'Enter') { e.preventDefault(); cancelRef.current = true; setEditing(false); onSave(value) }
+          if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; setEditing(false); setValue(startDate ?? '') }
+        }}
+        className="text-xs px-2 py-0.5 rounded border border-[#ed6055] focus:outline-none"
+      />
+    </div>
+  )
+}
+
 export function GanttContent({ project, isAdmin = false, showToast = () => {} }) {
   const [labelW, setLabelW] = useState(() => window.innerWidth < 640 ? 160 : LABEL_W)
   const [baselines, setBaselines]     = useState([])
@@ -990,7 +1039,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const loadBaselines = async () => {
       const { data } = await supabase
         .from('milestone_baselines')
-        .select('id, label, created_at')
+        .select('id, label, created_at, scheduling_mode, start_date')
         .eq('project_id', project.id)
         .order('created_at', { ascending: true })
       const bls = data ?? []
@@ -1111,8 +1160,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     if (!label) return
     const { data, error } = await supabase
       .from('milestone_baselines')
-      .insert({ project_id: project.id, label })
-      .select('id, label, created_at')
+      .insert({ project_id: project.id, label, scheduling_mode: 'auto', start_date: null })
+      .select('id, label, created_at, scheduling_mode, start_date')
       .single()
     if (error) { showToast(error.message, 'error'); return }
     if (!data) { showToast('Failed to create baseline.', 'error'); return }
@@ -1405,6 +1454,39 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     showToast('Predecessors updated.', 'success')
   }
 
+  const activeBLObj  = baselines.find(b => b.id === activeBL) ?? null
+  const isAutoMode   = activeBLObj?.scheduling_mode === 'auto'
+  const blStartDate  = activeBLObj?.start_date ?? null
+
+  const handleSaveStartDate = async (isoDate) => {
+    const val = isoDate || null
+    const { error } = await supabase
+      .from('milestone_baselines')
+      .update({ start_date: val })
+      .eq('id', activeBL)
+    if (error) { showToast(error.message, 'error'); return }
+    setBaselines(prev => prev.map(b => b.id === activeBL ? { ...b, start_date: val } : b))
+    if (isAutoMode && val) {
+      await runScheduler(val)
+    }
+  }
+
+  const handleSaveMode = async (newMode) => {
+    const { error } = await supabase
+      .from('milestone_baselines')
+      .update({ scheduling_mode: newMode })
+      .eq('id', activeBL)
+    if (error) { showToast(error.message, 'error'); return }
+    setBaselines(prev => prev.map(b => b.id === activeBL ? { ...b, scheduling_mode: newMode } : b))
+    if (newMode === 'auto') {
+      if (!blStartDate) {
+        showToast('Set a start date to generate the schedule.', 'info')
+        return
+      }
+      await runScheduler(blStartDate)
+    }
+  }
+
   const overrideMin = fromMonth ? (() => { const [y, m] = fromMonth.split('-').map(Number); return new Date(y, m - 1, 1) })() : null
   const overrideMax = toMonth   ? (() => { const [y, m] = toMonth.split('-').map(Number);   return new Date(y, m, 0) })()    : null
   const hasFilter   = fromMonth || toMonth
@@ -1452,6 +1534,27 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             </select>
           )}
 
+          {/* Auto-scheduling controls (mobile) */}
+          {activeBL && isAutoMode && (
+            <div className="flex items-center gap-2">
+              <BaselineStartDateField
+                startDate={blStartDate}
+                isAutoMode={isAutoMode}
+                onSave={handleSaveStartDate}
+              />
+            </div>
+          )}
+          {activeBL && (
+            <select
+              value={activeBLObj?.scheduling_mode ?? 'auto'}
+              onChange={e => handleSaveMode(e.target.value)}
+              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
+            >
+              <option value="auto">Auto</option>
+              <option value="manual">Manual</option>
+            </select>
+          )}
+
           {/* Date range — From / To on one row */}
           <div className="flex items-center gap-2">
             <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">From</label>
@@ -1487,6 +1590,27 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 {baselines.map(b => (
                   <option key={b.id} value={b.id}>{b.label}</option>
                 ))}
+              </select>
+              <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+            </>
+          )}
+
+          {/* Auto-scheduling controls — only when a baseline is active */}
+          {activeBL && (
+            <>
+              <BaselineStartDateField
+                startDate={blStartDate}
+                isAutoMode={isAutoMode}
+                onSave={handleSaveStartDate}
+              />
+              <select
+                value={activeBLObj?.scheduling_mode ?? 'auto'}
+                onChange={e => handleSaveMode(e.target.value)}
+                title="Scheduling mode"
+                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
+              >
+                <option value="auto">Auto</option>
+                <option value="manual">Manual</option>
               </select>
               <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
             </>
