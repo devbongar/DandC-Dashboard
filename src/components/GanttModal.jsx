@@ -236,7 +236,7 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
   )
 }
 
-function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, onLink = null, dependencies = [], allMilestones = [], onDeleteDep = () => {} }) {
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null }) {
   const hasDates = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const bgBase   = isChild ? '#f9fafb' : '#ffffff'
 
@@ -265,14 +265,21 @@ function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToda
       onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#eff6ff' }}
       onMouseLeave={e => { e.currentTarget.style.backgroundColor = bgBase }}
     >
-      {/* Frozen panel: label + date columns */}
+      {/* Frozen panel: # col + label + predecessors + date columns */}
       <div
-        style={{ width: labelW + (showDates ? DATE_COLS_W : 0), minWidth: labelW + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+        style={{ width: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
         className="sticky left-0 z-30 flex items-center flex-shrink-0 self-stretch"
       >
+        {/* # column */}
+        <div
+          style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+          className="flex items-center justify-center flex-shrink-0 self-stretch"
+        >
+          <span className="text-[10px] font-mono text-gray-300 tabular-nums select-none">{rowNum}</span>
+        </div>
         {/* Activity name */}
         <div
-          style={{ width: labelW, minWidth: labelW, borderRight: showDates ? '1px solid #e5e7eb' : 'none', backgroundColor: 'inherit' }}
+          style={{ width: labelW, minWidth: labelW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
           className="flex items-center pr-2 flex-shrink-0 self-stretch"
         >
           {/* Depth indent + expand/collapse toggle */}
@@ -289,9 +296,6 @@ function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToda
               <span style={{ width: 16, flexShrink: 0, display: 'inline-block' }} />
             )}
           </div>
-          <span className={`flex-shrink-0 tabular-nums text-right mr-1.5 ${depth > 0 ? 'text-[10px] text-gray-300 w-10' : 'text-xs font-semibold text-gray-400 w-6'}`}>
-            {depth > 0 ? seq : `${seq}.`}
-          </span>
           {isEditing ? (
             <GInlineInput value={form.milestone_name} onChange={v => setForm(p => ({ ...p, milestone_name: v }))} />
           ) : (
@@ -302,41 +306,6 @@ function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToda
               {m.milestone_name}
             </p>
           )}
-          {isAdmin && !isEditing && onLink && (
-            <button
-              onClick={e => { e.stopPropagation(); onLink(m.id) }}
-              title="Add dependency"
-              className="opacity-0 group-hover:opacity-100 flex-shrink-0 text-gray-300 hover:text-[#ed6055] transition ml-1"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-            >
-              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
-              </svg>
-            </button>
-          )}
-          {(() => {
-            const incoming = dependencies.filter(d => d.to_id === m.id)
-            if (!incoming.length) return null
-            return incoming.map(dep => {
-              const fromM    = allMilestones.find(x => x.id === dep.from_id)
-              const violated = fromM ? isViolated(dep.type, fromM, m) : false
-              const fromName = fromM?.milestone_name ?? '?'
-              return (
-                <span
-                  key={dep.id}
-                  onClick={e => { e.stopPropagation(); if (isAdmin) onDeleteDep(dep.id) }}
-                  title={`${violated ? '⚠ Violated — ' : ''}${dep.type}: depends on "${fromName}"${isAdmin ? '. Click to remove.' : ''}`}
-                  className={`text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0 cursor-pointer select-none ${
-                    violated
-                      ? 'bg-red-50 text-red-500'
-                      : `bg-gray-100 text-gray-400 ${isAdmin ? 'hover:bg-red-50 hover:text-red-400' : ''}`
-                  }`}
-                >
-                  ←{dep.type}
-                </span>
-              )
-            })
-          })()}
           {isAdmin && !isEditing && depth < 3 && onAddChild && (
             <button
               onClick={e => { e.stopPropagation(); onAddChild(m.id, m.phase) }}
@@ -361,6 +330,13 @@ function MilestoneRow({ m, seq, toPx, chartPxWidth, gridDates, todayPx, showToda
               <button onClick={onCancelEdit} className="text-[10px] text-gray-400 hover:text-gray-600">✕</button>
             </div>
           )}
+        </div>
+        {/* Predecessors column */}
+        <div
+          style={{ width: PRED_COL_W, minWidth: PRED_COL_W, borderRight: showDates ? '1px solid #e5e7eb' : 'none', backgroundColor: 'inherit' }}
+          className="flex items-center flex-shrink-0 self-stretch px-1"
+        >
+          <PredecessorsCell predText={predText} onSave={onSavePreds} isAdmin={isAdmin && !isEditing} />
         </div>
 
         {/* Date columns */}
