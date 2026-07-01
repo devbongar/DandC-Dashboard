@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
-import { buildTree, isViolated, calcArrowPath, DEP_TYPES, parsePredecessors, formatPredecessors } from '../lib/ganttDependencies'
+import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors } from '../lib/ganttDependencies'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
@@ -194,6 +194,7 @@ function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDa
 function PredecessorsCell({ predText, onSave, isAdmin }) {
   const [editing, setEditing] = useState(false)
   const [value, setValue] = useState(predText)
+  const cancelRef = useRef(false)
 
   useEffect(() => {
     if (!editing) setValue(predText)
@@ -225,10 +226,13 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
       type="text"
       value={value}
       onChange={e => setValue(e.target.value)}
-      onBlur={() => { setEditing(false); onSave(value) }}
+      onBlur={() => {
+        if (cancelRef.current) { cancelRef.current = false; return }
+        setEditing(false); onSave(value)
+      }}
       onKeyDown={e => {
-        if (e.key === 'Enter') { e.preventDefault(); setEditing(false); onSave(value) }
-        if (e.key === 'Escape') { e.preventDefault(); setEditing(false); setValue(predText) }
+        if (e.key === 'Enter') { e.preventDefault(); cancelRef.current = true; setEditing(false); onSave(value) }
+        if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; setEditing(false); setValue(predText) }
       }}
       className="text-xs px-2 py-0.5 rounded border border-[#ed6055] focus:outline-none w-full"
       placeholder="e.g. 3FS,2SS+5"
@@ -1384,7 +1388,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     if (!toDelete.length && !toInsert.length) return
     for (const dep of toDelete) {
       const { error } = await supabase.from('milestone_dependencies').delete().eq('id', dep.id)
-      if (error) { showToast(error.message, 'error'); return }
+      if (error) { showToast(error.message, 'error'); await loadMilestones(activeBL); return }
     }
     for (const p of toInsert) {
       const { error } = await supabase.from('milestone_dependencies').insert({
@@ -1399,13 +1403,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     }
     await loadMilestones(activeBL)
     showToast('Predecessors updated.', 'success')
-  }
-
-  const handleDeleteDep = async (depId) => {
-    const { error } = await supabase.from('milestone_dependencies').delete().eq('id', depId)
-    if (error) { showToast(error.message, 'error'); return }
-    await loadMilestones(activeBL)
-    showToast('Dependency removed.', 'success')
   }
 
   const overrideMin = fromMonth ? (() => { const [y, m] = fromMonth.split('-').map(Number); return new Date(y, m - 1, 1) })() : null
