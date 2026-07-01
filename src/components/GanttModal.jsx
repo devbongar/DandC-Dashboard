@@ -227,8 +227,8 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
       onChange={e => setValue(e.target.value)}
       onBlur={() => { setEditing(false); onSave(value) }}
       onKeyDown={e => {
-        if (e.key === 'Enter') { setEditing(false); onSave(value) }
-        if (e.key === 'Escape') { setEditing(false); setValue(predText) }
+        if (e.key === 'Enter') { e.preventDefault(); setEditing(false); onSave(value) }
+        if (e.key === 'Escape') { e.preventDefault(); setEditing(false); setValue(predText) }
       }}
       className="text-xs px-2 py-0.5 rounded border border-[#ed6055] focus:outline-none w-full"
       placeholder="e.g. 3FS,2SS+5"
