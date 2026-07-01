@@ -279,6 +279,7 @@ function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
       autoFocus
       type="number"
       min={1}
+      step={1}
       value={value}
       onChange={e => setValue(e.target.value)}
       onBlur={() => {
