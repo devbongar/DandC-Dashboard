@@ -1,0 +1,85 @@
+-- Seed work_program_template_tasks from Jab Residences work program.
+-- Test rows (Level 2/3/4, dddd) excluded. Tower 1-17 children excluded (project-specific).
+-- Durations and predecessor_text start NULL — admins fill via the template editor.
+
+INSERT INTO work_program_template_tasks (id, sort_order, phase, milestone_name, parent_id)
+VALUES
+  -- ── INITIATION ──────────────────────────────────────────────────────────────
+  ('a0000000-0000-0000-0000-000000000001',  1,  'initiation', 'Prepare Preliminary Technical Due Diligence',               NULL),
+  ('a0000000-0000-0000-0000-000000000002',  2,  'initiation', 'Relocation Assessment',                                     'a0000000-0000-0000-0000-000000000001'),
+  ('a0000000-0000-0000-0000-000000000003',  3,  'initiation', 'Topographic Assessment',                                    'a0000000-0000-0000-0000-000000000001'),
+  ('a0000000-0000-0000-0000-000000000004',  4,  'initiation', 'Hydrological Assessment',                                   'a0000000-0000-0000-0000-000000000001'),
+  ('a0000000-0000-0000-0000-000000000005',  5,  'initiation', 'Geotechnical Study',                                        'a0000000-0000-0000-0000-000000000001'),
+  ('a0000000-0000-0000-0000-000000000006',  6,  'initiation', 'Traffic Assessment',                                        'a0000000-0000-0000-0000-000000000001'),
+  ('a0000000-0000-0000-0000-000000000007',  7,  'initiation', 'Building Code Ordinances (per LGU)',                        'a0000000-0000-0000-0000-000000000001'),
+  ('a0000000-0000-0000-0000-000000000008',  8,  'initiation', 'Secure Land Use Permits and Licenses',                     NULL),
+  ('a0000000-0000-0000-0000-000000000009',  9,  'initiation', 'Title Transfer from Landowner to PH1',                     'a0000000-0000-0000-0000-000000000008'),
+  ('a0000000-0000-0000-0000-000000000010', 10,  'initiation', 'Secure Land Tax Declaration Transfer from Landowner to PH1','a0000000-0000-0000-0000-000000000008'),
+  ('a0000000-0000-0000-0000-000000000011', 11,  'initiation', 'Secure Zoning Certificate',                                'a0000000-0000-0000-0000-000000000008'),
+  ('a0000000-0000-0000-0000-000000000012', 12,  'initiation', 'Secure Land Use Reclassification Certificate (if applicable)','a0000000-0000-0000-0000-000000000008'),
+  ('a0000000-0000-0000-0000-000000000013', 13,  'initiation', 'Secure DAR Conversion Order',                              'a0000000-0000-0000-0000-000000000008'),
+
+  -- ── PLANNING ────────────────────────────────────────────────────────────────
+  ('a0000000-0000-0000-0000-000000000014', 14, 'planning', 'Conduct Pre-Engineering Studies',                              NULL),
+  ('a0000000-0000-0000-0000-000000000015', 15, 'planning', 'Relocation Survey',                                           'a0000000-0000-0000-0000-000000000014'),
+  ('a0000000-0000-0000-0000-000000000016', 16, 'planning', 'Topographic Survey',                                          'a0000000-0000-0000-0000-000000000014'),
+  ('a0000000-0000-0000-0000-000000000017', 17, 'planning', 'Geotechnical Study',                                          'a0000000-0000-0000-0000-000000000014'),
+  ('a0000000-0000-0000-0000-000000000018', 18, 'planning', 'Hydrological Flood Study',                                    'a0000000-0000-0000-0000-000000000014'),
+  ('a0000000-0000-0000-0000-000000000019', 19, 'planning', 'Utility Study (if applicable)',                               'a0000000-0000-0000-0000-000000000014'),
+  ('a0000000-0000-0000-0000-000000000020', 20, 'planning', 'Traffic Study (if applicable)',                               'a0000000-0000-0000-0000-000000000014'),
+  ('a0000000-0000-0000-0000-000000000021', 21, 'planning', 'Develop Project Design',                                      NULL),
+  ('a0000000-0000-0000-0000-000000000022', 22, 'planning', 'Develop Concept Design (LOD 100)',                            'a0000000-0000-0000-0000-000000000021'),
+  ('a0000000-0000-0000-0000-000000000023', 23, 'planning', 'Develop Site Development Concept Design (Conceptual Master Plan)','a0000000-0000-0000-0000-000000000021'),
+  ('a0000000-0000-0000-0000-000000000024', 24, 'planning', 'Develop ID and Landscape Concept Design',                    'a0000000-0000-0000-0000-000000000021'),
+  ('a0000000-0000-0000-0000-000000000025', 25, 'planning', 'Develop Schematic Design 2 (LOD 200)',                       'a0000000-0000-0000-0000-000000000021'),
+  ('a0000000-0000-0000-0000-000000000026', 26, 'planning', 'Develop Final Design (LOD 300)',                              'a0000000-0000-0000-0000-000000000021'),
+  ('a0000000-0000-0000-0000-000000000027', 27, 'planning', 'Conduct Project Tender',                                      NULL),
+  ('a0000000-0000-0000-0000-000000000028', 28, 'planning', 'Engagement of Design Consultants',                           'a0000000-0000-0000-0000-000000000027'),
+  ('a0000000-0000-0000-0000-000000000029', 29, 'planning', 'Invitation to Bid for Construction',                         'a0000000-0000-0000-0000-000000000027'),
+  ('a0000000-0000-0000-0000-000000000030', 30, 'planning', 'Prebid Conference',                                          'a0000000-0000-0000-0000-000000000027'),
+  ('a0000000-0000-0000-0000-000000000031', 31, 'planning', 'Bid Submission',                                             'a0000000-0000-0000-0000-000000000027'),
+  ('a0000000-0000-0000-0000-000000000032', 32, 'planning', 'Bid Clarification & Evaluation',                             'a0000000-0000-0000-0000-000000000027'),
+  ('a0000000-0000-0000-0000-000000000033', 33, 'planning', 'Negotiation and Award',                                      'a0000000-0000-0000-0000-000000000027'),
+  ('a0000000-0000-0000-0000-000000000034', 34, 'planning', 'Contract Closing',                                           'a0000000-0000-0000-0000-000000000027'),
+  ('a0000000-0000-0000-0000-000000000035', 35, 'planning', 'Secure ECC',                                                  NULL),
+  ('a0000000-0000-0000-0000-000000000036', 36, 'planning', 'Secure Tree Cutting Permit',                                  'a0000000-0000-0000-0000-000000000035'),
+  ('a0000000-0000-0000-0000-000000000037', 37, 'planning', 'Application and Issuance of ECC',                            'a0000000-0000-0000-0000-000000000035'),
+  ('a0000000-0000-0000-0000-000000000038', 38, 'planning', 'Secure Development Permits and Licenses',                    NULL),
+  ('a0000000-0000-0000-0000-000000000039', 39, 'planning', 'Secure CAAP Clearance',                                      'a0000000-0000-0000-0000-000000000038'),
+  ('a0000000-0000-0000-0000-000000000040', 40, 'planning', 'Secure Philvocs',                                            'a0000000-0000-0000-0000-000000000038'),
+  ('a0000000-0000-0000-0000-000000000041', 41, 'planning', 'Secure Utility Certificates',                                'a0000000-0000-0000-0000-000000000038'),
+  ('a0000000-0000-0000-0000-000000000042', 42, 'planning', 'Secure Zoning Certificates',                                 'a0000000-0000-0000-0000-000000000038'),
+  ('a0000000-0000-0000-0000-000000000043', 43, 'planning', 'Secure NCCA Clearance',                                      'a0000000-0000-0000-0000-000000000038'),
+  ('a0000000-0000-0000-0000-000000000044', 44, 'planning', 'Application and Issuance of Development Permits',            'a0000000-0000-0000-0000-000000000038'),
+  ('a0000000-0000-0000-0000-000000000045', 45, 'planning', 'Secure Brgy. Clearances',                                    NULL),
+  ('a0000000-0000-0000-0000-000000000046', 46, 'planning', 'Secure Building Permit',                                     NULL),
+  ('a0000000-0000-0000-0000-000000000047', 47, 'planning', 'Secure Barangay Clearance',                                  'a0000000-0000-0000-0000-000000000046'),
+  ('a0000000-0000-0000-0000-000000000048', 48, 'planning', 'Secure FSEC',                                                'a0000000-0000-0000-0000-000000000046'),
+  ('a0000000-0000-0000-0000-000000000049', 49, 'planning', 'Secure Locational Clearance',                                'a0000000-0000-0000-0000-000000000046'),
+  ('a0000000-0000-0000-0000-000000000050', 50, 'planning', 'Application and Issuance of Building Permit',               'a0000000-0000-0000-0000-000000000046'),
+  ('a0000000-0000-0000-0000-000000000051', 51, 'planning', 'Secure License to Sell (LTS)',                               NULL),
+  ('a0000000-0000-0000-0000-000000000052', 52, 'planning', 'Secure MDDR',                                                'a0000000-0000-0000-0000-000000000051'),
+  ('a0000000-0000-0000-0000-000000000053', 53, 'planning', 'Secure Notice to Publish',                                   'a0000000-0000-0000-0000-000000000051'),
+  ('a0000000-0000-0000-0000-000000000054', 54, 'planning', 'Secure Performance Bond',                                    'a0000000-0000-0000-0000-000000000051'),
+  ('a0000000-0000-0000-0000-000000000055', 55, 'planning', 'Application and Issuance of License to Sell (LTS)',         'a0000000-0000-0000-0000-000000000051'),
+  ('a0000000-0000-0000-0000-000000000056', 56, 'planning', 'Secure DHSUD Mortgage Clearance',                           NULL),
+  ('a0000000-0000-0000-0000-000000000057', 57, 'planning', 'Secure Occupancy Permit',                                   NULL),
+
+  -- ── EXECUTION & MONITORING ──────────────────────────────────────────────────
+  ('a0000000-0000-0000-0000-000000000058', 58, 'execution_monitoring', 'Construction Planning',                          NULL),
+  ('a0000000-0000-0000-0000-000000000059', 59, 'execution_monitoring', 'Commencement',                                   NULL),
+  ('a0000000-0000-0000-0000-000000000060', 60, 'execution_monitoring', 'Finalize Construction Schedule',                 NULL),
+  ('a0000000-0000-0000-0000-000000000061', 61, 'execution_monitoring', 'Monitor Development of ISD (LOD400)',            NULL),
+  ('a0000000-0000-0000-0000-000000000062', 62, 'execution_monitoring', 'Quality Acceptance of Residential Units',       NULL),
+  ('a0000000-0000-0000-0000-000000000063', 63, 'execution_monitoring', 'Testing and Commissioning',                     NULL),
+  ('a0000000-0000-0000-0000-000000000064', 64, 'execution_monitoring', 'Acceptance from Contractor and Handover to PMO',NULL),
+  ('a0000000-0000-0000-0000-000000000065', 65, 'execution_monitoring', 'Secure Permits for Building Completion',        NULL),
+  ('a0000000-0000-0000-0000-000000000066', 66, 'execution_monitoring', 'Secure Fire Safety Inspection Certificate (FSIC)','a0000000-0000-0000-0000-000000000065'),
+  ('a0000000-0000-0000-0000-000000000067', 67, 'execution_monitoring', 'Application of Occupancy Permit and Certificate of Completion','a0000000-0000-0000-0000-000000000065'),
+  ('a0000000-0000-0000-0000-000000000068', 68, 'execution_monitoring', 'Secure Tax Declaration of Improvement',         'a0000000-0000-0000-0000-000000000065'),
+  ('a0000000-0000-0000-0000-000000000069', 69, 'execution_monitoring', 'Secure DHSUD Certificate of Completion',        NULL),
+
+  -- ── CLOSEOUT ────────────────────────────────────────────────────────────────
+  ('a0000000-0000-0000-0000-000000000070', 70, 'closeout', 'Construction Closeout',                                      NULL)
+
+ON CONFLICT (id) DO NOTHING;
