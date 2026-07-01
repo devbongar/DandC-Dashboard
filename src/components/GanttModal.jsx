@@ -1542,8 +1542,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       if (error) { showToast(error.message, 'error'); await loadMilestones(activeBL); return }
     }
     if (isAutoMode && blStartDate) {
-      const scheduled = await runScheduler()
-      if (scheduled) showToast('Predecessors updated.', 'success')
+      await runScheduler()
     } else {
       await loadMilestones(activeBL)
       showToast('Predecessors updated.', 'success')
