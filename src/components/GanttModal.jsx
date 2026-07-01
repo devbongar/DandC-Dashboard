@@ -1163,22 +1163,26 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       project_id:      project.id,
       phase:           form.phase,
       milestone_name:  form.milestone_name?.trim(),
-      planned_start:   form.planned_start   || null,
-      planned_end:     form.planned_end     || null,
       actual_start,
       actual_end,
       projected_start: actual_start ?? (form.projected_start || null),
       projected_end:   actual_end   ?? (form.projected_end   || null),
       parent_id:       form.parent_id ?? null,
+      ...(isAutoMode ? {} : {
+        planned_start: form.planned_start || null,
+        planned_end:   form.planned_end   || null,
+      }),
     }
     if (!payload.milestone_name) return
-    if (form.planned_start_bad   || (form.planned_start   && !isValidDate(form.planned_start)))   { showToast('Planned Start is not a valid date.',   'error'); return }
-    if (form.planned_end_bad     || (form.planned_end     && !isValidDate(form.planned_end)))     { showToast('Planned End is not a valid date.',     'error'); return }
+    if (!isAutoMode) {
+      if (form.planned_start_bad   || (form.planned_start   && !isValidDate(form.planned_start)))   { showToast('Planned Start is not a valid date.',   'error'); return }
+      if (form.planned_end_bad     || (form.planned_end     && !isValidDate(form.planned_end)))     { showToast('Planned End is not a valid date.',     'error'); return }
+    }
     if (form.actual_start_bad    || (form.actual_start    && !isValidDate(form.actual_start)))    { showToast('Actual Start is not a valid date.',    'error'); return }
     if (form.actual_end_bad      || (form.actual_end      && !isValidDate(form.actual_end)))      { showToast('Actual End is not a valid date.',      'error'); return }
     if (form.projected_start_bad || (form.projected_start && !isValidDate(form.projected_start))) { showToast('Projected Start is not a valid date.', 'error'); return }
     if (form.projected_end_bad   || (form.projected_end   && !isValidDate(form.projected_end)))   { showToast('Projected End is not a valid date.',   'error'); return }
-    if (payload.planned_start   && payload.planned_end   && payload.planned_end   < payload.planned_start)   { showToast('Planned end must be on or after planned start.',   'error'); return }
+    if (!isAutoMode && payload.planned_start && payload.planned_end && payload.planned_end < payload.planned_start) { showToast('Planned end must be on or after planned start.', 'error'); return }
     if (payload.actual_start    && payload.actual_end    && payload.actual_end    < payload.actual_start)    { showToast('Actual end must be on or after actual start.',     'error'); return }
     if (payload.projected_start && payload.projected_end && payload.projected_end < payload.projected_start) { showToast('Projected end must be on or after projected start.','error'); return }
     const { error } = await supabase.from('project_milestones').update(payload).eq('id', id)
@@ -1536,7 +1540,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       })
       if (error) { showToast(error.message, 'error'); await loadMilestones(activeBL); return }
     }
-    await loadMilestones(activeBL)
+    if (isAutoMode && blStartDate) {
+      await runScheduler()
+    } else {
+      await loadMilestones(activeBL)
+    }
     showToast('Predecessors updated.', 'success')
   }
 
@@ -1570,6 +1578,53 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         return
       }
       await runScheduler(blStartDate)
+    }
+  }
+
+  const runScheduler = async (startDateOverride) => {
+    const startDate = startDateOverride ?? blStartDate
+    if (!startDate || !activeBL) return
+
+    const [{ data: ms }, { data: deps }] = await Promise.all([
+      supabase.from('project_milestones').select('*').eq('project_id', project.id).eq('baseline_id', activeBL).order('sort_order'),
+      supabase.from('milestone_dependencies').select('*').eq('baseline_id', activeBL),
+    ])
+
+    const result = scheduleMilestones(ms ?? [], deps ?? [], startDate)
+
+    if (result?.error === 'circular') {
+      showToast('Circular dependency detected — schedule not updated.', 'error')
+      return
+    }
+
+    const entries = Object.entries(result)
+    if (!entries.length) {
+      loadMilestones()
+      return
+    }
+
+    await Promise.all(
+      entries.map(([id, dates]) =>
+        supabase.from('project_milestones')
+          .update({ planned_start: dates.planned_start, planned_end: dates.planned_end })
+          .eq('id', id)
+      )
+    )
+
+    showToast('Schedule updated.', 'success')
+    loadMilestones()
+  }
+
+  const handleSaveDuration = async (milestoneId, duration) => {
+    const { error } = await supabase
+      .from('project_milestones')
+      .update({ duration: duration ?? null })
+      .eq('id', milestoneId)
+    if (error) { showToast(error.message, 'error'); return }
+    if (isAutoMode && blStartDate) {
+      await runScheduler()
+    } else {
+      loadMilestones()
     }
   }
 
@@ -1893,7 +1948,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             showDeps={showDeps}
             onSavePreds={handleSavePreds}
             isAutoMode={isAutoMode}
-            onSaveDuration={() => {}}
+            onSaveDuration={handleSaveDuration}
           />
         )}
       </div>
