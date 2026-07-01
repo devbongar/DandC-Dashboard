@@ -1120,6 +1120,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [importErrors, setImportErrors]         = useState([])
   const [pendingImportFile, setPendingImportFile] = useState(null)
   const [deleteBLId, setDeleteBLId]             = useState(null)
+  const schedulerRunning = useRef(false)
 
   useEffect(() => {
     const loadBaselines = async () => {
@@ -1541,11 +1542,12 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       if (error) { showToast(error.message, 'error'); await loadMilestones(activeBL); return }
     }
     if (isAutoMode && blStartDate) {
-      await runScheduler()
+      const scheduled = await runScheduler()
+      if (scheduled) showToast('Predecessors updated.', 'success')
     } else {
       await loadMilestones(activeBL)
+      showToast('Predecessors updated.', 'success')
     }
-    showToast('Predecessors updated.', 'success')
   }
 
   const activeBLObj  = baselines.find(b => b.id === activeBL) ?? null
@@ -1582,37 +1584,48 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const runScheduler = async (startDateOverride) => {
-    const startDate = startDateOverride ?? blStartDate
-    if (!startDate || !activeBL) return
+    if (schedulerRunning.current) return false
+    schedulerRunning.current = true
+    try {
+      const startDate = startDateOverride ?? blStartDate
+      if (!startDate || !activeBL) return false
 
-    const [{ data: ms }, { data: deps }] = await Promise.all([
-      supabase.from('project_milestones').select('*').eq('project_id', project.id).eq('baseline_id', activeBL).order('sort_order'),
-      supabase.from('milestone_dependencies').select('*').eq('baseline_id', activeBL),
-    ])
+      const [{ data: ms }, { data: deps }] = await Promise.all([
+        supabase.from('project_milestones').select('*').eq('project_id', project.id).eq('baseline_id', activeBL).order('sort_order'),
+        supabase.from('milestone_dependencies').select('*').eq('baseline_id', activeBL),
+      ])
 
-    const result = scheduleMilestones(ms ?? [], deps ?? [], startDate)
+      const result = scheduleMilestones(ms ?? [], deps ?? [], startDate)
 
-    if (result?.error === 'circular') {
-      showToast('Circular dependency detected — schedule not updated.', 'error')
-      return
-    }
+      if (result?.error === 'circular') {
+        showToast('Circular dependency detected — schedule not updated.', 'error')
+        return false
+      }
 
-    const entries = Object.entries(result)
-    if (!entries.length) {
-      loadMilestones()
-      return
-    }
+      const entries = Object.entries(result)
+      if (!entries.length) {
+        loadMilestones()
+        return true
+      }
 
-    await Promise.all(
-      entries.map(([id, dates]) =>
-        supabase.from('project_milestones')
-          .update({ planned_start: dates.planned_start, planned_end: dates.planned_end })
-          .eq('id', id)
+      const results = await Promise.all(
+        entries.map(([id, dates]) =>
+          supabase.from('project_milestones')
+            .update({ planned_start: dates.planned_start, planned_end: dates.planned_end })
+            .eq('id', id)
+        )
       )
-    )
-
-    showToast('Schedule updated.', 'success')
-    loadMilestones()
+      const failed = results.filter(r => r.error)
+      if (failed.length) {
+        showToast(`Schedule partially failed (${failed.length} row${failed.length > 1 ? 's' : ''} not updated).`, 'error')
+      } else {
+        showToast('Schedule updated.', 'success')
+      }
+      loadMilestones()
+      return !failed.length
+    } finally {
+      schedulerRunning.current = false
+    }
   }
 
   const handleSaveDuration = async (milestoneId, duration) => {
