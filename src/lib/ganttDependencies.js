@@ -150,11 +150,11 @@ export function formatPredecessors(deps, idToRowNum) {
 // Returns { [milestoneId]: { planned_start, planned_end } } on success, or { error: 'circular' } on cycle.
 export function scheduleMilestones(milestones, dependencies, startDate) {
   if (!startDate || !milestones?.length) return {}
+  const safeDeps = dependencies ?? []
 
   const addDays = (isoStr, days) => {
-    const d = new Date(isoStr + 'T00:00:00')
-    d.setDate(d.getDate() + days)
-    return d.toISOString().slice(0, 10)
+    const [y, m, dd] = isoStr.split('-').map(Number)
+    return new Date(Date.UTC(y, m - 1, dd + days)).toISOString().slice(0, 10)
   }
 
   // 1. Identify parent tasks (any id that appears as parent_id of another row)
@@ -168,7 +168,7 @@ export function scheduleMilestones(milestones, dependencies, startDate) {
 
   const leafIds = new Set(leafTasks.map(m => m.id))
   // Only dependencies where both endpoints are schedulable leaf tasks
-  const relevantDeps = dependencies.filter(d => leafIds.has(d.from_id) && leafIds.has(d.to_id))
+  const relevantDeps = safeDeps.filter(d => leafIds.has(d.from_id) && leafIds.has(d.to_id))
 
   // 3. Build adjacency structures for Kahn's algorithm
   const successors = {}   // id → array of dependency rows whose from_id === id
