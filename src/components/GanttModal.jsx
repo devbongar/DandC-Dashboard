@@ -24,6 +24,8 @@ const AXIS_H      = 56   // px — sticky month/year axis header height
 
 const PAD     = 7 * 86400000
 const LABEL_W = 320
+const ROW_NUM_W  = 36   // # column (sequential row number)
+const PRED_COL_W = 96   // Predecessors editable column
 const DEFAULT_COL_PX = { day: 20, week: 20, month: 20 }
 
 const DATE_COL_W   = 100  // width of each individual date cell (px)
@@ -171,7 +173,7 @@ function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDa
     >
       <div
         className="sticky left-0 z-20 flex items-center gap-1.5 self-stretch flex-shrink-0"
-        style={{ width: labelW + (showDates ? DATE_COLS_W : 0), minWidth: labelW + (showDates ? DATE_COLS_W : 0), paddingLeft: 12, borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}
+        style={{ width: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), paddingLeft: 12, borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}
       >
         <span
           style={{
@@ -186,6 +188,51 @@ function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDa
       </div>
       <div style={{ width: chartPxWidth, minWidth: chartPxWidth, height: '100%', backgroundColor: '#f8fafc' }} />
     </div>
+  )
+}
+
+function PredecessorsCell({ predText, onSave, isAdmin }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState(predText)
+
+  useEffect(() => {
+    if (!editing) setValue(predText)
+  }, [predText, editing])
+
+  if (!isAdmin) {
+    return (
+      <div className="text-xs text-gray-400 px-2 flex items-center min-h-[24px]">
+        {predText || <span className="text-gray-200">—</span>}
+      </div>
+    )
+  }
+
+  if (!editing) {
+    return (
+      <div
+        onClick={() => setEditing(true)}
+        className="text-xs text-gray-400 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-blue-50 hover:text-blue-600 transition"
+        title="Click to edit predecessors (e.g. 3FS, 2SS+5)"
+      >
+        {predText || <span className="text-gray-200 select-none">—</span>}
+      </div>
+    )
+  }
+
+  return (
+    <input
+      autoFocus
+      type="text"
+      value={value}
+      onChange={e => setValue(e.target.value)}
+      onBlur={() => { setEditing(false); onSave(value) }}
+      onKeyDown={e => {
+        if (e.key === 'Enter') { setEditing(false); onSave(value) }
+        if (e.key === 'Escape') { setEditing(false); setValue(predText) }
+      }}
+      className="text-xs px-2 py-0.5 rounded border border-[#ed6055] focus:outline-none w-full"
+      placeholder="e.g. 3FS,2SS+5"
+    />
   )
 }
 
@@ -475,18 +522,26 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const todayPx    = toPx(today)
   const showToday  = todayPx >= 0 && todayPx <= chartPxWidth
 
-  const totalW = labelW + (showDates ? DATE_COLS_W : 0) + chartPxWidth
+  const totalW = ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0) + chartPxWidth
 
   const axisHeader = (
     <>
       <div className="flex" style={{ width: totalW, minWidth: totalW, backgroundColor: '#f8fafc' }}>
         <div
-          style={{ width: labelW + (showDates ? DATE_COLS_W : 0), minWidth: labelW + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 10 }}
+          style={{ width: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 10 }}
           className="flex-shrink-0 flex items-center"
         >
+          {/* # column header */}
+          <div style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W }} className="flex items-center justify-center self-stretch border-r border-gray-200 flex-shrink-0">
+            <span className="text-[10px] font-bold text-gray-500">#</span>
+          </div>
           {/* Activity name column */}
-          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-2 self-stretch border-r border-gray-200">
+          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-2 self-stretch border-r border-gray-200 flex-shrink-0">
             <span className="text-xs font-bold text-gray-700">Activity</span>
+          </div>
+          {/* Predecessors column header */}
+          <div style={{ width: PRED_COL_W, minWidth: PRED_COL_W }} className="flex items-center px-2 self-stretch border-r border-gray-200 flex-shrink-0">
+            <span className="text-xs font-bold text-gray-700">Predecessors</span>
           </div>
           {/* Date group headers — only when visible */}
           {showDates && (
@@ -777,7 +832,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             style={{
               position: 'absolute',
               top: AXIS_H,
-              left: labelW + (showDates ? DATE_COLS_W : 0),
+              left: ROW_NUM_W + labelW + PRED_COL_W + (showDates ? DATE_COLS_W : 0),
               pointerEvents: 'none',
               zIndex: 2,
               overflow: 'visible',
