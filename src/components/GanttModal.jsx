@@ -1395,7 +1395,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         type:        p.type,
         lag_days:    p.lagDays,
       })
-      if (error) { showToast(error.message, 'error'); return }
+      if (error) { showToast(error.message, 'error'); await loadMilestones(activeBL); return }
     }
     await loadMilestones(activeBL)
     showToast('Predecessors updated.', 'success')
