@@ -2,6 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import DashboardLayout from '../../components/DashboardLayout'
+import useProfile from '../../hooks/useProfile'
+import LoadingScreen from '../../components/LoadingScreen'
+import useMinLoading from '../../hooks/useMinLoading'
 import { assignSeqNumbers } from '../../lib/templateUtils'
 
 const PHASES = [
@@ -523,6 +526,7 @@ function ChildRow({ child, seq, allTasks, onEdit, onDelete, onAddBelow, isAddAft
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function WorkProgramTemplate() {
+  const { profile, loading: profileLoading } = useProfile()
   const [tasks,   setTasks]   = useState([])
   const [loading, setLoading] = useState(true)
   const [toast,   setToast]   = useState(null)
@@ -545,10 +549,13 @@ export default function WorkProgramTemplate() {
 
   useEffect(() => { loadTasks() }, [])
 
+  const showLoading = useMinLoading(profileLoading || loading)
+  if (showLoading) return <LoadingScreen />
+
   const seqMap = assignSeqNumbers(tasks)
 
   return (
-    <DashboardLayout>
+    <DashboardLayout profile={profile}>
       <div className="flex min-h-screen bg-gray-50">
 
         {/* Settings sidebar */}
@@ -568,16 +575,12 @@ export default function WorkProgramTemplate() {
             Pre-loaded when creating a new baseline. Hover a row and click <span className="text-[#ed6055] font-bold">+</span> to add tasks inline.
           </p>
 
-          {loading ? (
-            <div className="text-sm text-gray-400 mt-8 text-center">Loading…</div>
-          ) : (
-            <TemplateTable
-              tasks={tasks}
-              seqMap={seqMap}
-              onReload={loadTasks}
-              showToast={showToast}
-            />
-          )}
+          <TemplateTable
+            tasks={tasks}
+            seqMap={seqMap}
+            onReload={loadTasks}
+            showToast={showToast}
+          />
         </main>
       </div>
 
