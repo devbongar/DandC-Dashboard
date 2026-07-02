@@ -3,6 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
 import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors, scheduleMilestones } from '../lib/ganttDependencies'
+import { copyTemplateToBaseline } from '../lib/templateUtils'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
@@ -1116,6 +1117,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [showDeps,     setShowDeps]     = useState(true)
   const [newBLName, setNewBLName]     = useState('')
   const [showNewBLModal, setShowNewBLModal] = useState(false)
+  const [templateCount,  setTemplateCount]  = useState(0)
+  const [loadTemplate,   setLoadTemplate]   = useState(true)
   const [importing, setImporting]               = useState(false)
   const [importErrors, setImportErrors]         = useState([])
   const [pendingImportFile, setPendingImportFile] = useState(null)
@@ -1246,6 +1249,16 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     loadMilestones()
   }
 
+  const handleOpenNewBLModal = async () => {
+    setNewBLName('')
+    setLoadTemplate(true)
+    setShowNewBLModal(true)
+    const { count } = await supabase
+      .from('work_program_template_tasks')
+      .select('*', { count: 'exact', head: true })
+    setTemplateCount(count ?? 0)
+  }
+
   const handleCreateBaseline = async () => {
     const label = newBLName.trim()
     if (!label) return
@@ -1256,6 +1269,18 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       .single()
     if (error) { showToast(error.message, 'error'); return }
     if (!data) { showToast('Failed to create baseline.', 'error'); return }
+
+    if (loadTemplate && templateCount > 0) {
+      const { error: copyErr } = await copyTemplateToBaseline(data.id, supabase, project.id)
+      if (copyErr) {
+        showToast(`Baseline created but template copy failed: ${copyErr}`, 'error')
+      } else {
+        showToast(`Baseline "${label}" created with standard work program.`, 'success')
+      }
+    } else {
+      showToast(`Baseline "${label}" created.`, 'success')
+    }
+
     setBaselines(prev => [...prev, data])
     setActiveBL(data.id)
     setAddForm(null)
@@ -1264,7 +1289,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setAddChildForm(null)
     setNewBLName('')
     setShowNewBLModal(false)
-    showToast(`Baseline "${label}" created.`, 'success')
+    loadMilestones(data.id)
   }
 
   const handleExport = async () => {
@@ -1877,7 +1902,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             {/* New BL button */}
             {isAdmin && (
               <button
-                onClick={() => { setNewBLName(''); setShowNewBLModal(true) }}
+                onClick={handleOpenNewBLModal}
                 className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
@@ -1973,7 +1998,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       {showNewBLModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setShowNewBLModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-black mb-1">Name this baseline</h3>
+            <h3 className="text-base font-bold text-black mb-1">New Baseline</h3>
             <p className="text-sm text-gray-500 mb-4">Give a name to identify this baseline (e.g. BL0, Initial, Revised).</p>
             <input
               autoFocus
@@ -1982,8 +2007,29 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
               onChange={e => setNewBLName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && newBLName.trim()) handleCreateBaseline() }}
               placeholder="e.g. BL0"
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] mb-5"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] mb-4"
             />
+            {templateCount > 0 && (
+              <div className="mb-5">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Load standard work program?</p>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setLoadTemplate(true)}
+                    className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition ${loadTemplate ? 'border-[#ed6055] bg-red-50 text-[#ed6055]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
+                  >
+                    Yes — Pre-fill with template
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setLoadTemplate(false)}
+                    className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition ${!loadTemplate ? 'border-gray-400 bg-gray-100 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50'}`}
+                  >
+                    No — Start blank
+                  </button>
+                </div>
+              </div>
+            )}
             <div className="flex gap-3">
               <button onClick={() => setShowNewBLModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button
