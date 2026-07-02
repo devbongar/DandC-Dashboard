@@ -417,7 +417,11 @@ function ParentRows({ parent, parentSeq, children, allTasks, seqMap, editingId, 
             )}
           </div>
         </td>
-        <td className="px-3 py-2 text-center text-xs"><span className="text-gray-300">—</span></td>
+        <td className="px-3 py-2 text-center text-xs">
+          {children.length > 0
+            ? <span className="text-gray-300">—</span>
+            : (parent.duration != null ? parent.duration : <span className="text-gray-300">—</span>)}
+        </td>
         <td className="px-3 py-2 text-xs text-gray-600">
           {parent.predecessor_text ?? <span className="text-gray-300">—</span>}
         </td>
