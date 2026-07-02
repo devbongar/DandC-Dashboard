@@ -68,6 +68,10 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId) {
   const templateSeqMap = assignSeqNumbers(tasks)
   const templateToNewId = new Map()
 
+  // Assign clean sequential integers for sort_order (template values may be fractional
+  // after inline insertions, which would fail project_milestones INTEGER column)
+  const seqSortOrder = new Map(tasks.map((t, i) => [t.id, i + 1]))
+
   const parents  = tasks.filter(t => !t.parent_id)
   const children = tasks.filter(t =>  t.parent_id)
 
@@ -77,14 +81,14 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId) {
     .insert(parents.map(t => ({
       project_id: projectId, baseline_id: baselineId,
       phase: t.phase, milestone_name: t.milestone_name,
-      sort_order: t.sort_order, duration: t.duration, parent_id: null,
+      sort_order: seqSortOrder.get(t.id), duration: t.duration, parent_id: null,
     })))
     .select('id, sort_order')
   if (parentErr) return { error: parentErr.message }
 
-  const parentSortToId = new Map((insertedParents ?? []).map(r => [r.sort_order, r.id]))
+  const parentSortToId = new Map((insertedParents ?? []).map(r => [Number(r.sort_order), r.id]))
   for (const t of parents) {
-    const newId = parentSortToId.get(t.sort_order)
+    const newId = parentSortToId.get(seqSortOrder.get(t.id))
     if (newId) templateToNewId.set(t.id, newId)
   }
 
@@ -97,7 +101,7 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId) {
         return {
           project_id: projectId, baseline_id: baselineId,
           phase: t.phase, milestone_name: t.milestone_name,
-          sort_order: t.sort_order, duration: t.duration, parent_id: newParentId,
+          sort_order: seqSortOrder.get(t.id), duration: t.duration, parent_id: newParentId,
         }
       })
       .filter(Boolean)
@@ -108,9 +112,9 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId) {
       .select('id, sort_order')
     if (childErr) return { error: childErr.message }
 
-    const childSortToId = new Map((insertedChildren ?? []).map(r => [r.sort_order, r.id]))
+    const childSortToId = new Map((insertedChildren ?? []).map(r => [Number(r.sort_order), r.id]))
     for (const t of children) {
-      const newId = childSortToId.get(t.sort_order)
+      const newId = childSortToId.get(seqSortOrder.get(t.id))
       if (newId) templateToNewId.set(t.id, newId)
     }
   }
