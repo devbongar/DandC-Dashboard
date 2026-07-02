@@ -168,6 +168,51 @@ function PhaseHeader({ label }) {
   )
 }
 
+// ── Predecessor-text helpers ───────────────────────────────────────────────────
+
+// Returns a map of old_seq → new_seq for every task whose position changed
+function buildSeqChanges(oldSeqMap, newSeqMap) {
+  const changes = new Map()
+  for (const [id, oldSeq] of oldSeqMap) {
+    const newSeq = newSeqMap.get(id)
+    if (newSeq && newSeq !== oldSeq) changes.set(oldSeq, newSeq)
+  }
+  return changes
+}
+
+// Rewrite "1.3 SS, 2.1 FS" → update shifted seq refs; drop deleted ones
+function rewritePredecessorText(text, seqChanges, deletedSeqs = new Set()) {
+  if (!text) return text
+  const kept = text.split(',').map(s => s.trim()).filter(Boolean).map(token => {
+    const m = token.match(/^([\d.]+)(\s*.*)$/)
+    if (!m) return token
+    if (deletedSeqs.has(m[1])) return null
+    const newSeq = seqChanges.get(m[1])
+    return newSeq ? `${newSeq}${m[2]}` : token
+  }).filter(v => v !== null)
+  return kept.length > 0 ? kept.join(', ') : null
+}
+
+// After a structural change (insert / delete), patch affected predecessor_text rows
+async function syncPredecessorTexts(oldSeqMap, newTasks, deletedSeqs = new Set()) {
+  const newSeqMap = assignSeqNumbers(newTasks)
+  const seqChanges = buildSeqChanges(oldSeqMap, newSeqMap)
+  if (seqChanges.size === 0 && deletedSeqs.size === 0) return
+  const updates = newTasks.filter(t => t.predecessor_text).flatMap(t => {
+    const updated = rewritePredecessorText(t.predecessor_text, seqChanges, deletedSeqs)
+    return updated !== t.predecessor_text ? [{ id: t.id, predecessor_text: updated }] : []
+  })
+  if (updates.length > 0) {
+    await Promise.all(
+      updates.map(u =>
+        supabase.from('work_program_template_tasks')
+          .update({ predecessor_text: u.predecessor_text })
+          .eq('id', u.id)
+      )
+    )
+  }
+}
+
 // ── Template table (all state for add/edit/delete lives here) ─────────────────
 
 function TemplateTable({ tasks, seqMap, onReload, showToast }) {
@@ -204,6 +249,10 @@ function TemplateTable({ tasks, seqMap, onReload, showToast }) {
         predecessor_text: preds.trim() || null,
       })
     if (error) { showToast(error.message, 'error'); return }
+    // Auto-fix any predecessor_text that references tasks whose seq numbers shifted
+    const { data: updatedTasks } = await supabase
+      .from('work_program_template_tasks').select('*').order('sort_order')
+    if (updatedTasks) await syncPredecessorTexts(seqMap, updatedTasks)
     showToast('Task added.')
     setAddingAfter(null)
     onReload()
@@ -235,11 +284,16 @@ function TemplateTable({ tasks, seqMap, onReload, showToast }) {
   }
 
   const doDelete = async (id) => {
+    // Collect seqs that will disappear (the deleted task + its children via CASCADE)
+    const willDelete = new Set([id, ...tasks.filter(t => t.parent_id === id).map(t => t.id)])
+    const deletedSeqs = new Set([...willDelete].map(did => seqMap.get(did)).filter(Boolean))
     const { error } = await supabase
-      .from('work_program_template_tasks')
-      .delete()
-      .eq('id', id)
+      .from('work_program_template_tasks').delete().eq('id', id)
     if (error) { showToast(error.message, 'error'); return }
+    // Auto-fix predecessor_text: remove refs to deleted tasks, update shifted refs
+    const { data: updatedTasks } = await supabase
+      .from('work_program_template_tasks').select('*').order('sort_order')
+    if (updatedTasks) await syncPredecessorTexts(seqMap, updatedTasks, deletedSeqs)
     showToast('Task deleted.')
     setConfirmDelete(null)
     onReload()
