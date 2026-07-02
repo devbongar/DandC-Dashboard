@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Link } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import DashboardLayout from '../../components/DashboardLayout'
 import { assignSeqNumbers } from '../../lib/templateUtils'
@@ -426,7 +427,7 @@ function ParentRows({ parent, parentSeq, children, allTasks, seqMap, editingId, 
       {children.map(child => renderChild(child, seqMap, editingId, addingAfter, allTasks, onEdit, onDelete, onAddBelow, onSaveEdit, onSaveNew, onCancelAdd))}
 
       {/* Inline add row after last child (triggered by parent's + button) */}
-      {isAddAfterParent && children.length === 0 && (
+      {isAddAfterParent && (
         <InlineRow
           seq="…"
           isChild={true}
@@ -554,8 +555,8 @@ export default function WorkProgramTemplate() {
         <aside className="w-44 shrink-0 bg-white border-r border-gray-200 p-4">
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">Settings</p>
           <nav className="space-y-1 text-sm">
-            <a href="/admin/roles"            className="block px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-xs">Users</a>
-            <a href="/admin/standard-permits" className="block px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-xs">Standard Permits</a>
+            <Link to="/admin/roles"            className="block px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-xs">Users</Link>
+            <Link to="/admin/standard-permits" className="block px-3 py-2 rounded-lg text-gray-600 hover:bg-gray-50 text-xs">Standard Permits</Link>
             <span className="block px-3 py-2 rounded-lg bg-red-50 text-[#ed6055] font-semibold text-xs">Work Program Template</span>
           </nav>
         </aside>
