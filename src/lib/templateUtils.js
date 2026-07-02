@@ -71,42 +71,48 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId) {
   const parents  = tasks.filter(t => !t.parent_id)
   const children = tasks.filter(t =>  t.parent_id)
 
-  for (const task of parents) {
-    const { data, error } = await supabase
-      .from('project_milestones')
-      .insert({
-        project_id:     projectId,
-        baseline_id:    baselineId,
-        phase:          task.phase,
-        milestone_name: task.milestone_name,
-        sort_order:     task.sort_order,
-        duration:       task.duration,
-        parent_id:      null,
-      })
-      .select('id')
-      .single()
-    if (error) return { error: error.message }
-    templateToNewId.set(task.id, data.id)
+  // Batch insert all parents in one DB call
+  const { data: insertedParents, error: parentErr } = await supabase
+    .from('project_milestones')
+    .insert(parents.map(t => ({
+      project_id: projectId, baseline_id: baselineId,
+      phase: t.phase, milestone_name: t.milestone_name,
+      sort_order: t.sort_order, duration: t.duration, parent_id: null,
+    })))
+    .select('id, sort_order')
+  if (parentErr) return { error: parentErr.message }
+
+  const parentSortToId = new Map((insertedParents ?? []).map(r => [r.sort_order, r.id]))
+  for (const t of parents) {
+    const newId = parentSortToId.get(t.sort_order)
+    if (newId) templateToNewId.set(t.id, newId)
   }
 
-  for (const task of children) {
-    const newParentId = templateToNewId.get(task.parent_id)
-    if (!newParentId) continue
-    const { data, error } = await supabase
-      .from('project_milestones')
-      .insert({
-        project_id:     projectId,
-        baseline_id:    baselineId,
-        phase:          task.phase,
-        milestone_name: task.milestone_name,
-        sort_order:     task.sort_order,
-        duration:       task.duration,
-        parent_id:      newParentId,
+  // Batch insert all children in one DB call (parent IDs now resolved)
+  if (children.length) {
+    const childPayloads = children
+      .map(t => {
+        const newParentId = templateToNewId.get(t.parent_id)
+        if (!newParentId) return null
+        return {
+          project_id: projectId, baseline_id: baselineId,
+          phase: t.phase, milestone_name: t.milestone_name,
+          sort_order: t.sort_order, duration: t.duration, parent_id: newParentId,
+        }
       })
-      .select('id')
-      .single()
-    if (error) return { error: error.message }
-    templateToNewId.set(task.id, data.id)
+      .filter(Boolean)
+
+    const { data: insertedChildren, error: childErr } = await supabase
+      .from('project_milestones')
+      .insert(childPayloads)
+      .select('id, sort_order')
+    if (childErr) return { error: childErr.message }
+
+    const childSortToId = new Map((insertedChildren ?? []).map(r => [r.sort_order, r.id]))
+    for (const t of children) {
+      const newId = childSortToId.get(t.sort_order)
+      if (newId) templateToNewId.set(t.id, newId)
+    }
   }
 
   // Build seq → new milestone ID map for predecessor resolution
@@ -124,6 +130,7 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId) {
     const deps = parseTemplatePredecessors(task.predecessor_text, seqToNewId)
     for (const dep of deps) {
       depRows.push({
+        project_id: projectId,
         baseline_id: baselineId,
         from_id:     dep.fromId,
         to_id:       newToId,

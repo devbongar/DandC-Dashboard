@@ -1119,6 +1119,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [showNewBLModal, setShowNewBLModal] = useState(false)
   const [templateCount,  setTemplateCount]  = useState(0)
   const [loadTemplate,   setLoadTemplate]   = useState(true)
+  const [creatingBL,     setCreatingBL]     = useState(false)
   const [importing, setImporting]               = useState(false)
   const [importErrors, setImportErrors]         = useState([])
   const [pendingImportFile, setPendingImportFile] = useState(null)
@@ -1261,14 +1262,15 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
   const handleCreateBaseline = async () => {
     const label = newBLName.trim()
-    if (!label) return
+    if (!label || creatingBL) return
+    setCreatingBL(true)
     const { data, error } = await supabase
       .from('milestone_baselines')
       .insert({ project_id: project.id, label, scheduling_mode: 'auto', start_date: null })
       .select('id, label, created_at, scheduling_mode, start_date')
       .single()
-    if (error) { showToast(error.message, 'error'); return }
-    if (!data) { showToast('Failed to create baseline.', 'error'); return }
+    if (error) { showToast(error.message, 'error'); setCreatingBL(false); return }
+    if (!data) { showToast('Failed to create baseline.', 'error'); setCreatingBL(false); return }
 
     if (loadTemplate && templateCount > 0) {
       const { error: copyErr } = await copyTemplateToBaseline(data.id, supabase, project.id)
@@ -1289,7 +1291,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setAddChildForm(null)
     setNewBLName('')
     setShowNewBLModal(false)
-    loadMilestones(data.id)
+    setCreatingBL(false)
+    // No explicit loadMilestones here — setActiveBL triggers the useEffect which loads milestones
   }
 
   const handleExport = async () => {
@@ -2033,10 +2036,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             <div className="flex gap-3">
               <button onClick={() => setShowNewBLModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button
-                disabled={!newBLName.trim()}
+                disabled={!newBLName.trim() || creatingBL}
                 onClick={handleCreateBaseline}
                 className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >Create</button>
+              >{creatingBL ? 'Creating…' : 'Create'}</button>
             </div>
           </div>
         </div>
