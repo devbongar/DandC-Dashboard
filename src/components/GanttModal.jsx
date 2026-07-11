@@ -2,8 +2,8 @@ import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
-import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors, scheduleMilestones } from '../lib/ganttDependencies'
-import { copyTemplateToBaseline } from '../lib/templateUtils'
+import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors, scheduleMilestones, scheduleProjected } from '../lib/ganttDependencies'
+import { copyTemplateToBaseline, copyBaselineToBaseline } from '../lib/templateUtils'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
@@ -69,24 +69,28 @@ const MILESTONE_PHASE_MAP_IN = Object.fromEntries(
   Object.entries(MILESTONE_PHASE_MAP_OUT).map(([k, v]) => [v, k])
 )
 
-function GInlineInput({ value, onChange, type = 'text', placeholder = '', min, max, error, disabled = false }) {
+function GInlineInput({ value, onChange, type = 'text', placeholder = '', min, max, error, disabled = false, onKeyDown, ghost = false, textClassName = '' }) {
   const resolvedMin = min !== undefined ? min : (type === 'number' ? 0 : undefined)
   return (
     <input
       type={type}
       value={value ?? ''}
       onChange={e => !disabled && onChange(e.target.value, type === 'date' ? e.target.validity.badInput : undefined)}
+      onKeyDown={onKeyDown}
       placeholder={placeholder}
       min={resolvedMin}
       max={max}
       disabled={disabled}
-      className={`w-full px-2 py-1.5 text-xs rounded border focus:outline-none focus:ring-1 bg-white transition ${
-        disabled
-          ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
-          : error
-            ? 'border-red-400 bg-red-50 focus:ring-red-400 text-red-600'
-            : 'border-gray-200 focus:ring-[#ed6055]'
-      }`}
+      className={ghost
+        ? `w-full px-0.5 py-0 text-xs bg-transparent border-0 outline-none focus:outline-none focus:ring-0 truncate ${textClassName}`
+        : `w-full px-2 py-1.5 text-xs rounded border focus:outline-none focus:ring-1 bg-white transition ${
+            disabled
+              ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
+              : error
+                ? 'border-red-400 bg-red-50 focus:ring-red-400 text-red-600'
+                : 'border-gray-200 focus:ring-[#ed6055]'
+          }`
+      }
     />
   )
 }
@@ -150,45 +154,83 @@ function parseDate(str) {
   return new Date(y, m - 1, d)
 }
 
+const BAR_BORDER = {
+  '#9ca3af': '#6b7280',
+  '#22c55e': '#16a34a',
+  '#fde047': '#eab308',
+}
+
 function GanttBar({ start, end, color, toPx }) {
   if (!start || !end) return null
   const s    = parseDate(start)
   const e    = parseDate(end)
   const left = toPx(s)
   const w    = toPx(e) - left
-  if (w <= 0) return null
+  const borderColor = BAR_BORDER[color] ?? color
+  if (w <= 0) {
+    // Same-day milestone → diamond (rotated square), centred on the date
+    const size = 11
+    return (
+      <div
+        className="absolute"
+        style={{
+          left: left - size / 2,
+          width: size,
+          height: size,
+          backgroundColor: color,
+          border: `1.5px solid ${borderColor}`,
+          top: '50%',
+          transform: 'translateY(-50%) rotate(45deg)',
+          borderRadius: 2,
+          flexShrink: 0,
+        }}
+        title={start}
+      />
+    )
+  }
   return (
     <div
       className="absolute rounded"
-      style={{ left, width: Math.max(w, 2), backgroundColor: color, top: '50%', transform: 'translateY(-50%)', height: 18 }}
+      style={{ left, width: Math.max(w, 2), backgroundColor: color, boxShadow: `inset 0 0 0 1.5px ${borderColor}`, top: '50%', transform: 'translateY(-50%)', height: 20 }}
       title={`${start} → ${end}`}
     />
   )
 }
 
-function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, labelW, showDates, chartPxWidth, isAutoMode = false }) {
+function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, frozenW, chartPxWidth, isAutoMode = false, taskCount = 0, completedCount = 0 }) {
+  const [hovered, setHovered] = useState(false)
+  const bg = hovered ? '#f1f5f9' : '#f8fafc'
   return (
     <div
+      role="button"
+      tabIndex={0}
       className="flex items-center cursor-pointer select-none"
-      style={{ width: totalW, minWidth: totalW, height: PHASE_ROW_H, backgroundColor: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}
+      style={{ width: totalW, minWidth: totalW, height: PHASE_ROW_H, backgroundColor: bg, borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.15s ease' }}
       onClick={onToggle}
+      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
       <div
         className="sticky left-0 z-20 flex items-center gap-1.5 self-stretch flex-shrink-0"
-        style={{ width: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), paddingLeft: 12, borderRight: '1px solid #e2e8f0', backgroundColor: '#f8fafc' }}
+        style={{ width: frozenW, minWidth: frozenW, paddingLeft: 12, borderRight: '1px solid #e2e8f0', backgroundColor: bg, transition: 'background-color 0.15s ease' }}
       >
-        <span
-          style={{
-            fontSize: 9, color: '#94a3b8', display: 'inline-block',
-            transform: isCollapsed ? 'rotate(-90deg)' : 'none',
-            transition: 'transform .2s',
-          }}
-        >▼</span>
+        <svg
+          viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth={2.5}
+          style={{ width: 10, height: 10, flexShrink: 0, display: 'block', transform: isCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.2s ease' }}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
         <span style={{ fontSize: 11, fontWeight: 800, color: '#334155', textTransform: 'uppercase', letterSpacing: '.06em' }}>
           {label}
         </span>
+        {taskCount > 0 && (
+          <span style={{ fontSize: 10, fontWeight: 600, color: completedCount === taskCount ? '#16a34a' : '#94a3b8', background: completedCount === taskCount ? '#dcfce7' : '#e2e8f0', borderRadius: 10, padding: '1px 6px', flexShrink: 0 }}>
+            {completedCount}/{taskCount}
+          </span>
+        )}
       </div>
-      <div style={{ width: chartPxWidth, minWidth: chartPxWidth, height: '100%', backgroundColor: '#f8fafc' }} />
+      <div style={{ width: chartPxWidth, minWidth: chartPxWidth, height: '100%', backgroundColor: bg, transition: 'background-color 0.15s ease' }} />
     </div>
   )
 }
@@ -205,7 +247,7 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
   if (!isAdmin) {
     return (
       <div className="text-xs text-gray-400 px-2 flex items-center min-h-[24px]">
-        {predText || <span className="text-gray-200">—</span>}
+        {predText || <span className="text-gray-400">—</span>}
       </div>
     )
   }
@@ -217,7 +259,7 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
         className="text-xs text-gray-400 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-blue-50 hover:text-blue-600 transition"
         title="Click to edit predecessors (e.g. 3FS, 2SS+5)"
       >
-        {predText || <span className="text-gray-200 select-none">—</span>}
+        {predText || <span className="text-gray-400 select-none">—</span>}
       </div>
     )
   }
@@ -270,7 +312,7 @@ function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
         className="text-xs text-gray-400 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-yellow-50 hover:text-yellow-700 transition"
         title="Click to edit duration (calendar days)"
       >
-        {duration != null ? duration : <span className="text-gray-200 select-none">—</span>}
+        {duration != null ? duration : <span className="text-gray-400 select-none">—</span>}
       </div>
     )
   }
@@ -304,24 +346,69 @@ function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDates = true, isEditing = false, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, onSaveDuration = () => {} }) {
-  const hasDates = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
-  const bgBase   = isChild ? '#f9fafb' : '#ffffff'
+function DateCell({ value, onSave, isAdmin, min, max }) {
+  const [editing, setEditing] = useState(false)
+  const [val, setVal] = useState(value ?? '')
+  const cancelRef = useRef(false)
 
-  const hasActualStart = isEditing ? !!form.actual_start : false
-  const hasActualEnd   = isEditing ? !!form.actual_end   : false
-  const projStartVal   = isEditing ? (hasActualStart ? form.actual_start : form.projected_start) : undefined
-  const projEndVal     = isEditing ? (hasActualEnd   ? form.actual_end   : form.projected_end)   : undefined
+  useEffect(() => {
+    if (!editing) setVal(value ?? '')
+  }, [value, editing])
 
-  const plannedStartErr   = isEditing && (form.planned_start_bad   || !!(form.planned_start   && !isValidDate(form.planned_start)))
-  const plannedEndErr     = isEditing && (form.planned_end_bad     || !!(form.planned_end     && !isValidDate(form.planned_end)))
-  const actualStartErr    = isEditing && (form.actual_start_bad    || !!(form.actual_start    && !isValidDate(form.actual_start)))
-  const actualEndErr      = isEditing && (form.actual_end_bad      || !!(form.actual_end      && !isValidDate(form.actual_end)))
-  const projectedStartErr = isEditing && !hasActualStart && (form.projected_start_bad || !!(form.projected_start && !isValidDate(form.projected_start)))
-  const projectedEndErr   = isEditing && !hasActualEnd   && (form.projected_end_bad   || !!(form.projected_end   && !isValidDate(form.projected_end)))
+  if (!isAdmin) {
+    return <span className={`whitespace-nowrap text-[11px] ${value ? 'text-gray-500' : 'text-gray-400'}`}>{value ? fmtDate(value) : '—'}</span>
+  }
 
-  const dateCell = (content) => (
-    <div style={{ width: DATE_COL_W, minWidth: DATE_COL_W }} className="px-1.5 py-1 text-xs border-r border-gray-100 flex items-center min-h-[52px]">
+  if (!editing) {
+    return (
+      <div
+        onClick={() => setEditing(true)}
+        className="text-[11px] whitespace-nowrap px-0.5 rounded cursor-text flex items-center hover:bg-blue-50 transition select-none w-full group"
+        title="Click to edit date"
+      >
+        {value
+          ? <span className="text-gray-500 group-hover:text-blue-600 group-hover:underline group-hover:underline-offset-2 group-hover:decoration-dotted transition-colors">{fmtDate(value)}</span>
+          : <span className="text-[10px] text-gray-300 group-hover:text-blue-400 transition-colors">+ set date</span>}
+      </div>
+    )
+  }
+
+  return (
+    <input
+      autoFocus
+      type="date"
+      value={val}
+      min={min}
+      max={max}
+      onChange={e => setVal(e.target.value)}
+      onBlur={() => {
+        if (cancelRef.current) { cancelRef.current = false; return }
+        setEditing(false)
+        onSave(val || null)
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter')  { e.preventDefault(); cancelRef.current = true; setEditing(false); onSave(val || null) }
+        if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; setEditing(false); setVal(value ?? '') }
+      }}
+      className="text-[11px] px-1 py-0.5 rounded border border-[#ed6055] focus:outline-none w-full"
+    />
+  )
+}
+
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDuration = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {} }) {
+  const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
+  const hasActual  = !!(m.actual_start || m.actual_end)
+  const bgBase     = !isChild ? '#f1f5f9' : (rowNum % 2 === 0 ? '#f8fafc' : '#ffffff')
+
+  const frozenW = ROW_NUM_W + labelW
+    + (showDuration ? DUR_COL_W : 0)
+    + (showPredecessor ? PRED_COL_W : 0)
+    + (showPlanned ? DATE_GROUP_W : 0)
+    + (showActual ? DATE_GROUP_W : 0)
+    + (showProjected ? DATE_GROUP_W : 0)
+
+  const dateCell = (content, bg, bl) => (
+    <div style={{ width: DATE_COL_W, minWidth: DATE_COL_W, ...(bg && { backgroundColor: bg }), ...(bl && { borderLeft: bl }) }} className="px-1.5 py-1 text-xs border-r border-gray-100 flex items-center min-h-[52px]">
       {content}
     </div>
   )
@@ -330,12 +417,12 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
     <div
       className="flex items-center border-b border-gray-100 transition-colors group"
       style={{ backgroundColor: bgBase }}
-      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#eff6ff' }}
+      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#e8edf2' }}
       onMouseLeave={e => { e.currentTarget.style.backgroundColor = bgBase }}
     >
-      {/* Frozen panel: # col + label + predecessors + date columns */}
+      {/* Frozen panel: # col + label + optional columns */}
       <div
-        style={{ width: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+        style={{ width: frozenW, minWidth: frozenW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
         className="sticky left-0 z-30 flex items-center flex-shrink-0 self-stretch"
       >
         {/* # column */}
@@ -343,7 +430,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
           style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
           className="flex items-center justify-center flex-shrink-0 self-stretch"
         >
-          <span className="text-[10px] font-mono text-gray-300 tabular-nums select-none">{rowNum}</span>
+          <span className="text-[10px] font-mono text-gray-400 tabular-nums select-none">{rowNum}</span>
         </div>
         {/* Activity name */}
         <div
@@ -355,52 +442,49 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
             {hasChildren ? (
               <button
                 onClick={e => { e.stopPropagation(); onToggleCollapse(m.id) }}
-                className="flex items-center justify-center text-gray-300 hover:text-gray-500 transition"
-                style={{ width: 16, height: 16, flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                className="flex items-center justify-center text-gray-400 hover:text-gray-600 transition-colors duration-150"
+                style={{ width: 24, height: 24, flexShrink: 0, background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 4 }}
+                aria-label={isCollapsed ? 'Expand' : 'Collapse'}
               >
-                <span style={{ fontSize: 8, display: 'inline-block', transform: isCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform .15s' }}>▼</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5}
+                  style={{ width: 10, height: 10, display: 'block', transform: isCollapsed ? 'rotate(-90deg)' : 'none', transition: 'transform 0.15s ease' }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+                </svg>
               </button>
             ) : (
-              <span style={{ width: 16, flexShrink: 0, display: 'inline-block' }} />
+              <span style={{ width: 24, flexShrink: 0, display: 'inline-block' }} />
             )}
           </div>
-          {isEditing ? (
-            <GInlineInput value={form.milestone_name} onChange={v => setForm(p => ({ ...p, milestone_name: v }))} />
+          {isAdmin ? (
+            <GInlineInput
+              value={draftName}
+              onChange={onDraftChange}
+              onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onRevertDraft() } }}
+              ghost
+              textClassName={depth > 0 ? 'text-gray-500 pl-0.5' : 'font-bold text-gray-800'}
+            />
           ) : (
-            <p
-              className={`text-xs truncate leading-tight flex-1 min-w-0 ${depth > 0 ? 'text-gray-500 pl-0.5' : 'font-bold text-gray-800'}`}
-              title={m.milestone_name}
-            >
+            <p className={`text-xs truncate leading-tight flex-1 min-w-0 ${depth > 0 ? 'text-gray-500 pl-0.5' : 'font-bold text-gray-800'}`}>
               {m.milestone_name}
             </p>
           )}
-          {isAdmin && !isEditing && depth < 3 && onAddChild && (
+          {isAdmin && depth < 3 && onAddChild && (
             <button
               onClick={e => { e.stopPropagation(); onAddChild(m.id, m.phase) }}
+              aria-label="Add sub-task"
               title="Add sub-task"
-              className="opacity-0 group-hover:opacity-100 ml-1 flex-shrink-0 text-gray-300 hover:text-[#ed6055] transition text-sm leading-none"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+              className="opacity-40 group-hover:opacity-100 ml-1 flex-shrink-0 text-gray-400 hover:text-[#ed6055] transition-all duration-150 text-sm leading-none"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 3px' }}
             >+</button>
           )}
-          {isAdmin && !isEditing && (
-            <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition ml-1 flex-shrink-0">
-              <button onClick={() => onEdit(m)} className="p-1 text-gray-300 hover:text-blue-500 transition">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" /></svg>
-              </button>
-              <button onClick={() => onDelete(m.id)} className="p-1 text-gray-300 hover:text-red-500 transition">
-                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-              </button>
-            </div>
-          )}
-          {isEditing && (
-            <div className="flex items-center gap-1 ml-1 flex-shrink-0">
-              <button onClick={() => onSave(m.id)} className="text-[10px] font-bold text-[#ed6055] hover:text-[#d94f45] whitespace-nowrap">Save</button>
-              <button onClick={onCancelEdit} className="text-[10px] text-gray-400 hover:text-gray-600">✕</button>
-            </div>
+          {isAdmin && (
+            <button onClick={() => onDelete(m.id)} aria-label="Delete milestone" className="ml-1 flex-shrink-0 opacity-40 group-hover:opacity-100 transition-opacity duration-150 p-2 text-gray-400 hover:text-red-500 transition-colors rounded">
+              <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+            </button>
           )}
         </div>
-        {/* Duration column — Auto mode only */}
-        {isAutoMode && (
+        {/* Duration column */}
+        {showDuration && (
           <div
             style={{ width: DUR_COL_W, minWidth: DUR_COL_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
             className="flex items-center flex-shrink-0 self-stretch px-1"
@@ -409,44 +493,44 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
               duration={m.duration ?? null}
               hasChildren={hasChildren}
               onSave={onSaveDuration}
-              isAdmin={isAdmin && !isEditing}
+              isAdmin={isAdmin && !hasActual && !isBLConfirmed}
             />
           </div>
         )}
         {/* Predecessors column */}
-        <div
-          style={{ width: PRED_COL_W, minWidth: PRED_COL_W, borderRight: showDates ? '1px solid #e5e7eb' : 'none', backgroundColor: 'inherit' }}
-          className="flex items-center flex-shrink-0 self-stretch px-1"
-        >
-          <PredecessorsCell predText={predText} onSave={onSavePreds} isAdmin={isAdmin && !isEditing} />
-        </div>
+        {showPredecessor && (
+          <div
+            style={{ width: PRED_COL_W, minWidth: PRED_COL_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+            className="flex items-center flex-shrink-0 self-stretch px-1"
+          >
+            <PredecessorsCell predText={predText} onSave={onSavePreds} isAdmin={isAdmin && !hasActual && !isBLConfirmed} />
+          </div>
+        )}
 
-        {/* Date columns */}
-        {showDates && (
+        {/* Date columns — each group individually toggled */}
+        {(showPlanned || showActual || showProjected) && (
           <div className="flex self-stretch">
-            {dateCell(isEditing && !isAutoMode
-              ? <GInlineInput type="date" value={form.planned_start} onChange={(v, bad) => setForm(p => ({ ...p, planned_start: v, planned_start_bad: !!bad }))} max={form.planned_end || undefined} error={plannedStartErr} />
-              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_start)}</span>
+            {showPlanned && dateCell(isAutoMode || hasActual || isBLConfirmed
+              ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_start)}</span>
+              : <DateCell value={m.planned_start} onSave={v => onSaveDate('planned_start', v)} isAdmin={isAdmin} max={m.planned_end || undefined} />
+            , null, '2px solid #e2e8f0')}
+            {showPlanned && dateCell(isAutoMode || hasActual || isBLConfirmed
+              ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
+              : <DateCell value={m.planned_end} onSave={v => onSaveDate('planned_end', v)} isAdmin={isAdmin} min={m.planned_start || undefined} />
             )}
-            {dateCell(isEditing && !isAutoMode
-              ? <GInlineInput type="date" value={form.planned_end} onChange={(v, bad) => setForm(p => ({ ...p, planned_end: v, planned_end_bad: !!bad }))} min={form.planned_start || undefined} error={plannedEndErr} />
-              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
+            {showActual && dateCell(
+              <DateCell value={m.actual_start} onSave={v => onSaveDate('actual_start', v)} isAdmin={isAdmin} max={m.actual_end || undefined} />
+            , null, '2px solid #e2e8f0')}
+            {showActual && dateCell(
+              <DateCell value={m.actual_end} onSave={v => onSaveDate('actual_end', v)} isAdmin={isAdmin} min={m.actual_start || undefined} />
             )}
-            {dateCell(isEditing
-              ? <GInlineInput type="date" value={form.actual_start} onChange={(v, bad) => setForm(p => ({ ...p, actual_start: v, actual_start_bad: !!bad, projected_start: v || p.projected_start }))} max={form.actual_end || undefined} error={actualStartErr} />
-              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start)}</span>
-            )}
-            {dateCell(isEditing
-              ? <GInlineInput type="date" value={form.actual_end} onChange={(v, bad) => setForm(p => ({ ...p, actual_end: v, actual_end_bad: !!bad, projected_end: v || p.projected_end }))} min={form.actual_start || undefined} error={actualEndErr} />
-              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end)}</span>
-            )}
-            {dateCell(isEditing
-              ? <GInlineInput type="date" value={projStartVal} onChange={(v, bad) => setForm(p => ({ ...p, projected_start: v, projected_start_bad: !!bad }))} max={projEndVal || undefined} error={projectedStartErr} disabled={hasActualStart} />
-              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start ?? m.projected_start)}</span>
-            )}
-            {dateCell(isEditing
-              ? <GInlineInput type="date" value={projEndVal} onChange={(v, bad) => setForm(p => ({ ...p, projected_end: v, projected_end_bad: !!bad }))} min={projStartVal || undefined} error={projectedEndErr} disabled={hasActualEnd} />
-              : <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end ?? m.projected_end)}</span>
+            {showProjected && dateCell(m.actual_start
+              ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start)}</span>
+              : <DateCell value={m.projected_start} onSave={v => onSaveDate('projected_start', v)} isAdmin={isAdmin} max={m.projected_end || undefined} />
+            , null, '2px solid #e2e8f0')}
+            {showProjected && dateCell(m.actual_end
+              ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end)}</span>
+              : <DateCell value={m.projected_end} onSave={v => onSaveDate('projected_end', v)} isAdmin={isAdmin} min={m.projected_start || undefined} />
             )}
           </div>
         )}
@@ -456,7 +540,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
       <div style={{ width: chartPxWidth, minWidth: chartPxWidth, position: 'relative' }}>
         {!hasDates ? (
           <div className="px-3 flex items-center" style={{ height: 52 }}>
-            <span className="text-xs text-gray-300 italic">No dates set</span>
+            <span className="text-xs text-gray-400 italic">No dates set</span>
           </div>
         ) : (
           <div className="relative overflow-hidden" style={{ height: 52, width: chartPxWidth, backgroundColor: 'transparent' }}>
@@ -474,19 +558,23 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
             )}
 
             {/* Row 1: Planned */}
-            <div className="absolute inset-x-0" style={{ top: 4, height: 20 }}>
-              <div className="relative h-full">
-                <GanttBar start={m.planned_start} end={m.planned_end} color="#9ca3af" toPx={toPx} />
+            {showPlannedBar && (
+              <div className="absolute inset-x-0" style={{ top: 4, height: 20 }}>
+                <div className="relative h-full">
+                  <GanttBar start={m.planned_start} end={m.planned_end} color="#9ca3af" toPx={toPx} />
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Row 2: Projected then Actual */}
-            <div className="absolute inset-x-0" style={{ top: 25, height: 20 }}>
-              <div className="relative h-full">
-                <GanttBar start={m.projected_start} end={m.projected_end} color="#fde047" toPx={toPx} />
-                <GanttBar start={m.actual_start} end={m.actual_end || (m.actual_start ? todayStr : null)} color="#86efac" toPx={toPx} />
+            {(showProjectedBar || showActualBar) && (
+              <div className="absolute inset-x-0" style={{ top: showPlannedBar ? 25 : 16, height: 20 }}>
+                <div className="relative h-full">
+                  {showProjectedBar && <GanttBar start={m.projected_start} end={m.projected_end} color="#fde047" toPx={toPx} />}
+                  {showActualBar && <GanttBar start={m.actual_start} end={m.actual_end || (m.actual_start ? todayStr : null)} color="#22c55e" toPx={toPx} />}
+                </div>
               </div>
-            </div>
+            )}
           </div>
         )}
       </div>
@@ -526,12 +614,174 @@ function computeParentDates(children) {
     planned_end:     maxStr(children.map(c => c.planned_end)),
     actual_start:    minStr(children.map(c => c.actual_start)),
     actual_end:      children.every(c => c.actual_end) ? maxStr(children.map(c => c.actual_end)) : null,
-    projected_start: children.every(c => !c.actual_start) ? minStr(children.map(c => c.projected_start)) : null,
+    projected_start: minStr(children.map(c => c.actual_start ?? c.projected_start)),
     projected_end:   maxStr(children.map(c => c.projected_end)),
   }
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, showDates = true, editId = null, form = {}, setForm = () => {}, onSave = () => {}, onCancelEdit = () => {}, onEdit = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], showDeps = true, onSavePreds = () => {}, isAutoMode = false, onSaveDuration = () => {} }) {
+function ColsDropdown({ colVisibility, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const items = [
+    { key: 'duration',    label: 'Duration' },
+    { key: 'predecessor', label: 'Predecessors' },
+    { key: 'planned',     label: 'Planned dates' },
+    { key: 'actual',      label: 'Actual dates' },
+    { key: 'projected',   label: 'Projected dates' },
+    { key: 'gantt',       label: 'Gantt chart' },
+  ]
+  const hiddenCount = items.filter(i => !colVisibility[i.key]).length
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition flex-shrink-0 ${hiddenCount > 0 ? 'border-[#ed6055] text-[#ed6055] bg-red-50 hover:bg-red-100' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        Filter Columns
+        {hiddenCount > 0 && (
+          <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#ed6055] text-white text-[11px] font-bold leading-none">{hiddenCount}</span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1.5 w-48">
+          {items.map(({ key, label }) => (
+            <label key={key} className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={colVisibility[key]}
+                onChange={e => onChange(prev => ({ ...prev, [key]: e.target.checked }))}
+                className="w-3.5 h-3.5 rounded cursor-pointer"
+                style={{ accentColor: '#ed6055' }}
+              />
+              <span className="text-xs text-gray-700 font-medium">{label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function BarsDropdown({ barVisibility, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [open])
+
+  const items = [
+    { key: 'planned',   label: 'Planned',   color: '#9ca3af' },
+    { key: 'actual',    label: 'Actual',    color: '#22c55e' },
+    { key: 'projected', label: 'Projected', color: '#fde047' },
+  ]
+  const hiddenCount = items.filter(i => !barVisibility[i.key]).length
+
+  return (
+    <div ref={ref} className="relative flex-shrink-0">
+      <button
+        onClick={() => setOpen(v => !v)}
+        className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition flex-shrink-0 ${hiddenCount > 0 ? 'border-[#ed6055] text-[#ed6055] bg-red-50 hover:bg-red-100' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 4h13M3 8h9m-9 4h9m5-4v12m0 0l-4-4m4 4l4-4" />
+        </svg>
+        Bars
+        {hiddenCount > 0 && (
+          <span className="flex items-center justify-center w-4 h-4 rounded-full bg-[#ed6055] text-white text-[11px] font-bold leading-none">{hiddenCount}</span>
+        )}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-xl shadow-lg z-50 py-1.5 w-40">
+          {items.map(({ key, label, color }) => (
+            <label key={key} className="flex items-center gap-2.5 px-3 py-1.5 hover:bg-gray-50 cursor-pointer select-none">
+              <input
+                type="checkbox"
+                checked={barVisibility[key]}
+                onChange={e => onChange(prev => ({ ...prev, [key]: e.target.checked }))}
+                className="w-3.5 h-3.5 rounded cursor-pointer"
+                style={{ accentColor: '#ed6055' }}
+              />
+              <span className="w-3 h-3 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
+              <span className="text-xs text-gray-700 font-medium">{label}</span>
+            </label>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GToolbarSelect({ options = [], value, onChange, fullWidth = false }) {
+  const [open, setOpen]   = useState(false)
+  const [dropUp, setDropUp] = useState(false)
+  const containerRef      = useRef(null)
+
+  const checkFlip = () => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setDropUp(window.innerHeight - rect.bottom < 180)
+  }
+
+  const handleToggle = () => { checkFlip(); setOpen(o => !o) }
+  const handleBlur   = (e) => { if (!containerRef.current?.contains(e.relatedTarget)) setOpen(false) }
+
+  const dropdownShadow = { boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06)' }
+  const selected = options.find(o => o.value === value)
+
+  return (
+    <div ref={containerRef} className={`relative flex-shrink-0 ${fullWidth ? 'w-full' : ''}`} onBlur={handleBlur}>
+      <button
+        type="button"
+        onClick={handleToggle}
+        className={`flex items-center justify-between gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/30 transition-colors cursor-pointer active:scale-[0.97] ${fullWidth ? 'w-full' : ''}`}
+      >
+        <span>{selected?.label ?? '—'}</span>
+        <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={open ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
+        </svg>
+      </button>
+      {open && (
+        <div
+          className={`absolute z-[80] min-w-full bg-white border border-gray-100 rounded-xl overflow-hidden ${dropUp ? 'bottom-full mb-1' : 'mt-1'}`}
+          style={{ animation: 'gmenu-in 150ms ease-out forwards', ...dropdownShadow }}
+        >
+          <ul className="py-1 text-xs">
+            {options.map(opt => (
+              <li
+                key={opt.value}
+                onMouseDown={() => { onChange(opt.value); setOpen(false) }}
+                className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors duration-100 whitespace-nowrap ${opt.value === value ? 'bg-[#ed6055]/10 text-[#ed6055] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+              >
+                <span className="flex-1">{opt.label}</span>
+                {opt.value === value && (
+                  <svg className="w-3 h-3 flex-shrink-0 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {} }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -580,7 +830,14 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const todayPx    = toPx(today)
   const showToday  = todayPx >= 0 && todayPx <= chartPxWidth
 
-  const totalW = ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0) + chartPxWidth
+  const { duration: showDuration, predecessor: showPredecessor, planned: showPlanned, actual: showActual, projected: showProjected, gantt: showGantt } = colVisibility
+  const frozenW = ROW_NUM_W + labelW
+    + (showDuration ? DUR_COL_W : 0)
+    + (showPredecessor ? PRED_COL_W : 0)
+    + (showPlanned ? DATE_GROUP_W : 0)
+    + (showActual ? DATE_GROUP_W : 0)
+    + (showProjected ? DATE_GROUP_W : 0)
+  const totalW = frozenW + (showGantt ? chartPxWidth : 0)
 
   // Sequential row numbers for visible task rows (collapsed rows excluded)
   const idToRowNum = new Map()
@@ -599,57 +856,83 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
 
   const axisHeader = (
     <>
-      <div className="flex" style={{ width: totalW, minWidth: totalW, backgroundColor: '#f8fafc' }}>
+      <div className="flex" style={{ width: totalW, minWidth: totalW, backgroundColor: '#1e293b' }}>
         <div
-          style={{ width: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), minWidth: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0), borderRight: '1px solid #e5e7eb', backgroundColor: '#f8fafc', position: 'sticky', left: 0, zIndex: 10 }}
+          style={{ width: frozenW, minWidth: frozenW, borderRight: '1px solid #334155', backgroundColor: '#1e293b', position: 'sticky', left: 0, zIndex: 10 }}
           className="flex-shrink-0 flex items-center"
         >
           {/* # column header */}
-          <div style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W }} className="flex items-center justify-center self-stretch border-r border-gray-200 flex-shrink-0">
-            <span className="text-[10px] font-bold text-gray-500">#</span>
+          <div style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W }} className="flex items-center justify-center self-stretch border-r border-slate-700 flex-shrink-0">
+            <span className="text-[10px] font-bold text-slate-400">#</span>
           </div>
           {/* Activity name column */}
-          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-2 self-stretch border-r border-gray-200 flex-shrink-0">
-            <span className="text-xs font-bold text-gray-700">Activity</span>
+          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-2 self-stretch border-r border-slate-700 flex-shrink-0">
+            <span className="text-xs font-bold text-slate-200">Activity</span>
           </div>
-          {/* Duration column header — Auto mode only */}
-          {isAutoMode && (
-            <div style={{ width: DUR_COL_W, minWidth: DUR_COL_W }} className="flex items-center justify-center self-stretch border-r border-gray-200 flex-shrink-0">
-              <span className="text-xs font-bold text-yellow-600">Dur.</span>
+          {/* When Planned is visible, Dur + Pred are grouped under its header */}
+          {showPlanned ? (() => {
+            const groupW = (showDuration ? DUR_COL_W : 0) + (showPredecessor ? PRED_COL_W : 0) + DATE_GROUP_W
+            return (
+              <div style={{ width: groupW, backgroundColor: '#1e293b', borderTop: '2px solid #9ca3af' }} className="flex flex-col border-r border-slate-700 py-1 flex-shrink-0">
+                <span className="text-[11px] font-extrabold text-slate-200 uppercase tracking-wide text-center flex items-center justify-center gap-1">
+                  <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: '#9ca3af' }} />Planned
+                </span>
+                <div className="flex w-full mt-0.5">
+                  {showDuration && (
+                    <span style={{ width: DUR_COL_W }} className="text-center text-[11px] text-slate-400 border-r border-slate-700 flex-shrink-0">Dur.</span>
+                  )}
+                  {showPredecessor && (
+                    <span style={{ width: PRED_COL_W }} className="text-center text-[11px] text-slate-400 border-r border-slate-700 flex-shrink-0">Pred.</span>
+                  )}
+                  <span className="flex-1 text-center text-[11px] text-slate-400 border-r border-slate-700">Start</span>
+                  <span className="flex-1 text-center text-[11px] text-slate-400">End</span>
+                </div>
+              </div>
+            )
+          })() : (
+            <>
+              {/* When Planned is hidden, Dur + Pred keep individual headers */}
+              {showDuration && (
+                <div style={{ width: DUR_COL_W, minWidth: DUR_COL_W }} className="flex items-center justify-center self-stretch border-r border-slate-700 flex-shrink-0">
+                  <span className="text-xs font-bold text-slate-300">Dur.</span>
+                </div>
+              )}
+              {showPredecessor && (
+                <div style={{ width: PRED_COL_W, minWidth: PRED_COL_W }} className="flex items-center gap-1 px-2 self-stretch border-r border-slate-700 flex-shrink-0">
+                  <span className="text-xs font-bold text-slate-300">Pred.</span>
+                  <svg className="w-3 h-3 text-gray-400 flex-shrink-0 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                    title={"Format: <row>FS|SS|FF|SF[+/-days]\nExamples: 3FS (row 3 finish→start), 2SS+5 (row 2 start→start +5 days)\nSeparate multiple predecessors with commas."}>
+                    <circle cx="12" cy="12" r="10" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" />
+                  </svg>
+                </div>
+              )}
+            </>
+          )}
+          {showActual && (
+            <div style={{ width: DATE_GROUP_W, backgroundColor: '#1e293b', borderTop: '2px solid #22c55e' }} className="flex flex-col items-center justify-center border-r border-slate-700 py-1 flex-shrink-0">
+              <span className="text-[11px] font-extrabold text-slate-200 uppercase tracking-wide flex items-center gap-1">
+                <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: '#22c55e' }} />Actual
+              </span>
+              <div className="flex w-full mt-0.5">
+                <span className="flex-1 text-center text-[11px] text-slate-400 border-r border-slate-700">Start</span>
+                <span className="flex-1 text-center text-[11px] text-slate-400">End</span>
+              </div>
             </div>
           )}
-          {/* Predecessors column header */}
-          <div style={{ width: PRED_COL_W, minWidth: PRED_COL_W }} className="flex items-center px-2 self-stretch border-r border-gray-200 flex-shrink-0">
-            <span className="text-xs font-bold text-gray-700">Predecessors</span>
-          </div>
-          {/* Date group headers — only when visible */}
-          {showDates && (
-            <div className="flex" style={{ width: DATE_COLS_W }}>
-              <div style={{ width: DATE_GROUP_W }} className="flex flex-col items-center justify-center border-r border-gray-200 py-1">
-                <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wide">Planned</span>
-                <div className="flex w-full mt-0.5">
-                  <span className="flex-1 text-center text-[9px] text-blue-400 border-r border-gray-100">Start</span>
-                  <span className="flex-1 text-center text-[9px] text-blue-400">End</span>
-                </div>
-              </div>
-              <div style={{ width: DATE_GROUP_W }} className="flex flex-col items-center justify-center border-r border-gray-200 py-1">
-                <span className="text-[10px] font-bold text-red-500 uppercase tracking-wide">Actual</span>
-                <div className="flex w-full mt-0.5">
-                  <span className="flex-1 text-center text-[9px] text-red-400 border-r border-gray-100">Start</span>
-                  <span className="flex-1 text-center text-[9px] text-red-400">End</span>
-                </div>
-              </div>
-              <div style={{ width: DATE_GROUP_W }} className="flex flex-col items-center justify-center py-1">
-                <span className="text-[10px] font-bold text-green-600 uppercase tracking-wide">Projected</span>
-                <div className="flex w-full mt-0.5">
-                  <span className="flex-1 text-center text-[9px] text-green-500 border-r border-gray-100">Start</span>
-                  <span className="flex-1 text-center text-[9px] text-green-500">End</span>
-                </div>
+          {showProjected && (
+            <div style={{ width: DATE_GROUP_W, backgroundColor: '#1e293b', borderTop: '2px solid #fde047' }} className="flex flex-col items-center justify-center py-1 flex-shrink-0">
+              <span className="text-[11px] font-extrabold text-slate-200 uppercase tracking-wide flex items-center gap-1">
+                <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: '#fde047' }} />Projected
+              </span>
+              <div className="flex w-full mt-0.5">
+                <span className="flex-1 text-center text-[11px] text-slate-400 border-r border-slate-700">Start</span>
+                <span className="flex-1 text-center text-[11px] text-slate-400">End</span>
               </div>
             </div>
           )}
         </div>
-        <div style={{ width: chartPxWidth, minWidth: chartPxWidth, position: 'relative', overflow: 'hidden' }}>
+        {showGantt && <div style={{ width: chartPxWidth, minWidth: chartPxWidth, position: 'relative', overflow: 'hidden' }}>
           {/* Row 1 */}
           <div className="relative" style={{ height: 22 }}>
             {timeScale === 'month' ? (
@@ -657,8 +940,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                 const left = toPx(yr)
                 return (
                   <div key={i} className="absolute flex flex-col items-start" style={{ left }}>
-                    <div className="w-px h-2 bg-gray-300" />
-                    <span className="text-xs font-semibold text-gray-800 whitespace-nowrap ml-1">{yr.getFullYear()}</span>
+                    <div className="w-px h-2 bg-slate-600" />
+                    <span className="text-xs font-semibold text-slate-200 whitespace-nowrap ml-1">{yr.getFullYear()}</span>
                   </div>
                 )
               })
@@ -667,8 +950,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                 const left = toPx(mo)
                 return (
                   <div key={i} className="absolute flex flex-col items-start" style={{ left }}>
-                    <div className="w-px h-2 bg-gray-300" />
-                    <span className="text-xs font-medium text-gray-700 whitespace-nowrap ml-1">
+                    <div className="w-px h-2 bg-slate-600" />
+                    <span className="text-xs font-medium text-slate-300 whitespace-nowrap ml-1">
                       {mo.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })}
                     </span>
                   </div>
@@ -684,8 +967,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                 if (left < 0 || left > chartPxWidth) return null
                 return (
                   <div key={i} className="absolute flex flex-col items-center" style={{ left, top: 0, transform: 'translateX(-50%)' }}>
-                    <div className="w-px h-1 bg-gray-200" />
-                    <span className="text-xs font-medium text-gray-700 whitespace-nowrap leading-none">
+                    <div className="w-px h-1 bg-slate-600" />
+                    <span className="text-xs font-medium text-slate-300 whitespace-nowrap leading-none">
                       {mo.toLocaleDateString('en-PH', { month: 'short' })}
                     </span>
                   </div>
@@ -700,9 +983,9 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                   const isWeekend = (d.getDay() === 0 || d.getDay() === 6)
                   return (
                     <div key={i} className="absolute flex flex-col items-center" style={{ left, top: 0, transform: 'translateX(-50%)' }}>
-                      <div className={`w-px bg-gray-200 ${timeScale === 'day' ? 'h-2' : 'h-1'}`} />
+                      <div className={`w-px bg-slate-600 ${timeScale === 'day' ? 'h-2' : 'h-1'}`} />
                       {showLabel && (
-                        <span className={`leading-none ${isWeekend ? 'text-xs font-bold text-[#ed6055]' : 'text-xs font-medium text-gray-700'}`}>
+                        <span className={`leading-none ${isWeekend ? 'text-xs font-bold text-[#ed6055]' : 'text-xs font-medium text-slate-300'}`}>
                           {d.getDate()}
                         </span>
                       )}
@@ -722,9 +1005,9 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
               </div>
             )}
           </div>
-        </div>
+        </div>}
       </div>
-      <div className="border-b-2 border-gray-200" style={{ width: totalW, minWidth: totalW }} />
+      <div style={{ width: totalW, minWidth: totalW, borderBottom: '2px solid #0f172a' }} />
     </>
   )
 
@@ -733,7 +1016,12 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     const isCollapsed = collapsedPhases.has(key)
     const rows = []
 
-    // Phase group header
+    // Phase group header — leaf-task completion counts
+    const parentIdsInPhase = new Set(phaseMils.filter(m => m.parent_id != null).map(m => m.parent_id))
+    const leafMils         = phaseMils.filter(m => !parentIdsInPhase.has(m.id))
+    const taskCount        = leafMils.length
+    const completedCount   = leafMils.filter(m => m.actual_end).length
+
     rows.push(
       <PhaseGroupHeader
         key={`phase-${key}`}
@@ -741,10 +1029,11 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         isCollapsed={isCollapsed}
         onToggle={() => onTogglePhase(key)}
         totalW={totalW}
-        labelW={labelW}
-        showDates={showDates}
-        chartPxWidth={chartPxWidth}
+        frozenW={frozenW}
+        chartPxWidth={showGantt ? chartPxWidth : 0}
         isAutoMode={isAutoMode}
+        taskCount={taskCount}
+        completedCount={completedCount}
       />
     )
 
@@ -769,15 +1058,19 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             isCollapsed={collapsedIds.has(node.id)}
             onToggleCollapse={onToggleCollapse}
             onAddChild={isAdmin ? onAddChild : null}
-            toPx={toPx} chartPxWidth={chartPxWidth} gridDates={gridDates}
+            toPx={toPx} chartPxWidth={showGantt ? chartPxWidth : 0} gridDates={gridDates}
             todayPx={todayPx} showToday={showToday} todayStr={todayStr}
             isChild={node.depth > 0} isLastChild={false}
-            labelW={labelW} showDates={showDates}
-            isEditing={editId === node.id} form={form} setForm={setForm}
-            onSave={onSave} onCancelEdit={onCancelEdit} onEdit={onEdit} onDelete={onDelete}
+            labelW={labelW} showDuration={showDuration} showPredecessor={showPredecessor} showPlanned={showPlanned} showActual={showActual} showProjected={showProjected}
+            showPlannedBar={barVisibility.planned} showActualBar={barVisibility.actual} showProjectedBar={barVisibility.projected}
+            draftName={drafts[node.id] ?? displayM.milestone_name}
+            onDraftChange={(v) => setDrafts(p => ({ ...p, [node.id]: v }))}
+            onDelete={onDelete}
             isAdmin={isAdmin}
             isAutoMode={isAutoMode}
+            isBLConfirmed={isBLConfirmed}
             onSaveDuration={(dur) => onSaveDuration(node.id, dur)}
+            onSaveDate={(field, value) => onSaveDate(node.id, field, value)}
           />
         )
 
@@ -803,12 +1096,12 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                   style={{ minWidth: 180 }}
                 />
                 <button onClick={onAddChildSave} disabled={addingChild || !addChildForm?.milestone_name?.trim()}
-                        className="text-[10px] font-bold text-[#ed6055] hover:text-[#d94f45] disabled:opacity-50"
+                        className="text-[11px] font-bold text-[#ed6055] hover:text-[#d94f45] disabled:opacity-50 transition-colors duration-150"
                         style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
                   {addingChild ? '…' : 'Save'}
                 </button>
                 <button onClick={onCancelAddChild}
-                        className="text-[10px] text-gray-400 hover:text-gray-600"
+                        className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors duration-150"
                         style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
               </div>
             </div>
@@ -844,13 +1137,14 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         } else {
           rows.push(
             <div key={`add-btn-${key}`}
-                 style={{ width: totalW, minWidth: totalW, height: 32, display: 'flex', alignItems: 'center', borderBottom: '1px solid #f9fafb' }}>
-              <div className="sticky left-0" style={{ paddingLeft: 16 }}>
+                 style={{ width: totalW, minWidth: totalW, height: 40, display: 'flex', alignItems: 'center', borderBottom: '1px solid #f9fafb' }}>
+              <div className="sticky left-0" style={{ paddingLeft: 14 }}>
                 <button
                   onClick={() => onAddFormChange({ phase: key, milestone_name: '' })}
-                  className="text-[11px] font-semibold text-gray-400 hover:text-[#ed6055] transition flex items-center gap-1"
+                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-dashed border-gray-300 text-[11px] font-semibold text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] hover:bg-red-50 transition-colors duration-150 active:scale-[0.97]"
                 >
-                  <span className="text-base leading-none">+</span> Add milestone
+                  <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                  Add milestone
                 </button>
               </div>
             </div>
@@ -896,66 +1190,6 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         )}
         {/* Rows — phase headers and add buttons always render */}
         {milestoneRows}
-        {/* SVG dependency arrow overlay */}
-        {showDeps && dependencies.length > 0 && (
-          <svg
-            style={{
-              position: 'absolute',
-              top: AXIS_H,
-              left: ROW_NUM_W + labelW + (isAutoMode ? DUR_COL_W : 0) + PRED_COL_W + (showDates ? DATE_COLS_W : 0),
-              pointerEvents: 'none',
-              zIndex: 2,
-              overflow: 'visible',
-            }}
-            width={chartPxWidth}
-            height={svgH}
-          >
-            <defs>
-              <marker id="arr-coral" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                <path d="M0,0 L0,7 L7,3.5 z" fill="#ed6055"/>
-              </marker>
-              <marker id="arr-red" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
-                <path d="M0,0 L0,7 L7,3.5 z" fill="#ef4444"/>
-              </marker>
-            </defs>
-
-            {dependencies.map(dep => {
-              const fromM = milestones.find(m => m.id === dep.from_id)
-              const toM   = milestones.find(m => m.id === dep.to_id)
-              if (!fromM || !toM) return null
-              const fy = yCenterById[dep.from_id]
-              const ty = yCenterById[dep.to_id]
-              if (fy == null || ty == null) return null  // one row is in a collapsed group
-
-              const toDate = s => s ? new Date(s + 'T00:00:00') : null
-              const fS = toDate(fromM.planned_start)
-              const fE = toDate(fromM.planned_end)
-              const tS = toDate(toM.planned_start)
-              const tE = toDate(toM.planned_end)
-              if (!fS || !fE || !tS || !tE) return null
-
-              const fx1 = toPx(fS), fx2 = toPx(fE)
-              const tx1 = toPx(tS), tx2 = toPx(tE)
-              const violated = isViolated(dep.type, fromM, toM, dep.lag_days ?? 0)
-              const path     = calcArrowPath(dep.type, { x1: fx1, x2: fx2, yMid: fy }, { x1: tx1, x2: tx2, yMid: ty })
-              const color    = violated ? '#ef4444' : '#ed6055'
-              const markerId = violated ? 'arr-red' : 'arr-coral'
-
-              return (
-                <path
-                  key={dep.id}
-                  d={path}
-                  stroke={color}
-                  strokeWidth={1.5}
-                  fill="none"
-                  strokeDasharray={violated ? '5,3' : undefined}
-                  markerEnd={`url(#${markerId})`}
-                  opacity={0.85}
-                />
-              )
-            })}
-          </svg>
-        )}
         {/* No-dates placeholder — only when baseline is empty */}
         {allDates.length === 0 && (
           <div className="flex items-center justify-center py-12 text-sm text-gray-400">
@@ -1019,18 +1253,18 @@ function BaselineStartDateField({ startDate, isAutoMode, onSave }) {
     if (!editing) setValue(startDate ?? '')
   }, [startDate, editing])
 
-  if (!isAutoMode) return null
+  // Start date is useful in both modes — shown always
 
   if (!editing) {
     return (
       <div className="flex items-center gap-1.5">
-        <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">Start</span>
+        <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">Start</span>
         <button
           onClick={() => setEditing(true)}
           className="text-xs font-semibold text-gray-600 hover:text-[#ed6055] transition underline underline-offset-2"
           title="Click to set project start date"
         >
-          {startDate ? new Date(startDate + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : <span className="text-gray-300">Not set</span>}
+          {startDate ? new Date(startDate + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : <span className="text-gray-400">Not set</span>}
         </button>
       </div>
     )
@@ -1038,7 +1272,7 @@ function BaselineStartDateField({ startDate, isAutoMode, onSave }) {
 
   return (
     <div className="flex items-center gap-1">
-      <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">Start</span>
+      <span className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">Start</span>
       <input
         autoFocus
         type="date"
@@ -1107,14 +1341,20 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     return next
   })
 
-  const [editId, setEditId]       = useState(null)
-  const [form, setForm]           = useState({})
+  const [drafts, setDrafts] = useState(() => {
+    try { const s = sessionStorage.getItem(`gantt-drafts-${project.id}`); return s ? JSON.parse(s) : {} } catch { return {} }
+  })
+  useEffect(() => {
+    if (Object.keys(drafts).length > 0) sessionStorage.setItem(`gantt-drafts-${project.id}`, JSON.stringify(drafts))
+    else sessionStorage.removeItem(`gantt-drafts-${project.id}`)
+  }, [drafts])
   const [deleteId, setDeleteId]   = useState(null)
-  const [showDates, setShowDates] = useState(true)
+  const [colVisibility, setColVisibility] = useState({ duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true })
+  const [barVisibility, setBarVisibility] = useState({ planned: true, actual: true, projected: true })
+  const [activeTab, setActiveTab]         = useState('gantt')
   const [addForm, setAddForm]         = useState(null)  // null = hidden; {} = showing add row
   const [adding, setAdding]           = useState(false)
   const [dependencies, setDependencies] = useState([])
-  const [showDeps,     setShowDeps]     = useState(true)
   const [newBLName, setNewBLName]     = useState('')
   const [showNewBLModal, setShowNewBLModal] = useState(false)
   const [templateCount,  setTemplateCount]  = useState(0)
@@ -1130,7 +1370,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const loadBaselines = async () => {
       const { data } = await supabase
         .from('milestone_baselines')
-        .select('id, label, created_at, scheduling_mode, start_date')
+        .select('id, label, created_at, scheduling_mode, start_date, confirmed_at')
         .eq('project_id', project.id)
         .order('created_at', { ascending: true })
       const bls = data ?? []
@@ -1151,8 +1391,34 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       supabase.from('project_milestones').select('*').eq('project_id', project.id).eq('baseline_id', resolvedId).order('sort_order'),
       supabase.from('milestone_dependencies').select('*').eq('baseline_id', resolvedId),
     ])
-    setMilestones(ms ?? [])
-    setDependencies(deps ?? [])
+    const msArr   = ms   ?? []
+    const depsArr = deps ?? []
+
+    // Auto-recalculate projected dates whenever any row has actual dates
+    const hasActuals = msArr.some(m => m.actual_start || m.actual_end)
+    if (hasActuals) {
+      const projected = scheduleProjected(msArr, depsArr)
+      if (projected && !projected.error) {
+        const entries = Object.entries(projected)
+        if (entries.length) {
+          // Persist to DB fire-and-forget (next load will also recalculate if needed)
+          entries.forEach(([id, dates]) =>
+            supabase.from('project_milestones')
+              .update({ projected_start: dates.projected_start, projected_end: dates.projected_end })
+              .eq('id', id)
+          )
+          // Merge into state immediately so screen updates without a second round-trip
+          const projMap = new Map(entries)
+          setMilestones(msArr.map(m => projMap.has(m.id) ? { ...m, ...projMap.get(m.id) } : m))
+          setDependencies(depsArr)
+          setLoading(false)
+          return
+        }
+      }
+    }
+
+    setMilestones(msArr)
+    setDependencies(depsArr)
     setLoading(false)
   }
 
@@ -1161,39 +1427,19 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     loadMilestones()
   }, [project.id, activeBL])
 
-  const handleSave = async (id) => {
-    const actual_start = form.actual_start || null
-    const actual_end   = form.actual_end   || null
-    const payload = {
-      project_id:      project.id,
-      phase:           form.phase,
-      milestone_name:  form.milestone_name?.trim(),
-      actual_start,
-      actual_end,
-      projected_start: actual_start ?? (form.projected_start || null),
-      projected_end:   actual_end   ?? (form.projected_end   || null),
-      parent_id:       form.parent_id ?? null,
-      ...(isAutoMode ? {} : {
-        planned_start: form.planned_start || null,
-        planned_end:   form.planned_end   || null,
-      }),
-    }
-    if (!payload.milestone_name) return
-    if (!isAutoMode) {
-      if (form.planned_start_bad   || (form.planned_start   && !isValidDate(form.planned_start)))   { showToast('Planned Start is not a valid date.',   'error'); return }
-      if (form.planned_end_bad     || (form.planned_end     && !isValidDate(form.planned_end)))     { showToast('Planned End is not a valid date.',     'error'); return }
-    }
-    if (form.actual_start_bad    || (form.actual_start    && !isValidDate(form.actual_start)))    { showToast('Actual Start is not a valid date.',    'error'); return }
-    if (form.actual_end_bad      || (form.actual_end      && !isValidDate(form.actual_end)))      { showToast('Actual End is not a valid date.',      'error'); return }
-    if (form.projected_start_bad || (form.projected_start && !isValidDate(form.projected_start))) { showToast('Projected Start is not a valid date.', 'error'); return }
-    if (form.projected_end_bad   || (form.projected_end   && !isValidDate(form.projected_end)))   { showToast('Projected End is not a valid date.',   'error'); return }
-    if (!isAutoMode && payload.planned_start && payload.planned_end && payload.planned_end < payload.planned_start) { showToast('Planned end must be on or after planned start.', 'error'); return }
-    if (payload.actual_start    && payload.actual_end    && payload.actual_end    < payload.actual_start)    { showToast('Actual end must be on or after actual start.',     'error'); return }
-    if (payload.projected_start && payload.projected_end && payload.projected_end < payload.projected_start) { showToast('Projected end must be on or after projected start.','error'); return }
-    const { error } = await supabase.from('project_milestones').update(payload).eq('id', id)
-    if (error) { showToast(error.message, 'error'); return }
-    showToast('Updated.', 'success')
-    setEditId(null)
+  const handleSave = async () => {
+    const dirty = Object.entries(drafts).filter(([id, name]) => {
+      const m = milestones.find(x => x.id === id)
+      return m && name.trim() && name.trim() !== m.milestone_name
+    })
+    if (!dirty.length) return
+    const results = await Promise.all(
+      dirty.map(([id, name]) => supabase.from('project_milestones').update({ milestone_name: name.trim() }).eq('id', id))
+    )
+    const failed = results.filter(r => r.error)
+    if (failed.length) { showToast(`${failed.length} error(s) saving.`, 'error'); return }
+    setDrafts({})
+    showToast(`Saved ${dirty.length} change${dirty.length !== 1 ? 's' : ''}.`, 'success')
     loadMilestones()
   }
 
@@ -1204,22 +1450,27 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     loadMilestones()
   }
 
-  const handleEdit = (m) => {
-    setForm({
-      milestone_name:  m.milestone_name,
-      phase:           m.phase,
-      planned_start:   m.planned_start   ?? '',
-      planned_end:     m.planned_end     ?? '',
-      actual_start:    m.actual_start    ?? '',
-      actual_end:      m.actual_end      ?? '',
-      projected_start: m.actual_start    ?? m.projected_start ?? '',
-      projected_end:   m.actual_end      ?? m.projected_end   ?? '',
-      parent_id:       m.parent_id       ?? null,
-      planned_start_bad: false, planned_end_bad: false,
-      actual_start_bad:  false, actual_end_bad:  false,
-      projected_start_bad: false, projected_end_bad: false,
-    })
-    setEditId(m.id)
+  const handleSaveDate = async (milestoneId, field, value) => {
+    const updates = { [field]: value || null }
+    // When actual start/end is set, sync projected if not already filled
+    if (field === 'actual_start' && value) {
+      const m = milestones.find(x => x.id === milestoneId)
+      if (!m?.projected_start) updates.projected_start = value
+    }
+    if (field === 'actual_end' && value) {
+      const m = milestones.find(x => x.id === milestoneId)
+      if (!m?.projected_end) updates.projected_end = value
+    }
+    const { error } = await supabase.from('project_milestones').update(updates).eq('id', milestoneId)
+    if (error) { showToast(error.message, 'error'); return }
+    if (field === 'actual_start' || field === 'actual_end') {
+      // loadMilestones will recalculate projected dates for all downstream tasks
+      loadMilestones()
+    } else if (isAutoMode && blStartDate) {
+      await runScheduler()
+    } else {
+      loadMilestones()
+    }
   }
 
   const handleAdd = async () => {
@@ -1254,10 +1505,13 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setNewBLName('')
     setLoadTemplate(true)
     setShowNewBLModal(true)
-    const { count } = await supabase
-      .from('work_program_template_tasks')
-      .select('*', { count: 'exact', head: true })
-    setTemplateCount(count ?? 0)
+    // Template option is only relevant when creating the very first baseline
+    if (baselines.length === 0) {
+      const { count } = await supabase
+        .from('work_program_template_tasks')
+        .select('*', { count: 'exact', head: true })
+      setTemplateCount(count ?? 0)
+    }
   }
 
   const handleCreateBaseline = async () => {
@@ -1272,15 +1526,25 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     if (error) { showToast(error.message, 'error'); setCreatingBL(false); return }
     if (!data) { showToast('Failed to create baseline.', 'error'); setCreatingBL(false); return }
 
-    if (loadTemplate && templateCount > 0) {
-      const { error: copyErr } = await copyTemplateToBaseline(data.id, supabase, project.id)
+    if (baselines.length > 0) {
+      // BL1+: copy everything from the currently active baseline
+      const sourceLabel = baselines.find(b => b.id === activeBL)?.label ?? 'previous baseline'
+      const { error: copyErr } = await copyBaselineToBaseline(activeBL, data.id, supabase, project.id)
+      if (copyErr) {
+        showToast(`Baseline created but copy failed: ${copyErr}`, 'error')
+      } else {
+        showToast(`"${label}" created from ${sourceLabel}. Edit as needed.`, 'success')
+      }
+    } else if (loadTemplate && templateCount > 0) {
+      // BL0 with template: copy from the standard work program template
+      const { error: copyErr } = await copyTemplateToBaseline(data.id, supabase, project.id, null)
       if (copyErr) {
         showToast(`Baseline created but template copy failed: ${copyErr}`, 'error')
       } else {
-        showToast(`Baseline "${label}" created with standard work program.`, 'success')
+        showToast(`"${label}" created with standard work program.`, 'success')
       }
     } else {
-      showToast(`Baseline "${label}" created.`, 'success')
+      showToast(`"${label}" created.`, 'success')
     }
 
     setBaselines(prev => [...prev, data])
@@ -1433,7 +1697,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
       const { data: newBLs } = await supabase
         .from('milestone_baselines')
-        .select('id, label, created_at')
+        .select('id, label, created_at, scheduling_mode, start_date, confirmed_at')
         .eq('project_id', pid)
         .order('created_at', { ascending: true })
       if (newBLs) { setBaselines(newBLs); setActiveBL(blId); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }
@@ -1571,15 +1835,27 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     }
     if (isAutoMode && blStartDate) {
       await runScheduler()
+    } else if (!isBLConfirmed) {
+      // Manual mode, unconfirmed BL — cascade planned dates just like a duration change
+      const schedStart = blStartDate
+        || milestones.map(m => m.planned_start).filter(Boolean).sort()[0]
+        || null
+      if (schedStart) {
+        await runScheduler(schedStart)
+      } else {
+        await loadMilestones(activeBL)
+        showToast('Predecessors updated.', 'success')
+      }
     } else {
       await loadMilestones(activeBL)
       showToast('Predecessors updated.', 'success')
     }
   }
 
-  const activeBLObj  = baselines.find(b => b.id === activeBL) ?? null
-  const isAutoMode   = activeBLObj?.scheduling_mode === 'auto'
-  const blStartDate  = activeBLObj?.start_date ?? null
+  const activeBLObj    = baselines.find(b => b.id === activeBL) ?? null
+  const isAutoMode     = activeBLObj?.scheduling_mode === 'auto'
+  const blStartDate    = activeBLObj?.start_date ?? null
+  const isBLConfirmed  = !!(activeBLObj?.confirmed_at)
 
   const handleSaveStartDate = async (isoDate) => {
     const val = isoDate || null
@@ -1589,9 +1865,21 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       .eq('id', activeBL)
     if (error) { showToast(error.message, 'error'); return }
     setBaselines(prev => prev.map(b => b.id === activeBL ? { ...b, start_date: val } : b))
-    if (isAutoMode && val) {
+    if (val) {
       await runScheduler(val)
     }
+  }
+
+  const handleConfirmBaseline = async () => {
+    const now = new Date().toISOString()
+    const { error } = await supabase
+      .from('milestone_baselines')
+      .update({ confirmed_at: now })
+      .eq('id', activeBL)
+    if (error) { showToast(error.message, 'error'); return }
+    setBaselines(prev => prev.map(b => b.id === activeBL ? { ...b, confirmed_at: now } : b))
+    const label = activeBLObj?.label ?? 'Baseline'
+    showToast(`"${label}" locked and finalised. Planning fields are now read-only.`, 'success')
   }
 
   const handleSaveMode = async (newMode) => {
@@ -1661,10 +1949,15 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       .update({ duration: duration ?? null })
       .eq('id', milestoneId)
     if (error) { showToast(error.message, 'error'); return }
-    if (isAutoMode && blStartDate) {
-      await runScheduler()
+    // Use baseline start date, or fall back to earliest planned_start already set
+    const schedStart = blStartDate
+      || milestones.map(m => m.planned_start).filter(Boolean).sort()[0]
+      || null
+    if (schedStart) {
+      await runScheduler(schedStart)
     } else {
       loadMilestones()
+      showToast('Set a project start date to auto-calculate planned dates.', 'info')
     }
   }
 
@@ -1674,6 +1967,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
   return (
     <>
+      <style>{`@keyframes gmenu-in { from { opacity:0; transform:scale(0.95) translateY(-4px); } to { opacity:1; transform:scale(1) translateY(0); } }`}</style>
       <GImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
 
       {/* Toolbar */}
@@ -1704,19 +1998,16 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
           {/* Baseline selector — full width (if present) */}
           {baselines.length > 0 && (
-            <select
+            <GToolbarSelect
+              fullWidth
               value={activeBL ?? ''}
-              onChange={e => { setActiveBL(e.target.value); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
-              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
-            >
-              {baselines.map(b => (
-                <option key={b.id} value={b.id}>{b.label}</option>
-              ))}
-            </select>
+              onChange={v => { setActiveBL(v); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
+              options={baselines.map(b => ({ value: b.id, label: b.label }))}
+            />
           )}
 
-          {/* Auto-scheduling controls (mobile) */}
-          {activeBL && isAutoMode && (
+          {/* Start date — always visible (used by scheduler in both Auto and Manual mode) */}
+          {activeBL && (
             <div className="flex items-center gap-2">
               <BaselineStartDateField
                 startDate={blStartDate}
@@ -1726,23 +2017,21 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             </div>
           )}
           {activeBL && (
-            <select
+            <GToolbarSelect
+              fullWidth
               value={activeBLObj?.scheduling_mode ?? 'auto'}
-              onChange={e => handleSaveMode(e.target.value)}
-              className="w-full text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
-            >
-              <option value="auto">Auto</option>
-              <option value="manual">Manual</option>
-            </select>
+              onChange={v => handleSaveMode(v)}
+              options={[{ value: 'auto', label: 'Auto schedule' }, { value: 'manual', label: 'Manual dates' }]}
+            />
           )}
 
           {/* Date range — From / To on one row */}
           <div className="flex items-center gap-2">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">From</label>
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">From</label>
             <div className="flex-1 min-w-0">
               <MonthYearPicker fluid value={fromMonth} onChange={setFromMonth} max={toMonth} />
             </div>
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">To</label>
+            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">To</label>
             <div className="flex-1 min-w-0">
               <MonthYearPicker fluid value={toMonth} onChange={setToMonth} min={fromMonth} />
             </div>
@@ -1757,198 +2046,258 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           </div>
         </div>
 
-        {/* ── Desktop layout (sm+) ── */}
-        <div className="hidden sm:flex items-center gap-3 px-6 py-2.5 flex-wrap">
+        {/* ── Desktop layout (sm+) — tabbed toolbar ── */}
+        <div className="hidden sm:flex flex-col">
 
-          {/* Baseline selector */}
-          {baselines.length > 0 && (
-            <>
-              <select
-                value={activeBL ?? ''}
-                onChange={e => { setActiveBL(e.target.value); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
-              >
-                {baselines.map(b => (
-                  <option key={b.id} value={b.id}>{b.label}</option>
-                ))}
-              </select>
-              <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-            </>
-          )}
+          {/* Tab bar + always-visible baseline selector */}
+          <div className="flex items-center gap-3 px-6 py-2 border-b border-gray-100">
 
-          {/* Auto-scheduling controls — only when a baseline is active */}
-          {activeBL && (
-            <>
-              <BaselineStartDateField
-                startDate={blStartDate}
-                isAutoMode={isAutoMode}
-                onSave={handleSaveStartDate}
-              />
-              <select
-                value={activeBLObj?.scheduling_mode ?? 'auto'}
-                onChange={e => handleSaveMode(e.target.value)}
-                title="Scheduling mode"
-                className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] font-semibold cursor-pointer"
-              >
-                <option value="auto">Auto</option>
-                <option value="manual">Manual</option>
-              </select>
-              <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-            </>
-          )}
+            {/* Always-visible baseline selector */}
+            {baselines.length > 0 && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <GToolbarSelect
+                  value={activeBL ?? ''}
+                  onChange={v => { setActiveBL(v); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
+                  options={baselines.map(b => ({ value: b.id, label: b.label }))}
+                />
+                {isBLConfirmed && (
+                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 border border-green-200 text-green-700 text-[11px] font-semibold">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+                    Locked
+                  </span>
+                )}
+              </div>
+            )}
 
-          {/* Time scale toggle */}
-          <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5 flex-shrink-0">
-            {TIME_SCALES.map(s => (
-              <button
-                key={s.key}
-                onClick={() => setTimeScale(s.key)}
-                className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
-                  timeScale === s.key
-                    ? 'bg-[#ed6055] text-white shadow-sm'
-                    : 'text-gray-400 hover:text-gray-700'
-                }`}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
+            {baselines.length > 0 && <div className="w-px h-4 bg-gray-200 flex-shrink-0" />}
 
-          <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-
-          {/* Column width control */}
-          <div className="flex items-center gap-1.5 flex-shrink-0">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Width</span>
-            <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
-              <button
-                onClick={() => setColPx(v => Math.max(10, v - 5))}
-                className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
-                aria-label="Decrease column width"
-              >−</button>
-              <span className="px-2 text-[11px] font-semibold text-gray-700 tabular-nums border-x border-gray-200 min-w-[42px] text-center">
-                {colPx}px
-              </span>
-              <button
-                onClick={() => setColPx(v => Math.min(120, v + 5))}
-                className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
-                aria-label="Increase column width"
-              >+</button>
+            {/* Tab pills */}
+            <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+              {[
+                { key: 'gantt',    label: 'Gantt' },
+                { key: 'view',     label: 'View' },
+                { key: 'baseline', label: 'Baseline' },
+              ].map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setActiveTab(t.key)}
+                  className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
+                    activeTab === t.key
+                      ? 'bg-white text-gray-900 shadow-sm'
+                      : 'text-gray-500 hover:text-gray-700'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
-            {!isDefaultWidth && (
-              <button
-                onClick={resetColPx}
-                className="text-[10px] text-gray-400 hover:text-[#ed6055] transition font-medium underline underline-offset-2"
-              >
-                reset
-              </button>
-            )}
           </div>
 
-          <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+          {/* Tab panels */}
+          <div className="flex items-center gap-3 px-6 py-2.5 flex-wrap min-h-[44px]">
 
-          {/* Date range */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">From</label>
-            <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
-            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">To</label>
-            <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
-            {hasFilter && (
-              <button
-                onClick={() => { setFromMonth(''); setToMonth('') }}
-                className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
-              >
-                Clear
-              </button>
+            {/* Gantt tab — time scale, date range, column width */}
+            {activeTab === 'gantt' && (
+              <>
+                <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5 flex-shrink-0">
+                  {TIME_SCALES.map(s => (
+                    <button
+                      key={s.key}
+                      onClick={() => setTimeScale(s.key)}
+                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
+                        timeScale === s.key
+                          ? 'bg-[#ed6055] text-white shadow-sm'
+                          : 'text-gray-400 hover:text-gray-700'
+                      }`}
+                    >
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">From</label>
+                  <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">To</label>
+                  <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
+                  {hasFilter && (
+                    <button
+                      onClick={() => { setFromMonth(''); setToMonth('') }}
+                      className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+
+                <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Width</span>
+                  <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
+                    <button
+                      onClick={() => setColPx(v => Math.max(10, v - 5))}
+                      className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
+                      aria-label="Decrease column width"
+                    >−</button>
+                    <span className="px-2 text-[11px] font-semibold text-gray-700 tabular-nums border-x border-gray-200 min-w-[42px] text-center">
+                      {colPx}px
+                    </span>
+                    <button
+                      onClick={() => setColPx(v => Math.min(120, v + 5))}
+                      className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
+                      aria-label="Increase column width"
+                    >+</button>
+                  </div>
+                  {!isDefaultWidth && (
+                    <button
+                      onClick={resetColPx}
+                      className="text-[11px] text-gray-400 hover:text-[#ed6055] transition-colors duration-150 font-medium underline underline-offset-2"
+                    >
+                      reset
+                    </button>
+                  )}
+                </div>
+              </>
             )}
-          </div>
 
-          <div className="ml-auto flex items-center gap-2 flex-wrap">
-            {/* Show/hide date columns toggle */}
-            <button
-              onClick={() => setShowDates(v => !v)}
-              title={showDates ? 'Hide date columns' : 'Show date columns'}
-              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                {showDates
-                  ? <path strokeLinecap="round" strokeLinejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                  : <><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></>
-                }
-              </svg>
-              {showDates ? 'Hide dates' : 'Show dates'}
-            </button>
+            {/* View tab — columns, bars, dependency arrows */}
+            {activeTab === 'view' && (
+              <>
+                {/* Filters group */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">Filters</span>
+                  <ColsDropdown colVisibility={colVisibility} onChange={setColVisibility} />
+                  <BarsDropdown barVisibility={barVisibility} onChange={setBarVisibility} />
+                </div>
 
-            <button
-              onClick={() => setShowDeps(v => !v)}
-              title={showDeps ? 'Hide dependency arrows' : 'Show dependency arrows'}
-              className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
-              </svg>
-              {showDeps ? 'Hide deps' : 'Show deps'}
-            </button>
-
-            <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-
-            {/* Delete baseline */}
-            {isAdmin && activeBL && (
-              <button
-                onClick={() => setDeleteBLId(activeBL)}
-                className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition flex-shrink-0"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                Del BL
-              </button>
+              </>
             )}
 
-            {/* New BL button */}
-            {isAdmin && (
-              <button
-                onClick={handleOpenNewBLModal}
-                className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                New BL
-              </button>
+            {/* Baseline tab — start date, mode, actions */}
+            {activeTab === 'baseline' && (
+              <>
+                {activeBL && (
+                  <>
+                    <BaselineStartDateField
+                      startDate={blStartDate}
+                      isAutoMode={isAutoMode}
+                      onSave={handleSaveStartDate}
+                    />
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">Mode</span>
+                      <GToolbarSelect
+                        value={activeBLObj?.scheduling_mode ?? 'auto'}
+                        onChange={v => handleSaveMode(v)}
+                        options={[{ value: 'auto', label: 'Auto' }, { value: 'manual', label: 'Manual' }]}
+                      />
+                    </div>
+                    <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+                  </>
+                )}
+
+                {isAdmin && activeBL && !isBLConfirmed && (
+                  <button
+                    onClick={handleConfirmBaseline}
+                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-green-400 text-green-700 bg-green-50 hover:bg-green-100 transition flex-shrink-0"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    Lock & Finalise BL
+                  </button>
+                )}
+
+                {isAdmin && (
+                  <button
+                    onClick={handleOpenNewBLModal}
+                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                    New Baseline
+                  </button>
+                )}
+
+                {activeBL && (
+                  <GExcelButtons
+                    onExport={handleExport}
+                    onImport={handleImportRequest}
+                    importing={importing}
+                  />
+                )}
+
+                {isAdmin && activeBL && (
+                  <>
+                    <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+                    <button
+                      onClick={() => setDeleteBLId(activeBL)}
+                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition flex-shrink-0"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                      Delete BL
+                    </button>
+                  </>
+                )}
+              </>
             )}
 
-            {/* Export/Import */}
-            {activeBL && (
-              <GExcelButtons
-                onExport={handleExport}
-                onImport={handleImportRequest}
-                importing={importing}
-              />
-            )}
           </div>
         </div>
 
       </div>
 
-      {/* Legend — fixed strip, never scrolls */}
-      <div className="grid grid-cols-2 sm:flex sm:justify-end gap-x-3 gap-y-1.5 sm:gap-3 px-3 sm:px-6 py-2 border-b border-gray-100 bg-white flex-shrink-0">
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="w-4 h-3 rounded inline-block flex-shrink-0 bg-gray-400" />Planned
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="w-4 h-3 rounded inline-block flex-shrink-0" style={{ backgroundColor: '#86efac' }} />Actual
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="w-4 h-3 rounded inline-block flex-shrink-0" style={{ backgroundColor: '#fde047' }} />Projected
-        </span>
-        <span className="flex items-center gap-1.5 text-xs text-gray-500">
-          <span className="inline-block w-0.5 h-3.5 flex-shrink-0 bg-[#ed6055] rounded-full" />Today
-        </span>
-      </div>
+
+      {/* Central save strip — appears when there are unsaved name edits */}
+      {Object.keys(drafts).length > 0 && (
+        <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-[#ed6055]/20 flex-shrink-0" style={{ background: 'rgba(237,96,85,0.04)' }}>
+          <svg className="w-3.5 h-3.5 text-[#ed6055] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+          </svg>
+          <span className="text-xs text-gray-500 flex-1 min-w-0">
+            <span className="font-semibold text-gray-800">{Object.keys(drafts).length}</span> unsaved change{Object.keys(drafts).length !== 1 ? 's' : ''}
+          </span>
+          <button
+            onClick={handleSave}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#ed6055] text-white text-xs font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97] flex-shrink-0"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+            Save all
+          </button>
+          <button
+            onClick={() => setDrafts({})}
+            className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors active:scale-[0.97] flex-shrink-0"
+          >
+            Discard
+          </button>
+        </div>
+      )}
 
       {/* Body */}
       <div className="flex-1 min-h-0 flex flex-col px-0 sm:px-6">
         {loading ? (
           <TriangleLoader label="Loading milestones…" />
         ) : activeBL === null ? (
-          <div className="flex-1 flex items-center justify-center text-sm text-gray-400 italic">
-            No milestone data yet. Import milestones from the project detail view.
+          <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-4">
+            <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
+              <svg className="w-7 h-7 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
+              </svg>
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-gray-700 mb-1">No work program yet</p>
+              <p className="text-xs text-gray-400">Create a baseline to start building the schedule.</p>
+            </div>
+            {isAdmin && (
+              <button
+                onClick={handleOpenNewBLModal}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors duration-200 shadow-sm"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                New Baseline
+              </button>
+            )}
           </div>
         ) : (
           <GanttChart
@@ -1958,13 +2307,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             timeScale={timeScale}
             colPx={colPx}
             labelW={labelW}
-            showDates={showDates}
-            editId={editId}
-            form={form}
-            setForm={setForm}
+            colVisibility={colVisibility}
+            barVisibility={barVisibility}
+            drafts={drafts}
+            setDrafts={setDrafts}
             onSave={handleSave}
-            onCancelEdit={() => setEditId(null)}
-            onEdit={handleEdit}
             onDelete={(id) => setDeleteId(id)}
             isAdmin={isAdmin}
             showToast={showToast}
@@ -1985,10 +2332,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             onCancelAddChild={handleCancelAddChild}
             addingChild={addingChild}
             dependencies={dependencies}
-            showDeps={showDeps}
             onSavePreds={handleSavePreds}
             isAutoMode={isAutoMode}
+            isBLConfirmed={isBLConfirmed}
             onSaveDuration={handleSaveDuration}
+            onSaveDate={handleSaveDate}
           />
         )}
       </div>
@@ -2001,18 +2349,25 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       {showNewBLModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setShowNewBLModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
-            <h3 className="text-base font-bold text-black mb-1">New Baseline</h3>
-            <p className="text-sm text-gray-500 mb-4">Give a name to identify this baseline (e.g. BL0, Initial, Revised).</p>
+            <h3 className="text-base font-bold text-black mb-1">
+              {baselines.length > 0 ? 'Update Baseline' : 'New Baseline'}
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {baselines.length > 0
+                ? `Give the revised baseline a name. It will be a copy of "${baselines.find(b => b.id === activeBL)?.label ?? 'current baseline'}" that you can then edit.`
+                : 'Give a name to identify this baseline (e.g. BL0, Initial, Revised).'}
+            </p>
             <input
               autoFocus
               type="text"
               value={newBLName}
               onChange={e => setNewBLName(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && newBLName.trim()) handleCreateBaseline() }}
-              placeholder="e.g. BL0"
+              placeholder={baselines.length > 0 ? 'e.g. BL1' : 'e.g. BL0'}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] mb-4"
             />
-            {templateCount > 0 && (
+            {/* Template option — only when creating the very first baseline */}
+            {baselines.length === 0 && templateCount > 0 && (
               <div className="mb-5">
                 <p className="text-xs font-semibold text-gray-700 mb-2">Load standard work program?</p>
                 <div className="flex gap-2">
@@ -2031,6 +2386,12 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                     No — Start blank
                   </button>
                 </div>
+              </div>
+            )}
+            {/* Reminder note — updating an existing baseline */}
+            {baselines.length > 0 && (
+              <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3 text-xs text-amber-800 leading-relaxed">
+                Only update the baseline when there are actual schedule revisions. If the current baseline still reflects the approved plan, a new baseline is not needed.
               </div>
             )}
             <div className="flex gap-3">
@@ -2120,30 +2481,6 @@ export default function GanttModal({ project, onClose, isAdmin = false, showToas
             <p className="text-xs text-gray-400 mt-0.5">Work Program</p>
           </div>
           <div className="flex items-center gap-2 flex-shrink-0">
-            <button
-              disabled
-              title="Coming soon"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white cursor-not-allowed select-none opacity-70"
-              style={{ boxShadow: '0 2px 8px rgba(237,96,85,0.45), 0 1px 2px rgba(0,0,0,0.1)' }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 3l18 18M3 21l6.75-6.75M6.75 14.25L3 21m15.75-3.75L21 21M16.5 12a4.5 4.5 0 01-9 0m9 0V9a4.5 4.5 0 00-9 0v3m9 0H7.5" />
-              </svg>
-              S-Curve
-              <span className="text-[9px] font-bold bg-white/25 text-white px-1 py-0.5 rounded leading-none">Soon</span>
-            </button>
-            <button
-              disabled
-              title="Coming soon"
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white cursor-not-allowed select-none opacity-70"
-              style={{ boxShadow: '0 2px 8px rgba(237,96,85,0.45), 0 1px 2px rgba(0,0,0,0.1)' }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
-              </svg>
-              Progress Photos
-              <span className="text-[9px] font-bold bg-white/25 text-white px-1 py-0.5 rounded leading-none">Soon</span>
-            </button>
             <button
               onClick={onClose}
               className="p-2 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition"
