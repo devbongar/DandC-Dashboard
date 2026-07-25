@@ -228,3 +228,162 @@ export function scheduleMilestones(milestones, dependencies, startDate) {
 
   return computed
 }
+
+// Calculates projected_start / projected_end for all leaf tasks.
+// Rows with actual dates are treated as fixed anchors (projected = actual).
+// Rows without actual dates cascade forward from predecessor projected dates + duration.
+// Parent tasks are supported as predecessors — their projected dates are rolled up from children.
+// Returns { [milestoneId]: { projected_start, projected_end } } or { error: 'circular' }.
+export function scheduleProjected(milestones, dependencies) {
+  const safeDeps = dependencies ?? []
+  if (!milestones?.length) return {}
+
+  const addDays = (isoStr, days) => {
+    const [y, m, dd] = isoStr.split('-').map(Number)
+    return new Date(Date.UTC(y, m - 1, dd + days)).toISOString().slice(0, 10)
+  }
+
+  const parentIds = new Set(milestones.map(m => m.parent_id).filter(Boolean))
+  const leafTasks = milestones.filter(
+    m => !parentIds.has(m.id) && m.duration != null && Number.isInteger(m.duration) && m.duration > 0
+  )
+  if (!leafTasks.length) return {}
+
+  const leafIds = new Set(leafTasks.map(m => m.id))
+
+  // Build a "known" projected map seeded from each task's actual or stored projected dates.
+  // This is the lookup used when resolving predecessor dates (works for any task, including parents).
+  const known = new Map()
+  for (const m of milestones) {
+    if (m.actual_start || m.actual_end) {
+      known.set(m.id, {
+        projected_start: m.actual_start ?? null,
+        projected_end:   m.actual_end ?? (m.actual_start ? addDays(m.actual_start, (m.duration ?? 1) - 1) : null),
+      })
+    } else if (m.projected_start || m.projected_end) {
+      known.set(m.id, { projected_start: m.projected_start ?? null, projected_end: m.projected_end ?? null })
+    }
+  }
+
+  // Roll up parent projected dates from their children (bottom-up, up to 5 levels deep).
+  // This lets dependencies FROM a parent task resolve correctly.
+  for (let pass = 0; pass < 5; pass++) {
+    let changed = false
+    for (const m of milestones) {
+      if (!parentIds.has(m.id)) continue
+      const children = milestones.filter(c => c.parent_id === m.id)
+      const childEntries = children.map(c => known.get(c.id)).filter(Boolean)
+      if (!childEntries.length) continue
+      const starts = childEntries.map(e => e.projected_start).filter(Boolean)
+      const ends   = childEntries.map(e => e.projected_end).filter(Boolean)
+      if (!ends.length) continue
+      const entry = { projected_start: starts.length ? starts.sort()[0] : null, projected_end: ends.sort().at(-1) }
+      const prev  = known.get(m.id)
+      if (!prev || prev.projected_end !== entry.projected_end) { known.set(m.id, entry); changed = true }
+    }
+    if (!changed) break
+  }
+
+  // Topological sort on leaf-to-leaf deps (for forward-pass ordering)
+  const leafDeps = safeDeps.filter(d => leafIds.has(d.from_id) && leafIds.has(d.to_id))
+  const successors = {}
+  const inDegree   = {}
+  leafTasks.forEach(m => { successors[m.id] = []; inDegree[m.id] = 0 })
+  leafDeps.forEach(dep => { successors[dep.from_id].push(dep); inDegree[dep.to_id]++ })
+  const queue = leafTasks.filter(m => inDegree[m.id] === 0).map(m => m.id)
+  const order = []
+  while (queue.length > 0) {
+    const id = queue.shift()
+    order.push(id)
+    successors[id].forEach(dep => { if (--inDegree[dep.to_id] === 0) queue.push(dep.to_id) })
+  }
+  if (order.length !== leafTasks.length) return { error: 'circular' }
+
+  const byId = {}
+  leafTasks.forEach(m => { byId[m.id] = m })
+  const computed = {}
+
+  // All deps that point TO a leaf (from_id can be a parent or another leaf)
+  const depsToLeaf = safeDeps.filter(d => leafIds.has(d.to_id))
+
+  const computeEntry = (id) => {
+    const m = byId[id]
+    if (!m) return
+
+    if (m.actual_start || m.actual_end) {
+      const entry = known.get(id) ?? null
+      if (entry) { computed[id] = entry; known.set(id, entry) }
+      return
+    }
+
+    const incomingDeps = depsToLeaf.filter(d => d.to_id === id)
+
+    if (!incomingDeps.length) {
+      const existing = known.get(id)
+      const fallback = m.planned_start
+        ? { projected_start: m.planned_start, projected_end: m.planned_end || addDays(m.planned_start, m.duration - 1) }
+        : null
+      const entry = existing || fallback
+      if (entry) { computed[id] = entry; known.set(id, entry) }
+      return
+    }
+
+    const anchors = incomingDeps.flatMap(dep => {
+      const from = (computed[dep.from_id] ?? known.get(dep.from_id)) ?? null
+      if (!from) return []
+      const type = dep.type     ?? 'FS'
+      const lag  = dep.lag_days ?? 0
+      const dur  = m.duration
+      if (type === 'FS') return from.projected_end   ? [addDays(from.projected_end,   lag + 1)]       : []
+      if (type === 'SS') return from.projected_start ? [addDays(from.projected_start, lag)]            : []
+      if (type === 'FF') return from.projected_end   ? [addDays(from.projected_end,   lag - dur + 1)] : []
+      if (type === 'SF') return from.projected_start ? [addDays(from.projected_start, lag - dur + 1)] : []
+      return []
+    })
+
+    if (!anchors.length) {
+      const existing = known.get(id)
+      if (existing) { computed[id] = existing; known.set(id, existing) }
+      return
+    }
+
+    const projStart = anchors.sort().at(-1)
+    computed[id] = { projected_start: projStart, projected_end: addDays(projStart, m.duration - 1) }
+    known.set(id, computed[id])
+  }
+
+  // First forward pass in topological order
+  order.forEach(id => computeEntry(id))
+
+  // Iterative passes: re-roll-up parents from newly computed leaves, then retry skipped tasks.
+  // Needed for tasks that depend on a parent whose children were computed in the first pass.
+  for (let round = 0; round < 10; round++) {
+    // Re-compute parent projected dates using freshly computed leaf values
+    let changed = false
+    for (const m of milestones) {
+      if (!parentIds.has(m.id)) continue
+      const children = milestones.filter(c => c.parent_id === m.id)
+      const childEntries = children.map(c => computed[c.id] ?? known.get(c.id)).filter(Boolean)
+      if (!childEntries.length) continue
+      const starts = childEntries.map(e => e.projected_start).filter(Boolean)
+      const ends   = childEntries.map(e => e.projected_end).filter(Boolean)
+      if (!ends.length) continue
+      const entry = { projected_start: starts.sort()[0] ?? null, projected_end: ends.sort().at(-1) }
+      const prev  = known.get(m.id)
+      if (!prev || prev.projected_end !== entry.projected_end) { known.set(m.id, entry); changed = true }
+    }
+
+    // Retry tasks that were skipped in the previous pass
+    let leafChanged = false
+    order.forEach(id => {
+      if (computed[id]) return  // already resolved
+      const before = JSON.stringify(computed[id])
+      computeEntry(id)
+      if (JSON.stringify(computed[id]) !== before) leafChanged = true
+    })
+
+    if (!changed && !leafChanged) break
+  }
+
+  return computed
+}
