@@ -14,7 +14,7 @@ const PHASES = [
 
 const PHASE_COLORS = {
   initiation:           '#94a3b8',
-  planning:             '#3b82f6',
+  planning:             '#64748b',
   execution_monitoring: '#ed6055',
   closeout:             '#22c55e',
 }
@@ -160,6 +160,47 @@ const BAR_BORDER = {
   '#fde047': '#eab308',
 }
 
+const BAR_PRESETS = {
+  planned:   ['#9ca3af', '#64748b', '#475569', '#3b82f6', '#8b5cf6'],
+  actual:    ['#22c55e', '#14b8a6', '#06b6d4', '#3b82f6', '#ed6055'],
+  projected: ['#fde047', '#f59e0b', '#f97316', '#a855f7', '#64748b'],
+}
+
+function GBarColorRow({ label, barKey, value, onChange }) {
+  return (
+    <div className="flex items-center gap-2.5">
+      <span className="text-xs text-gray-500 w-16 flex-shrink-0">{label}</span>
+      <div className="flex items-center gap-1.5">
+        {BAR_PRESETS[barKey].map(c => (
+          <button
+            key={c}
+            onClick={() => onChange(c)}
+            title={c}
+            className="w-4 h-4 rounded-full flex-shrink-0 transition-transform duration-100 active:scale-90"
+            style={{
+              backgroundColor: c,
+              outline: value === c ? '2px solid #374151' : '2px solid transparent',
+              outlineOffset: 2,
+            }}
+          />
+        ))}
+        <label
+          title="Custom color"
+          className="w-4 h-4 rounded-full flex-shrink-0 cursor-pointer border-2 overflow-hidden"
+          style={{ backgroundColor: value, borderColor: BAR_PRESETS[barKey].includes(value) ? 'transparent' : '#374151' }}
+        >
+          <input
+            type="color"
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            className="opacity-0 absolute w-0 h-0"
+          />
+        </label>
+      </div>
+    </div>
+  )
+}
+
 function GanttBar({ start, end, color, toPx }) {
   if (!start || !end) return null
   const s    = parseDate(start)
@@ -197,15 +238,15 @@ function GanttBar({ start, end, color, toPx }) {
   )
 }
 
-function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, frozenW, chartPxWidth, isAutoMode = false, taskCount = 0, completedCount = 0 }) {
+function PhaseGroupHeader({ label, phaseColor = '#94a3b8', isCollapsed, onToggle, totalW, frozenW, chartPxWidth, isAutoMode = false, taskCount = 0, completedCount = 0 }) {
   const [hovered, setHovered] = useState(false)
-  const bg = hovered ? '#f1f5f9' : '#f8fafc'
+  const bg = hovered ? '#e5e7eb' : '#edeeef'
   return (
     <div
       role="button"
       tabIndex={0}
       className="flex items-center cursor-pointer select-none"
-      style={{ width: totalW, minWidth: totalW, height: PHASE_ROW_H, backgroundColor: bg, borderBottom: '1px solid #e2e8f0', transition: 'background-color 0.15s ease' }}
+      style={{ width: totalW, minWidth: totalW, height: PHASE_ROW_H, backgroundColor: bg, borderBottom: '1px solid #d1d5db', transition: 'background-color 0.15s ease' }}
       onClick={onToggle}
       onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
       onMouseEnter={() => setHovered(true)}
@@ -213,7 +254,7 @@ function PhaseGroupHeader({ label, isCollapsed, onToggle, totalW, frozenW, chart
     >
       <div
         className="sticky left-0 z-20 flex items-center gap-1.5 self-stretch flex-shrink-0"
-        style={{ width: frozenW, minWidth: frozenW, paddingLeft: 12, borderRight: '1px solid #e2e8f0', backgroundColor: bg, transition: 'background-color 0.15s ease' }}
+        style={{ width: frozenW, minWidth: frozenW, paddingLeft: 12, borderRight: '1px solid #d1d5db', borderLeft: `3px solid ${phaseColor}`, backgroundColor: bg, transition: 'background-color 0.15s ease' }}
       >
         <svg
           viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth={2.5}
@@ -395,10 +436,10 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDuration = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {} }) {
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDuration = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' } }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
-  const bgBase     = !isChild ? '#f1f5f9' : (rowNum % 2 === 0 ? '#f8fafc' : '#ffffff')
+  const bgBase     = !isChild ? '#f3f4f6' : (rowNum % 2 === 0 ? '#f9fafb' : '#f3f4f6')
 
   const frozenW = ROW_NUM_W + labelW
     + (showDuration ? DUR_COL_W : 0)
@@ -408,16 +449,16 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
     + (showProjected ? DATE_GROUP_W : 0)
 
   const dateCell = (content, bg, bl) => (
-    <div style={{ width: DATE_COL_W, minWidth: DATE_COL_W, ...(bg && { backgroundColor: bg }), ...(bl && { borderLeft: bl }) }} className="px-1.5 py-1 text-xs border-r border-gray-100 flex items-center min-h-[52px]">
+    <div style={{ width: DATE_COL_W, minWidth: DATE_COL_W, ...(bg && { backgroundColor: bg }), ...(bl && { borderLeft: bl }) }} className="px-1.5 py-1 text-xs border-r border-gray-200 flex items-center min-h-[52px]">
       {content}
     </div>
   )
 
   return (
     <div
-      className="flex items-center border-b border-gray-100 transition-colors group"
+      className="flex items-center border-b border-gray-200 transition-colors group"
       style={{ backgroundColor: bgBase }}
-      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#e8edf2' }}
+      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#e5e7eb' }}
       onMouseLeave={e => { e.currentTarget.style.backgroundColor = bgBase }}
     >
       {/* Frozen panel: # col + label + optional columns */}
@@ -561,7 +602,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
             {showPlannedBar && (
               <div className="absolute inset-x-0" style={{ top: 4, height: 20 }}>
                 <div className="relative h-full">
-                  <GanttBar start={m.planned_start} end={m.planned_end} color="#9ca3af" toPx={toPx} />
+                  <GanttBar start={m.planned_start} end={m.planned_end} color={barColors.planned} toPx={toPx} />
                 </div>
               </div>
             )}
@@ -570,8 +611,8 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
             {(showProjectedBar || showActualBar) && (
               <div className="absolute inset-x-0" style={{ top: showPlannedBar ? 25 : 16, height: 20 }}>
                 <div className="relative h-full">
-                  {showProjectedBar && <GanttBar start={m.projected_start} end={m.projected_end} color="#fde047" toPx={toPx} />}
-                  {showActualBar && <GanttBar start={m.actual_start} end={m.actual_end || (m.actual_start ? todayStr : null)} color="#22c55e" toPx={toPx} />}
+                  {showProjectedBar && <GanttBar start={m.projected_start} end={m.projected_end} color={barColors.projected} toPx={toPx} />}
+                  {showActualBar && <GanttBar start={m.actual_start} end={m.actual_end || (m.actual_start ? todayStr : null)} color={barColors.actual} toPx={toPx} />}
                 </div>
               </div>
             )}
@@ -781,7 +822,7 @@ function GToolbarSelect({ options = [], value, onChange, fullWidth = false }) {
   )
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {} }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {} }) {
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -856,36 +897,36 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
 
   const axisHeader = (
     <>
-      <div className="flex" style={{ width: totalW, minWidth: totalW, backgroundColor: '#1e293b' }}>
+      <div className="flex" style={{ width: totalW, minWidth: totalW, backgroundColor: '#f3f4f6' }}>
         <div
-          style={{ width: frozenW, minWidth: frozenW, borderRight: '1px solid #334155', backgroundColor: '#1e293b', position: 'sticky', left: 0, zIndex: 10 }}
+          style={{ width: frozenW, minWidth: frozenW, borderRight: '1px solid #d1d5db', backgroundColor: '#f3f4f6', position: 'sticky', left: 0, zIndex: 10 }}
           className="flex-shrink-0 flex items-center"
         >
           {/* # column header */}
-          <div style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W }} className="flex items-center justify-center self-stretch border-r border-slate-700 flex-shrink-0">
-            <span className="text-[10px] font-bold text-slate-400">#</span>
+          <div style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0">
+            <span className="text-[10px] font-bold text-gray-500">#</span>
           </div>
           {/* Activity name column */}
-          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-2 self-stretch border-r border-slate-700 flex-shrink-0">
-            <span className="text-xs font-bold text-slate-200">Activity</span>
+          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-2 self-stretch border-r border-gray-300 flex-shrink-0">
+            <span className="text-xs font-bold text-gray-700">Activity</span>
           </div>
           {/* When Planned is visible, Dur + Pred are grouped under its header */}
           {showPlanned ? (() => {
             const groupW = (showDuration ? DUR_COL_W : 0) + (showPredecessor ? PRED_COL_W : 0) + DATE_GROUP_W
             return (
-              <div style={{ width: groupW, backgroundColor: '#1e293b', borderTop: '2px solid #9ca3af' }} className="flex flex-col border-r border-slate-700 py-1 flex-shrink-0">
-                <span className="text-[11px] font-extrabold text-slate-200 uppercase tracking-wide text-center flex items-center justify-center gap-1">
-                  <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: '#9ca3af' }} />Planned
+              <div style={{ width: groupW, backgroundColor: '#f3f4f6', borderTop: `2px solid ${barColors.planned}` }} className="flex flex-col border-r border-gray-300 py-1 flex-shrink-0">
+                <span className="text-[11px] font-extrabold text-gray-700 uppercase tracking-wide text-center flex items-center justify-center gap-1">
+                  <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: barColors.planned }} />Planned
                 </span>
                 <div className="flex w-full mt-0.5">
                   {showDuration && (
-                    <span style={{ width: DUR_COL_W }} className="text-center text-[11px] text-slate-400 border-r border-slate-700 flex-shrink-0">Dur.</span>
+                    <span style={{ width: DUR_COL_W }} className="text-center text-[11px] text-gray-500 border-r border-gray-300 flex-shrink-0">Dur.</span>
                   )}
                   {showPredecessor && (
-                    <span style={{ width: PRED_COL_W }} className="text-center text-[11px] text-slate-400 border-r border-slate-700 flex-shrink-0">Pred.</span>
+                    <span style={{ width: PRED_COL_W }} className="text-center text-[11px] text-gray-500 border-r border-gray-300 flex-shrink-0">Pred.</span>
                   )}
-                  <span className="flex-1 text-center text-[11px] text-slate-400 border-r border-slate-700">Start</span>
-                  <span className="flex-1 text-center text-[11px] text-slate-400">End</span>
+                  <span className="flex-1 text-center text-[11px] text-gray-500 border-r border-gray-300">Start</span>
+                  <span className="flex-1 text-center text-[11px] text-gray-500">End</span>
                 </div>
               </div>
             )
@@ -893,13 +934,13 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             <>
               {/* When Planned is hidden, Dur + Pred keep individual headers */}
               {showDuration && (
-                <div style={{ width: DUR_COL_W, minWidth: DUR_COL_W }} className="flex items-center justify-center self-stretch border-r border-slate-700 flex-shrink-0">
-                  <span className="text-xs font-bold text-slate-300">Dur.</span>
+                <div style={{ width: DUR_COL_W, minWidth: DUR_COL_W }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0">
+                  <span className="text-xs font-bold text-gray-600">Dur.</span>
                 </div>
               )}
               {showPredecessor && (
-                <div style={{ width: PRED_COL_W, minWidth: PRED_COL_W }} className="flex items-center gap-1 px-2 self-stretch border-r border-slate-700 flex-shrink-0">
-                  <span className="text-xs font-bold text-slate-300">Pred.</span>
+                <div style={{ width: PRED_COL_W, minWidth: PRED_COL_W }} className="flex items-center gap-1 px-2 self-stretch border-r border-gray-300 flex-shrink-0">
+                  <span className="text-xs font-bold text-gray-600">Pred.</span>
                   <svg className="w-3 h-3 text-gray-400 flex-shrink-0 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                     title={"Format: <row>FS|SS|FF|SF[+/-days]\nExamples: 3FS (row 3 finish→start), 2SS+5 (row 2 start→start +5 days)\nSeparate multiple predecessors with commas."}>
                     <circle cx="12" cy="12" r="10" />
@@ -910,24 +951,24 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             </>
           )}
           {showActual && (
-            <div style={{ width: DATE_GROUP_W, backgroundColor: '#1e293b', borderTop: '2px solid #22c55e' }} className="flex flex-col items-center justify-center border-r border-slate-700 py-1 flex-shrink-0">
-              <span className="text-[11px] font-extrabold text-slate-200 uppercase tracking-wide flex items-center gap-1">
-                <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: '#22c55e' }} />Actual
+            <div style={{ width: DATE_GROUP_W, backgroundColor: '#f3f4f6', borderTop: `2px solid ${barColors.actual}` }} className="flex flex-col items-center justify-center border-r border-gray-300 py-1 flex-shrink-0">
+              <span className="text-[11px] font-extrabold text-gray-700 uppercase tracking-wide flex items-center gap-1">
+                <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: barColors.actual }} />Actual
               </span>
               <div className="flex w-full mt-0.5">
-                <span className="flex-1 text-center text-[11px] text-slate-400 border-r border-slate-700">Start</span>
-                <span className="flex-1 text-center text-[11px] text-slate-400">End</span>
+                <span className="flex-1 text-center text-[11px] text-gray-500 border-r border-gray-300">Start</span>
+                <span className="flex-1 text-center text-[11px] text-gray-500">End</span>
               </div>
             </div>
           )}
           {showProjected && (
-            <div style={{ width: DATE_GROUP_W, backgroundColor: '#1e293b', borderTop: '2px solid #fde047' }} className="flex flex-col items-center justify-center py-1 flex-shrink-0">
-              <span className="text-[11px] font-extrabold text-slate-200 uppercase tracking-wide flex items-center gap-1">
-                <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: '#fde047' }} />Projected
+            <div style={{ width: DATE_GROUP_W, backgroundColor: '#f3f4f6', borderTop: `2px solid ${barColors.projected}` }} className="flex flex-col items-center justify-center py-1 flex-shrink-0">
+              <span className="text-[11px] font-extrabold text-gray-700 uppercase tracking-wide flex items-center gap-1">
+                <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: barColors.projected }} />Projected
               </span>
               <div className="flex w-full mt-0.5">
-                <span className="flex-1 text-center text-[11px] text-slate-400 border-r border-slate-700">Start</span>
-                <span className="flex-1 text-center text-[11px] text-slate-400">End</span>
+                <span className="flex-1 text-center text-[11px] text-gray-500 border-r border-gray-300">Start</span>
+                <span className="flex-1 text-center text-[11px] text-gray-500">End</span>
               </div>
             </div>
           )}
@@ -940,8 +981,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                 const left = toPx(yr)
                 return (
                   <div key={i} className="absolute flex flex-col items-start" style={{ left }}>
-                    <div className="w-px h-2 bg-slate-600" />
-                    <span className="text-xs font-semibold text-slate-200 whitespace-nowrap ml-1">{yr.getFullYear()}</span>
+                    <div className="w-px h-2 bg-gray-400" />
+                    <span className="text-xs font-semibold text-gray-700 whitespace-nowrap ml-1">{yr.getFullYear()}</span>
                   </div>
                 )
               })
@@ -950,8 +991,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                 const left = toPx(mo)
                 return (
                   <div key={i} className="absolute flex flex-col items-start" style={{ left }}>
-                    <div className="w-px h-2 bg-slate-600" />
-                    <span className="text-xs font-medium text-slate-300 whitespace-nowrap ml-1">
+                    <div className="w-px h-2 bg-gray-400" />
+                    <span className="text-xs font-medium text-gray-600 whitespace-nowrap ml-1">
                       {mo.toLocaleDateString('en-PH', { month: 'short', year: 'numeric' })}
                     </span>
                   </div>
@@ -967,8 +1008,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                 if (left < 0 || left > chartPxWidth) return null
                 return (
                   <div key={i} className="absolute flex flex-col items-center" style={{ left, top: 0, transform: 'translateX(-50%)' }}>
-                    <div className="w-px h-1 bg-slate-600" />
-                    <span className="text-xs font-medium text-slate-300 whitespace-nowrap leading-none">
+                    <div className="w-px h-1 bg-gray-400" />
+                    <span className="text-xs font-medium text-gray-600 whitespace-nowrap leading-none">
                       {mo.toLocaleDateString('en-PH', { month: 'short' })}
                     </span>
                   </div>
@@ -983,9 +1024,9 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                   const isWeekend = (d.getDay() === 0 || d.getDay() === 6)
                   return (
                     <div key={i} className="absolute flex flex-col items-center" style={{ left, top: 0, transform: 'translateX(-50%)' }}>
-                      <div className={`w-px bg-slate-600 ${timeScale === 'day' ? 'h-2' : 'h-1'}`} />
+                      <div className={`w-px bg-gray-400 ${timeScale === 'day' ? 'h-2' : 'h-1'}`} />
                       {showLabel && (
-                        <span className={`leading-none ${isWeekend ? 'text-xs font-bold text-[#ed6055]' : 'text-xs font-medium text-slate-300'}`}>
+                        <span className={`leading-none ${isWeekend ? 'text-xs font-bold text-[#ed6055]' : 'text-xs font-medium text-gray-600'}`}>
                           {d.getDate()}
                         </span>
                       )}
@@ -1007,7 +1048,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
           </div>
         </div>}
       </div>
-      <div style={{ width: totalW, minWidth: totalW, borderBottom: '2px solid #0f172a' }} />
+      <div style={{ width: totalW, minWidth: totalW, borderBottom: '2px solid #d1d5db' }} />
     </>
   )
 
@@ -1026,6 +1067,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
       <PhaseGroupHeader
         key={`phase-${key}`}
         label={label}
+        phaseColor={PHASE_COLORS[key] ?? '#94a3b8'}
         isCollapsed={isCollapsed}
         onToggle={() => onTogglePhase(key)}
         totalW={totalW}
@@ -1071,6 +1113,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             isBLConfirmed={isBLConfirmed}
             onSaveDuration={(dur) => onSaveDuration(node.id, dur)}
             onSaveDate={(field, value) => onSaveDate(node.id, field, value)}
+            barColors={barColors}
           />
         )
 
@@ -1184,7 +1227,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
       <div style={{ width: totalW, minWidth: totalW, position: 'relative' }}>
         {/* Sticky axis header — only when there are dates to show */}
         {allDates.length > 0 && (
-          <div className="sticky top-0 z-40" style={{ backgroundColor: '#f8fafc' }}>
+          <div className="sticky top-0 z-40" style={{ backgroundColor: '#f3f4f6' }}>
             {axisHeader}
           </div>
         )}
@@ -1351,7 +1394,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [deleteId, setDeleteId]   = useState(null)
   const [colVisibility, setColVisibility] = useState({ duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true })
   const [barVisibility, setBarVisibility] = useState({ planned: true, actual: true, projected: true })
+  const [barColors, setBarColors]         = useState({ planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' })
   const [activeTab, setActiveTab]         = useState('gantt')
+  const [showSettings, setShowSettings]   = useState(false)
   const [addForm, setAddForm]         = useState(null)  // null = hidden; {} = showing add row
   const [adding, setAdding]           = useState(false)
   const [dependencies, setDependencies] = useState([])
@@ -1365,6 +1410,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [pendingImportFile, setPendingImportFile] = useState(null)
   const [deleteBLId, setDeleteBLId]             = useState(null)
   const schedulerRunning = useRef(false)
+  const settingsWrapRef  = useRef(null)
 
   useEffect(() => {
     const loadBaselines = async () => {
@@ -1965,13 +2011,25 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const overrideMax = toMonth   ? (() => { const [y, m] = toMonth.split('-').map(Number);   return new Date(y, m, 0) })()    : null
   const hasFilter   = fromMonth || toMonth
 
+  useEffect(() => {
+    if (!showSettings) return
+    const handler = (e) => {
+      if (settingsWrapRef.current && !settingsWrapRef.current.contains(e.target)) setShowSettings(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [showSettings])
+
   return (
     <>
-      <style>{`@keyframes gmenu-in { from { opacity:0; transform:scale(0.95) translateY(-4px); } to { opacity:1; transform:scale(1) translateY(0); } }`}</style>
+      <style>{`
+        @keyframes gmenu-in { from { opacity:0; transform:scale(0.95) translateY(-4px); } to { opacity:1; transform:scale(1) translateY(0); } }
+        @keyframes gsettings-in { from { opacity:0; transform:scale(0.97) translateY(-6px); } to { opacity:1; transform:scale(1) translateY(0); } }
+      `}</style>
       <GImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
 
       {/* Toolbar */}
-      <div className="bg-gray-50 border-b border-gray-100 flex-shrink-0">
+      <div className="bg-white border-b border-gray-100 flex-shrink-0">
 
         {/* ── Mobile layout (< sm) ── */}
         <div className="flex flex-col gap-2 px-3 py-2.5 sm:hidden">
@@ -2046,202 +2104,240 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           </div>
         </div>
 
-        {/* ── Desktop layout (sm+) — tabbed toolbar ── */}
-        <div className="hidden sm:flex flex-col">
+        {/* ── Desktop layout (sm+) — settings button + status ── */}
+        <div className="hidden sm:flex items-center justify-between px-6 py-2 relative" ref={settingsWrapRef}>
 
-          {/* Tab bar + always-visible baseline selector */}
-          <div className="flex items-center gap-3 px-6 py-2 border-b border-gray-100">
-
-            {/* Always-visible baseline selector */}
-            {baselines.length > 0 && (
-              <div className="flex items-center gap-2 flex-shrink-0">
-                <GToolbarSelect
-                  value={activeBL ?? ''}
-                  onChange={v => { setActiveBL(v); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
-                  options={baselines.map(b => ({ value: b.id, label: b.label }))}
-                />
-                {isBLConfirmed && (
-                  <span className="flex items-center gap-1 px-2 py-1 rounded-md bg-green-50 border border-green-200 text-green-700 text-[11px] font-semibold">
-                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
-                    Locked
-                  </span>
-                )}
-              </div>
+          {/* Left: active baseline status pill */}
+          <div className="flex items-center gap-2 min-w-0">
+            {activeBLObj ? (
+              <span className="text-xs font-semibold text-gray-700 truncate max-w-[240px]">{activeBLObj.label}</span>
+            ) : (
+              <span className="text-xs text-gray-400 italic">No baseline selected</span>
             )}
-
-            {baselines.length > 0 && <div className="w-px h-4 bg-gray-200 flex-shrink-0" />}
-
-            {/* Tab pills */}
-            <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
-              {[
-                { key: 'gantt',    label: 'Gantt' },
-                { key: 'view',     label: 'View' },
-                { key: 'baseline', label: 'Baseline' },
-              ].map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setActiveTab(t.key)}
-                  className={`px-3 py-1 text-xs font-semibold rounded-md transition ${
-                    activeTab === t.key
-                      ? 'bg-white text-gray-900 shadow-sm'
-                      : 'text-gray-500 hover:text-gray-700'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+            {isBLConfirmed && (
+              <span className="flex items-center gap-1 px-2 py-0.5 rounded-md bg-green-50 border border-green-200 text-green-700 text-[11px] font-semibold flex-shrink-0">
+                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" /></svg>
+                Locked
+              </span>
+            )}
           </div>
 
-          {/* Tab panels */}
-          <div className="flex items-center gap-3 px-6 py-2.5 flex-wrap min-h-[44px]">
+          {/* Right: Settings button */}
+          <button
+            onClick={() => setShowSettings(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-150 active:scale-[0.97] flex-shrink-0 ${
+              showSettings
+                ? 'bg-[#ed6055] text-white border-[#ed6055] shadow-sm'
+                : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+            }`}
+            aria-label="Toggle settings"
+          >
+            {/* Sliders icon */}
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+            </svg>
+            Settings
+          </button>
 
-            {/* Gantt tab — time scale, date range, column width */}
-            {activeTab === 'gantt' && (
-              <>
-                <div className="flex items-center gap-1 bg-white border border-gray-200 rounded-lg p-0.5 flex-shrink-0">
-                  {TIME_SCALES.map(s => (
-                    <button
-                      key={s.key}
-                      onClick={() => setTimeScale(s.key)}
-                      className={`px-2.5 py-1 text-[11px] font-semibold rounded-md transition ${
-                        timeScale === s.key
-                          ? 'bg-[#ed6055] text-white shadow-sm'
-                          : 'text-gray-400 hover:text-gray-700'
-                      }`}
-                    >
-                      {s.label}
-                    </button>
-                  ))}
-                </div>
+          {/* ── Settings panel ── */}
+          {showSettings && (
+            <div
+              className="absolute right-4 top-full mt-2 z-50 bg-white rounded-2xl border border-gray-100 overflow-hidden"
+              style={{
+                width: 348,
+                boxShadow: '0 8px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
+                animation: 'gsettings-in 180ms cubic-bezier(0.23,1,0.32,1) both',
+                transformOrigin: 'top right',
+              }}
+            >
+              {/* ── Baseline ── */}
+              <div className="px-4 pt-4 pb-3 border-b border-gray-100">
+                <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">Baseline</p>
+                {baselines.length > 0 ? (
+                  <GToolbarSelect
+                    fullWidth
+                    value={activeBL ?? ''}
+                    onChange={v => { setActiveBL(v); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
+                    options={baselines.map(b => ({ value: b.id, label: b.label }))}
+                  />
+                ) : (
+                  <p className="text-xs text-gray-400 italic">No baselines yet</p>
+                )}
+              </div>
 
-                <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-
-                <div className="flex items-center gap-2">
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">From</label>
-                  <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
-                  <label className="text-xs font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">To</label>
-                  <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
-                  {hasFilter && (
-                    <button
-                      onClick={() => { setFromMonth(''); setToMonth('') }}
-                      className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
-                    >
-                      Clear
-                    </button>
-                  )}
-                </div>
-
-                <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-
-                <div className="flex items-center gap-1.5 flex-shrink-0">
-                  <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Width</span>
-                  <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
-                    <button
-                      onClick={() => setColPx(v => Math.max(10, v - 5))}
-                      className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
-                      aria-label="Decrease column width"
-                    >−</button>
-                    <span className="px-2 text-[11px] font-semibold text-gray-700 tabular-nums border-x border-gray-200 min-w-[42px] text-center">
-                      {colPx}px
-                    </span>
-                    <button
-                      onClick={() => setColPx(v => Math.min(120, v + 5))}
-                      className="px-2 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
-                      aria-label="Increase column width"
-                    >+</button>
+              {/* ── Scheduling (only if baseline active) ── */}
+              {activeBL && (
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Scheduling</p>
+                  <div className="flex flex-col gap-2.5">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 w-16 flex-shrink-0">Start date</span>
+                      <BaselineStartDateField
+                        startDate={blStartDate}
+                        isAutoMode={isAutoMode}
+                        onSave={handleSaveStartDate}
+                      />
+                    </div>
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs text-gray-500 w-16 flex-shrink-0">Mode</span>
+                      <GToolbarSelect
+                        fullWidth
+                        value={activeBLObj?.scheduling_mode ?? 'auto'}
+                        onChange={v => handleSaveMode(v)}
+                        options={[{ value: 'auto', label: 'Auto schedule' }, { value: 'manual', label: 'Manual dates' }]}
+                      />
+                    </div>
                   </div>
-                  {!isDefaultWidth && (
-                    <button
-                      onClick={resetColPx}
-                      className="text-[11px] text-gray-400 hover:text-[#ed6055] transition-colors duration-150 font-medium underline underline-offset-2"
-                    >
-                      reset
-                    </button>
-                  )}
                 </div>
-              </>
-            )}
+              )}
 
-            {/* View tab — columns, bars, dependency arrows */}
-            {activeTab === 'view' && (
-              <>
-                {/* Filters group */}
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-bold text-gray-400 uppercase tracking-widest flex-shrink-0">Filters</span>
+              {/* ── Display ── */}
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Display</p>
+
+                {/* Time scale */}
+                <div className="flex items-center gap-3 mb-2.5">
+                  <span className="text-xs text-gray-500 w-16 flex-shrink-0">Time scale</span>
+                  <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5 flex-1">
+                    {TIME_SCALES.map(s => (
+                      <button
+                        key={s.key}
+                        onClick={() => setTimeScale(s.key)}
+                        className={`flex-1 py-1 text-xs font-semibold rounded-md transition-all duration-150 active:scale-[0.97] ${
+                          timeScale === s.key
+                            ? 'bg-[#ed6055] text-white shadow-sm'
+                            : 'text-gray-500 hover:text-gray-700'
+                        }`}
+                      >
+                        {s.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Date range */}
+                <div className="flex items-center gap-3 mb-2.5">
+                  <span className="text-xs text-gray-500 w-16 flex-shrink-0">Date range</span>
+                  <div className="flex items-center gap-1.5 flex-1 min-w-0">
+                    <div className="flex-1 min-w-0"><MonthYearPicker fluid value={fromMonth} onChange={setFromMonth} max={toMonth} /></div>
+                    <span className="text-[10px] text-gray-300 flex-shrink-0">→</span>
+                    <div className="flex-1 min-w-0"><MonthYearPicker fluid value={toMonth} onChange={setToMonth} min={fromMonth} /></div>
+                    {hasFilter && (
+                      <button
+                        onClick={() => { setFromMonth(''); setToMonth('') }}
+                        className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium flex-shrink-0"
+                      >
+                        Clear
+                      </button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Column width */}
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-gray-500 w-16 flex-shrink-0">Col width</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center bg-white border border-gray-200 rounded-lg overflow-hidden">
+                      <button
+                        onClick={() => setColPx(v => Math.max(10, v - 5))}
+                        className="px-2.5 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
+                        aria-label="Decrease column width"
+                      >−</button>
+                      <span className="px-2 text-[11px] font-semibold text-gray-700 tabular-nums border-x border-gray-200 min-w-[42px] text-center">{colPx}px</span>
+                      <button
+                        onClick={() => setColPx(v => Math.min(120, v + 5))}
+                        className="px-2.5 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
+                        aria-label="Increase column width"
+                      >+</button>
+                    </div>
+                    {!isDefaultWidth && (
+                      <button
+                        onClick={resetColPx}
+                        className="text-[11px] text-gray-400 hover:text-[#ed6055] transition-colors font-medium underline underline-offset-2"
+                      >
+                        reset
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Visibility ── */}
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Visibility</p>
+                <div className="flex items-center gap-2">
                   <ColsDropdown colVisibility={colVisibility} onChange={setColVisibility} />
                   <BarsDropdown barVisibility={barVisibility} onChange={setBarVisibility} />
                 </div>
+              </div>
 
-              </>
-            )}
-
-            {/* Baseline tab — start date, mode, actions */}
-            {activeTab === 'baseline' && (
-              <>
-                {activeBL && (
-                  <>
-                    <BaselineStartDateField
-                      startDate={blStartDate}
-                      isAutoMode={isAutoMode}
-                      onSave={handleSaveStartDate}
-                    />
-                    <div className="flex items-center gap-1.5">
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">Mode</span>
-                      <GToolbarSelect
-                        value={activeBLObj?.scheduling_mode ?? 'auto'}
-                        onChange={v => handleSaveMode(v)}
-                        options={[{ value: 'auto', label: 'Auto' }, { value: 'manual', label: 'Manual' }]}
-                      />
-                    </div>
-                    <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
-                  </>
-                )}
-
-                {isAdmin && activeBL && !isBLConfirmed && (
-                  <button
-                    onClick={handleConfirmBaseline}
-                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-green-400 text-green-700 bg-green-50 hover:bg-green-100 transition flex-shrink-0"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
-                    Lock & Finalise BL
-                  </button>
-                )}
-
-                {isAdmin && (
-                  <button
-                    onClick={handleOpenNewBLModal}
-                    className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition flex-shrink-0"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                    New Baseline
-                  </button>
-                )}
-
-                {activeBL && (
-                  <GExcelButtons
-                    onExport={handleExport}
-                    onImport={handleImportRequest}
-                    importing={importing}
+              {/* ── Bar colors ── */}
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Bar colors</p>
+                <div className="flex flex-col gap-2">
+                  <GBarColorRow
+                    label="Planned"
+                    barKey="planned"
+                    value={barColors.planned}
+                    onChange={c => setBarColors(p => ({ ...p, planned: c }))}
                   />
-                )}
+                  <GBarColorRow
+                    label="Actual"
+                    barKey="actual"
+                    value={barColors.actual}
+                    onChange={c => setBarColors(p => ({ ...p, actual: c }))}
+                  />
+                  <GBarColorRow
+                    label="Forecast"
+                    barKey="projected"
+                    value={barColors.projected}
+                    onChange={c => setBarColors(p => ({ ...p, projected: c }))}
+                  />
+                </div>
+              </div>
 
-                {isAdmin && activeBL && (
-                  <>
-                    <div className="w-px h-4 bg-gray-200 flex-shrink-0" />
+              {/* ── Baseline actions (admin only) ── */}
+              {isAdmin && (
+                <div className="px-4 py-3">
+                  <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Baseline actions</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {activeBL && !isBLConfirmed && (
+                      <button
+                        onClick={handleConfirmBaseline}
+                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-green-400 text-green-700 bg-green-50 hover:bg-green-100 transition active:scale-[0.97]"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                        Lock & Finalise BL
+                      </button>
+                    )}
                     <button
-                      onClick={() => setDeleteBLId(activeBL)}
-                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition flex-shrink-0"
+                      onClick={handleOpenNewBLModal}
+                      className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition active:scale-[0.97]"
                     >
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                      Delete BL
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
+                      New Baseline
                     </button>
-                  </>
-                )}
-              </>
-            )}
-
-          </div>
+                    {activeBL && (
+                      <GExcelButtons
+                        onExport={handleExport}
+                        onImport={handleImportRequest}
+                        importing={importing}
+                      />
+                    )}
+                    {activeBL && (
+                      <button
+                        onClick={() => setDeleteBLId(activeBL)}
+                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-red-200 text-red-500 hover:bg-red-50 transition active:scale-[0.97]"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                        Delete BL
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
       </div>
@@ -2249,7 +2345,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
       {/* Central save strip — appears when there are unsaved name edits */}
       {Object.keys(drafts).length > 0 && (
-        <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-[#ed6055]/20 flex-shrink-0" style={{ background: 'rgba(237,96,85,0.04)' }}>
+        <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-[#ed6055]/20 border-l-4 border-l-[#ed6055] flex-shrink-0" style={{ background: 'rgba(237,96,85,0.06)' }}>
           <svg className="w-3.5 h-3.5 text-[#ed6055] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
@@ -2309,6 +2405,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             labelW={labelW}
             colVisibility={colVisibility}
             barVisibility={barVisibility}
+            barColors={barColors}
             drafts={drafts}
             setDrafts={setDrafts}
             onSave={handleSave}

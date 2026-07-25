@@ -12,7 +12,7 @@ import ReportBuilderModal from './ReportBuilderModal'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation',            color: '#94a3b8', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
-  { key: 'planning',             label: 'Planning',              color: '#3b82f6', badge: 'bg-blue-50 text-blue-600 border-blue-200' },
+  { key: 'planning',             label: 'Planning',              color: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200' },
   { key: 'execution_monitoring', label: 'Execution & Monitoring',color: '#ed6055', badge: 'bg-[#ed6055]/10 text-[#ed6055] border-[#ed6055]/20' },
   { key: 'closeout',             label: 'Close-Out',             color: '#22c55e', badge: 'bg-green-50 text-green-600 border-green-200' },
 ]
@@ -614,6 +614,19 @@ function IosCard({ icon, title, children }) {
   )
 }
 
+// ── Overview Detail Item (editorial style) ───────────────────────────────────
+function OverviewDetailItem({ label, value, icon }) {
+  return (
+    <div className="pl-3 border-l-2 border-transparent hover:border-[#ed6055]/50 transition-all duration-200">
+      <div className="flex items-center gap-1.5 mb-1">
+        {icon && <span className="text-gray-400 flex-shrink-0">{icon}</span>}
+        <p className="text-[10px] tracking-[0.12em] uppercase font-semibold text-gray-400">{label}</p>
+      </div>
+      <p className="text-sm text-gray-800">{value || <span className="text-gray-300">—</span>}</p>
+    </div>
+  )
+}
+
 // ── Overview Tab ─────────────────────────────────────────────────────────────
 
 function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false }) {
@@ -694,32 +707,30 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   if (editing) return (
-    <div className="flex -mx-3 sm:-mx-6 -mb-4 sm:-mb-5 min-h-[420px]">
-      {/* Left: photo – padded so it floats with rounded corners */}
-      <div className="hidden sm:flex sm:flex-col w-[40%] flex-shrink-0 p-4 pr-3">
-        <div className="flex-1 rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.18),0_2px_10px_rgba(0,0,0,0.10)]">
-          <CoverPhotoPanel
-            project={{ ...project, cover_photo_url: pendingCoverUrl !== undefined ? pendingCoverUrl : project.cover_photo_url }}
-            isAdmin={isAdmin}
-            onUpdated={onUpdated}
-            showToast={showToast}
-            editing
-            onPendingRemove={() => {
-              if (pendingCoverUrl && typeof pendingCoverUrl === 'string') URL.revokeObjectURL(pendingCoverUrl)
-              setPendingFile(null)
-              setPendingCoverUrl(null)
-            }}
-            onPendingUpload={(file, previewUrl) => {
-              if (pendingCoverUrl && typeof pendingCoverUrl === 'string') URL.revokeObjectURL(pendingCoverUrl)
-              setPendingFile(file)
-              setPendingCoverUrl(previewUrl)
-            }}
-          />
-        </div>
+    <div className="flex h-full">
+      {/* Left: full-bleed photo panel */}
+      <div className="hidden sm:block w-1/2 flex-shrink-0 overflow-hidden">
+        <CoverPhotoPanel
+          project={{ ...project, cover_photo_url: pendingCoverUrl !== undefined ? pendingCoverUrl : project.cover_photo_url }}
+          isAdmin={isAdmin}
+          onUpdated={onUpdated}
+          showToast={showToast}
+          editing
+          onPendingRemove={() => {
+            if (pendingCoverUrl && typeof pendingCoverUrl === 'string') URL.revokeObjectURL(pendingCoverUrl)
+            setPendingFile(null)
+            setPendingCoverUrl(null)
+          }}
+          onPendingUpload={(file, previewUrl) => {
+            if (pendingCoverUrl && typeof pendingCoverUrl === 'string') URL.revokeObjectURL(pendingCoverUrl)
+            setPendingFile(file)
+            setPendingCoverUrl(previewUrl)
+          }}
+        />
       </div>
 
       {/* Right: form */}
-      <div className="flex-1 min-w-0 px-3 sm:px-4 pt-4 sm:pt-5 pb-4 sm:pb-5 space-y-3 overflow-y-auto">
+      <div className="flex-1 min-w-0 px-6 sm:px-8 pt-5 pb-4 space-y-3 overflow-y-auto">
         <div className="flex justify-end gap-2">
           <button onClick={cancelEdit} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors duration-200 active:scale-[0.97]">Cancel</button>
           <button onClick={save} disabled={saving || !form.name?.trim()} className="px-4 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-40 transition-colors duration-200 active:scale-[0.97]">
@@ -805,18 +816,71 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 
   return (
-    <div className="flex -mx-3 sm:-mx-6 -mb-4 sm:-mb-5 min-h-[420px]">
-      {/* Left: photo – padded so it floats with rounded corners + shadow */}
-      <div className="hidden sm:flex sm:flex-col w-[40%] flex-shrink-0 p-4 pr-3">
-        <div className="flex-1 rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.18),0_2px_10px_rgba(0,0,0,0.10)]">
-          <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} />
-        </div>
+    <div className="flex h-full">
+      {/* Left: full-bleed cover photo */}
+      <div className="hidden sm:block w-1/2 flex-shrink-0 overflow-hidden bg-gray-100">
+        <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} />
       </div>
 
-      {/* Right: cards */}
-      <div className="flex-1 min-w-0 px-3 sm:px-4 pt-4 pb-5 space-y-3 overflow-y-auto">
+      {/* Right: editorial content panel — elevated shadow creates depth over the photo */}
+      <div className="flex-1 min-w-0 flex flex-col overflow-y-auto bg-white relative z-10" style={{ boxShadow: '-16px 0 48px rgba(0,0,0,0.14)' }}>
+
+        {/* Hero: phase badge + project name + subtitle */}
+        <div className="px-8 pt-8 pb-6 border-b border-gray-100" style={{ animation: 'fade-in-up 220ms ease-out both' }}>
+          {project.phase && PHASE_MAP[project.phase] && (
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-shadow duration-200 hover:shadow-sm ${PHASE_MAP[project.phase].badge}`}>
+              {PHASE_MAP[project.phase].label}
+            </span>
+          )}
+          <h2 className="mt-3 text-2xl sm:text-[28px] font-light tracking-[0.18em] uppercase leading-snug text-gray-900">
+            {project.name || 'Untitled Project'}
+          </h2>
+          {(project.project_code || project.business_unit) && (
+            <p className="mt-2 text-[11px] tracking-[0.14em] uppercase font-medium text-gray-400">
+              {[project.project_code, formatBU(project.business_unit)].filter(Boolean).join(' · ')}
+            </p>
+          )}
+        </div>
+
+        {/* Brief */}
+        {project.project_brief && (
+          <div className="px-8 py-5 border-b border-gray-100" style={{ animation: 'fade-in-up 220ms 60ms ease-out both' }}>
+            <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{project.project_brief}</p>
+          </div>
+        )}
+
+        {/* Details grid */}
+        <div className="px-8 py-6 grid grid-cols-2 gap-x-8 gap-y-5 flex-1" style={{ animation: 'fade-in-up 220ms 120ms ease-out both' }}>
+          <OverviewDetailItem
+            label="Location"
+            value={[project.city, project.province].filter(Boolean).join(', ')}
+            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>}
+          />
+          <OverviewDetailItem
+            label="Development Type"
+            value={project.development_type ? (project.development_type === 'housing' ? 'Housing' : 'Condominium') : null}
+            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>}
+          />
+          <OverviewDetailItem
+            label="4PH Project"
+            value={project.is_4ph_project ? 'Yes' : 'No'}
+            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>}
+          />
+          <OverviewDetailItem
+            label="Lot Area"
+            value={project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : null}
+            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>}
+          />
+          <OverviewDetailItem
+            label="Developable Area"
+            value={project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : null}
+            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>}
+          />
+        </div>
+
+        {/* Edit button pinned to bottom */}
         {isAdmin && (
-          <div className="flex justify-end">
+          <div className="px-8 py-4 border-t border-gray-100 flex justify-end mt-auto" style={{ animation: 'fade-in-up 220ms 180ms ease-out both' }}>
             <button
               onClick={startEdit}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-gray-500 hover:text-[#ed6055] hover:bg-red-50 border border-gray-200 bg-white transition-colors duration-200 text-xs font-semibold shadow-sm active:scale-[0.97]"
@@ -828,47 +892,6 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
             </button>
           </div>
         )}
-
-        {(project.project_brief || isAdmin) && (
-          <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>} title="Project Brief">
-            {project.project_brief ? (
-              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.project_brief}</p>
-            ) : (
-              <p className="text-sm text-gray-400 italic">No project brief yet. Click Edit to add one.</p>
-            )}
-          </IosCard>
-        )}
-
-        <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>} title="Project Details">
-          <div className="grid grid-cols-2 gap-x-5 gap-y-4">
-            <Field label="Project Name"><ReadValue value={project.name} /></Field>
-            <Field label="Project Short Name"><ReadValue value={project.project_code} /></Field>
-            <Field label="Business Unit"><ReadValue value={formatBU(project.business_unit)} /></Field>
-            <Field label="Development Type">
-              <ReadValue value={project.development_type ? (project.development_type === 'housing' ? 'Housing' : 'Condominium') : null} />
-            </Field>
-            <Field label="4PH Project">
-              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${project.is_4ph_project ? 'bg-red-50 text-red-800 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
-                {project.is_4ph_project ? 'Yes' : 'No'}
-              </span>
-            </Field>
-            <Field label="Phase">
-              {project.phase && PHASE_MAP[project.phase] ? (
-                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${PHASE_MAP[project.phase].badge}`}>
-                  {PHASE_MAP[project.phase].label}
-                </span>
-              ) : <ReadValue value={null} />}
-            </Field>
-            <Field label="Province"><ReadValue value={project.province} /></Field>
-            <Field label="City / Municipality"><ReadValue value={project.city} /></Field>
-            <Field label="Project Lot Area">
-              <ReadValue value={project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : null} />
-            </Field>
-            <Field label="Project Developable Area">
-              <ReadValue value={project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : null} />
-            </Field>
-          </div>
-        </IosCard>
       </div>
     </div>
   )
@@ -4400,8 +4423,8 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       <div className="bg-white rounded-none shadow-2xl w-full h-full flex flex-col overflow-hidden">
 
         {/* Tab bar + actions */}
-        <div className="flex-shrink-0 border-b border-gray-100 flex items-stretch"
-          style={{ background: 'linear-gradient(135deg, #1e293b 0%, #2d3f55 100%)' }}>
+        <div className="flex-shrink-0 border-b border-black/20 flex items-stretch"
+          style={{ background: 'rgba(63,63,63,1)' }}>
 
           {/* Tabs */}
           <div className="flex overflow-x-auto flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
@@ -4411,16 +4434,19 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
                 t === 'Issues & Concerns' ? tabCounts.issues     :
                 null
               const isAlert = t === 'Issues & Concerns' && tabCounts.issues > 0
+              const isActive = tab === t
               return (
                 <button
                   key={t}
                   onClick={() => switchTab(t)}
-                  className="flex items-center gap-1.5 px-5 py-3 text-sm whitespace-nowrap border-b-[3px] -mb-px active:scale-[0.97]"
+                  className="flex items-center gap-1.5 px-5 py-2 text-sm whitespace-nowrap border-b-[3px] -mb-px active:scale-[0.97]"
                   style={{
-                    color:       tab === t ? 'white' : 'rgba(255,255,255,0.72)',
-                    fontWeight:  tab === t ? 700 : 500,
-                    borderBottomColor: tab === t ? '#ed6055' : 'transparent',
-                    transition: 'color 150ms ease, border-color 150ms ease, transform 100ms ease-out',
+                    color:             isActive ? 'white' : 'rgba(255,255,255,0.52)',
+                    fontWeight:        isActive ? 600 : 400,
+                    borderBottomColor: isActive ? '#ed6055' : 'transparent',
+                    background:        isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+                    borderRadius:      isActive ? '6px 6px 0 0' : '0',
+                    transition: 'color 150ms ease, border-color 150ms ease, background 150ms ease, transform 100ms ease-out',
                   }}
                 >
                   {t}
@@ -4482,9 +4508,12 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           <div className="flex-1 overflow-hidden flex flex-col">
             <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} />
           </div>
+        ) : tab === 'Project Info' ? (
+          <div key="Project Info" className="flex-1 overflow-hidden" style={{ animation: 'fade-in-up 180ms ease-out forwards' }}>
+            <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} />
+          </div>
         ) : (
           <div key={tab} className="flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5" style={{ animation: 'fade-in-up 180ms ease-out forwards' }}>
-            {tab === 'Project Info'       && <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} />}
             {tab === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
             {tab === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'updater'} />}
             {tab === 'Permits'            && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}

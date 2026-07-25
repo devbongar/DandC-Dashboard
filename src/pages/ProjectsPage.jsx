@@ -13,7 +13,7 @@ import ReportBuilderModal from '../components/ReportBuilderModal'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation',            color: '#94a3b8', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
-  { key: 'planning',             label: 'Planning',              color: '#3b82f6', badge: 'bg-blue-50 text-blue-600 border-blue-200' },
+  { key: 'planning',             label: 'Planning',              color: '#64748b', badge: 'bg-slate-50 text-slate-600 border-slate-200' },
   { key: 'execution_monitoring', label: 'Execution & Monitoring',color: '#ed6055', badge: 'bg-[#ed6055]/10 text-[#ed6055] border-[#ed6055]/20' },
   { key: 'closeout',             label: 'Close-Out',             color: '#22c55e', badge: 'bg-green-50 text-green-600 border-green-200' },
 ]
