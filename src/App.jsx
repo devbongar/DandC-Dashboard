@@ -14,6 +14,7 @@ import RoleAssignment from './pages/admin/RoleAssignment'
 import StandardPermits from './pages/admin/StandardPermits'
 import WorkProgramTemplate from './pages/admin/WorkProgramTemplate'
 import ProjectsPage from './pages/ProjectsPage'
+import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import ProtectedRoute from './components/ProtectedRoute'
 
@@ -39,8 +40,9 @@ function App() {
         <Route path="/viewer/dashboard" element={<ProtectedRoute roles={['viewer']}><ViewerDashboard /></ProtectedRoute>} />
 
         {/* Shared pages (all authenticated roles) */}
-        <Route path="/projects" element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
-        <Route path="/profile"  element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
+        <Route path="/projects"    element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />
+        <Route path="/projects/:slug" element={<ProtectedRoute><ProjectDetailPage /></ProtectedRoute>} />
+        <Route path="/profile"     element={<ProtectedRoute><ProfilePage /></ProtectedRoute>} />
 
         {/* Admin tools */}
         <Route path="/admin/roles"                  element={<ProtectedRoute roles={['admin']}><RoleAssignment /></ProtectedRoute>} />

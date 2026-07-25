@@ -140,6 +140,16 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     return lastIdx >= 0 ? tableRows.slice(0, lastIdx + 1) : []
   }, [tableRows])
 
+  const inputTableRows = useMemo(() => {
+    if (!fromMonth && !toMonth) return tableRows
+    return tableRows.filter(r => {
+      const ym = r.period_date.slice(0, 7)
+      if (fromMonth && ym < fromMonth) return false
+      if (toMonth && ym > toMonth) return false
+      return true
+    })
+  }, [tableRows, fromMonth, toMonth])
+
   const chartData = useMemo(() => {
     // "has data" means a positive value was recorded — 0 and null both mean "no data for display"
     const lastTargetIdx    = chartRows.reduce((last, r, i) => r.target_pct    > 0 ? i : last, -1)
@@ -468,100 +478,163 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         </div>
       </div>
 
-      {chartData.length > 0 && (() => {
-        const chartWidth = LABEL_W + COL_W * chartData.length
+      {inputTableRows.length > 0 && (() => {
+        // Master column list: all months including empty ones (so Add Month always shows)
+        const cols = inputTableRows
+        const chartDataByDate = Object.fromEntries(chartData.map(d => [d._date, d]))
+        // Extend chart data to cover all cols — empty months get null cumulative values
+        const combinedData = cols.map(r =>
+          chartDataByDate[r.period_date] ?? {
+            period: formatPeriod(r.period_date), target: null, actual: null, projected: null, _date: r.period_date,
+          }
+        )
+        const totalW = LABEL_W + COL_W * cols.length
         return (
           <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
             <div className="overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
-              <div style={{ width: chartWidth, minWidth: chartWidth }}>
+              <div style={{ width: totalW, minWidth: totalW }}>
 
-                {/* Chart — fixed width so X-axis ticks land on column centres */}
-                <ComposedChart
-                  width={chartWidth}
-                  height={280}
-                  data={chartData}
-                  margin={{ top: 8, right: 0, bottom: 0, left: 0 }}
-                >
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                  <XAxis
-                    dataKey="period"
-                    tick={false}
-                    tickLine={false}
-                    axisLine={{ stroke: '#e5e7eb' }}
-                    padding={{ left: COL_W / 2, right: COL_W / 2 }}
-                    height={8}
-                  />
-                  <YAxis
-                    width={LABEL_W}
-                    domain={[0, 100]}
-                    tickFormatter={v => v + '%'}
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={11}
-                    label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#9ca3af' } }}
-                  />
-                  <Tooltip formatter={(val) => val != null ? val.toFixed(2) + '%' : '—'} />
-                  <Area
-                    dataKey="target"
-                    name="Planned"
-                    stroke="#9ca3af"
-                    fill="#9ca3af"
-                    fillOpacity={0.15}
-                    strokeWidth={2}
-                    dot={false}
-                    connectNulls
-                  />
-                  <Line
-                    dataKey="actual"
-                    name="Actual"
-                    stroke="#86efac"
-                    strokeWidth={2.5}
-                    dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }}
-                    connectNulls
-                  />
-                  <Line
-                    dataKey="projected"
-                    name="Projected"
-                    stroke="#fde047"
-                    strokeWidth={2}
-                    strokeDasharray="5 3"
-                    dot={false}
-                    connectNulls
-                  />
-                </ComposedChart>
+                {/* Chart */}
+                {chartData.length > 0 && (
+                  <ComposedChart
+                    width={totalW}
+                    height={280}
+                    data={combinedData}
+                    margin={{ top: 8, right: 0, bottom: 0, left: 0 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <XAxis
+                      dataKey="period"
+                      tick={false}
+                      tickLine={false}
+                      axisLine={{ stroke: '#e5e7eb' }}
+                      padding={{ left: COL_W / 2, right: COL_W / 2 }}
+                      height={8}
+                    />
+                    <YAxis
+                      width={LABEL_W}
+                      domain={[0, 100]}
+                      tickFormatter={v => v + '%'}
+                      tickLine={false}
+                      axisLine={false}
+                      fontSize={11}
+                      label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#9ca3af' } }}
+                    />
+                    <Tooltip formatter={(val) => val != null ? val.toFixed(2) + '%' : '—'} />
+                    <Area dataKey="target" name="Planned" stroke="#9ca3af" fill="#9ca3af" fillOpacity={0.15} strokeWidth={2} dot={false} connectNulls />
+                    <Line dataKey="actual" name="Actual" stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls />
+                    <Line dataKey="projected" name="Projected" stroke="#fde047" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
+                  </ComposedChart>
+                )}
 
-                {/* Cumulative % table — same column widths as chart, same scroll container */}
-                <table className="text-xs border-t border-gray-100" style={{ width: chartWidth, tableLayout: 'fixed' }}>
-                  <thead>
-                    <tr className="bg-gray-50 border-b border-gray-100">
-                      <th style={{ width: LABEL_W, minWidth: LABEL_W }} className="text-left px-3 py-2 font-bold text-gray-500 sticky left-0 bg-gray-50 z-10 border-r border-gray-100">Series</th>
-                      {chartData.map(d => (
-                        <th key={d.period} style={{ width: COL_W }} className="text-center px-1 py-2 font-medium text-gray-400 whitespace-nowrap">{d.period}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {[
-                      { label: 'Planned',   key: 'target',    color: '#9ca3af' },
-                      { label: 'Actual',    key: 'actual',    color: '#86efac' },
-                      { label: 'Projected', key: 'projected', color: '#fde047' },
-                    ].map(({ label, key, color }) => (
-                      <tr key={key} className="border-b border-gray-50 last:border-b-0 hover:bg-gray-50/50">
-                        <td style={{ width: LABEL_W, minWidth: LABEL_W }} className="px-3 py-2 sticky left-0 bg-white z-10 border-r border-gray-100">
-                          <div className="flex items-center gap-1.5">
-                            <span className="w-2.5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: color }} />
-                            <span className="font-semibold text-gray-600">{label}</span>
-                          </div>
-                        </td>
-                        {chartData.map(d => (
-                          <td key={d.period} style={{ width: COL_W }} className="text-center px-1 py-2 tabular-nums text-gray-700">
-                            {d[key] != null ? `${d[key].toFixed(2)}%` : <span className="text-gray-200">—</span>}
-                          </td>
+                {/* Cumulative % table */}
+                {chartData.length > 0 && (
+                  <table className="text-xs border-t border-gray-100" style={{ width: totalW, tableLayout: 'fixed' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
+                        <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9' }} className="text-left px-3 py-2 sticky left-0 z-10 border-r border-gray-200">
+                          <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Cumulative %</span>
+                        </th>
+                        {combinedData.map(d => (
+                          <th key={d._date} style={{ width: COL_W }} className="text-center px-1 py-2 font-medium text-gray-400 whitespace-nowrap">{d.period}</th>
                         ))}
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: 'Planned',   key: 'target',    color: '#9ca3af', bg: '#ffffff' },
+                        { label: 'Actual',    key: 'actual',    color: '#86efac', bg: '#fafbfc' },
+                        { label: 'Projected', key: 'projected', color: '#fde047', bg: '#ffffff' },
+                      ].map(({ label, key, color, bg }) => (
+                        <tr key={key} className="border-b border-gray-50 last:border-b-0 hover:bg-[#f0f4f8]" style={{ backgroundColor: bg }}>
+                          <td style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: bg }} className="px-3 py-2 sticky left-0 z-10 border-r border-gray-100">
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: color }} />
+                              <span className="font-semibold text-gray-600">{label}</span>
+                            </div>
+                          </td>
+                          {combinedData.map(d => (
+                            <td key={d._date} style={{ width: COL_W }} className="text-center px-1 py-2 tabular-nums text-gray-700">
+                              {d[key] != null ? `${d[key].toFixed(2)}%` : <span className="text-gray-300">—</span>}
+                            </td>
+                          ))}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+
+                {/* Monthly Input table — same scroll container, columns aligned with chart */}
+                {viewMode === 'monthly' && (
+                  <table className="text-xs border-t-2 border-gray-300" style={{ width: totalW, tableLayout: 'fixed' }}>
+                    <thead>
+                      <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
+                        <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9' }} className="text-left px-3 py-1.5 sticky left-0 z-10 border-r border-gray-200">
+                          <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Monthly Input</span>
+                        </th>
+                        {cols.map(r => <th key={r.period_date} style={{ width: COL_W }} />)}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[
+                        { label: 'Planned',   field: 'target_pct',    color: '#9ca3af', bg: '#ffffff' },
+                        { label: 'Actual',    field: 'actual_pct',    color: '#86efac', bg: '#fafbfc' },
+                        { label: 'Projected', field: 'projected_pct', color: '#fde047', bg: '#ffffff' },
+                      ].map(({ label, field, color, bg }) => (
+                        <tr key={field} className="border-b border-gray-50 last:border-b-0 hover:bg-[#f0f4f8]" style={{ backgroundColor: bg }}>
+                          <td style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: bg }} className="px-3 py-2 sticky left-0 z-10 border-r border-gray-100">
+                            <div className="flex items-center gap-2">
+                              <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: color }} />
+                              <span className="font-semibold text-gray-600">{label}</span>
+                            </div>
+                          </td>
+                          {cols.map(row => {
+                            const isEditing  = editCell?.period_date === row.period_date && editCell?.field === field
+                            const hasPending = pendingMap[row.period_date]?.[field]
+                            const notEditable = field === 'projected_pct' && !row.projected_editable
+                            const rawVal = field === 'projected_pct' ? row.projected_display : row[field]
+                            const displayVal = rawVal > 0 ? rawVal : null
+                            return (
+                              <td key={row.period_date} style={{ width: COL_W }} className="text-center px-1 py-2 tabular-nums">
+                                {isEditing ? (
+                                  <div className="flex items-center gap-0.5 justify-center">
+                                    <input
+                                      type="number" min={0} max={100} step={0.01}
+                                      value={editValue} autoFocus
+                                      onChange={e => setEditValue(e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') handleSubmit(row.period_date, field)
+                                        if (e.key === 'Escape') { setEditCell(null); setEditValue('') }
+                                      }}
+                                      className="w-14 px-1 py-0.5 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
+                                    />
+                                    <button onClick={() => handleSubmit(row.period_date, field)} disabled={saving} className="text-green-600 hover:text-green-700 font-bold text-sm leading-none">✓</button>
+                                    <button onClick={() => { setEditCell(null); setEditValue('') }} className="text-gray-400 hover:text-gray-600 font-bold text-sm leading-none">✕</button>
+                                  </div>
+                                ) : hasPending ? (
+                                  <span className="text-amber-600 font-medium">{hasPending.new_value}% ⏳</span>
+                                ) : notEditable ? (
+                                  <span className="text-gray-400">{displayVal != null ? displayVal + '%' : '—'}</span>
+                                ) : (
+                                  <button
+                                    onClick={() => {
+                                      if (!canEdit) return
+                                      setEditCell({ period_date: row.period_date, field })
+                                      setEditValue(displayVal != null ? String(displayVal) : '')
+                                    }}
+                                    className={`transition-colors ${canEdit ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} ${displayVal != null ? 'text-gray-700 font-medium' : canEdit ? 'text-gray-400 hover:text-[#ed6055]' : 'text-gray-200'}`}
+                                  >
+                                    {displayVal != null ? displayVal + '%' : (canEdit ? '+ add' : '—')}
+                                  </button>
+                                )}
+                              </td>
+                            )
+                          })}
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
 
               </div>
             </div>
@@ -575,99 +648,6 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           {canEdit && <p className="text-xs text-gray-400 mt-1">Add a month below to get started</p>}
         </div>
       )}
-
-      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              {['Period', 'Planned %', 'Actual %', 'Projected %'].map(h => (
-                <th key={h} className="text-left px-4 py-2.5 font-bold text-gray-600 uppercase tracking-wider text-xs border-r border-gray-200 last:border-r-0">
-                  {h}
-                </th>
-              ))}
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-gray-100">
-            {tableRows.map(row => (
-              <tr key={row.period_date} className="hover:bg-gray-50/50">
-                <td className="px-4 py-2.5 font-medium text-black border-r border-gray-100">
-                  {formatPeriod(row.period_date)}
-                </td>
-                {['target_pct', 'actual_pct', 'projected_pct'].map(field => {
-                  const isEditing  = editCell?.period_date === row.period_date && editCell?.field === field
-                  const hasPending = pendingMap[row.period_date]?.[field]
-                  const notEditable = field === 'projected_pct' && !row.projected_editable
-
-                  const rawVal = field === 'projected_pct' ? row.projected_display : row[field]
-                  const displayVal = rawVal > 0 ? rawVal : null
-
-                  return (
-                    <td key={field} className="px-4 py-2 border-r border-gray-100 last:border-r-0">
-                      {isEditing ? (
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="number"
-                            min={0}
-                            max={100}
-                            step={0.01}
-                            value={editValue}
-                            autoFocus
-                            onChange={e => setEditValue(e.target.value)}
-                            onKeyDown={e => {
-                              if (e.key === 'Enter') handleSubmit(row.period_date, field)
-                              if (e.key === 'Escape') { setEditCell(null); setEditValue('') }
-                            }}
-                            className="w-20 px-2 py-1 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
-                          />
-                          <button
-                            onClick={() => handleSubmit(row.period_date, field)}
-                            disabled={saving}
-                            className="text-green-600 hover:text-green-700 font-bold text-sm leading-none"
-                          >
-                            ✓
-                          </button>
-                          <button
-                            onClick={() => { setEditCell(null); setEditValue('') }}
-                            className="text-gray-400 hover:text-gray-600 font-bold text-sm leading-none"
-                          >
-                            ✕
-                          </button>
-                        </div>
-                      ) : hasPending ? (
-                        <span className="text-amber-600 font-medium">
-                          {hasPending.new_value}% ⏳
-                        </span>
-                      ) : notEditable ? (
-                        <span className="text-gray-400">
-                          {displayVal != null ? displayVal + '%' : '—'}
-                        </span>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (!canEdit) return
-                            setEditCell({ period_date: row.period_date, field })
-                            setEditValue(displayVal != null ? String(displayVal) : '')
-                          }}
-                          className={`text-left transition-colors ${canEdit ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} ${displayVal != null ? 'text-gray-700' : canEdit ? 'text-gray-300 hover:text-[#ed6055]' : 'text-gray-200'}`}
-                        >
-                          {displayVal != null ? displayVal + '%' : (canEdit ? 'click to add' : '—')}
-                        </button>
-                      )}
-                    </td>
-                  )
-                })}
-              </tr>
-            ))}
-            {tableRows.length === 0 && (
-              <tr>
-                <td colSpan={4} className="px-4 py-6 text-center text-xs text-gray-400 italic">
-                  No rows yet.
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
 
       {canEdit && (
         <div>

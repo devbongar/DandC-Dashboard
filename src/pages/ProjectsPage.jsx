@@ -1,10 +1,11 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { slugify } from './ProjectDetailPage'
 import { supabase } from '../lib/supabaseClient'
 import DashboardLayout from '../components/DashboardLayout'
 import useProfile from '../hooks/useProfile'
 import LoadingScreen from '../components/LoadingScreen'
 import useMinLoading from '../hooks/useMinLoading'
-import ProjectDetailModal from '../components/ProjectDetailModal'
 import TriangleLoader from '../components/TriangleLoader'
 import { downloadWorkbook, parseWorkbook, toFloat } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
@@ -96,6 +97,7 @@ function parseImportRow(row) {
 
 
 export default function ProjectsPage() {
+  const navigate = useNavigate()
   const { profile, loading: profileLoading } = useProfile()
   const isAdmin = profile?.role === 'admin'
 
@@ -108,8 +110,6 @@ export default function ProjectsPage() {
   const [devTypeFilter, setDevTypeFilter] = useState('all')
   const [sortOrder, setSortOrder]         = useState('asc')
 
-  const [selected, setSelected]     = useState(null)
-  const [selectedInEdit, setSelectedInEdit] = useState(false)
   const [showForm, setShowForm]     = useState(false)
   const [form, setForm]             = useState(EMPTY_FORM)
   const [submitting, setSubmitting] = useState(false)
@@ -129,7 +129,9 @@ export default function ProjectsPage() {
       .from('projects')
       .select('*')
       .order('created_at', { ascending: false })
-    if (!error && data) setProjects(data)
+    if (!error && data) {
+      setProjects(data)
+    }
     setLoading(false)
   }
 
@@ -156,7 +158,6 @@ export default function ProjectsPage() {
 
   const handleProjectUpdated = (updated) => {
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    if (selected?.id === updated.id) setSelected(updated)
   }
 
   const handleSubmit = async (e) => {
@@ -207,7 +208,6 @@ export default function ProjectsPage() {
     if (error) { showToast('Error: ' + error.message, 'error'); return }
     showToast('Project deleted.', 'success')
     setDeleteTarget(null)
-    if (selected?.id === deleteTarget.id) setSelected(null)
     fetchProjects()
   }
 
@@ -327,17 +327,31 @@ export default function ProjectsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-3 mb-5">
+      <div className="flex flex-wrap gap-2 mb-5">
         <input
           type="text"
           value={search}
           onChange={e => setSearch(e.target.value)}
           placeholder="Search projects…"
-          className="flex-1 px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white"
+          className="flex-1 min-w-[200px] px-4 py-2.5 rounded-lg border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white"
         />
         <select value={phaseFilter} onChange={e => setPhaseFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent">
           <option value="all">All Phases</option>
           {PHASES.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
+        </select>
+        <select value={businessUnitFilter} onChange={e => setBusinessUnitFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent">
+          <option value="all">All Business Units</option>
+          {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code}>{u.code}</option>)}
+        </select>
+        <select value={devTypeFilter} onChange={e => setDevTypeFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent">
+          <option value="all">All Dev Types</option>
+          <option value="housing">Housing</option>
+          <option value="condominium">Condominium</option>
+        </select>
+        <select value={is4phFilter} onChange={e => setIs4phFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent">
+          <option value="all">All Types</option>
+          <option value="yes">4PH</option>
+          <option value="no">Non-4PH</option>
         </select>
       </div>
 
@@ -346,8 +360,19 @@ export default function ProjectsPage() {
         {loading ? (
           <TriangleLoader label="Loading projects…" />
         ) : filtered.length === 0 ? (
-          <div className="text-center py-16 text-gray-400 text-sm">
-            {projects.length === 0 ? 'No projects yet.' : 'No projects match your filters.'}
+          <div className="text-center py-16">
+            {projects.length === 0 ? (
+              <>
+                <p className="text-gray-400 text-sm mb-3">No projects yet.</p>
+                {isAdmin && (
+                  <button onClick={openAdd} className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#ed6055] hover:bg-[#d94f45] text-white text-sm font-semibold transition">
+                    <PlusIcon /> Add your first project
+                  </button>
+                )}
+              </>
+            ) : (
+              <p className="text-gray-400 text-sm">No projects match your filters.</p>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -362,6 +387,7 @@ export default function ProjectsPage() {
                   <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
                     <button
                       onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+                      aria-label={`Sort by project name ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
                       className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-black transition group"
                     >
                       Project Name
@@ -372,54 +398,19 @@ export default function ProjectsPage() {
                     </button>
                   </th>
 
-                  {/* Business Unit — filterable */}
+                  {/* Business Unit */}
                   <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Business Unit</span>
-                      <select
-                        value={businessUnitFilter}
-                        onChange={e => setBusinessUnitFilter(e.target.value)}
-                        onClick={e => e.stopPropagation()}
-                        className="text-[10px] font-normal normal-case tracking-normal border border-gray-200 rounded-md px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#ed6055] cursor-pointer"
-                      >
-                        <option value="all">All</option>
-                        {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code}>{u.code}</option>)}
-                      </select>
-                    </div>
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Business Unit</span>
                   </th>
 
-                  {/* Development Type — filterable */}
+                  {/* Development Type */}
                   <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Development Type</span>
-                      <select
-                        value={devTypeFilter}
-                        onChange={e => setDevTypeFilter(e.target.value)}
-                        onClick={e => e.stopPropagation()}
-                        className="text-[10px] font-normal normal-case tracking-normal border border-gray-200 rounded-md px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#ed6055] cursor-pointer"
-                      >
-                        <option value="all">All</option>
-                        <option value="housing">Housing</option>
-                        <option value="condominium">Condominium</option>
-                      </select>
-                    </div>
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Development Type</span>
                   </th>
 
-                  {/* 4PH — filterable */}
+                  {/* 4PH */}
                   <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                    <div className="flex flex-col gap-1.5">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">4PH</span>
-                      <select
-                        value={is4phFilter}
-                        onChange={e => setIs4phFilter(e.target.value)}
-                        onClick={e => e.stopPropagation()}
-                        className="text-[10px] font-normal normal-case tracking-normal border border-gray-200 rounded-md px-1.5 py-1 bg-white text-gray-700 focus:outline-none focus:ring-1 focus:ring-[#ed6055] cursor-pointer"
-                      >
-                        <option value="all">All</option>
-                        <option value="yes">4PH</option>
-                        <option value="no">Non-4PH</option>
-                      </select>
-                    </div>
+                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">4PH</span>
                   </th>
 
                   {/* Location */}
@@ -445,7 +436,7 @@ export default function ProjectsPage() {
                   return (
                   <tr
                     key={project.id}
-                    onClick={() => setSelected(project)}
+                    onClick={() => navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } })}
                     className="hover:bg-gray-50/60 transition cursor-pointer"
                     style={{ boxShadow: `inset 3px 0 0 ${phaseColor}` }}
                   >
@@ -488,10 +479,10 @@ export default function ProjectsPage() {
                     {isAdmin && (
                       <td className="px-5 py-4">
                         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                          <button onClick={e => { e.stopPropagation(); setSelected(project); setSelectedInEdit(true) }} className="p-1.5 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition" title="Edit">
+                          <button onClick={e => { e.stopPropagation(); navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } }) }} className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition" title="Edit">
                             <PencilIcon />
                           </button>
-                          <button onClick={e => { e.stopPropagation(); setDeleteTarget(project) }} className="p-1.5 rounded-lg text-gray-400 hover:text-[#ed6055] hover:bg-[#ed6055]/5 transition" title="Delete">
+                          <button onClick={e => { e.stopPropagation(); setDeleteTarget(project) }} className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#ed6055] hover:bg-[#ed6055]/5 transition" title="Delete">
                             <TrashIcon />
                           </button>
                         </div>
@@ -505,19 +496,8 @@ export default function ProjectsPage() {
           </div>
         )}
       </div>
-      <p className="text-xs text-gray-400 mt-2 text-right">{filtered.length} of {projects.length} shown</p>
+      <p className="text-xs text-gray-500 mt-2 text-right">{filtered.length} of {projects.length} shown</p>
       </div>
-
-      {/* ── Project Detail Modal ── */}
-      {selected && (
-        <ProjectDetailModal
-          project={selected}
-          isAdmin={isAdmin}
-          onClose={() => { setSelected(null); setSelectedInEdit(false) }}
-          onProjectUpdated={handleProjectUpdated}
-          startEditing={selectedInEdit}
-        />
-      )}
 
       {/* ── Report Builder ── */}
       {showReportBuilder && (

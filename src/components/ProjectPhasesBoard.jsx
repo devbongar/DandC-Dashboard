@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
-import ProjectDetailModal from './ProjectDetailModal'
+import { slugify } from '../pages/ProjectDetailPage'
 import SearchDropdown from './SearchDropdown'
 import TriangleLoader from './TriangleLoader'
 import useProfile from '../hooks/useProfile'
@@ -12,12 +13,12 @@ const PHASES = [
   { key: 'closeout',             label: 'Close-Out',             shortLabel: 'Close' },
 ]
 export default function ProjectPhasesBoard({ id }) {
+  const navigate                  = useNavigate()
   const { profile }               = useProfile()
   const isAdmin                   = profile?.role === 'admin'
   const [projects, setProjects]   = useState([])
   const [loading, setLoading]     = useState(true)
   const [toast, setToast]         = useState(null)
-  const [selected, setSelected]   = useState(null)
   const [is4ph, setIs4ph]         = useState('all')
   const [projectId, setProjectId] = useState('all')
 
@@ -141,7 +142,7 @@ export default function ProjectPhasesBoard({ id }) {
                     phaseProjects.map(project => (
                       <button
                         key={project.id}
-                        onClick={() => setSelected(project)}
+                        onClick={() => navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } })}
                         className="w-full text-left bg-white border border-gray-100 rounded-lg px-3 py-2.5 hover:border-[#ed6055]/30 hover:shadow-sm transition group"
                       >
                         <div className="flex items-start justify-between gap-1 mb-1">
@@ -164,15 +165,6 @@ export default function ProjectPhasesBoard({ id }) {
             )
           })}
         </div>
-      )}
-
-      {selected && (
-        <ProjectDetailModal
-          project={selected}
-          isAdmin={isAdmin}
-          onClose={() => setSelected(null)}
-          onProjectUpdated={(updated) => setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))}
-        />
       )}
 
       {toast && (

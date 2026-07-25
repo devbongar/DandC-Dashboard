@@ -41,7 +41,7 @@ const fmt       = d => d ? new Date(d).toLocaleDateString('en-PH', { year: 'nume
 const getFileName = url => url ? decodeURIComponent(url.split('/').pop().split('?')[0]) : null
 const noNeg = (...vals) => vals.filter(v => v !== null && v !== undefined).some(v => v < 0)
 
-const inputCls  = 'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white'
+const inputCls  = 'w-full px-3 py-2.5 text-sm rounded-xl border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:border-[#ed6055] bg-white transition-colors'
 
 const BASE_TABS = ['Project Info', 'Planned M4/M5', 'Completion (M4/M5)', 'Work Program', 'S-Curve', 'Permits', 'Issues & Concerns', 'Photos']
 
@@ -58,11 +58,33 @@ const ISSUE_EMPTY = { issue_group: '', management_level: '', status: 'open', dat
 
 // ── Combobox ──────────────────────────────────────────────────────────────────
 
+function HighlightMatch({ text, query }) {
+  if (!query) return <>{text}</>
+  const idx = text.toLowerCase().indexOf(query.toLowerCase())
+  if (idx === -1) return <>{text}</>
+  return (
+    <>
+      {text.slice(0, idx)}
+      <mark className="bg-[#ed6055]/15 text-[#ed6055] font-semibold not-italic" style={{ borderRadius: '3px', padding: '0 1px' }}>
+        {text.slice(idx, idx + query.length)}
+      </mark>
+      {text.slice(idx + query.length)}
+    </>
+  )
+}
+
 function Combobox({ options = [], value, onChange, placeholder, disabled = false }) {
   const [query, setQuery]   = useState('')
   const [open, setOpen]     = useState(false)
   const [display, setDisplay] = useState(value ?? '')
+  const [dropUp, setDropUp] = useState(false)
   const containerRef        = useRef(null)
+
+  const checkFlip = () => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setDropUp(window.innerHeight - rect.bottom < 240)
+  }
 
   // Sync display text when value is set externally (e.g. province reset clears city)
   useEffect(() => { setDisplay(value ?? ''); setQuery('') }, [value])
@@ -79,7 +101,7 @@ function Combobox({ options = [], value, onChange, placeholder, disabled = false
     setOpen(false)
   }
 
-  const handleFocus = () => { if (!disabled) { setQuery(''); setOpen(true) } }
+  const handleFocus = () => { if (!disabled) { checkFlip(); setQuery(''); setOpen(true) } }
   const handleInput = (e) => { setQuery(e.target.value); setDisplay(e.target.value); setOpen(true) }
   const handleBlur  = (e) => {
     if (!containerRef.current?.contains(e.relatedTarget)) {
@@ -89,7 +111,17 @@ function Combobox({ options = [], value, onChange, placeholder, disabled = false
     }
   }
 
-  const inputCls_ = `w-full px-3 py-2 text-sm rounded-lg border text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white ${disabled ? 'opacity-50 cursor-not-allowed border-gray-100' : 'border-gray-200'}`
+  const inputCls_ = `w-full px-3 py-2.5 text-sm rounded-xl border text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:border-[#ed6055] bg-white transition-colors ${disabled ? 'opacity-50 cursor-not-allowed border-gray-100' : 'border-gray-200'}`
+
+  const dropdownShadow = { boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06)' }
+
+  const clear = (e) => {
+    e.stopPropagation()
+    onChange('')
+    setDisplay('')
+    setQuery('')
+    setOpen(false)
+  }
 
   return (
     <div ref={containerRef} className="relative" onBlur={handleBlur}>
@@ -99,25 +131,117 @@ function Combobox({ options = [], value, onChange, placeholder, disabled = false
         onChange={handleInput}
         placeholder={disabled ? '— select province first —' : placeholder}
         disabled={disabled}
-        className={inputCls_}
+        className={`${inputCls_} ${value && !disabled ? 'pr-8' : ''}`}
         autoComplete="off"
       />
+      {value && !disabled && !open && (
+        <button
+          type="button"
+          onMouseDown={clear}
+          className="absolute right-2.5 top-1/2 -translate-y-1/2 w-5 h-5 rounded-full flex items-center justify-center text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+          tabIndex={-1}
+          aria-label="Clear selection"
+        >
+          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      )}
       {open && filtered.length > 0 && (
-        <ul className="absolute z-[80] mt-1 w-full max-h-52 overflow-y-auto bg-white border border-gray-200 rounded-lg shadow-lg text-sm">
-          {filtered.map(opt => (
-            <li
-              key={opt}
-              onMouseDown={() => select(opt)}
-              className="px-3 py-2 cursor-pointer hover:bg-[#ed6055]/10 hover:text-[#ed6055] truncate"
-            >
-              {opt}
-            </li>
-          ))}
-        </ul>
+        <div
+          className={`absolute z-[80] w-full bg-white border border-gray-100 rounded-2xl overflow-hidden ${dropUp ? 'bottom-full mb-1.5' : 'mt-1.5'}`}
+          style={{ animation: `${dropUp ? 'menu-in-up' : 'menu-in'} 150ms ease-out forwards`, ...dropdownShadow }}
+        >
+          <ul className="max-h-52 overflow-y-auto p-1.5 text-sm">
+            {filtered.map(opt => (
+              <li
+                key={opt}
+                onMouseDown={() => select(opt)}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors duration-100 ${opt === value ? 'bg-[#ed6055]/10 text-[#ed6055] font-medium' : 'text-gray-800 hover:bg-gray-50'}`}
+              >
+                <span className="flex-1 truncate">
+                  <HighlightMatch text={opt} query={query} />
+                </span>
+                {opt === value && (
+                  <svg className="w-3.5 h-3.5 flex-shrink-0 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                )}
+              </li>
+            ))}
+          </ul>
+          {query && (
+            <div className="px-4 py-2 border-t border-gray-50 bg-gray-50/60">
+              <p className="text-[11px] text-gray-400">
+                {filtered.length} result{filtered.length !== 1 ? 's' : ''} for "<span className="text-gray-500 font-medium">{query}</span>"
+              </p>
+            </div>
+          )}
+        </div>
       )}
       {open && query && filtered.length === 0 && (
-        <div className="absolute z-[80] mt-1 w-full bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-sm text-gray-400 italic">
-          No matches
+        <div
+          className={`absolute z-[80] w-full bg-white border border-gray-100 rounded-2xl px-4 py-3 text-sm text-gray-400 ${dropUp ? 'bottom-full mb-1.5' : 'mt-1.5'}`}
+          style={dropdownShadow}
+        >
+          No matches for "{query}"
+        </div>
+      )}
+    </div>
+  )
+}
+
+function SelectDropdown({ options = [], value, onChange, placeholder = '— Select —' }) {
+  const [open, setOpen]   = useState(false)
+  const [dropUp, setDropUp] = useState(false)
+  const containerRef      = useRef(null)
+
+  const checkFlip = () => {
+    if (!containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    setDropUp(window.innerHeight - rect.bottom < 240)
+  }
+
+  const handleToggle = () => { checkFlip(); setOpen(o => !o) }
+  const handleBlur   = (e) => { if (!containerRef.current?.contains(e.relatedTarget)) setOpen(false) }
+
+  const dropdownShadow = { boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06)' }
+
+  const selected = options.find(o => o.value === value)
+
+  return (
+    <div ref={containerRef} className="relative" onBlur={handleBlur}>
+      <button
+        type="button"
+        onClick={handleToggle}
+        className="w-full px-3 py-2.5 text-sm rounded-xl border border-gray-200 text-left flex items-center justify-between bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:border-[#ed6055] transition-colors active:scale-[0.97]"
+      >
+        <span className={selected ? 'text-black' : 'text-gray-400'}>{selected?.label ?? placeholder}</span>
+        <svg className="w-4 h-4 text-gray-400 flex-shrink-0 ml-2" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d={open ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
+        </svg>
+      </button>
+      {open && (
+        <div
+          className={`absolute z-[80] w-full bg-white border border-gray-100 rounded-2xl overflow-hidden ${dropUp ? 'bottom-full mb-1.5' : 'mt-1.5'}`}
+          style={{ animation: `${dropUp ? 'menu-in-up' : 'menu-in'} 150ms ease-out forwards`, ...dropdownShadow }}
+        >
+          <ul className="max-h-52 overflow-y-auto p-1.5 text-sm">
+            {options.map(opt => (
+              <li
+                key={opt.value}
+                onMouseDown={() => { onChange(opt.value); setOpen(false) }}
+                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors duration-100 ${opt.value === value ? 'bg-[#ed6055]/10 text-[#ed6055] font-medium' : 'text-gray-800 hover:bg-gray-50'}`}
+              >
+                <span className="flex-1 truncate">{opt.label}</span>
+                {opt.value === value && (
+                  <svg className="w-3.5 h-3.5 flex-shrink-0 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                  </svg>
+                )}
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </div>
@@ -129,7 +253,7 @@ function Combobox({ options = [], value, onChange, placeholder, disabled = false
 function Field({ label, children }) {
   return (
     <div>
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">{label}</p>
       {children}
     </div>
   )
@@ -164,7 +288,7 @@ function MenuButton({ items, className = '' }) {
     <div className={`relative ${className}`} ref={ref}>
       <button
         onClick={() => setOpen(v => !v)}
-        className={`flex items-center justify-center w-7 h-7 rounded-lg border transition ${open ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}
+        className={`flex items-center justify-center w-7 h-7 rounded-lg border transition active:scale-[0.97] ${open ? 'bg-gray-100 border-gray-300 text-gray-700' : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50 hover:text-gray-600'}`}
         title="More actions"
       >
         <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
@@ -172,7 +296,7 @@ function MenuButton({ items, className = '' }) {
         </svg>
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]">
+        <div className="absolute right-0 top-full mt-1 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[160px]" style={{ animation: 'menu-in 150ms ease-out forwards' }}>
           {items.map((item, i) => item === null ? (
             <div key={i} className="my-1 border-t border-gray-100" />
           ) : (
@@ -220,13 +344,13 @@ function ImportErrorPanel({ errors, onDismiss }) {
 
 function ConfirmDeleteModal({ onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={onCancel}>
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" style={{ animation: 'fade-in 200ms ease-out forwards' }} onClick={onCancel}>
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" style={{ animation: 'modal-in 200ms ease-out forwards' }} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-bold text-black mb-1">Delete this entry?</h3>
         <p className="text-sm text-gray-500 mb-5">This action cannot be undone.</p>
         <div className="flex gap-3">
-          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
-          <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition">Delete</button>
+          <button onClick={onCancel} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors active:scale-[0.97]">Cancel</button>
+          <button onClick={onConfirm} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97]">Delete</button>
         </div>
       </div>
     </div>
@@ -308,6 +432,188 @@ function InlineInput({ value, onChange, type = 'text', placeholder = '', min, ma
   )
 }
 
+// ── Cover Photo Panel ────────────────────────────────────────────────────────
+
+function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = false, onPendingRemove = null, onPendingUpload = null }) {
+  const [uploading, setUploading] = useState(false)
+  const [preview, setPreview]     = useState(false)
+  const inputRef = useRef(null)
+  const url = project.cover_photo_url
+
+  useEffect(() => {
+    if (!preview) return
+    const onKey = (e) => { if (e.key === 'Escape') setPreview(false) }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [preview])
+
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (onPendingUpload) {
+      // Edit mode: keep file in memory, no storage write yet
+      const previewUrl = URL.createObjectURL(file)
+      onPendingUpload(file, previewUrl)
+      e.target.value = ''
+      return
+    }
+    setUploading(true)
+    const ext  = file.name.split('.').pop().toLowerCase()
+    const path = `${project.id}/cover.${ext}`
+    const { error: upErr } = await supabase.storage.from('project-photos').upload(path, file, { upsert: true })
+    if (upErr) { showToast('Upload failed: ' + upErr.message, 'error'); setUploading(false); return }
+    const { data } = supabase.storage.from('project-photos').getPublicUrl(path)
+    const publicUrl = `${data.publicUrl}?t=${Date.now()}`
+    const { error: dbErr } = await supabase.from('projects').update({ cover_photo_url: publicUrl }).eq('id', project.id)
+    if (dbErr) { showToast('Failed to save photo.', 'error'); setUploading(false); return }
+    onUpdated({ cover_photo_url: publicUrl })
+    showToast('Cover photo updated.', 'success')
+    setUploading(false)
+    e.target.value = ''
+  }
+
+  const handleRemove = async (e) => {
+    e.stopPropagation()
+    if (!window.confirm('Remove the cover photo?')) return
+    if (onPendingRemove) {
+      onPendingRemove()
+      return
+    }
+    await supabase.from('projects').update({ cover_photo_url: null }).eq('id', project.id)
+    onUpdated({ cover_photo_url: null })
+    showToast('Cover photo removed.', 'success')
+  }
+
+  return (
+    <>
+      <div className="relative group h-full min-h-[380px] bg-[#1c1c1e]">
+        {url ? (
+          <>
+            {/* Click image to open preview */}
+            <button
+              onClick={() => setPreview(true)}
+              className="absolute inset-0 w-full h-full flex items-center justify-center cursor-zoom-in"
+              aria-label="View full photo"
+            >
+              <img
+                src={url}
+                alt={`${project.name} cover photo`}
+                className="w-full h-full object-cover"
+              />
+            </button>
+
+            {/* Admin: change photo — pill button bottom-left on hover (edit mode only) */}
+            {isAdmin && editing && (
+              <button
+                onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }}
+                disabled={uploading}
+                className="absolute bottom-3 left-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-black/50 hover:bg-black/70 text-white text-xs font-medium opacity-0 group-hover:opacity-100 transition-[opacity,background-color] duration-200 shadow-md backdrop-blur-sm active:scale-[0.97]"
+                title="Change cover photo"
+                aria-label="Change cover photo"
+              >
+                {uploading ? (
+                  <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
+                  </svg>
+                )}
+                {!uploading && 'Change'}
+              </button>
+            )}
+
+            {/* Admin: remove photo — icon button top-right on hover (edit mode only) */}
+            {isAdmin && editing && (
+              <button
+                onClick={handleRemove}
+                className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/40 hover:bg-red-600 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-[opacity,background-color] duration-200 shadow-md backdrop-blur-sm active:scale-[0.97]"
+                title="Remove cover photo"
+                aria-label="Remove cover photo"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
+          </>
+        ) : (
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gradient-to-br from-[#2c2c2e] to-[#1c1c1e] gap-3">
+            <svg className="w-16 h-16 text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+            {isAdmin && editing && (
+              <button
+                onClick={() => inputRef.current?.click()}
+                disabled={uploading}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white/80 hover:text-white text-sm font-medium transition-colors duration-200 backdrop-blur-sm active:scale-[0.97]"
+              >
+                {uploading ? (
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z"/>
+                  </svg>
+                ) : (
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                  </svg>
+                )}
+                Add cover photo
+              </button>
+            )}
+          </div>
+        )}
+        <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+      </div>
+
+      {/* Lightbox preview */}
+      {preview && url && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md cursor-zoom-out"
+          style={{ animation: 'fade-in 200ms ease-out forwards' }}
+          onClick={() => setPreview(false)}
+        >
+          <button
+            onClick={(e) => { e.stopPropagation(); setPreview(false) }}
+            className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shadow-lg active:scale-[0.97]"
+            aria-label="Close preview"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={url}
+            alt={`${project.name} cover photo`}
+            className="max-w-[92vw] max-h-[92vh] object-contain rounded-2xl shadow-2xl"
+            style={{ animation: 'modal-in 250ms ease-out forwards' }}
+            onClick={(e) => e.stopPropagation()}
+          />
+        </div>
+      )}
+    </>
+  )
+}
+
+// ── iOS 26 Card ──────────────────────────────────────────────────────────────
+
+function IosCard({ icon, title, children }) {
+  return (
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-[0_2px_16px_rgba(0,0,0,0.06),0_8px_32px_rgba(0,0,0,0.04)]">
+      <div className="flex items-center gap-2.5 px-4 py-3 border-b border-gray-100/80 rounded-t-2xl" style={{ background: 'linear-gradient(to bottom, #fafafa, #f5f5f5)' }}>
+        <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-[#ed6055]/15 to-[#ed6055]/8 flex items-center justify-center flex-shrink-0 shadow-[inset_0_1px_1px_rgba(255,255,255,0.9)]">
+          {icon}
+        </div>
+        <span className="text-[11px] font-semibold text-gray-500 uppercase tracking-[0.07em]">{title}</span>
+      </div>
+      <div className="px-4 py-4">{children}</div>
+    </div>
+  )
+}
+
 // ── Overview Tab ─────────────────────────────────────────────────────────────
 
 function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false }) {
@@ -328,10 +634,22 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   const [editing, setEditing] = useState(startEditing)
   const [form, setForm] = useState(startEditing ? buildForm() : {})
   const [saving, setSaving] = useState(false)
+  // pendingCoverUrl: undefined = no change | null = removal | string = blob preview URL
+  const [pendingCoverUrl, setPendingCoverUrl] = useState(undefined)
+  const [pendingFile, setPendingFile] = useState(null)
   const phase = PHASE_MAP[project.phase]
+
+  const cancelEdit = () => {
+    if (pendingCoverUrl && typeof pendingCoverUrl === 'string') URL.revokeObjectURL(pendingCoverUrl)
+    setPendingCoverUrl(undefined)
+    setPendingFile(null)
+    setEditing(false)
+  }
 
   const startEdit = () => {
     setForm(buildForm())
+    setPendingCoverUrl(undefined)
+    setPendingFile(null)
     setEditing(true)
   }
 
@@ -350,12 +668,25 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
       phase:            form.phase || null,
       project_brief:    form.project_brief.trim() || null,
     }
+    if (pendingFile) {
+      const ext  = pendingFile.name.split('.').pop().toLowerCase()
+      const path = `${project.id}/cover.${ext}`
+      const { error: upErr } = await supabase.storage.from('project-photos').upload(path, pendingFile, { upsert: true })
+      if (upErr) { showToast('Upload failed: ' + upErr.message, 'error'); setSaving(false); return }
+      const { data } = supabase.storage.from('project-photos').getPublicUrl(path)
+      payload.cover_photo_url = `${data.publicUrl}?t=${Date.now()}`
+      URL.revokeObjectURL(pendingCoverUrl)
+    } else if (pendingCoverUrl === null) {
+      payload.cover_photo_url = null
+    }
     if (noNeg(payload.lot_area, payload.developable_area)) { showToast('Values cannot be negative.', 'error'); setSaving(false); return }
     const { error } = await supabase.from('projects').update(payload).eq('id', project.id)
     setSaving(false)
     if (error) { showToast('Failed to save: ' + error.message, 'error'); return }
     showToast('Project updated.', 'success')
     setEditing(false)
+    setPendingCoverUrl(undefined)
+    setPendingFile(null)
     onUpdated(payload)
   }
 
@@ -363,136 +694,181 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   if (editing) return (
-    <div className="space-y-5">
-      <div className="flex justify-end gap-2">
-        <button onClick={() => setEditing(false)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
-        <button onClick={save} disabled={saving || !form.name?.trim()} className="px-3 py-1.5 rounded-lg bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-          {saving ? 'Saving…' : 'Save Changes'}
-        </button>
-      </div>
-
-      {/* Project Brief card */}
-      <div className="bg-gray-50 rounded-xl px-4 py-4">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Project Brief</p>
-        <textarea
-          value={f('project_brief')}
-          onChange={e => set('project_brief', e.target.value)}
-          rows={4}
-          placeholder="Write a summary of the project — scope, objectives, key details, stakeholders…"
-          className={`${inputCls} resize-y`}
-        />
-      </div>
-
-      {/* Project Details card */}
-      <div className="bg-gray-50 rounded-xl px-4 py-4">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Project Details</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
-          <Field label="Project Name *">
-            <input value={f('name')} onChange={e => set('name', e.target.value)} className={inputCls} placeholder="Project name" />
-          </Field>
-          <Field label="Project Short Name">
-            <input value={f('project_code')} onChange={e => set('project_code', e.target.value)} className={inputCls} placeholder="e.g. PRJ-001" />
-          </Field>
-          <Field label="4PH Project">
-            <div className="flex items-center gap-2 mt-1">
-              <input type="checkbox" id="edit_4ph" checked={f('is_4ph_project')} onChange={e => set('is_4ph_project', e.target.checked)} className="accent-[#ed6055] w-4 h-4" />
-              <label htmlFor="edit_4ph" className="text-sm text-gray-600 cursor-pointer select-none">Yes</label>
-            </div>
-          </Field>
-          <Field label="Business Unit">
-            <select value={f('business_unit')} onChange={e => set('business_unit', e.target.value)} className={inputCls}>
-              <option value="">— Select —</option>
-              {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code}>{u.code}</option>)}
-            </select>
-          </Field>
-          <Field label="Development Type">
-            <select value={f('development_type')} onChange={e => set('development_type', e.target.value)} className={inputCls}>
-              <option value="">— Select —</option>
-              <option value="housing">Housing</option>
-              <option value="condominium">Condominium</option>
-            </select>
-          </Field>
-          <Field label="Province">
-            <Combobox
-              options={PH_PROVINCES}
-              value={f('province')}
-              onChange={v => { set('province', v); set('city', '') }}
-              placeholder="Type to search province…"
-            />
-          </Field>
-          <Field label="City / Municipality">
-            <Combobox
-              options={PH_CITIES[f('province')] ?? []}
-              value={f('city')}
-              onChange={v => set('city', v)}
-              placeholder="Type to search city…"
-              disabled={!f('province')}
-            />
-          </Field>
-          <Field label="Project Lot Area (sqm)">
-            <input type="number" min="0" value={f('lot_area')} onChange={e => set('lot_area', e.target.value)} placeholder="0" className={`${inputCls} ${f('lot_area') !== '' && Number(f('lot_area')) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
-          </Field>
-          <Field label="Project Developable Area (sqm)">
-            <input type="number" min="0" value={f('developable_area')} onChange={e => set('developable_area', e.target.value)} placeholder="0" className={`${inputCls} ${f('developable_area') !== '' && Number(f('developable_area')) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
-          </Field>
-          <Field label="Phase">
-            <select value={f('phase')} onChange={e => set('phase', e.target.value)} className={inputCls}>
-              <option value="">— Select —</option>
-              {PHASES.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-            </select>
-          </Field>
+    <div className="flex -mx-3 sm:-mx-6 -mb-4 sm:-mb-5 min-h-[420px]">
+      {/* Left: photo – padded so it floats with rounded corners */}
+      <div className="hidden sm:flex sm:flex-col w-[40%] flex-shrink-0 p-4 pr-3">
+        <div className="flex-1 rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.18),0_2px_10px_rgba(0,0,0,0.10)]">
+          <CoverPhotoPanel
+            project={{ ...project, cover_photo_url: pendingCoverUrl !== undefined ? pendingCoverUrl : project.cover_photo_url }}
+            isAdmin={isAdmin}
+            onUpdated={onUpdated}
+            showToast={showToast}
+            editing
+            onPendingRemove={() => {
+              if (pendingCoverUrl && typeof pendingCoverUrl === 'string') URL.revokeObjectURL(pendingCoverUrl)
+              setPendingFile(null)
+              setPendingCoverUrl(null)
+            }}
+            onPendingUpload={(file, previewUrl) => {
+              if (pendingCoverUrl && typeof pendingCoverUrl === 'string') URL.revokeObjectURL(pendingCoverUrl)
+              setPendingFile(file)
+              setPendingCoverUrl(previewUrl)
+            }}
+          />
         </div>
       </div>
 
+      {/* Right: form */}
+      <div className="flex-1 min-w-0 px-3 sm:px-4 pt-4 sm:pt-5 pb-4 sm:pb-5 space-y-3 overflow-y-auto">
+        <div className="flex justify-end gap-2">
+          <button onClick={cancelEdit} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors duration-200 active:scale-[0.97]">Cancel</button>
+          <button onClick={save} disabled={saving || !form.name?.trim()} className="px-4 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-40 transition-colors duration-200 active:scale-[0.97]">
+            {saving ? 'Saving…' : 'Save Changes'}
+          </button>
+        </div>
+
+        <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>} title="Project Brief">
+          <textarea
+            value={f('project_brief')}
+            onChange={e => set('project_brief', e.target.value)}
+            rows={4}
+            placeholder="Write a summary of the project — scope, objectives, key details, stakeholders…"
+            className={`${inputCls} resize-y rounded-xl`}
+          />
+        </IosCard>
+
+        <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>} title="Project Details">
+          <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+            <Field label="Project Name *">
+              <input value={f('name')} onChange={e => set('name', e.target.value)} className={inputCls} placeholder="Project name" />
+            </Field>
+            <Field label="Project Short Name">
+              <input value={f('project_code')} onChange={e => set('project_code', e.target.value)} className={inputCls} placeholder="e.g. PRJ-001" />
+            </Field>
+            <Field label="Business Unit">
+              <SelectDropdown
+                value={f('business_unit')}
+                onChange={v => set('business_unit', v)}
+                placeholder="— Select —"
+                options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))}
+              />
+            </Field>
+            <Field label="Development Type">
+              <SelectDropdown
+                value={f('development_type')}
+                onChange={v => set('development_type', v)}
+                placeholder="— Select —"
+                options={[{ value: 'housing', label: 'Housing' }, { value: 'condominium', label: 'Condominium' }]}
+              />
+            </Field>
+            <Field label="4PH Project">
+              <div className="flex items-center gap-2 mt-1">
+                <input type="checkbox" id="edit_4ph" checked={f('is_4ph_project')} onChange={e => set('is_4ph_project', e.target.checked)} className="accent-[#ed6055] w-4 h-4" />
+                <label htmlFor="edit_4ph" className="text-sm text-gray-600 cursor-pointer select-none">Yes</label>
+              </div>
+            </Field>
+            <Field label="Phase">
+              <SelectDropdown
+                value={f('phase')}
+                onChange={v => set('phase', v)}
+                placeholder="— Select —"
+                options={PHASES.map(p => ({ value: p.key, label: p.label }))}
+              />
+            </Field>
+            <Field label="Province">
+              <Combobox
+                options={PH_PROVINCES}
+                value={f('province')}
+                onChange={v => { set('province', v); set('city', '') }}
+                placeholder="Type to search province…"
+              />
+            </Field>
+            <Field label="City / Municipality">
+              <Combobox
+                options={PH_CITIES[f('province')] ?? []}
+                value={f('city')}
+                onChange={v => set('city', v)}
+                placeholder="Type to search city…"
+                disabled={!f('province')}
+              />
+            </Field>
+            <Field label="Project Lot Area (sqm)">
+              <input type="number" min="0" value={f('lot_area')} onChange={e => set('lot_area', e.target.value)} placeholder="0" className={`${inputCls} ${f('lot_area') !== '' && Number(f('lot_area')) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
+            </Field>
+            <Field label="Project Developable Area (sqm)">
+              <input type="number" min="0" value={f('developable_area')} onChange={e => set('developable_area', e.target.value)} placeholder="0" className={`${inputCls} ${f('developable_area') !== '' && Number(f('developable_area')) < 0 ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400' : ''}`} />
+            </Field>
+          </div>
+        </IosCard>
+      </div>
     </div>
   )
 
   return (
-    <div className="space-y-5">
-      {isAdmin && (
-        <div className="flex justify-end">
-          <button
-            onClick={startEdit}
-            className="flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-[#ed6055] hover:bg-gray-100 border border-gray-200 bg-white transition"
-            title="Edit project details"
-          >
-            <PencilIcon />
-          </button>
+    <div className="flex -mx-3 sm:-mx-6 -mb-4 sm:-mb-5 min-h-[420px]">
+      {/* Left: photo – padded so it floats with rounded corners + shadow */}
+      <div className="hidden sm:flex sm:flex-col w-[40%] flex-shrink-0 p-4 pr-3">
+        <div className="flex-1 rounded-2xl overflow-hidden shadow-[0_8px_40px_rgba(0,0,0,0.18),0_2px_10px_rgba(0,0,0,0.10)]">
+          <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} />
         </div>
-      )}
+      </div>
 
-      {(project.project_brief || isAdmin) && (
-        <div className="bg-gray-50 rounded-xl px-4 py-4">
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Project Brief</p>
-          {project.project_brief ? (
-            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.project_brief}</p>
-          ) : (
-            <p className="text-sm text-gray-400 italic">No project brief yet. Click Edit Details to add one.</p>
-          )}
-        </div>
-      )}
+      {/* Right: cards */}
+      <div className="flex-1 min-w-0 px-3 sm:px-4 pt-4 pb-5 space-y-3 overflow-y-auto">
+        {isAdmin && (
+          <div className="flex justify-end">
+            <button
+              onClick={startEdit}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-gray-500 hover:text-[#ed6055] hover:bg-red-50 border border-gray-200 bg-white transition-colors duration-200 text-xs font-semibold shadow-sm active:scale-[0.97]"
+              title="Edit project details"
+              aria-label="Edit project details"
+            >
+              <PencilIcon />
+              Edit
+            </button>
+          </div>
+        )}
 
-      <div className="bg-gray-50 rounded-xl px-4 py-4">
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Project Details</p>
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4">
-          <Field label="Project Name"><ReadValue value={project.name} /></Field>
-          <Field label="Project Short Name"><ReadValue value={project.project_code} /></Field>
-          <Field label="4PH Project">
-            <ReadValue value={project.is_4ph_project ? 'Yes' : 'No'} accent={project.is_4ph_project ? '#ed6055' : undefined} />
-          </Field>
-          <Field label="Business Unit"><ReadValue value={formatBU(project.business_unit)} /></Field>
-          <Field label="Development Type">
-            <ReadValue value={project.development_type ? (project.development_type === 'housing' ? 'Housing' : 'Condominium') : null} />
-          </Field>
-          <Field label="Province"><ReadValue value={project.province} /></Field>
-          <Field label="City / Municipality"><ReadValue value={project.city} /></Field>
-          <Field label="Project Lot Area">
-            <ReadValue value={project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : null} />
-          </Field>
-          <Field label="Project Developable Area">
-            <ReadValue value={project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : null} />
-          </Field>
-        </div>
+        {(project.project_brief || isAdmin) && (
+          <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>} title="Project Brief">
+            {project.project_brief ? (
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{project.project_brief}</p>
+            ) : (
+              <p className="text-sm text-gray-400 italic">No project brief yet. Click Edit to add one.</p>
+            )}
+          </IosCard>
+        )}
+
+        <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>} title="Project Details">
+          <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+            <Field label="Project Name"><ReadValue value={project.name} /></Field>
+            <Field label="Project Short Name"><ReadValue value={project.project_code} /></Field>
+            <Field label="Business Unit"><ReadValue value={formatBU(project.business_unit)} /></Field>
+            <Field label="Development Type">
+              <ReadValue value={project.development_type ? (project.development_type === 'housing' ? 'Housing' : 'Condominium') : null} />
+            </Field>
+            <Field label="4PH Project">
+              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${project.is_4ph_project ? 'bg-red-50 text-red-800 border-red-200' : 'bg-gray-100 text-gray-600 border-gray-200'}`}>
+                {project.is_4ph_project ? 'Yes' : 'No'}
+              </span>
+            </Field>
+            <Field label="Phase">
+              {project.phase && PHASE_MAP[project.phase] ? (
+                <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border ${PHASE_MAP[project.phase].badge}`}>
+                  {PHASE_MAP[project.phase].label}
+                </span>
+              ) : <ReadValue value={null} />}
+            </Field>
+            <Field label="Province"><ReadValue value={project.province} /></Field>
+            <Field label="City / Municipality"><ReadValue value={project.city} /></Field>
+            <Field label="Project Lot Area">
+              <ReadValue value={project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : null} />
+            </Field>
+            <Field label="Project Developable Area">
+              <ReadValue value={project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : null} />
+            </Field>
+          </div>
+        </IosCard>
       </div>
     </div>
   )
@@ -3941,19 +4317,23 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
 
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info' }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, asPage = false }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
   const [tab, setTab] = useState(startEditing ? 'Project Info' : startTab)
+  const switchTab = (t) => { setTab(t); onTabChange?.(t) }
   const [toast, setToast] = useState(null)
+  const [toastIn, setToastIn] = useState(false)
+  const toastTimerRef = useRef(null)
   const [tabCounts, setTabCounts] = useState({ permits: null, issues: null })
   const [showReportBuilder, setShowReportBuilder] = useState(false)
 
   useEffect(() => {
+    if (asPage) return
     const prev = document.body.style.overflow
     document.body.style.overflow = 'hidden'
     return () => { document.body.style.overflow = prev }
-  }, [])
+  }, [asPage])
 
   useEffect(() => {
     const pid = project.id
@@ -3971,9 +4351,20 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   const phase = PHASE_MAP[project.phase]
   const tabs = BASE_TABS
 
+  useEffect(() => {
+    if (!toast) return
+    const id = requestAnimationFrame(() => setToastIn(true))
+    return () => cancelAnimationFrame(id)
+  }, [toast])
+
   const showToast = (message, type = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToastIn(false)
     setToast({ message, type })
-    setTimeout(() => setToast(null), 3000)
+    toastTimerRef.current = setTimeout(() => {
+      setToastIn(false)
+      setTimeout(() => setToast(null), 280)
+    }, 3300)
   }
 
   const handleUpdated = (patch) => {
@@ -3983,77 +4374,37 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 sm:p-4">
-      <div className="bg-white rounded-none sm:rounded-2xl shadow-2xl w-full sm:max-w-7xl h-full sm:max-h-[92vh] flex flex-col overflow-hidden">
+    <div className={asPage ? 'w-full h-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50'}>
+      <style>{`
+        @keyframes menu-in {
+          from { opacity: 0; transform: scale(0.95) translateY(-4px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0); }
+        }
+        @keyframes menu-in-up {
+          from { opacity: 0; transform: scale(0.95) translateY(4px); }
+          to   { opacity: 1; transform: scale(1)    translateY(0); }
+        }
+        @keyframes fade-in {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes fade-in-up {
+          from { opacity: 0; transform: translateY(6px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes modal-in {
+          from { opacity: 0; transform: scale(0.95); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+      `}</style>
+      <div className="bg-white rounded-none shadow-2xl w-full h-full flex flex-col overflow-hidden">
 
-        {/* Hero header — dark name strip + lighter collapsible details + tabs */}
-        <div className="flex-shrink-0 border-b border-gray-100"
+        {/* Tab bar + actions */}
+        <div className="flex-shrink-0 border-b border-gray-100 flex items-stretch"
           style={{ background: 'linear-gradient(135deg, #1e293b 0%, #2d3f55 100%)' }}>
 
-          {/* ── Zone 1: dark name strip ── */}
-          <div className="px-6 pt-4 pb-4">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2.5 flex-wrap mb-1">
-                  <h2 className="text-xl font-bold text-white leading-tight">{project.name}</h2>
-                  {project.is_4ph_project && (
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
-                      style={{ background: 'rgba(255,255,255,0.15)', borderColor: 'rgba(255,255,255,0.25)', color: 'white' }}>
-                      4PH
-                    </span>
-                  )}
-                  {phase && (
-                    <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full border flex-shrink-0"
-                      style={{ background: 'rgba(237,96,85,0.25)', borderColor: 'rgba(237,96,85,0.35)', color: '#fca5a5' }}>
-                      {phase.label}
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs" style={{ color: 'rgba(255,255,255,0.5)' }}>
-                  {[
-                    project.development_type === 'housing' ? 'Housing' : project.development_type === 'condominium' ? 'Condominium' : null,
-                    project.city,
-                    project.province,
-                  ].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-              <div className="flex items-center gap-2 flex-shrink-0 pt-0.5">
-                <button
-                  onClick={() => setShowReportBuilder(true)}
-                  className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold transition-all"
-                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)' }}
-                  title="Generate report"
-                >
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-                  </svg>
-                  Report
-                </button>
-                {isAdmin && (
-                  <button
-                    onClick={() => setTab('Project Info')}
-                    className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
-                    style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
-                    title="Edit project details"
-                    aria-label="Edit project details"
-                  >
-                    <PencilIcon />
-                  </button>
-                )}
-                <button
-                  onClick={onClose}
-                  className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
-                  style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)' }}
-                  aria-label="Close"
-                >
-                  <XIcon />
-                </button>
-              </div>
-            </div>
-          </div>
-
-          {/* Tab bar — sits at bottom of dark hero */}
-          <div className="flex overflow-x-auto" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          {/* Tabs */}
+          <div className="flex overflow-x-auto flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
             {tabs.map(t => {
               const count =
                 t === 'Permits'           ? tabCounts.permits    :
@@ -4063,12 +4414,13 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
               return (
                 <button
                   key={t}
-                  onClick={() => setTab(t)}
-                  className="flex items-center gap-1.5 px-5 py-3 text-sm whitespace-nowrap transition-all border-b-[3px] -mb-px"
+                  onClick={() => switchTab(t)}
+                  className="flex items-center gap-1.5 px-5 py-3 text-sm whitespace-nowrap border-b-[3px] -mb-px active:scale-[0.97]"
                   style={{
                     color:       tab === t ? 'white' : 'rgba(255,255,255,0.72)',
                     fontWeight:  tab === t ? 700 : 500,
                     borderBottomColor: tab === t ? '#ed6055' : 'transparent',
+                    transition: 'color 150ms ease, border-color 150ms ease, transform 100ms ease-out',
                   }}
                 >
                   {t}
@@ -4087,24 +4439,70 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
               )
             })}
           </div>
+
+          {/* Action buttons */}
+          <div className="flex items-center gap-1.5 px-3 flex-shrink-0 border-l border-white/10">
+            <button
+              onClick={() => setShowReportBuilder(true)}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold active:scale-[0.97]"
+              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)', transition: 'background 150ms ease, transform 100ms ease-out' }}
+              title="Generate report"
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+              </svg>
+              Report
+            </button>
+            {isAdmin && (
+              <button
+                onClick={() => switchTab('Project Info')}
+                className="flex items-center justify-center w-8 h-8 rounded-lg active:scale-[0.97]"
+                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', transition: 'background 150ms ease, transform 100ms ease-out' }}
+                title="Edit project details"
+                aria-label="Edit project details"
+              >
+                <PencilIcon />
+              </button>
+            )}
+            {!asPage && (
+              <button
+                onClick={onClose}
+                className="flex items-center justify-center w-8 h-8 rounded-lg active:scale-[0.97]"
+                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', transition: 'background 150ms ease, transform 100ms ease-out' }}
+                aria-label="Close"
+              >
+                <XIcon />
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Tab content */}
-        <div className={tab === 'Work Program' ? 'flex-1 overflow-hidden flex flex-col' : 'flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'}>
-          {tab === 'Project Info'      && <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} />}
-          {tab === 'Planned M4/M5'     && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
-          {tab === 'Work Program'      && <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} />}
-          {tab === 'S-Curve'           && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'updater'} />}
-          {tab === 'Permits'           && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
-          {tab === 'Issues & Concerns' && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
-          {tab === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
-          {tab === 'Photos'            && <PhotosTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
-        </div>
+        {tab === 'Work Program' ? (
+          <div className="flex-1 overflow-hidden flex flex-col">
+            <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} />
+          </div>
+        ) : (
+          <div key={tab} className="flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5" style={{ animation: 'fade-in-up 180ms ease-out forwards' }}>
+            {tab === 'Project Info'       && <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} />}
+            {tab === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {tab === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'updater'} />}
+            {tab === 'Permits'            && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {tab === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {tab === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {tab === 'Photos'             && <PhotosTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
+          </div>
+        )}
       </div>
 
       {toast && (
         <div
           aria-live="polite"
+          style={{
+            transition: 'opacity 250ms ease-out, transform 250ms ease-out',
+            opacity: toastIn ? 1 : 0,
+            transform: toastIn ? 'translateY(0)' : 'translateY(12px)',
+          }}
           className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-medium shadow-lg z-[60] flex items-center gap-2 ${toast.type === 'success' ? 'bg-black text-white' : 'bg-[#ed6055] text-white'}`}
         >
           {toast.type === 'success'

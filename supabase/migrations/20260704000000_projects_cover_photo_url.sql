@@ -1,0 +1,1 @@
+ALTER TABLE projects ADD COLUMN IF NOT EXISTS cover_photo_url TEXT DEFAULT NULL;
