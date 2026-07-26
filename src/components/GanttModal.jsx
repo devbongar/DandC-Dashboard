@@ -1,8 +1,12 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, memo } from 'react'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
 import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors, scheduleMilestones, scheduleProjected } from '../lib/ganttDependencies'
+import { buildChildAddForm, computeReorder } from '../lib/ganttUtils'
 import { copyTemplateToBaseline, copyBaselineToBaseline } from '../lib/templateUtils'
 
 const PHASES = [
@@ -201,6 +205,42 @@ function GBarColorRow({ label, barKey, value, onChange }) {
   )
 }
 
+function InlineAddRow({ depth = 0, name, onChange, onSave, onCancel, adding, totalW }) {
+  const inputRef = useRef(null)
+  const cancelRef = useRef(false)
+  const indent = 12 + depth * 16
+
+  useEffect(() => { inputRef.current?.focus() }, [])
+
+  return (
+    <div style={{ width: totalW, minWidth: totalW, height: 38, display: 'flex', alignItems: 'center', borderBottom: '1px solid #d1d5db', background: '#f9fafb' }}>
+      <div className="sticky left-0 z-10 flex items-center gap-2" style={{ paddingLeft: indent }}>
+        {depth > 0 && (
+          <svg className="w-3 h-3 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+          </svg>
+        )}
+        <input
+          ref={inputRef}
+          type="text"
+          value={name}
+          onChange={e => onChange(e.target.value)}
+          onBlur={() => { if (!cancelRef.current) onSave(); cancelRef.current = false }}
+          onKeyDown={e => {
+            if (e.key === 'Enter') { e.preventDefault(); onSave() }
+            if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; onCancel() }
+          }}
+          placeholder="Activity name…"
+          disabled={adding}
+          className="px-2 py-1 text-xs rounded border border-[#ed6055]/50 focus:outline-none focus:ring-1 focus:ring-[#ed6055] bg-white disabled:opacity-60"
+          style={{ minWidth: 200 }}
+        />
+        {adding && <span className="text-[11px] text-gray-400">Saving…</span>}
+      </div>
+    </div>
+  )
+}
+
 function GanttBar({ start, end, color, toPx }) {
   if (!start || !end) return null
   const s    = parseDate(start)
@@ -238,23 +278,23 @@ function GanttBar({ start, end, color, toPx }) {
   )
 }
 
-function PhaseGroupHeader({ label, phaseColor = '#94a3b8', isCollapsed, onToggle, totalW, frozenW, chartPxWidth, isAutoMode = false, taskCount = 0, completedCount = 0 }) {
+function PhaseGroupHeader({ label, phaseColor = '#94a3b8', isCollapsed, onToggle, totalW, frozenW, chartPxWidth, isAutoMode = false, taskCount = 0, completedCount = 0, onAddTopLevel = null }) {
   const [hovered, setHovered] = useState(false)
   const bg = hovered ? '#e5e7eb' : '#edeeef'
   return (
     <div
-      role="button"
-      tabIndex={0}
-      className="flex items-center cursor-pointer select-none"
+      className="flex items-center select-none"
       style={{ width: totalW, minWidth: totalW, height: PHASE_ROW_H, backgroundColor: bg, borderBottom: '1px solid #d1d5db', transition: 'background-color 0.15s ease' }}
-      onClick={onToggle}
-      onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => setHovered(false)}
     >
       <div
-        className="sticky left-0 z-20 flex items-center gap-1.5 self-stretch flex-shrink-0"
+        role="button"
+        tabIndex={0}
+        className="sticky left-0 z-20 flex items-center gap-1.5 self-stretch flex-shrink-0 cursor-pointer"
         style={{ width: frozenW, minWidth: frozenW, paddingLeft: 12, borderRight: '1px solid #d1d5db', borderLeft: `3px solid ${phaseColor}`, backgroundColor: bg, transition: 'background-color 0.15s ease' }}
+        onClick={onToggle}
+        onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onToggle() } }}
       >
         <svg
           viewBox="0 0 24 24" fill="none" stroke="#94a3b8" strokeWidth={2.5}
@@ -269,6 +309,15 @@ function PhaseGroupHeader({ label, phaseColor = '#94a3b8', isCollapsed, onToggle
           <span style={{ fontSize: 10, fontWeight: 600, color: completedCount === taskCount ? '#16a34a' : '#94a3b8', background: completedCount === taskCount ? '#dcfce7' : '#e2e8f0', borderRadius: 10, padding: '1px 6px', flexShrink: 0 }}>
             {completedCount}/{taskCount}
           </span>
+        )}
+        {onAddTopLevel && (
+          <button
+            onClick={e => { e.stopPropagation(); onAddTopLevel() }}
+            aria-label="Add activity to this phase"
+            title="Add activity to this phase"
+            className="opacity-0 group-hover:opacity-60 hover:!opacity-100 ml-1 flex-shrink-0 text-gray-400 hover:text-[#ed6055] transition-all duration-150"
+            style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', fontSize: 14, lineHeight: 1 }}
+          >+</button>
         )}
       </div>
       <div style={{ width: chartPxWidth, minWidth: chartPxWidth, height: '100%', backgroundColor: bg, transition: 'background-color 0.15s ease' }} />
@@ -436,7 +485,7 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDuration = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' } }) {
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDuration = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
   const bgBase     = !isChild ? '#f3f4f6' : (rowNum % 2 === 0 ? '#f9fafb' : '#f3f4f6')
@@ -466,12 +515,21 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         style={{ width: frozenW, minWidth: frozenW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
         className="sticky left-0 z-30 flex items-center flex-shrink-0 self-stretch"
       >
-        {/* # column */}
+        {/* # column — shows drag icon in admin mode, row number otherwise */}
         <div
           style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
-          className="flex items-center justify-center flex-shrink-0 self-stretch"
+          className={`flex items-center justify-center flex-shrink-0 self-stretch${showDragHandle ? ' cursor-grab' : ''}`}
+          title={showDragHandle ? 'Drag to reorder' : undefined}
         >
-          <span className="text-[10px] font-mono text-gray-400 tabular-nums select-none">{rowNum}</span>
+          {showDragHandle ? (
+            <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" className="text-gray-300 flex-shrink-0">
+              <circle cx="3" cy="2" r="1.5"/><circle cx="7" cy="2" r="1.5"/>
+              <circle cx="3" cy="6" r="1.5"/><circle cx="7" cy="6" r="1.5"/>
+              <circle cx="3" cy="10" r="1.5"/><circle cx="7" cy="10" r="1.5"/>
+            </svg>
+          ) : (
+            <span className="text-[10px] font-mono text-gray-400 tabular-nums select-none">{rowNum}</span>
+          )}
         </div>
         {/* Activity name */}
         <div
@@ -509,13 +567,13 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
               {m.milestone_name}
             </p>
           )}
-          {isAdmin && depth < 3 && onAddChild && (
+          {isAdmin && onAddChild && buildChildAddForm({ id: m.id, phase: m.phase, depth }) !== null && (
             <button
-              onClick={e => { e.stopPropagation(); onAddChild(m.id, m.phase) }}
-              aria-label="Add sub-task"
-              title="Add sub-task"
-              className="opacity-40 group-hover:opacity-100 ml-1 flex-shrink-0 text-gray-400 hover:text-[#ed6055] transition-all duration-150 text-sm leading-none"
-              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 3px' }}
+              onClick={e => { e.stopPropagation(); onAddChild(buildChildAddForm({ id: m.id, phase: m.phase, depth })) }}
+              aria-label="Add sub-activity"
+              title="Add sub-activity here"
+              className="opacity-0 group-hover:opacity-60 hover:!opacity-100 ml-1 flex-shrink-0 text-gray-400 hover:text-[#ed6055] transition-all duration-150"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: '2px 4px', fontSize: 14, lineHeight: 1 }}
             >+</button>
           )}
           {isAdmin && (
@@ -619,6 +677,32 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
           </div>
         )}
       </div>
+    </div>
+  )
+}
+
+// Memoized so SortableMilestoneRow re-renders (from useSortable) don't cascade into the expensive row content
+const MilestoneRowMemo = memo(MilestoneRow)
+
+function SortableMilestoneRow({ id, isAdmin, isSelected, onSelect, ...props }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.4 : 1,
+        position: 'relative',
+        zIndex: isDragging ? 1 : undefined,
+        touchAction: isAdmin ? 'none' : undefined,
+        boxShadow: isSelected ? 'inset 0 0 0 2px #3b82f6' : undefined,
+      }}
+      {...(isAdmin ? listeners : {})}
+      {...(isAdmin ? attributes : {})}
+      onClick={() => onSelect?.(id)}
+    >
+      <MilestoneRowMemo {...props} isAdmin={isAdmin} showDragHandle={isAdmin} />
     </div>
   )
 }
@@ -822,7 +906,12 @@ function GToolbarSelect({ options = [], value, onChange, fullWidth = false }) {
   )
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, addForm = null, onAddFormChange = () => {}, onAdd = () => {}, adding = false, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, onAddChild = null, addChildParentId = null, addChildForm = null, onAddChildFormChange = () => {}, onAddChildSave = () => {}, onCancelAddChild = () => {}, addingChild = false, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {} }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {} }) {
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 2 } }))
+  const handleDragEnd = ({ active, over }) => {
+    if (over && active.id !== over.id) onReorder(String(active.id), String(over.id))
+  }
+
   const allDates = milestones
     .flatMap(m => [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end])
     .filter(Boolean)
@@ -1052,6 +1141,10 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     </>
   )
 
+  // Single flat ID list for the one SortableContext that spans all phases.
+  // Must be computed before milestoneRows so it's ready for the JSX below.
+  const allSortableIds = []
+
   const milestoneRows = PHASES.flatMap(({ key, label }) => {
     const phaseMils   = milestones.filter(m => m.phase === key)
     const isCollapsed = collapsedPhases.has(key)
@@ -1076,124 +1169,60 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         isAutoMode={isAutoMode}
         taskCount={taskCount}
         completedCount={completedCount}
+        onAddTopLevel={isAdmin && activeBL ? () => onSetInlineAdd({ phase: key, parentId: null, depth: 0 }) : null}
       />
     )
 
     if (!isCollapsed) {
       const flatNodes = buildTree(phaseMils, collapsedIds)
+      allSortableIds.push(...flatNodes.map(n => n.id))
 
-      flatNodes.forEach((node) => {
-        // Roll up dates from direct children for parent display
-        const displayM = (node.hasChildren && node.children.length)
-          ? { ...node, ...computeParentDates(node.children) }
-          : node
-
-        rows.push(
-          <MilestoneRow
-            key={node.id}
-            m={displayM}
-            rowNum={idToRowNum.get(node.id) ?? 0}
-            predText={formatPredecessors(dependencies.filter(d => d.to_id === node.id), idToRowNum)}
-            onSavePreds={(text) => onSavePreds(node.id, text)}
-            depth={node.depth}
-            hasChildren={node.hasChildren}
-            isCollapsed={collapsedIds.has(node.id)}
-            onToggleCollapse={onToggleCollapse}
-            onAddChild={isAdmin ? onAddChild : null}
-            toPx={toPx} chartPxWidth={showGantt ? chartPxWidth : 0} gridDates={gridDates}
-            todayPx={todayPx} showToday={showToday} todayStr={todayStr}
-            isChild={node.depth > 0} isLastChild={false}
-            labelW={labelW} showDuration={showDuration} showPredecessor={showPredecessor} showPlanned={showPlanned} showActual={showActual} showProjected={showProjected}
-            showPlannedBar={barVisibility.planned} showActualBar={barVisibility.actual} showProjectedBar={barVisibility.projected}
-            draftName={drafts[node.id] ?? displayM.milestone_name}
-            onDraftChange={(v) => setDrafts(p => ({ ...p, [node.id]: v }))}
-            onDelete={onDelete}
-            isAdmin={isAdmin}
-            isAutoMode={isAutoMode}
-            isBLConfirmed={isBLConfirmed}
-            onSaveDuration={(dur) => onSaveDuration(node.id, dur)}
-            onSaveDate={(field, value) => onSaveDate(node.id, field, value)}
-            barColors={barColors}
-          />
-        )
-
-        // Inline add-child row immediately after the node whose id matches addChildParentId
-        if (addChildParentId === node.id) {
-          const childDepth = Math.min(node.depth + 1, 3)
-          rows.push(
-            <div key={`add-child-${node.id}`}
-                 className="flex border-b border-gray-100"
-                 style={{ width: totalW, minWidth: totalW, minHeight: 42, alignItems: 'center', background: '#fafbfd', display: 'flex' }}>
-              <div className="sticky left-0 flex items-center gap-2 bg-inherit"
-                   style={{ paddingLeft: 16 + childDepth * 16 }}>
-                <input
-                  autoFocus type="text"
-                  value={addChildForm?.milestone_name ?? ''}
-                  onChange={e => onAddChildFormChange(f => ({ ...f, milestone_name: e.target.value }))}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') onAddChildSave()
-                    if (e.key === 'Escape') onCancelAddChild()
-                  }}
-                  placeholder="Sub-task name…"
-                  className="px-2 py-1 text-xs rounded border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
-                  style={{ minWidth: 180 }}
-                />
-                <button onClick={onAddChildSave} disabled={addingChild || !addChildForm?.milestone_name?.trim()}
-                        className="text-[11px] font-bold text-[#ed6055] hover:text-[#d94f45] disabled:opacity-50 transition-colors duration-150"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}>
-                  {addingChild ? '…' : 'Save'}
-                </button>
-                <button onClick={onCancelAddChild}
-                        className="text-[11px] text-gray-400 hover:text-gray-600 transition-colors duration-150"
-                        style={{ background: 'none', border: 'none', cursor: 'pointer' }}>Cancel</button>
-              </div>
-            </div>
-          )
-        }
-      })
-
-      // Add-milestone row per phase
-      if (isAdmin && activeBL) {
-        if (addForm?.phase === key) {
-          rows.push(
-            <div key={`add-${key}`} className="flex items-center gap-2 flex-wrap px-4 py-2 border-b border-gray-100 bg-gray-50"
-                 style={{ width: totalW, minWidth: totalW }}>
-              <div className="sticky left-0 flex items-center gap-2 flex-wrap bg-gray-50" style={{ minWidth: labelW }}>
-                <input
-                  autoFocus type="text"
-                  value={addForm.milestone_name ?? ''}
-                  onChange={e => onAddFormChange(f => ({ ...f, milestone_name: e.target.value }))}
-                  placeholder="Milestone name…"
-                  className="flex-1 min-w-[160px] px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
-                />
-                <button
-                  onClick={onAdd} disabled={adding}
-                  className="px-3 py-1.5 text-xs font-bold rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50"
-                >{adding ? '…' : 'Save'}</button>
-                <button
-                  onClick={() => onAddFormChange(null)}
-                  className="px-2 py-1.5 text-xs text-gray-400 hover:text-gray-600"
-                >Cancel</button>
-              </div>
-            </div>
-          )
-        } else {
-          rows.push(
-            <div key={`add-btn-${key}`}
-                 style={{ width: totalW, minWidth: totalW, height: 40, display: 'flex', alignItems: 'center', borderBottom: '1px solid #f9fafb' }}>
-              <div className="sticky left-0" style={{ paddingLeft: 14 }}>
-                <button
-                  onClick={() => onAddFormChange({ phase: key, milestone_name: '' })}
-                  className="flex items-center gap-1.5 px-3 py-1 rounded-lg border border-dashed border-gray-300 text-[11px] font-semibold text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] hover:bg-red-50 transition-colors duration-150 active:scale-[0.97]"
-                >
-                  <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                  Add milestone
-                </button>
-              </div>
-            </div>
-          )
-        }
-      }
+      rows.push(
+        ...flatNodes.flatMap(node => {
+          const displayM = (node.hasChildren && node.children.length)
+            ? { ...node, ...computeParentDates(node.children) }
+            : node
+          const rowProps = {
+            m: displayM,
+            rowNum: idToRowNum.get(node.id) ?? 0,
+            predText: formatPredecessors(dependencies.filter(d => d.to_id === node.id), idToRowNum),
+            onSavePreds: (text) => onSavePreds(node.id, text),
+            depth: node.depth,
+            hasChildren: node.hasChildren,
+            isCollapsed: collapsedIds.has(node.id),
+            onToggleCollapse,
+            onAddChild: isAdmin ? (form) => onSetInlineAdd(form) : null,
+            toPx, chartPxWidth: showGantt ? chartPxWidth : 0, gridDates,
+            todayPx, showToday, todayStr,
+            isChild: node.depth > 0, isLastChild: false,
+            labelW, showDuration, showPredecessor, showPlanned, showActual, showProjected,
+            showPlannedBar: barVisibility.planned, showActualBar: barVisibility.actual, showProjectedBar: barVisibility.projected,
+            draftName: drafts[node.id] ?? displayM.milestone_name,
+            onDraftChange: (v) => setDrafts(p => ({ ...p, [node.id]: v })),
+            onDelete,
+            isAdmin,
+            isAutoMode,
+            isBLConfirmed,
+            onSaveDuration: (dur) => onSaveDuration(node.id, dur),
+            onSaveDate: (field, value) => onSaveDate(node.id, field, value),
+            barColors,
+          }
+          const items = [<SortableMilestoneRow key={node.id} id={node.id} isAdmin={isAdmin} isSelected={selectedId === node.id} onSelect={onSelect} {...rowProps} />]
+          if (inlineAdd?.parentId === node.id) {
+            items.push(
+              <InlineAddRow key={`inline-${node.id}`} depth={node.depth + 1} name={inlineAddName}
+                onChange={onInlineNameChange} onSave={onInlineSave} onCancel={onInlineCancel}
+                adding={inlineAdding} totalW={totalW} />
+            )
+          }
+          return items
+        }),
+        inlineAdd?.parentId === null && inlineAdd?.phase === key
+          ? <InlineAddRow key={`inline-top-${key}`} depth={0} name={inlineAddName}
+              onChange={onInlineNameChange} onSave={onInlineSave} onCancel={onInlineCancel}
+              adding={inlineAdding} totalW={totalW} />
+          : null
+      )
     }
 
     return rows
@@ -1212,34 +1241,34 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
       flatNodes.forEach(node => {
         yCenterById[node.id] = yAcc + TASK_ROW_H / 2
         yAcc += TASK_ROW_H
-        if (addChildParentId === node.id) yAcc += 42  // inline add-child row
+        if (inlineAdd?.parentId === node.id) yAcc += 38
       })
-      // add-milestone button or form row per phase
-      if (isAdmin && activeBL) {
-        yAcc += addForm?.phase === key ? 48 : 32
-      }
+      if (inlineAdd?.parentId === null && inlineAdd?.phase === key) yAcc += 38
     }
   })
   const svgH = yAcc
 
   return (
     <div className="flex-1 min-h-0 overflow-auto">
-      <div style={{ width: totalW, minWidth: totalW, position: 'relative' }}>
-        {/* Sticky axis header — only when there are dates to show */}
-        {allDates.length > 0 && (
-          <div className="sticky top-0 z-40" style={{ backgroundColor: '#f3f4f6' }}>
-            {axisHeader}
-          </div>
-        )}
-        {/* Rows — phase headers and add buttons always render */}
-        {milestoneRows}
-        {/* No-dates placeholder — only when baseline is empty */}
-        {allDates.length === 0 && (
-          <div className="flex items-center justify-center py-12 text-sm text-gray-400">
-            Add milestones above to see the Gantt chart.
-          </div>
-        )}
-      </div>
+      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <div style={{ width: totalW, minWidth: totalW, position: 'relative' }}>
+          {/* Sticky axis header — only when there are dates to show */}
+          {allDates.length > 0 && (
+            <div className="sticky top-0 z-40" style={{ backgroundColor: '#f3f4f6' }}>
+              {axisHeader}
+            </div>
+          )}
+          {/* Rows — phase headers and sortable milestone rows (single SortableContext spans all phases for correct cross-phase collision detection) */}
+          <SortableContext items={allSortableIds} strategy={verticalListSortingStrategy}>
+            {milestoneRows}
+          </SortableContext>
+          {allDates.length === 0 && (
+            <div className="flex items-center justify-center py-12 text-sm text-gray-400">
+              Add milestones above to see the Gantt chart.
+            </div>
+          )}
+        </div>
+      </DndContext>
     </div>
   )
 }
@@ -1344,10 +1373,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [loading, setLoading]         = useState(true)
   const [collapsedPhases, setCollapsedPhases] = useState(new Set())
   const [collapsedIds,     setCollapsedIds]     = useState(new Set())
-  const [addChildParentId, setAddChildParentId] = useState(null)
-  const [addChildPhase,    setAddChildPhase]    = useState(null)
-  const [addChildForm,     setAddChildForm]     = useState(null)
-  const [addingChild,      setAddingChild]      = useState(false)
   const dateRangeKey = `gantt_dateRange_${project.id}`
   const [fromMonth, setFromMonthRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(dateRangeKey))?.from ?? '' } catch { return '' }
@@ -1397,8 +1422,12 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [barColors, setBarColors]         = useState({ planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' })
   const [activeTab, setActiveTab]         = useState('gantt')
   const [showSettings, setShowSettings]   = useState(false)
-  const [addForm, setAddForm]         = useState(null)  // null = hidden; {} = showing add row
-  const [adding, setAdding]           = useState(false)
+  const [inlineAdd, setInlineAdd]       = useState(null)
+  const [inlineAddName, setInlineAddName] = useState('')
+  const [inlineAdding, setInlineAdding] = useState(false)
+  const [orderDirty, setOrderDirty]     = useState(false)
+  const [savingOrder, setSavingOrder]   = useState(false)
+  const [selectedId,  setSelectedId]    = useState(null)
   const [dependencies, setDependencies] = useState([])
   const [newBLName, setNewBLName]     = useState('')
   const [showNewBLModal, setShowNewBLModal] = useState(false)
@@ -1422,10 +1451,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       const bls = data ?? []
       setBaselines(bls)
       setActiveBL(bls.length > 0 ? bls[bls.length - 1].id : null)
-      setAddForm(null)
-      setAddChildParentId(null)
-      setAddChildPhase(null)
-      setAddChildForm(null)
+      setInlineAdd(null); setInlineAddName('')
     }
     loadBaselines()
   }, [project.id])
@@ -1440,6 +1466,16 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const msArr   = ms   ?? []
     const depsArr = deps ?? []
 
+    // Restore any pending sort_order changes from session storage
+    const applySessionOrder = (arr) => {
+      try {
+        const saved = sessionStorage.getItem(`milestone-order-${resolvedId}`)
+        if (!saved) return { ms: arr, dirty: false }
+        const orderMap = new Map(JSON.parse(saved).map(({ id, sort_order, phase, parent_id }) => [id, { sort_order, phase, parent_id }]))
+        return { ms: arr.map(m => orderMap.has(m.id) ? { ...m, ...orderMap.get(m.id) } : m), dirty: true }
+      } catch { return { ms: arr, dirty: false } }
+    }
+
     // Auto-recalculate projected dates whenever any row has actual dates
     const hasActuals = msArr.some(m => m.actual_start || m.actual_end)
     if (hasActuals) {
@@ -1447,15 +1483,16 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       if (projected && !projected.error) {
         const entries = Object.entries(projected)
         if (entries.length) {
-          // Persist to DB fire-and-forget (next load will also recalculate if needed)
           entries.forEach(([id, dates]) =>
             supabase.from('project_milestones')
               .update({ projected_start: dates.projected_start, projected_end: dates.projected_end })
               .eq('id', id)
           )
-          // Merge into state immediately so screen updates without a second round-trip
           const projMap = new Map(entries)
-          setMilestones(msArr.map(m => projMap.has(m.id) ? { ...m, ...projMap.get(m.id) } : m))
+          const merged = msArr.map(m => projMap.has(m.id) ? { ...m, ...projMap.get(m.id) } : m)
+          const { ms: finalMs, dirty } = applySessionOrder(merged)
+          setMilestones(finalMs)
+          setOrderDirty(dirty)
           setDependencies(depsArr)
           setLoading(false)
           return
@@ -1463,7 +1500,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       }
     }
 
-    setMilestones(msArr)
+    const { ms: finalMs, dirty } = applySessionOrder(msArr)
+    setMilestones(finalMs)
+    setOrderDirty(dirty)
     setDependencies(depsArr)
     setLoading(false)
   }
@@ -1519,31 +1558,215 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     }
   }
 
-  const handleAdd = async () => {
-    if (!activeBL) { showToast('No baseline selected.', 'error'); return }
-    if (!addForm?.phase) return
-    if (!addForm?.milestone_name?.trim()) return
-    setAdding(true)
-    const actual_start = addForm.actual_start || null
-    const actual_end   = addForm.actual_end   || null
-    const payload = {
-      project_id:      project.id,
-      baseline_id:     activeBL,
-      phase:           addForm.phase,
-      milestone_name:  addForm.milestone_name.trim(),
-      planned_start:   addForm.planned_start   || null,
-      planned_end:     addForm.planned_end     || null,
-      actual_start,
-      actual_end,
-      projected_start: actual_start ?? (addForm.projected_start || null),
-      projected_end:   actual_end   ?? (addForm.projected_end   || null),
-      sort_order:      milestones.filter(m => m.phase === addForm.phase).length,
+  const handleInlineSave = async () => {
+    if (!activeBL || !inlineAdd?.phase || !inlineAddName.trim()) {
+      setInlineAdd(null); setInlineAddName(''); return
     }
-    const { error } = await supabase.from('project_milestones').insert(payload)
-    setAdding(false)
-    if (error) { showToast(error.message, 'error'); return }
-    setAddForm(null)
-    showToast('Milestone added.', 'success')
+    setInlineAdding(true)
+    try {
+      const parentId = inlineAdd.parentId ?? null
+      let sort_order = 0
+      if (parentId) {
+        const { data: sibs } = await supabase
+          .from('project_milestones').select('sort_order')
+          .eq('parent_id', parentId).order('sort_order', { ascending: false }).limit(1)
+        sort_order = sibs?.length ? (sibs[0].sort_order ?? 0) + 1 : 0
+      } else {
+        const { data: sibs } = await supabase
+          .from('project_milestones').select('sort_order')
+          .eq('baseline_id', activeBL).eq('phase', inlineAdd.phase).is('parent_id', null)
+          .order('sort_order', { ascending: false }).limit(1)
+        sort_order = sibs?.length ? (sibs[0].sort_order ?? 0) + 1 : 0
+      }
+      const { error } = await supabase.from('project_milestones').insert({
+        project_id:     project.id,
+        baseline_id:    activeBL,
+        phase:          inlineAdd.phase,
+        parent_id:      parentId,
+        milestone_name: inlineAddName.trim(),
+        sort_order,
+      })
+      if (error) { showToast(error.message, 'error'); return }
+      setInlineAdd(null); setInlineAddName('')
+      showToast('Activity added.', 'success')
+      await loadMilestones()
+    } finally {
+      setInlineAdding(false)
+    }
+  }
+
+  const handleInlineCancel = () => { setInlineAdd(null); setInlineAddName('') }
+
+  const applyReorderState = (newMs) => {
+    setMilestones(newMs)
+    setOrderDirty(true)
+    try {
+      sessionStorage.setItem(
+        `milestone-order-${activeBL}`,
+        JSON.stringify(newMs.map(m => ({ id: m.id, sort_order: m.sort_order, phase: m.phase, parent_id: m.parent_id })))
+      )
+    } catch {}
+  }
+
+  const handleReorder = (activeId, overId) => {
+    const activeNode = milestones.find(m => m.id === activeId)
+    const overNode   = milestones.find(m => m.id === overId)
+    if (!activeNode || !overNode || activeId === overId) return
+
+    const samePhase  = activeNode.phase === overNode.phase
+    const sameParent = activeNode.parent_id === overNode.parent_id
+    let newMs
+
+    if (samePhase && sameParent) {
+      // Same parent group: reorder siblings
+      const reordered = computeReorder(milestones, activeId, overId)
+      if (!reordered) return
+      const orderMap = new Map(reordered.map((m, i) => [m.id, i]))
+      newMs = milestones.map(m => orderMap.has(m.id) ? { ...m, sort_order: orderMap.get(m.id) } : m)
+
+    } else if (samePhase && !sameParent) {
+      // Same phase, different parent: reparent active to over's parent
+      const newParentId = overNode.parent_id
+      const srcSiblings = milestones
+        .filter(m => m.phase === activeNode.phase && m.parent_id === activeNode.parent_id && m.id !== activeId)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      const destSiblings = milestones
+        .filter(m => m.phase === overNode.phase && m.parent_id === newParentId && m.id !== activeId)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      const overIdx = destSiblings.findIndex(m => m.id === overId)
+      const insertAt = overIdx === -1 ? destSiblings.length : overIdx
+      const newDestOrder = [
+        ...destSiblings.slice(0, insertAt),
+        activeNode,
+        ...destSiblings.slice(insertAt),
+      ]
+      const updateMap = new Map()
+      newDestOrder.forEach((m, i) => updateMap.set(m.id, { sort_order: i, parent_id: newParentId, phase: activeNode.phase }))
+      srcSiblings.forEach((m, i)  => updateMap.set(m.id, { sort_order: i, parent_id: activeNode.parent_id, phase: m.phase }))
+      newMs = milestones.map(m => {
+        const upd = updateMap.get(m.id)
+        return upd ? { ...m, ...upd } : m
+      })
+
+    } else if (!samePhase && activeNode.parent_id === null) {
+      // Cross-phase: top-level rows only; cascade phase to all descendants
+      const getDescendants = (id) => {
+        const children = milestones.filter(m => m.parent_id === id)
+        return children.flatMap(c => [c, ...getDescendants(c.id)])
+      }
+      const descendants = getDescendants(activeId)
+      const destPhase   = overNode.phase
+      const destSiblings = milestones
+        .filter(m => m.phase === destPhase && m.parent_id === null && m.id !== activeId)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      const overIdx  = destSiblings.findIndex(m => m.id === overId)
+      const insertAt = overIdx === -1 ? destSiblings.length : overIdx
+      const newDestOrder = [
+        ...destSiblings.slice(0, insertAt),
+        activeNode,
+        ...destSiblings.slice(insertAt),
+      ]
+      const srcSiblings = milestones
+        .filter(m => m.phase === activeNode.phase && m.parent_id === null && m.id !== activeId)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      const updateMap = new Map()
+      newDestOrder.forEach((m, i) => updateMap.set(m.id, { sort_order: i, phase: destPhase, parent_id: null }))
+      srcSiblings.forEach((m, i)  => updateMap.set(m.id, { sort_order: i, phase: m.phase, parent_id: null }))
+      descendants.forEach(d       => updateMap.set(d.id, { sort_order: d.sort_order, phase: destPhase, parent_id: d.parent_id }))
+      newMs = milestones.map(m => {
+        const upd = updateMap.get(m.id)
+        return upd ? { ...m, ...upd } : m
+      })
+
+    } else {
+      return // child cross-phase: not supported
+    }
+
+    applyReorderState(newMs)
+  }
+
+  const handleIndent = (id) => {
+    const node = milestones.find(m => m.id === id)
+    if (!node || !isAdmin || !activeBL) return
+    // Build flat visible order to find the row immediately above
+    const flatNodes = PHASES.flatMap(({ key }) => {
+      if (collapsedPhases.has(key)) return []
+      return buildTree(milestones.filter(m => m.phase === key), collapsedIds)
+    })
+    const idx = flatNodes.findIndex(n => n.id === id)
+    if (idx <= 0) return
+    const above = flatNodes[idx - 1]
+    if (above.phase !== node.phase) return   // don't indent across phases
+    if (above.depth >= 3) return             // MAX_DEPTH
+    const newParentId = above.id
+    const oldSiblings = milestones
+      .filter(m => m.phase === node.phase && m.parent_id === node.parent_id && m.id !== id)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const newSortOrder = milestones.filter(m => m.parent_id === newParentId).length
+    const updateMap = new Map()
+    updateMap.set(id, { parent_id: newParentId, sort_order: newSortOrder, phase: node.phase })
+    oldSiblings.forEach((m, i) => updateMap.set(m.id, { sort_order: i, parent_id: m.parent_id, phase: m.phase }))
+    applyReorderState(milestones.map(m => { const u = updateMap.get(m.id); return u ? { ...m, ...u } : m }))
+  }
+
+  const handleOutdent = (id) => {
+    const node = milestones.find(m => m.id === id)
+    if (!node || !isAdmin || !activeBL || node.parent_id === null) return
+    const parent = milestones.find(m => m.id === node.parent_id)
+    if (!parent) return
+    const newParentId = parent.parent_id
+    const oldSiblings = milestones
+      .filter(m => m.parent_id === node.parent_id && m.id !== id)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const newSiblings = milestones
+      .filter(m => m.parent_id === newParentId && m.id !== id)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const parentIdx = newSiblings.findIndex(m => m.id === parent.id)
+    const newOrder = [
+      ...newSiblings.slice(0, parentIdx + 1),
+      node,
+      ...newSiblings.slice(parentIdx + 1),
+    ]
+    const updateMap = new Map()
+    newOrder.forEach((m, i)    => updateMap.set(m.id, { sort_order: i, parent_id: newParentId, phase: node.phase }))
+    oldSiblings.forEach((m, i) => updateMap.set(m.id, { sort_order: i, parent_id: node.parent_id, phase: m.phase }))
+    applyReorderState(milestones.map(m => { const u = updateMap.get(m.id); return u ? { ...m, ...u } : m }))
+  }
+
+  // Tab / Shift+Tab to indent / outdent the selected row
+  useEffect(() => {
+    if (!selectedId || !isAdmin || !activeBL) return
+    const onKey = (e) => {
+      if (e.key === 'Escape') { setSelectedId(null); return }
+      if (e.key !== 'Tab') return
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return
+      e.preventDefault()
+      e.shiftKey ? handleOutdent(selectedId) : handleIndent(selectedId)
+    }
+    document.addEventListener('keydown', onKey)
+    return () => document.removeEventListener('keydown', onKey)
+  }, [selectedId, milestones, collapsedPhases, collapsedIds, isAdmin, activeBL])
+
+  const handleSaveOrder = async () => {
+    setSavingOrder(true)
+    try {
+      const { error } = await Promise.all(
+        milestones.map(m =>
+          supabase.from('project_milestones').update({ sort_order: m.sort_order, phase: m.phase, parent_id: m.parent_id }).eq('id', m.id)
+        )
+      ).then(results => results.find(r => r.error) ?? {})
+      if (error) { showToast(error.message, 'error'); return }
+      try { sessionStorage.removeItem(`milestone-order-${activeBL}`) } catch {}
+      setOrderDirty(false)
+      showToast('Row order saved.', 'success')
+    } finally {
+      setSavingOrder(false)
+    }
+  }
+
+  const handleDiscardOrder = () => {
+    try { sessionStorage.removeItem(`milestone-order-${activeBL}`) } catch {}
+    setOrderDirty(false)
     loadMilestones()
   }
 
@@ -1595,10 +1818,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
     setBaselines(prev => [...prev, data])
     setActiveBL(data.id)
-    setAddForm(null)
-    setAddChildParentId(null)
-    setAddChildPhase(null)
-    setAddChildForm(null)
+    setInlineAdd(null); setInlineAddName('')
     setNewBLName('')
     setShowNewBLModal(false)
     setCreatingBL(false)
@@ -1746,7 +1966,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         .select('id, label, created_at, scheduling_mode, start_date, confirmed_at')
         .eq('project_id', pid)
         .order('created_at', { ascending: true })
-      if (newBLs) { setBaselines(newBLs); setActiveBL(blId); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }
+      if (newBLs) { setBaselines(newBLs); setActiveBL(blId); setInlineAdd(null); setInlineAddName('') }
       showToast(`Imported as "${label}".`, 'success')
     } catch (err) {
       showToast('Import failed: ' + err.message, 'error')
@@ -1764,10 +1984,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const remaining = baselines.filter(b => b.id !== blId)
     setBaselines(remaining)
     setActiveBL(remaining.length > 0 ? remaining[remaining.length - 1].id : null)
-    setAddForm(null)
-    setAddChildParentId(null)
-    setAddChildPhase(null)
-    setAddChildForm(null)
+    setInlineAdd(null); setInlineAddName('')
   }
 
   useEffect(() => {
@@ -1790,44 +2007,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
-  }
-
-  const handleAddChild = async () => {
-    if (!activeBL || !addChildParentId) return
-    if (!addChildForm?.milestone_name?.trim()) return
-    setAddingChild(true)
-    try {
-      const { data: siblings, error: sibErr } = await supabase
-        .from('project_milestones')
-        .select('sort_order')
-        .eq('parent_id', addChildParentId)
-        .order('sort_order', { ascending: false })
-        .limit(1)
-      if (sibErr) { showToast(sibErr.message, 'error'); return }
-      const nextSort = siblings?.length ? (siblings[0].sort_order ?? 0) + 1 : 0
-      const { error } = await supabase.from('project_milestones').insert({
-        project_id:     project.id,
-        baseline_id:    activeBL,
-        phase:          addChildPhase,
-        parent_id:      addChildParentId,
-        milestone_name: addChildForm.milestone_name.trim(),
-        sort_order:     nextSort,
-      })
-      if (error) { showToast(error.message, 'error'); return }
-      setAddChildParentId(null)
-      setAddChildPhase(null)
-      setAddChildForm(null)
-      await loadMilestones(activeBL)
-      showToast('Sub-task added.', 'success')
-    } finally {
-      setAddingChild(false)
-    }
-  }
-
-  const handleCancelAddChild = () => {
-    setAddChildParentId(null)
-    setAddChildPhase(null)
-    setAddChildForm(null)
   }
 
   const computeRowNumToId = () => {
@@ -2059,7 +2238,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             <GToolbarSelect
               fullWidth
               value={activeBL ?? ''}
-              onChange={v => { setActiveBL(v); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
+              onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
               options={baselines.map(b => ({ value: b.id, label: b.label }))}
             />
           )}
@@ -2157,7 +2336,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                   <GToolbarSelect
                     fullWidth
                     value={activeBL ?? ''}
-                    onChange={v => { setActiveBL(v); setAddForm(null); setAddChildParentId(null); setAddChildPhase(null); setAddChildForm(null) }}
+                    onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
                     options={baselines.map(b => ({ value: b.id, label: b.label }))}
                   />
                 ) : (
@@ -2343,7 +2522,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       </div>
 
 
-      {/* Central save strip — appears when there are unsaved name edits */}
+      {/* Save strip — unsaved name edits */}
       {Object.keys(drafts).length > 0 && (
         <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-[#ed6055]/20 border-l-4 border-l-[#ed6055] flex-shrink-0" style={{ background: 'rgba(237,96,85,0.06)' }}>
           <svg className="w-3.5 h-3.5 text-[#ed6055] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2364,6 +2543,33 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           <button
             onClick={() => setDrafts({})}
             className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors active:scale-[0.97] flex-shrink-0"
+          >
+            Discard
+          </button>
+        </div>
+      )}
+
+      {/* Save strip — unsaved row order */}
+      {orderDirty && (
+        <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-blue-200 border-l-4 border-l-blue-400 flex-shrink-0" style={{ background: 'rgba(59,130,246,0.05)' }}>
+          <svg className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" />
+          </svg>
+          <span className="text-xs text-gray-500 flex-1 min-w-0">Row order has unsaved changes</span>
+          <button
+            onClick={handleSaveOrder}
+            disabled={savingOrder}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors active:scale-[0.97] disabled:opacity-60 flex-shrink-0"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+            </svg>
+            {savingOrder ? 'Saving…' : 'Save order'}
+          </button>
+          <button
+            onClick={handleDiscardOrder}
+            disabled={savingOrder}
+            className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors active:scale-[0.97] disabled:opacity-60 flex-shrink-0"
           >
             Discard
           </button>
@@ -2414,26 +2620,25 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             showToast={showToast}
             collapsedPhases={collapsedPhases}
             onTogglePhase={handleTogglePhase}
-            addForm={addForm}
-            onAddFormChange={setAddForm}
-            onAdd={handleAdd}
-            adding={adding}
+            inlineAdd={inlineAdd}
+            inlineAddName={inlineAddName}
+            onInlineNameChange={setInlineAddName}
+            onInlineSave={handleInlineSave}
+            onInlineCancel={handleInlineCancel}
+            inlineAdding={inlineAdding}
+            onSetInlineAdd={setInlineAdd}
             activeBL={activeBL}
             collapsedIds={collapsedIds}
             onToggleCollapse={handleToggleCollapse}
-            onAddChild={(id, phase) => { setAddChildParentId(id); setAddChildPhase(phase); setAddChildForm({ milestone_name: '' }) }}
-            addChildParentId={addChildParentId}
-            addChildForm={addChildForm}
-            onAddChildFormChange={setAddChildForm}
-            onAddChildSave={handleAddChild}
-            onCancelAddChild={handleCancelAddChild}
-            addingChild={addingChild}
             dependencies={dependencies}
             onSavePreds={handleSavePreds}
             isAutoMode={isAutoMode}
             isBLConfirmed={isBLConfirmed}
             onSaveDuration={handleSaveDuration}
             onSaveDate={handleSaveDate}
+            onReorder={handleReorder}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
           />
         )}
       </div>
