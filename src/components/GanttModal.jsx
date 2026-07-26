@@ -515,21 +515,13 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         style={{ width: frozenW, minWidth: frozenW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
         className="sticky left-0 z-30 flex items-center flex-shrink-0 self-stretch"
       >
-        {/* # column — shows drag icon in admin mode, row number otherwise */}
+        {/* # column */}
         <div
           style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
           className={`flex items-center justify-center flex-shrink-0 self-stretch${showDragHandle ? ' cursor-grab' : ''}`}
           title={showDragHandle ? 'Drag to reorder' : undefined}
         >
-          {showDragHandle ? (
-            <svg width="10" height="12" viewBox="0 0 10 12" fill="currentColor" className="text-gray-300 flex-shrink-0">
-              <circle cx="3" cy="2" r="1.5"/><circle cx="7" cy="2" r="1.5"/>
-              <circle cx="3" cy="6" r="1.5"/><circle cx="7" cy="6" r="1.5"/>
-              <circle cx="3" cy="10" r="1.5"/><circle cx="7" cy="10" r="1.5"/>
-            </svg>
-          ) : (
-            <span className="text-[10px] font-mono text-gray-400 tabular-nums select-none">{rowNum}</span>
-          )}
+          <span className="text-[10px] font-mono text-gray-400 tabular-nums select-none">{rowNum}</span>
         </div>
         {/* Activity name */}
         <div
