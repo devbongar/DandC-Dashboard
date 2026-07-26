@@ -173,7 +173,7 @@ const BAR_PRESETS = {
 function GBarColorRow({ label, barKey, value, onChange }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className="text-xs text-gray-500 w-16 flex-shrink-0">{label}</span>
+      {label && <span className="text-xs text-gray-500 w-16 flex-shrink-0">{label}</span>}
       <div className="flex items-center gap-1.5">
         {BAR_PRESETS[barKey].map(c => (
           <button
@@ -485,20 +485,20 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, showDuration = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false }) {
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, durColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
   const bgBase     = !isChild ? '#f3f4f6' : (rowNum % 2 === 0 ? '#f9fafb' : '#f3f4f6')
 
   const frozenW = ROW_NUM_W + labelW
-    + (showDuration ? DUR_COL_W : 0)
-    + (showPredecessor ? PRED_COL_W : 0)
-    + (showPlanned ? DATE_GROUP_W : 0)
-    + (showActual ? DATE_GROUP_W : 0)
-    + (showProjected ? DATE_GROUP_W : 0)
+    + (showDuration ? durColW : 0)
+    + (showPredecessor ? predColW : 0)
+    + (showPlanned ? dateColWidths.plnStart + dateColWidths.plnEnd : 0)
+    + (showActual ? dateColWidths.actStart + dateColWidths.actEnd : 0)
+    + (showProjected ? dateColWidths.projStart + dateColWidths.projEnd : 0)
 
-  const dateCell = (content, bg, bl) => (
-    <div style={{ width: DATE_COL_W, minWidth: DATE_COL_W, ...(bg && { backgroundColor: bg }), ...(bl && { borderLeft: bl }) }} className="px-1.5 py-1 text-xs border-r border-gray-200 flex items-center min-h-[52px]">
+  const dateCell = (content, w, bg, bl) => (
+    <div style={{ width: w, minWidth: w, ...(bg && { backgroundColor: bg }), ...(bl && { borderLeft: bl }) }} className="px-1.5 py-1 text-xs border-r border-gray-200 flex items-center min-h-[52px]">
       {content}
     </div>
   )
@@ -577,7 +577,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         {/* Duration column */}
         {showDuration && (
           <div
-            style={{ width: DUR_COL_W, minWidth: DUR_COL_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+            style={{ width: durColW, minWidth: durColW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
             className="flex items-center flex-shrink-0 self-stretch px-1"
           >
             <DurationCell
@@ -591,38 +591,38 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         {/* Predecessors column */}
         {showPredecessor && (
           <div
-            style={{ width: PRED_COL_W, minWidth: PRED_COL_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+            style={{ width: predColW, minWidth: predColW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
             className="flex items-center flex-shrink-0 self-stretch px-1"
           >
             <PredecessorsCell predText={predText} onSave={onSavePreds} isAdmin={isAdmin && !hasActual && !isBLConfirmed} />
           </div>
         )}
 
-        {/* Date columns — each group individually toggled */}
+        {/* Date columns — each individually toggled */}
         {(showPlanned || showActual || showProjected) && (
           <div className="flex self-stretch">
             {showPlanned && dateCell(isAutoMode || hasActual || isBLConfirmed
               ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_start)}</span>
               : <DateCell value={m.planned_start} onSave={v => onSaveDate('planned_start', v)} isAdmin={isAdmin} max={m.planned_end || undefined} />
-            , null, '2px solid #e2e8f0')}
+            , dateColWidths.plnStart)}
             {showPlanned && dateCell(isAutoMode || hasActual || isBLConfirmed
               ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
               : <DateCell value={m.planned_end} onSave={v => onSaveDate('planned_end', v)} isAdmin={isAdmin} min={m.planned_start || undefined} />
-            )}
+            , dateColWidths.plnEnd)}
             {showActual && dateCell(
               <DateCell value={m.actual_start} onSave={v => onSaveDate('actual_start', v)} isAdmin={isAdmin} max={m.actual_end || undefined} />
-            , null, '2px solid #e2e8f0')}
+            , dateColWidths.actStart)}
             {showActual && dateCell(
               <DateCell value={m.actual_end} onSave={v => onSaveDate('actual_end', v)} isAdmin={isAdmin} min={m.actual_start || undefined} />
-            )}
+            , dateColWidths.actEnd)}
             {showProjected && dateCell(m.actual_start
               ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start)}</span>
               : <DateCell value={m.projected_start} onSave={v => onSaveDate('projected_start', v)} isAdmin={isAdmin} max={m.projected_end || undefined} />
-            , null, '2px solid #e2e8f0')}
+            , dateColWidths.projStart)}
             {showProjected && dateCell(m.actual_end
               ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end)}</span>
               : <DateCell value={m.projected_end} onSave={v => onSaveDate('projected_end', v)} isAdmin={isAdmin} min={m.projected_start || undefined} />
-            )}
+            , dateColWidths.projEnd)}
           </div>
         )}
       </div>
@@ -898,7 +898,50 @@ function GToolbarSelect({ options = [], value, onChange, fullWidth = false }) {
   )
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {} }) {
+function ColResizeButton({ id, activeId, onToggle, value, presets, onSelect }) {
+  return (
+    <div style={{ position: 'relative' }} className="flex-shrink-0 ml-1">
+      <button
+        onClick={(e) => { e.stopPropagation(); onToggle(id === activeId ? null : id) }}
+        className={`flex items-center justify-center p-0.5 rounded transition-colors ${id === activeId ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
+        title="Adjust column width"
+      >
+        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l-4 3 4 3M16 9l4 3-4 3" />
+        </svg>
+      </button>
+      {id === activeId && (
+        <div
+          style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', zIndex: 200, marginTop: 4, minWidth: 88 }}
+          className="bg-white border border-gray-200 rounded-lg shadow-lg p-1.5 flex flex-col gap-1"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {presets.map(({ label, v }) => (
+            <button
+              key={v}
+              onClick={() => { onSelect(v); onToggle(null) }}
+              className={`text-xs px-3 py-1.5 rounded text-left transition-colors ${Math.round(value) === v ? 'bg-blue-500 text-white font-medium' : 'hover:bg-gray-100 text-gray-700'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {} }) {
+  const [durColW,  setDurColW]  = useState(DUR_COL_W)
+  const [predColW, setPredColW] = useState(PRED_COL_W)
+  const [dateColWidths, setDateColWidths] = useState({ plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W })
+  const [activeResizeCol, setActiveResizeCol] = useState(null)
+  useEffect(() => {
+    if (!activeResizeCol) return
+    const close = () => setActiveResizeCol(null)
+    document.addEventListener('click', close)
+    return () => document.removeEventListener('click', close)
+  }, [activeResizeCol])
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 2 } }))
   const handleDragEnd = ({ active, over }) => {
     if (over && active.id !== over.id) onReorder(String(active.id), String(over.id))
@@ -954,11 +997,11 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
 
   const { duration: showDuration, predecessor: showPredecessor, planned: showPlanned, actual: showActual, projected: showProjected, gantt: showGantt } = colVisibility
   const frozenW = ROW_NUM_W + labelW
-    + (showDuration ? DUR_COL_W : 0)
-    + (showPredecessor ? PRED_COL_W : 0)
-    + (showPlanned ? DATE_GROUP_W : 0)
-    + (showActual ? DATE_GROUP_W : 0)
-    + (showProjected ? DATE_GROUP_W : 0)
+    + (showDuration ? durColW : 0)
+    + (showPredecessor ? predColW : 0)
+    + (showPlanned ? dateColWidths.plnStart + dateColWidths.plnEnd : 0)
+    + (showActual ? dateColWidths.actStart + dateColWidths.actEnd : 0)
+    + (showProjected ? dateColWidths.projStart + dateColWidths.projEnd : 0)
   const totalW = frozenW + (showGantt ? chartPxWidth : 0)
 
   // Sequential row numbers for visible task rows (collapsed rows excluded)
@@ -988,70 +1031,85 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             <span className="text-[10px] font-bold text-gray-500">#</span>
           </div>
           {/* Activity name column */}
-          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-2 self-stretch border-r border-gray-300 flex-shrink-0">
-            <span className="text-xs font-bold text-gray-700">Activity</span>
+          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-1 self-stretch border-r border-gray-300 flex-shrink-0 gap-1">
+            <span className="text-xs font-bold text-gray-700 flex-1 min-w-0">Activity</span>
+            <ColResizeButton id="activity" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={labelW}
+              presets={[{ label: 'Narrow', v: 200 }, { label: 'Default', v: 320 }, { label: 'Wide', v: 440 }]}
+              onSelect={setLabelW} />
           </div>
-          {/* When Planned is visible, Dur + Pred are grouped under its header */}
-          {showPlanned ? (() => {
-            const groupW = (showDuration ? DUR_COL_W : 0) + (showPredecessor ? PRED_COL_W : 0) + DATE_GROUP_W
-            return (
-              <div style={{ width: groupW, backgroundColor: '#f3f4f6', borderTop: `2px solid ${barColors.planned}` }} className="flex flex-col border-r border-gray-300 py-1 flex-shrink-0">
-                <span className="text-[11px] font-extrabold text-gray-700 uppercase tracking-wide text-center flex items-center justify-center gap-1">
-                  <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: barColors.planned }} />Planned
-                </span>
-                <div className="flex w-full mt-0.5">
-                  {showDuration && (
-                    <span style={{ width: DUR_COL_W }} className="text-center text-[11px] text-gray-500 border-r border-gray-300 flex-shrink-0">Dur.</span>
-                  )}
-                  {showPredecessor && (
-                    <span style={{ width: PRED_COL_W }} className="text-center text-[11px] text-gray-500 border-r border-gray-300 flex-shrink-0">Pred.</span>
-                  )}
-                  <span className="flex-1 text-center text-[11px] text-gray-500 border-r border-gray-300">Start</span>
-                  <span className="flex-1 text-center text-[11px] text-gray-500">End</span>
-                </div>
-              </div>
-            )
-          })() : (
+          {/* Duration — always its own column */}
+          {showDuration && (
+            <div style={{ width: durColW, minWidth: durColW }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+              <span className="text-xs font-bold text-gray-600">Dur.</span>
+              <ColResizeButton id="dur" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={durColW}
+                presets={[{ label: 'Narrow', v: 56 }, { label: 'Default', v: 72 }, { label: 'Wide', v: 100 }]}
+                onSelect={setDurColW} />
+            </div>
+          )}
+          {/* Predecessors — always its own column */}
+          {showPredecessor && (
+            <div style={{ width: predColW, minWidth: predColW }} className="flex items-center gap-1 px-2 self-stretch border-r border-gray-300 flex-shrink-0">
+              <span className="text-xs font-bold text-gray-600">Pred.</span>
+              <svg className="w-3 h-3 text-gray-400 flex-shrink-0 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+                title={"Format: <row>FS|SS|FF|SF[+/-days]\nExamples: 3FS (row 3 finish→start), 2SS+5 (row 2 start→start +5 days)\nSeparate multiple predecessors with commas."}>
+                <circle cx="12" cy="12" r="10" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" />
+              </svg>
+              <ColResizeButton id="pred" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={predColW}
+                presets={[{ label: 'Narrow', v: 72 }, { label: 'Default', v: 96 }, { label: 'Wide', v: 128 }]}
+                onSelect={setPredColW} />
+            </div>
+          )}
+          {/* Planned date columns */}
+          {showPlanned && (
             <>
-              {/* When Planned is hidden, Dur + Pred keep individual headers */}
-              {showDuration && (
-                <div style={{ width: DUR_COL_W, minWidth: DUR_COL_W }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0">
-                  <span className="text-xs font-bold text-gray-600">Dur.</span>
-                </div>
-              )}
-              {showPredecessor && (
-                <div style={{ width: PRED_COL_W, minWidth: PRED_COL_W }} className="flex items-center gap-1 px-2 self-stretch border-r border-gray-300 flex-shrink-0">
-                  <span className="text-xs font-bold text-gray-600">Pred.</span>
-                  <svg className="w-3 h-3 text-gray-400 flex-shrink-0 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                    title={"Format: <row>FS|SS|FF|SF[+/-days]\nExamples: 3FS (row 3 finish→start), 2SS+5 (row 2 start→start +5 days)\nSeparate multiple predecessors with commas."}>
-                    <circle cx="12" cy="12" r="10" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" />
-                  </svg>
-                </div>
-              )}
+              <div style={{ width: dateColWidths.plnStart, minWidth: dateColWidths.plnStart }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+                <span className="text-xs font-bold text-gray-600">Pln. Start</span>
+                <ColResizeButton id="plnStart" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.plnStart}
+                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
+                  onSelect={v => setDateColWidths(w => ({ ...w, plnStart: v }))} />
+              </div>
+              <div style={{ width: dateColWidths.plnEnd, minWidth: dateColWidths.plnEnd }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+                <span className="text-xs font-bold text-gray-600">Pln. End</span>
+                <ColResizeButton id="plnEnd" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.plnEnd}
+                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
+                  onSelect={v => setDateColWidths(w => ({ ...w, plnEnd: v }))} />
+              </div>
             </>
           )}
+          {/* Actual date columns */}
           {showActual && (
-            <div style={{ width: DATE_GROUP_W, backgroundColor: '#f3f4f6', borderTop: `2px solid ${barColors.actual}` }} className="flex flex-col items-center justify-center border-r border-gray-300 py-1 flex-shrink-0">
-              <span className="text-[11px] font-extrabold text-gray-700 uppercase tracking-wide flex items-center gap-1">
-                <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: barColors.actual }} />Actual
-              </span>
-              <div className="flex w-full mt-0.5">
-                <span className="flex-1 text-center text-[11px] text-gray-500 border-r border-gray-300">Start</span>
-                <span className="flex-1 text-center text-[11px] text-gray-500">End</span>
+            <>
+              <div style={{ width: dateColWidths.actStart, minWidth: dateColWidths.actStart }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+                <span className="text-xs font-bold text-gray-600">Act. Start</span>
+                <ColResizeButton id="actStart" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.actStart}
+                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
+                  onSelect={v => setDateColWidths(w => ({ ...w, actStart: v }))} />
               </div>
-            </div>
+              <div style={{ width: dateColWidths.actEnd, minWidth: dateColWidths.actEnd }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+                <span className="text-xs font-bold text-gray-600">Act. End</span>
+                <ColResizeButton id="actEnd" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.actEnd}
+                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
+                  onSelect={v => setDateColWidths(w => ({ ...w, actEnd: v }))} />
+              </div>
+            </>
           )}
+          {/* Projected date columns */}
           {showProjected && (
-            <div style={{ width: DATE_GROUP_W, backgroundColor: '#f3f4f6', borderTop: `2px solid ${barColors.projected}` }} className="flex flex-col items-center justify-center py-1 flex-shrink-0">
-              <span className="text-[11px] font-extrabold text-gray-700 uppercase tracking-wide flex items-center gap-1">
-                <span className="w-3 h-2 rounded-sm flex-shrink-0 inline-block" style={{ backgroundColor: barColors.projected }} />Projected
-              </span>
-              <div className="flex w-full mt-0.5">
-                <span className="flex-1 text-center text-[11px] text-gray-500 border-r border-gray-300">Start</span>
-                <span className="flex-1 text-center text-[11px] text-gray-500">End</span>
+            <>
+              <div style={{ width: dateColWidths.projStart, minWidth: dateColWidths.projStart }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+                <span className="text-xs font-bold text-gray-600">Proj. Start</span>
+                <ColResizeButton id="projStart" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.projStart}
+                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
+                  onSelect={v => setDateColWidths(w => ({ ...w, projStart: v }))} />
               </div>
-            </div>
+              <div style={{ width: dateColWidths.projEnd, minWidth: dateColWidths.projEnd }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+                <span className="text-xs font-bold text-gray-600">Proj. End</span>
+                <ColResizeButton id="projEnd" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.projEnd}
+                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
+                  onSelect={v => setDateColWidths(w => ({ ...w, projEnd: v }))} />
+              </div>
+            </>
           )}
         </div>
         {showGantt && <div style={{ width: chartPxWidth, minWidth: chartPxWidth, position: 'relative', overflow: 'hidden' }}>
@@ -1187,7 +1245,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             toPx, chartPxWidth: showGantt ? chartPxWidth : 0, gridDates,
             todayPx, showToday, todayStr,
             isChild: node.depth > 0, isLastChild: false,
-            labelW, showDuration, showPredecessor, showPlanned, showActual, showProjected,
+            labelW, durColW, predColW, dateColWidths, showDuration, showPredecessor, showPlanned, showActual, showProjected,
             showPlannedBar: barVisibility.planned, showActualBar: barVisibility.actual, showProjectedBar: barVisibility.projected,
             draftName: drafts[node.id] ?? displayM.milestone_name,
             onDraftChange: (v) => setDrafts(p => ({ ...p, [node.id]: v })),
@@ -2433,37 +2491,60 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 </div>
               </div>
 
-              {/* ── Visibility ── */}
+              {/* ── Column visibility ── */}
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Visibility</p>
-                <div className="flex items-center gap-2">
-                  <ColsDropdown colVisibility={colVisibility} onChange={setColVisibility} />
-                  <BarsDropdown barVisibility={barVisibility} onChange={setBarVisibility} />
+                <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">Columns</p>
+                <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
+                  {[
+                    { key: 'duration',    label: 'Duration' },
+                    { key: 'predecessor', label: 'Predecessors' },
+                    { key: 'planned',     label: 'Planned' },
+                    { key: 'actual',      label: 'Actual' },
+                    { key: 'projected',   label: 'Projected' },
+                    { key: 'gantt',       label: 'Gantt chart' },
+                  ].map(({ key, label }) => (
+                    <label key={key} className="flex items-center gap-2 py-1 cursor-pointer select-none">
+                      <input
+                        type="checkbox"
+                        checked={colVisibility[key]}
+                        onChange={e => setColVisibility(prev => ({ ...prev, [key]: e.target.checked }))}
+                        className="w-3.5 h-3.5 rounded cursor-pointer flex-shrink-0"
+                        style={{ accentColor: '#ed6055' }}
+                      />
+                      <span className="text-xs text-gray-700">{label}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
-              {/* ── Bar colors ── */}
+              {/* ── Bar visibility + colors ── */}
               <div className="px-4 py-3 border-b border-gray-100">
-                <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Bar colors</p>
-                <div className="flex flex-col gap-2">
-                  <GBarColorRow
-                    label="Planned"
-                    barKey="planned"
-                    value={barColors.planned}
-                    onChange={c => setBarColors(p => ({ ...p, planned: c }))}
-                  />
-                  <GBarColorRow
-                    label="Actual"
-                    barKey="actual"
-                    value={barColors.actual}
-                    onChange={c => setBarColors(p => ({ ...p, actual: c }))}
-                  />
-                  <GBarColorRow
-                    label="Forecast"
-                    barKey="projected"
-                    value={barColors.projected}
-                    onChange={c => setBarColors(p => ({ ...p, projected: c }))}
-                  />
+                <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">Bars</p>
+                <div className="flex flex-col gap-1.5">
+                  {[
+                    { key: 'planned',   label: 'Planned',  colorKey: 'planned'   },
+                    { key: 'actual',    label: 'Actual',   colorKey: 'actual'    },
+                    { key: 'projected', label: 'Forecast', colorKey: 'projected' },
+                  ].map(({ key, label, colorKey }) => (
+                    <div key={key} className="flex items-center gap-2">
+                      <label className="flex items-center gap-2 cursor-pointer select-none flex-1 min-w-0">
+                        <input
+                          type="checkbox"
+                          checked={barVisibility[key]}
+                          onChange={e => setBarVisibility(prev => ({ ...prev, [key]: e.target.checked }))}
+                          className="w-3.5 h-3.5 rounded cursor-pointer flex-shrink-0"
+                          style={{ accentColor: '#ed6055' }}
+                        />
+                        <span className="text-xs text-gray-700">{label}</span>
+                      </label>
+                      <GBarColorRow
+                        label=""
+                        barKey={colorKey}
+                        value={barColors[colorKey]}
+                        onChange={c => setBarColors(p => ({ ...p, [colorKey]: c }))}
+                      />
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -2601,6 +2682,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             timeScale={timeScale}
             colPx={colPx}
             labelW={labelW}
+            setLabelW={setLabelW}
             colVisibility={colVisibility}
             barVisibility={barVisibility}
             barColors={barColors}
