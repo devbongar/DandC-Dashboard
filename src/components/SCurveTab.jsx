@@ -535,9 +535,22 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   }, [])
 
   const effectiveWidth = Math.max(totalW, containerWidth)
-  const effectiveColW  = filteredPeriods.length > 0
-    ? (effectiveWidth - LABEL_W) / filteredPeriods.length
+
+  // Chart + cumulative table: quarterly or monthly columns
+  const displayColCount = useMemo(() => {
+    if (viewMode !== 'quarterly' || !filteredPeriods.length) return filteredPeriods.length
+    const qSet = new Set(filteredPeriods.map(p => {
+      const d = new Date(p)
+      return `${d.getFullYear()}-Q${Math.floor(d.getMonth() / 3) + 1}`
+    }))
+    return qSet.size
+  }, [viewMode, filteredPeriods])
+
+  const effectiveColW = displayColCount > 0
+    ? (effectiveWidth - LABEL_W) / displayColCount
     : COL_W
+
+
 
   const primaryBaseline = baselines.find(b => b.id === primaryBaselineId)
 
@@ -771,13 +784,46 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           selectedBaselineIds.some(id => d[`bl_${id}`] != null)
         )
 
+        // Aggregate monthly → quarterly (last non-null cumulative value per series per quarter)
+        const quarterMap = new Map()
+        combinedData.forEach(d => {
+          const dObj = new Date(d._date)
+          const q    = Math.floor(dObj.getMonth() / 3) + 1
+          const year = dObj.getFullYear()
+          const qk   = `${year}-Q${q}`
+          if (!quarterMap.has(qk)) {
+            const pt = { period: `Q${q} '${String(year).slice(2)}`, _date: d._date, actual: null, forecast: null }
+            for (const id of selectedBaselineIds) pt[`bl_${id}`] = null
+            quarterMap.set(qk, pt)
+          }
+          const pt = quarterMap.get(qk)
+          if (d.actual   != null) pt.actual   = d.actual
+          if (d.forecast != null) pt.forecast = d.forecast
+          for (const id of selectedBaselineIds) {
+            if (d[`bl_${id}`] != null) pt[`bl_${id}`] = d[`bl_${id}`]
+          }
+        })
+        const displayData = viewMode === 'quarterly' ? [...quarterMap.values()] : combinedData
+
+        // Quarterly grouping for Periodic % table (sum of monthly increments per quarter)
+        const periodicQMap = new Map()
+        filteredPeriods.forEach(p => {
+          const dObj = new Date(p)
+          const q    = Math.floor(dObj.getMonth() / 3) + 1
+          const year = dObj.getFullYear()
+          const qk   = `${year}-Q${q}`
+          if (!periodicQMap.has(qk)) periodicQMap.set(qk, { qKey: qk, months: [] })
+          periodicQMap.get(qk).months.push(p)
+        })
+        const periodicGroups = viewMode === 'quarterly' ? [...periodicQMap.values()] : null
+
         return (
           <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
               <div style={{ width: effectiveWidth, minWidth: totalW }}>
 
                 {/* Chart */}
                 {hasChartData && (
-                  <ComposedChart width={effectiveWidth} height={280} data={combinedData}
+                  <ComposedChart width={effectiveWidth} height={280} data={displayData}
                     margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="period" tick={false} tickLine={false}
@@ -813,7 +859,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                           className="text-left px-3 py-2 sticky left-0 z-10 border-r border-gray-200">
                           <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Cumulative %</span>
                         </th>
-                        {combinedData.map(d => (
+                        {displayData.map(d => (
                           <th key={d._date} style={{ width: effectiveColW }} className="text-center px-1 py-2 font-medium text-gray-400 whitespace-nowrap">
                             {d.period}
                           </th>
@@ -830,7 +876,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                               <span className="font-semibold text-gray-600 truncate">{label}</span>
                             </div>
                           </td>
-                          {combinedData.map(d => (
+                          {displayData.map(d => (
                             <td key={d._date} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums text-gray-700">
                               {d[key] != null ? `${d[key].toFixed(2)}%` : <span className="text-gray-300">—</span>}
                             </td>
@@ -841,16 +887,17 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   </table>
                 )}
 
-                {/* Monthly input table */}
-                {viewMode === 'monthly' && (
-                  <table className="text-xs border-t-2 border-gray-300" style={{ width: effectiveWidth, tableLayout: 'fixed' }}>
+                {/* Periodic input table */}
+                <table className="text-xs border-t-2 border-gray-300" style={{ width: effectiveWidth, tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
                         <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
                           className="text-left px-3 py-1.5 sticky left-0 z-10 border-r border-gray-200">
-                          <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Monthly Input</span>
+                          <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Periodic %</span>
                         </th>
-                        {filteredPeriods.map(p => <th key={p} style={{ width: effectiveColW }} />)}
+                        {periodicGroups
+                          ? periodicGroups.map(({ qKey }) => <th key={qKey} style={{ width: effectiveColW }} />)
+                          : filteredPeriods.map(p => <th key={p} style={{ width: effectiveColW }} />)}
                       </tr>
                     </thead>
                     <tbody>
@@ -866,60 +913,77 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                                 <span className="font-semibold text-gray-600 truncate">{label}</span>
                               </div>
                             </td>
-                            {filteredPeriods.map(p => {
-                              const isEditing = editCell?.period_date === p && editCell?.type === type &&
-                                (type !== 'baseline' || editCell?.baselineId === baselineId)
-                              const rawVal = type === 'baseline'
-                                ? ((baselineMaps[baselineId] ?? {})[p]?.planned_pct ?? null)
-                                : type === 'actual'
-                                  ? (actualMap[p]?.actual_pct ?? null)
-                                  : (forecastMap[p]?.forecast_pct ?? null)
-                              const displayVal = (rawVal ?? 0) > 0 ? rawVal : null
-                              const notEditable = (type === 'forecast' && (actualMap[p]?.actual_pct ?? 0) > 0)
-                                || (type === 'baseline' && !baselineId)
+                            {periodicGroups
+                              ? periodicGroups.map(({ qKey, months }) => {
+                                  const sum = months.reduce((s, p) => {
+                                    const v = type === 'baseline'
+                                      ? ((baselineMaps[baselineId] ?? {})[p]?.planned_pct ?? 0)
+                                      : type === 'actual'
+                                        ? (actualMap[p]?.actual_pct ?? 0)
+                                        : (forecastMap[p]?.forecast_pct ?? 0)
+                                    return s + v
+                                  }, 0)
+                                  return (
+                                    <td key={qKey} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums text-gray-700">
+                                      {sum > 0
+                                        ? <span className="font-medium">{sum % 1 === 0 ? sum + '%' : sum.toFixed(2) + '%'}</span>
+                                        : <span className="text-gray-300">—</span>}
+                                    </td>
+                                  )
+                                })
+                              : filteredPeriods.map(p => {
+                                  const isEditing = editCell?.period_date === p && editCell?.type === type &&
+                                    (type !== 'baseline' || editCell?.baselineId === baselineId)
+                                  const rawVal = type === 'baseline'
+                                    ? ((baselineMaps[baselineId] ?? {})[p]?.planned_pct ?? null)
+                                    : type === 'actual'
+                                      ? (actualMap[p]?.actual_pct ?? null)
+                                      : (forecastMap[p]?.forecast_pct ?? null)
+                                  const displayVal = (rawVal ?? 0) > 0 ? rawVal : null
+                                  const notEditable = (type === 'forecast' && (actualMap[p]?.actual_pct ?? 0) > 0)
+                                    || (type === 'baseline' && !baselineId)
 
-                              return (
-                                <td key={p} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums">
-                                  {isEditing ? (
-                                    <div className="flex items-center gap-0.5 justify-center">
-                                      <input
-                                        type="number" min={0} max={100} step={0.01}
-                                        value={editValue} autoFocus
-                                        onChange={e => setEditValue(e.target.value)}
-                                        onKeyDown={e => {
-                                          if (e.key === 'Enter') handleEdit(p, type)
-                                          if (e.key === 'Escape') { setEditCell(null); setEditValue('') }
-                                        }}
-                                        className="w-14 px-1 py-0.5 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
-                                      />
-                                      <button onClick={() => handleEdit(p, type)} disabled={saving}
-                                        className="text-green-600 hover:text-green-700 font-bold text-sm leading-none">✓</button>
-                                      <button onClick={() => { setEditCell(null); setEditValue('') }}
-                                        className="text-gray-400 hover:text-gray-600 font-bold text-sm leading-none">✕</button>
-                                    </div>
-                                  ) : notEditable ? (
-                                    <span className="text-gray-400">{displayVal != null ? displayVal + '%' : '—'}</span>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        if (!canEditRow) return
-                                        setEditCell({ period_date: p, type, ...(type === 'baseline' ? { baselineId } : {}) })
-                                        setEditValue(displayVal != null ? String(displayVal) : '')
-                                      }}
-                                      className={`transition-colors ${canEditRow ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} ${displayVal != null ? 'text-gray-700 font-medium' : canEditRow ? 'text-gray-400 hover:text-[#ed6055]' : 'text-gray-200'}`}
-                                    >
-                                      {displayVal != null ? displayVal + '%' : (canEditRow ? '+ add' : '—')}
-                                    </button>
-                                  )}
-                                </td>
-                              )
-                            })}
+                                  return (
+                                    <td key={p} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums">
+                                      {isEditing ? (
+                                        <div className="flex items-center gap-0.5 justify-center">
+                                          <input
+                                            type="number" min={0} max={100} step={0.01}
+                                            value={editValue} autoFocus
+                                            onChange={e => setEditValue(e.target.value)}
+                                            onKeyDown={e => {
+                                              if (e.key === 'Enter') handleEdit(p, type)
+                                              if (e.key === 'Escape') { setEditCell(null); setEditValue('') }
+                                            }}
+                                            className="w-14 px-1 py-0.5 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
+                                          />
+                                          <button onClick={() => handleEdit(p, type)} disabled={saving}
+                                            className="text-green-600 hover:text-green-700 font-bold text-sm leading-none">✓</button>
+                                          <button onClick={() => { setEditCell(null); setEditValue('') }}
+                                            className="text-gray-400 hover:text-gray-600 font-bold text-sm leading-none">✕</button>
+                                        </div>
+                                      ) : notEditable ? (
+                                        <span className="text-gray-400">{displayVal != null ? displayVal + '%' : '—'}</span>
+                                      ) : (
+                                        <button
+                                          onClick={() => {
+                                            if (!canEditRow) return
+                                            setEditCell({ period_date: p, type, ...(type === 'baseline' ? { baselineId } : {}) })
+                                            setEditValue(displayVal != null ? String(displayVal) : '')
+                                          }}
+                                          className={`transition-colors ${canEditRow ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} ${displayVal != null ? 'text-gray-700 font-medium' : canEditRow ? 'text-gray-400 hover:text-[#ed6055]' : 'text-gray-200'}`}
+                                        >
+                                          {displayVal != null ? displayVal + '%' : (canEditRow ? '+ add' : '—')}
+                                        </button>
+                                      )}
+                                    </td>
+                                  )
+                                })}
                           </tr>
                         )
                       })}
                     </tbody>
                   </table>
-                )}
 
               </div>
           </div>
