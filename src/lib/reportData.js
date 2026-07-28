@@ -50,7 +50,7 @@ export async function fetchReportData(projectIds) {
       .in('project_id', ids)
       .gte('m4_date', '1900-01-01')),
 
-    supabase.from('project_poc')
+    supabase.from('project_scurve')
       .select('project_id, period_date, target_pct, actual_pct, projected_pct')
       .in('project_id', ids)
       .order('period_date', { ascending: true })

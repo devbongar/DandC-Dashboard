@@ -336,8 +336,8 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
 
   if (!isAdmin) {
     return (
-      <div className="text-xs text-gray-400 px-2 flex items-center min-h-[24px]">
-        {predText || <span className="text-gray-400">—</span>}
+      <div className="text-xs text-gray-700 px-2 flex items-center min-h-[24px]">
+        {predText || <span className="text-gray-500">—</span>}
       </div>
     )
   }
@@ -346,10 +346,10 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
     return (
       <div
         onClick={() => setEditing(true)}
-        className="text-xs text-gray-400 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-blue-50 hover:text-blue-600 transition"
+        className="text-xs text-gray-700 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-blue-50 hover:text-blue-600 transition"
         title="Click to edit predecessors (e.g. 3FS, 2SS+5)"
       >
-        {predText || <span className="text-gray-400 select-none">—</span>}
+        {predText || <span className="text-gray-500 select-none">—</span>}
       </div>
     )
   }
@@ -446,7 +446,7 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
   }, [value, editing])
 
   if (!isAdmin) {
-    return <span className={`whitespace-nowrap text-[11px] ${value ? 'text-gray-500' : 'text-gray-400'}`}>{value ? fmtDate(value) : '—'}</span>
+    return <span className={`whitespace-nowrap text-[11px] ${value ? 'text-gray-700' : 'text-gray-500'}`}>{value ? fmtDate(value) : '—'}</span>
   }
 
   if (!editing) {
@@ -488,7 +488,7 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
 function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, durColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
-  const bgBase     = !isChild ? '#f3f4f6' : (rowNum % 2 === 0 ? '#f9fafb' : '#f3f4f6')
+  const bgBase     = '#ffffff'
 
   const frozenW = ROW_NUM_W + labelW
     + (showDuration ? durColW : 0)
@@ -521,7 +521,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
           className={`flex items-center justify-center flex-shrink-0 self-stretch${showDragHandle ? ' cursor-grab' : ''}`}
           title={showDragHandle ? 'Drag to reorder' : undefined}
         >
-          <span className="text-[10px] font-mono text-gray-400 tabular-nums select-none">{rowNum}</span>
+          <span className="text-[10px] font-mono text-gray-700 tabular-nums select-none">{rowNum}</span>
         </div>
         {/* Activity name */}
         <div
@@ -552,10 +552,10 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
               onChange={onDraftChange}
               onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onRevertDraft() } }}
               ghost
-              textClassName={depth > 0 ? 'text-gray-500 pl-0.5' : 'font-bold text-gray-800'}
+              textClassName={depth > 0 ? 'text-gray-700 pl-0.5' : 'font-bold text-gray-700'}
             />
           ) : (
-            <p className={`text-xs truncate leading-tight flex-1 min-w-0 ${depth > 0 ? 'text-gray-500 pl-0.5' : 'font-bold text-gray-800'}`}>
+            <p className={`text-xs truncate leading-tight flex-1 min-w-0 ${depth > 0 ? 'text-gray-700 pl-0.5' : 'font-bold text-gray-700'}`}>
               {m.milestone_name}
             </p>
           )}
@@ -602,11 +602,11 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         {(showPlanned || showActual || showProjected) && (
           <div className="flex self-stretch">
             {showPlanned && dateCell(isAutoMode || hasActual || isBLConfirmed
-              ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_start)}</span>
+              ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.planned_start)}</span>
               : <DateCell value={m.planned_start} onSave={v => onSaveDate('planned_start', v)} isAdmin={isAdmin} max={m.planned_end || undefined} />
             , dateColWidths.plnStart)}
             {showPlanned && dateCell(isAutoMode || hasActual || isBLConfirmed
-              ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
+              ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
               : <DateCell value={m.planned_end} onSave={v => onSaveDate('planned_end', v)} isAdmin={isAdmin} min={m.planned_start || undefined} />
             , dateColWidths.plnEnd)}
             {showActual && dateCell(
@@ -616,11 +616,11 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
               <DateCell value={m.actual_end} onSave={v => onSaveDate('actual_end', v)} isAdmin={isAdmin} min={m.actual_start || undefined} />
             , dateColWidths.actEnd)}
             {showProjected && dateCell(m.actual_start
-              ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start)}</span>
+              ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start)}</span>
               : <DateCell value={m.projected_start} onSave={v => onSaveDate('projected_start', v)} isAdmin={isAdmin} max={m.projected_end || undefined} />
             , dateColWidths.projStart)}
             {showProjected && dateCell(m.actual_end
-              ? <span className="text-gray-500 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end)}</span>
+              ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end)}</span>
               : <DateCell value={m.projected_end} onSave={v => onSaveDate('projected_end', v)} isAdmin={isAdmin} min={m.projected_start || undefined} />
             , dateColWidths.projEnd)}
           </div>

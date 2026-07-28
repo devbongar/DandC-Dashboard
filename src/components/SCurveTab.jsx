@@ -105,8 +105,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const load = async () => {
     setLoading(true)
     const [{ data: poc }, { data: pend }] = await Promise.all([
-      supabase.from('project_poc').select('*').eq('project_id', project.id).order('period_date', { ascending: true }),
-      supabase.from('project_poc_pending').select('*').eq('project_id', project.id).eq('status', 'pending').order('created_at', { ascending: true }),
+      supabase.from('project_scurve').select('*').eq('project_id', project.id).order('period_date', { ascending: true }),
+      supabase.from('project_scurve_pending').select('*').eq('project_id', project.id).eq('status', 'pending').order('created_at', { ascending: true }),
     ])
     setPocData(poc ?? [])
     setPending(pend ?? [])
@@ -225,7 +225,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     setSaving(true)
     const pocRow = pocData.find(r => r.period_date === period_date)
     const old_value = pocRow?.[field] ?? null
-    const { error } = await supabase.from('project_poc_pending').insert({
+    const { error } = await supabase.from('project_scurve_pending').insert({
       project_id: project.id,
       period_date,
       field,
@@ -241,7 +241,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   }
 
   const handleApprove = async (pendingRow) => {
-    const { error: upsertErr } = await supabase.from('project_poc').upsert(
+    const { error: upsertErr } = await supabase.from('project_scurve').upsert(
       {
         project_id:  project.id,
         period_date: pendingRow.period_date,
@@ -251,7 +251,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       { onConflict: 'project_id,period_date' }
     )
     if (upsertErr) { showToast(upsertErr.message, 'error'); return }
-    const { error: updErr } = await supabase.from('project_poc_pending').update({
+    const { error: updErr } = await supabase.from('project_scurve_pending').update({
       status: 'approved',
       reviewed_at: new Date().toISOString(),
     }).eq('id', pendingRow.id)
@@ -261,7 +261,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   }
 
   const handleReject = async (pendingRow) => {
-    const { error } = await supabase.from('project_poc_pending').update({
+    const { error } = await supabase.from('project_scurve_pending').update({
       status: 'rejected',
       reviewed_at: new Date().toISOString(),
     }).eq('id', pendingRow.id)
@@ -326,7 +326,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
       if (!upserts.length) { showToast('No valid rows parsed', 'error'); setImporting(false); return }
 
-      const { error } = await supabase.from('project_poc')
+      const { error } = await supabase.from('project_scurve')
         .upsert(upserts, { onConflict: 'project_id,period_date' })
       if (error) { showToast(error.message, 'error'); setImporting(false); return }
 
@@ -353,7 +353,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       const m = String(now.getMonth() + 1).padStart(2, '0')
       period_date = `${y}-${m}-01`
     }
-    const { error } = await supabase.from('project_poc').insert({ project_id: project.id, period_date })
+    const { error } = await supabase.from('project_scurve').insert({ project_id: project.id, period_date })
     if (error) { showToast(error.message, 'error'); return }
     load()
   }

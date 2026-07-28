@@ -104,14 +104,14 @@ function TaskRow({ task, seq, isChild, allTasks, editingId, addingAfterId, onEdi
   return (
     <>
       <tr
-        className={`border-b border-gray-100 ${isChild ? 'bg-blue-50/30' : ''}`}
+        className="border-b border-gray-100 bg-white"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <td className="px-3 py-2 text-gray-400 text-xs">{seq}</td>
+        <td className="px-3 py-2 text-gray-700 text-xs">{seq}</td>
         <td className="px-3 py-2" style={{ paddingLeft: isChild ? 28 : 12 }}>
           <div className="flex items-center gap-2">
-            <span className={`text-xs ${isChild ? 'text-gray-700' : 'font-semibold text-gray-900'}`}>
+            <span className={`text-xs ${isChild ? 'text-gray-700' : 'font-semibold text-gray-700'}`}>
               {task.milestone_name}
             </span>
             {hovered && (
@@ -125,14 +125,14 @@ function TaskRow({ task, seq, isChild, allTasks, editingId, addingAfterId, onEdi
             )}
           </div>
         </td>
-        <td className="px-3 py-2 text-center text-xs">
+        <td className="px-3 py-2 text-center text-xs text-gray-700">
           {hasChildren
-            ? <span className="text-gray-300">—</span>
-            : (task.duration != null ? task.duration : <span className="text-gray-300">—</span>)
+            ? <span className="text-gray-400">—</span>
+            : (task.duration != null ? task.duration : <span className="text-gray-400">—</span>)
           }
         </td>
-        <td className="px-3 py-2 text-xs text-gray-600">
-          {task.predecessor_text ?? <span className="text-gray-300">—</span>}
+        <td className="px-3 py-2 text-xs text-gray-700">
+          {task.predecessor_text ?? <span className="text-gray-400">—</span>}
         </td>
         <td className="px-3 py-2 text-right whitespace-nowrap">
           <span onClick={() => onEdit(task.id)}   className="text-gray-300 cursor-pointer mr-2 hover:text-gray-500">✎</span>
@@ -160,7 +160,7 @@ function InlineRowConsumer() { return null }
 
 function PhaseHeader({ label }) {
   return (
-    <tr className="bg-gray-50 border-t-2 border-gray-200">
+    <tr className="bg-white border-t-2 border-gray-200">
       <td colSpan={5} className="px-3 py-1.5 text-[10px] font-bold text-gray-500 uppercase tracking-widest">
         ▸ {label}
       </td>
@@ -415,7 +415,7 @@ function PhaseRows({ phase, phaseTasks, parents, allTasks, seqMap, editingId, ad
       )}
 
       {/* "+ Add top-level task" link */}
-      <tr className="bg-gray-50">
+      <tr className="bg-white">
         <td colSpan={5} className="px-3 py-2">
           <button
             onClick={onAddTopLevel}
@@ -452,14 +452,14 @@ function ParentRows({ parent, parentSeq, children, allTasks, seqMap, editingId, 
   return (
     <>
       <tr
-        className="border-b border-gray-100"
+        className="border-b border-gray-100 bg-white"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <td className="px-3 py-2 text-gray-400 text-xs">{parentSeq}</td>
+        <td className="px-3 py-2 text-gray-700 text-xs">{parentSeq}</td>
         <td className="px-3 py-2">
           <div className="flex items-center gap-2">
-            <span className="text-xs font-semibold text-gray-900">{parent.milestone_name}</span>
+            <span className="text-xs font-semibold text-gray-700">{parent.milestone_name}</span>
             {hovered && (
               <button
                 onClick={() => onAddBelow(parent)}
@@ -471,13 +471,13 @@ function ParentRows({ parent, parentSeq, children, allTasks, seqMap, editingId, 
             )}
           </div>
         </td>
-        <td className="px-3 py-2 text-center text-xs">
+        <td className="px-3 py-2 text-center text-xs text-gray-700">
           {children.length > 0
-            ? <span className="text-gray-300">—</span>
-            : (parent.duration != null ? parent.duration : <span className="text-gray-300">—</span>)}
+            ? <span className="text-gray-400">—</span>
+            : (parent.duration != null ? parent.duration : <span className="text-gray-400">—</span>)}
         </td>
-        <td className="px-3 py-2 text-xs text-gray-600">
-          {parent.predecessor_text ?? <span className="text-gray-300">—</span>}
+        <td className="px-3 py-2 text-xs text-gray-700">
+          {parent.predecessor_text ?? <span className="text-gray-400">—</span>}
         </td>
         <td className="px-3 py-2 text-right whitespace-nowrap">
           <span onClick={() => onEdit(parent.id)} className="text-gray-300 cursor-pointer mr-2 hover:text-gray-500">✎</span>
@@ -539,11 +539,11 @@ function ChildRow({ child, seq, allTasks, onEdit, onDelete, onAddBelow, isAddAft
   return (
     <>
       <tr
-        className="border-b border-gray-100 bg-blue-50/30"
+        className="border-b border-gray-100 bg-white"
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <td className="px-3 py-2 text-gray-400 text-xs">{seq}</td>
+        <td className="px-3 py-2 text-gray-700 text-xs">{seq}</td>
         <td className="py-2 pr-3" style={{ paddingLeft: 28 }}>
           <div className="flex items-center gap-2">
             <span className="text-xs text-gray-700">{child.milestone_name}</span>
@@ -558,11 +558,11 @@ function ChildRow({ child, seq, allTasks, onEdit, onDelete, onAddBelow, isAddAft
             )}
           </div>
         </td>
-        <td className="px-3 py-2 text-center text-xs">
-          {child.duration != null ? child.duration : <span className="text-gray-300">—</span>}
+        <td className="px-3 py-2 text-center text-xs text-gray-700">
+          {child.duration != null ? child.duration : <span className="text-gray-400">—</span>}
         </td>
-        <td className="px-3 py-2 text-xs text-gray-600">
-          {child.predecessor_text ?? <span className="text-gray-300">—</span>}
+        <td className="px-3 py-2 text-xs text-gray-700">
+          {child.predecessor_text ?? <span className="text-gray-400">—</span>}
         </td>
         <td className="px-3 py-2 text-right whitespace-nowrap">
           <span onClick={() => onEdit(child.id)} className="text-gray-300 cursor-pointer mr-2 hover:text-gray-500">✎</span>
