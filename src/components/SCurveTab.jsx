@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod } from '../lib/scurveUtils'
 import { downloadWorkbook, downloadBaselineTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
-  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
 } from 'recharts'
 
 const COL_W   = 80
@@ -248,6 +248,120 @@ function BaselineMultiSelect({ baselines, selectedIds, onChange, colors }) {
   )
 }
 
+const PHASE_LABELS = {
+  initiation:           'Initiation',
+  planning:             'Planning',
+  execution_monitoring: 'Execution & Monitoring',
+  closeout:             'Closeout',
+}
+
+function ActivityMultiSelect({ milestones, selectedIds, onChange }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const toggle = id => {
+    if (selectedIds.includes(id)) onChange(selectedIds.filter(x => x !== id))
+    else onChange([...selectedIds, id])
+  }
+
+  const triggerLabel = selectedIds.length === 0
+    ? 'Activities…'
+    : selectedIds.length === 1
+      ? (milestones.find(m => m.id === selectedIds[0])?.milestone_name ?? 'Activity')
+      : `${selectedIds.length} activities`
+
+  const phases = ['initiation', 'planning', 'execution_monitoring', 'closeout']
+  const grouped = phases
+    .map(phase => ({ phase, items: milestones.filter(m => m.phase === phase) }))
+    .filter(g => g.items.length > 0)
+
+  return (
+    <div ref={ref} className="relative">
+      <button type="button" onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-indigo-400 transition min-w-36"
+      >
+        <svg className="w-3.5 h-3.5 text-indigo-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <span className="truncate flex-1 text-left">{triggerLabel}</span>
+        <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute top-full mt-1 left-0 z-30 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-64 max-h-72 overflow-y-auto">
+          {grouped.length === 0 ? (
+            <p className="px-4 py-2 text-xs text-gray-400">No work program activities with dates</p>
+          ) : grouped.map(({ phase, items }) => (
+            <div key={phase}>
+              <div className="px-4 py-1.5 text-[10px] font-extrabold text-gray-400 uppercase tracking-widest bg-gray-50 border-b border-gray-100 sticky top-0">
+                {PHASE_LABELS[phase] ?? phase}
+              </div>
+              {items.map(m => {
+                const checked = selectedIds.includes(m.id)
+                return (
+                  <button key={m.id} type="button" onClick={() => toggle(m.id)}
+                    className="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-indigo-50 transition text-left">
+                    <span className="w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center"
+                      style={checked ? { backgroundColor: '#6366f1', borderColor: '#6366f1' } : { borderColor: '#d1d5db' }}>
+                      {checked && (
+                        <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                          <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                        </svg>
+                      )}
+                    </span>
+                    <span className="flex-1 truncate">{m.milestone_name}</span>
+                    {m.planned_start && (
+                      <span className="text-gray-400 whitespace-nowrap font-mono">{m.planned_start.slice(0, 7)}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+          ))}
+          {selectedIds.length > 0 && (
+            <>
+              <div className="border-t border-gray-100 my-1" />
+              <button type="button" onClick={() => { onChange([]); setOpen(false) }}
+                className="w-full text-left px-4 py-1.5 text-xs text-gray-400 hover:text-indigo-500 transition">
+                Clear all
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function ActivityRefLabel({ viewBox, name, yOffset = 0 }) {
+  const { x, y, height } = viewBox
+  const tx = x + 3
+  const ty = y + height - 10 - yOffset
+  const displayName = name.length > 24 ? name.slice(0, 22) + '…' : name
+  return (
+    <g>
+      <text
+        x={tx} y={ty}
+        fill="#6366f1"
+        fontSize={9}
+        fontWeight="600"
+        textAnchor="start"
+        transform={`rotate(-90, ${tx}, ${ty})`}
+        style={{ userSelect: 'none', pointerEvents: 'none' }}
+      >
+        {displayName}
+      </text>
+    </g>
+  )
+}
+
 export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [baselines,            setBaselines]            = useState([])
   const [selectedBaselineIds,  setSelectedBaselineIds]  = useState([])
@@ -265,6 +379,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [showDownloadPicker,   setShowDownloadPicker]   = useState(false)
   const [downloading,          setDownloading]          = useState(false)
   const [importingExisting,    setImportingExisting]    = useState(false)
+  const [milestones,           setMilestones]           = useState([])
+  const [selectedActivityIds,  setSelectedActivityIds]  = useState([])
   const existingImportRef = useRef(null)
 
   const dateRangeKey = `scurve_dateRange_${project.id}`
@@ -307,6 +423,29 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   }
 
   useEffect(() => { load() }, [project.id])
+
+  // Fetch work program milestones from latest confirmed milestone baseline
+  useEffect(() => {
+    const fetchMilestones = async () => {
+      const { data: mbl } = await supabase
+        .from('milestone_baselines')
+        .select('id')
+        .eq('project_id', project.id)
+        .order('confirmed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+      if (!mbl) { setMilestones([]); return }
+      const { data: ms } = await supabase
+        .from('project_milestones')
+        .select('id, milestone_name, phase, planned_start')
+        .eq('project_id', project.id)
+        .eq('baseline_id', mbl.id)
+        .not('planned_start', 'is', null)
+        .order('planned_start')
+      setMilestones(ms ?? [])
+    }
+    fetchMilestones()
+  }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load baseline data whenever selection changes
   useEffect(() => {
@@ -727,6 +866,13 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   : { background: '#f3f4f6', color: '#6b7280' }}
               >{mode}</button>
             ))}
+            {milestones.length > 0 && (
+              <ActivityMultiSelect
+                milestones={milestones}
+                selectedIds={selectedActivityIds}
+                onChange={setSelectedActivityIds}
+              />
+            )}
           </div>
           <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
             {selectedBaselineIds.map((id, i) => {
@@ -817,6 +963,31 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         })
         const periodicGroups = viewMode === 'quarterly' ? [...periodicQMap.values()] : null
 
+        // Map selected activities to their chart period label for ReferenceLine
+        const activityMarkers = (() => {
+          const slotsByPeriod = new Map()
+          return milestones
+            .filter(m => selectedActivityIds.includes(m.id) && m.planned_start)
+            .map(m => {
+              let periodLabel = null
+              if (viewMode === 'quarterly') {
+                const d    = new Date(m.planned_start)
+                const q    = Math.floor(d.getMonth() / 3) + 1
+                const year = d.getFullYear()
+                const lbl  = `Q${q} '${String(year).slice(2)}`
+                if (displayData.some(pt => pt.period === lbl)) periodLabel = lbl
+              } else {
+                const monthStr = m.planned_start.slice(0, 7) + '-01'
+                if (filteredPeriods.includes(monthStr)) periodLabel = formatPeriod(monthStr)
+              }
+              if (!periodLabel) return null
+              const slot = slotsByPeriod.get(periodLabel) ?? 0
+              slotsByPeriod.set(periodLabel, slot + 1)
+              return { id: m.id, name: m.milestone_name, periodLabel, yOffset: slot * 38 }
+            })
+            .filter(Boolean)
+        })()
+
         return (
           <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
               <div style={{ width: effectiveWidth, minWidth: totalW }}>
@@ -847,6 +1018,12 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                     ))}
                     <Line dataKey="actual"   name="Actual"   stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls />
                     <Line dataKey="forecast" name="Forecast" stroke="#fde047" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
+                    {activityMarkers.map(({ id, name, periodLabel, yOffset }) => (
+                      <ReferenceLine key={id} x={periodLabel}
+                        stroke="#6366f1" strokeDasharray="4 2" strokeWidth={1.5}
+                        label={<ActivityRefLabel name={name} yOffset={yOffset} />}
+                      />
+                    ))}
                   </ComposedChart>
                 )}
 
