@@ -1,15 +1,15 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import SearchDropdown from './SearchDropdown'
-import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts } from '../lib/scurveUtils'
+import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod } from '../lib/scurveUtils'
 import { downloadWorkbook, downloadBaselineTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 
 const COL_W   = 80
-const LABEL_W = 88
+const LABEL_W = 160
 
+const BASELINE_COLORS = ['#9ca3af', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4']
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const THIS_YEAR   = new Date().getFullYear()
@@ -130,7 +130,6 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
         </div>
       </div>
 
-      {/* Excel import */}
       <div className="flex items-center gap-3 pt-1 border-t border-gray-200">
         <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} className="hidden" />
         <button type="button" onClick={() => fileRef.current?.click()} disabled={importing}
@@ -171,23 +170,101 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
   )
 }
 
+function BaselineMultiSelect({ baselines, selectedIds, onChange, colors }) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
+  const toggle = id => {
+    if (selectedIds.includes(id)) onChange(selectedIds.filter(x => x !== id))
+    else onChange([...selectedIds, id])
+  }
+
+  const label = selectedIds.length === 0
+    ? 'Select baselines…'
+    : selectedIds.length === 1
+      ? (baselines.find(b => b.id === selectedIds[0])?.name ?? 'Baseline')
+      : `${selectedIds.length} baselines selected`
+
+  return (
+    <div ref={ref} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-[#ed6055] transition min-w-52"
+      >
+        <div className="flex items-center gap-1 flex-1 min-w-0">
+          {selectedIds.map((id, i) => (
+            <span key={id} className="w-2 h-2 rounded-full flex-shrink-0"
+              style={{ backgroundColor: colors[i % colors.length] }} />
+          ))}
+          <span className="truncate ml-1">{label}</span>
+        </div>
+        <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+      {open && (
+        <div className="absolute top-full mt-1 left-0 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-52">
+          {baselines.length === 0 ? (
+            <p className="px-4 py-2 text-xs text-gray-400">No baselines yet</p>
+          ) : baselines.map((b, i) => {
+            const checked = selectedIds.includes(b.id)
+            const color = colors[i % colors.length]
+            return (
+              <button key={b.id} type="button" onClick={() => toggle(b.id)}
+                className="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition text-left">
+                <span className="w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center"
+                  style={checked ? { backgroundColor: color, borderColor: color } : { borderColor: '#d1d5db' }}>
+                  {checked && (
+                    <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                    </svg>
+                  )}
+                </span>
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                <span className="flex-1 truncate">{b.name}</span>
+                {b.cutoff_date && <span className="text-gray-400 text-[10px] whitespace-nowrap">re-baseline</span>}
+              </button>
+            )
+          })}
+          {selectedIds.length > 0 && (
+            <>
+              <div className="border-t border-gray-100 my-1" />
+              <button type="button" onClick={() => { onChange([]); setOpen(false) }}
+                className="w-full text-left px-4 py-1.5 text-xs text-gray-400 hover:text-[#ed6055] transition">
+                Clear all
+              </button>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function SCurveTab({ project, isAdmin, canEdit }) {
-  const [baselines,          setBaselines]          = useState([])
-  const [selectedBaselineId, setSelectedBaselineId] = useState(null)
-  const [baselineData,       setBaselineData]       = useState([])
-  const [actuals,            setActuals]            = useState([])
-  const [forecasts,          setForecasts]          = useState([])
-  const [loading,            setLoading]            = useState(true)
-  const [viewMode,           setViewMode]           = useState('monthly')
-  const [editCell,           setEditCell]           = useState(null)
-  const [editValue,          setEditValue]          = useState('')
-  const [saving,             setSaving]             = useState(false)
-  const [toast,              setToast]              = useState(null)
-  const [showNewBaseline,    setShowNewBaseline]    = useState(false)
-  const [importConflict,     setImportConflict]     = useState(null) // { conflicts, newRows } for existing baseline import
-  const [showDownloadPicker, setShowDownloadPicker] = useState(false)
-  const [downloading,        setDownloading]        = useState(false)
-  const [importingExisting,  setImportingExisting]  = useState(false)
+  const [baselines,            setBaselines]            = useState([])
+  const [selectedBaselineIds,  setSelectedBaselineIds]  = useState([])
+  const [baselineDataMap,      setBaselineDataMap]      = useState({}) // id → rows[]
+  const [actuals,              setActuals]              = useState([])
+  const [forecasts,            setForecasts]            = useState([])
+  const [loading,              setLoading]              = useState(true)
+  const [viewMode,             setViewMode]             = useState('monthly')
+  const [editCell,             setEditCell]             = useState(null) // { period_date, type, baselineId? }
+  const [editValue,            setEditValue]            = useState('')
+  const [saving,               setSaving]               = useState(false)
+  const [toast,                setToast]                = useState(null)
+  const [showNewBaseline,      setShowNewBaseline]      = useState(false)
+  const [importConflict,       setImportConflict]       = useState(null)
+  const [showDownloadPicker,   setShowDownloadPicker]   = useState(false)
+  const [downloading,          setDownloading]          = useState(false)
+  const [importingExisting,    setImportingExisting]    = useState(false)
   const existingImportRef = useRef(null)
 
   const dateRangeKey = `scurve_dateRange_${project.id}`
@@ -211,6 +288,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     setTimeout(() => setToast(null), 3000)
   }
 
+  // Primary baseline = first selected (target for import / add month)
+  const primaryBaselineId = selectedBaselineIds[0] ?? null
+
   const load = async () => {
     setLoading(true)
     const [{ data: bl }, { data: acts }, { data: fors }] = await Promise.all([
@@ -222,24 +302,39 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     setBaselines(bls)
     setActuals(acts ?? [])
     setForecasts(fors ?? [])
-    setSelectedBaselineId(prev => prev ?? (bls[0]?.id ?? null))
+    setSelectedBaselineIds(prev => prev.length > 0 ? prev : (bls[0] ? [bls[0].id] : []))
     setLoading(false)
   }
 
   useEffect(() => { load() }, [project.id])
 
+  // Load baseline data whenever selection changes
   useEffect(() => {
-    if (!selectedBaselineId) { setBaselineData([]); return }
-    supabase.from('project_scurve_baseline_data').select('*')
-      .eq('baseline_id', selectedBaselineId).order('period_date')
-      .then(({ data }) => setBaselineData(data ?? []))
-  }, [selectedBaselineId])
+    if (!selectedBaselineIds.length) { setBaselineDataMap({}); return }
+    Promise.all(
+      selectedBaselineIds.map(id =>
+        supabase.from('project_scurve_baseline_data').select('*')
+          .eq('baseline_id', id).order('period_date')
+          .then(({ data }) => [id, data ?? []])
+      )
+    ).then(entries => setBaselineDataMap(Object.fromEntries(entries)))
+  }, [JSON.stringify(selectedBaselineIds)]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const baselineMap = useMemo(() => Object.fromEntries(baselineData.map(r => [r.period_date, r])), [baselineData])
-  const actualMap   = useMemo(() => Object.fromEntries(actuals.map(r => [r.period_date, r])),     [actuals])
-  const forecastMap = useMemo(() => Object.fromEntries(forecasts.map(r => [r.period_date, r])),   [forecasts])
+  const baselineMaps = useMemo(() => {
+    const result = {}
+    for (const [id, data] of Object.entries(baselineDataMap)) {
+      result[id] = Object.fromEntries(data.map(r => [r.period_date, r]))
+    }
+    return result
+  }, [baselineDataMap])
 
-  const allPeriods = useMemo(() => buildAllPeriods(baselineData, actuals, forecasts), [baselineData, actuals, forecasts])
+  const actualMap   = useMemo(() => Object.fromEntries(actuals.map(r => [r.period_date, r])),   [actuals])
+  const forecastMap = useMemo(() => Object.fromEntries(forecasts.map(r => [r.period_date, r])), [forecasts])
+
+  const allPeriods = useMemo(() => {
+    const allBd = Object.values(baselineDataMap).flat()
+    return buildAllPeriods(allBd, actuals, forecasts)
+  }, [baselineDataMap, actuals, forecasts])
 
   const filteredPeriods = useMemo(() => allPeriods.filter(p => {
     const ym = p.slice(0, 7)
@@ -248,17 +343,26 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     return true
   }), [allPeriods, fromMonth, toMonth])
 
-  const chartData = useMemo(() =>
-    computeChartData(allPeriods, baselineData, actuals, forecasts),
-    [allPeriods, baselineData, actuals, forecasts]
-  )
-
-  const chartDataFiltered = useMemo(() => {
-    let result = chartData
-    if (fromMonth) result = result.filter(d => d._date.slice(0, 7) >= fromMonth)
-    if (toMonth)   result = result.filter(d => d._date.slice(0, 7) <= toMonth)
-    return result
-  }, [chartData, fromMonth, toMonth])
+  // chartData: { period, actual, forecast, bl_<id>, _date } per period
+  const chartData = useMemo(() => {
+    if (!allPeriods.length) return []
+    // Compute actual + forecast (baseline-independent)
+    const afSeries = computeChartData(allPeriods, [], actuals, forecasts)
+    // Compute cumulative per selected baseline
+    const blSeriesMaps = {}
+    for (const id of selectedBaselineIds) {
+      const series = computeChartData(allPeriods, baselineDataMap[id] ?? [], [], [])
+      blSeriesMaps[id] = Object.fromEntries(series.map(s => [s._date, s.baseline]))
+    }
+    return afSeries.map((af, i) => {
+      const p = allPeriods[i]
+      const point = { period: af.period, actual: af.actual, forecast: af.forecast, _date: p }
+      for (const id of selectedBaselineIds) {
+        point[`bl_${id}`] = blSeriesMaps[id]?.[p] ?? null
+      }
+      return point
+    })
+  }, [allPeriods, baselineDataMap, actuals, forecasts, selectedBaselineIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleCreateBaseline = async ({ name, cutoff_date, notes, importedRows }) => {
     const { data: bl, error } = await supabase
@@ -281,9 +385,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     }
 
     setShowNewBaseline(false)
-    setSelectedBaselineId(bl.id)
     showToast('Baseline created')
-    load()
+    // Refresh baselines list, then add new ID to selection (triggers data load via useEffect)
+    const { data: bls } = await supabase.from('project_scurve_baselines').select('*').eq('project_id', project.id).order('created_at')
+    setBaselines(bls ?? [])
+    setSelectedBaselineIds(prev => [...prev, bl.id])
   }
 
   const handleDownloadBaseline = async (baselineId) => {
@@ -292,10 +398,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     const bl = baselines.find(b => b.id === baselineId)
     const { data: rows } = await supabase.from('project_scurve_baseline_data')
       .select('period_date, planned_pct').eq('baseline_id', baselineId).order('period_date')
-    const data = (rows ?? []).map(r => ({
-      period:    r.period_date,
-      planned:   r.planned_pct ?? '',
-    }))
+    const data = (rows ?? []).map(r => ({ period: r.period_date, planned: r.planned_pct ?? '' }))
     downloadWorkbook(
       [{
         sheetName: 'Baseline Data',
@@ -313,18 +416,20 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
   const handleImportExisting = async (e) => {
     const file = e.target.files?.[0]
-    if (!file || !selectedBaselineId) return
+    if (!file || !primaryBaselineId) return
+    const targetId = primaryBaselineId
     e.target.value = ''
     setImportingExisting(true)
     try {
       const wb      = await parseWorkbook(file)
       const parsed  = parseBaselineExcel(wb)
       if (!parsed.length) { showToast('No valid rows found', 'error'); setImportingExisting(false); return }
-      const { conflicts, newRows } = detectConflicts(parsed, baselineMap)
+      const pBMap = baselineMaps[targetId] ?? {}
+      const { conflicts, newRows } = detectConflicts(parsed, pBMap)
       if (conflicts.length > 0) {
-        setImportConflict({ conflicts, newRows, allRows: parsed })
+        setImportConflict({ conflicts, newRows, allRows: parsed, targetId })
       } else {
-        await applyBaselineImport(newRows, [])
+        await applyBaselineImport(newRows, [], targetId)
         showToast(`Imported ${newRows.length} periods`)
       }
     } catch {
@@ -333,39 +438,27 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     setImportingExisting(false)
   }
 
-  const applyBaselineImport = async (newRows, overwriteRows) => {
-    const toInsert  = newRows.filter(r => !baselineMap[r.period_date])
-    const toUpdate  = [...newRows.filter(r => baselineMap[r.period_date]), ...overwriteRows]
+  const applyBaselineImport = async (newRows, overwriteRows, targetId) => {
+    const pBMap = baselineMaps[targetId] ?? {}
+    const toInsert  = newRows.filter(r => !pBMap[r.period_date])
+    const toUpdate  = [...newRows.filter(r => pBMap[r.period_date]), ...overwriteRows]
 
     await Promise.all([
       toInsert.length > 0
         ? supabase.from('project_scurve_baseline_data').insert(
-            toInsert.map(r => ({ baseline_id: selectedBaselineId, period_date: r.period_date, planned_pct: r.planned_pct }))
+            toInsert.map(r => ({ baseline_id: targetId, period_date: r.period_date, planned_pct: r.planned_pct }))
           )
         : Promise.resolve(),
       ...toUpdate.map(r =>
         supabase.from('project_scurve_baseline_data')
           .update({ planned_pct: r.planned_pct })
-          .eq('id', baselineMap[r.period_date].id)
+          .eq('id', pBMap[r.period_date].id)
       ),
     ])
     setImportConflict(null)
     const { data } = await supabase.from('project_scurve_baseline_data')
-      .select('*').eq('baseline_id', selectedBaselineId).order('period_date')
-    setBaselineData(data ?? [])
-  }
-
-  const reloadData = async () => {
-    const [{ data: acts }, { data: fors }, { data: bd }] = await Promise.all([
-      supabase.from('project_scurve_actual').select('*').eq('project_id', project.id).order('period_date'),
-      supabase.from('project_scurve_forecast').select('*').eq('project_id', project.id).order('period_date'),
-      selectedBaselineId
-        ? supabase.from('project_scurve_baseline_data').select('*').eq('baseline_id', selectedBaselineId).order('period_date')
-        : Promise.resolve({ data: [] }),
-    ])
-    setActuals(acts ?? [])
-    setForecasts(fors ?? [])
-    setBaselineData(bd ?? [])
+      .select('*').eq('baseline_id', targetId).order('period_date')
+    setBaselineDataMap(prev => ({ ...prev, [targetId]: data ?? [] }))
   }
 
   const handleEdit = async (period_date, type) => {
@@ -374,35 +467,44 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     setSaving(true)
 
     if (type === 'baseline') {
-      const existing = baselineMap[period_date]
+      const targetId = editCell.baselineId
+      const bMap     = baselineMaps[targetId] ?? {}
+      const existing = bMap[period_date]
       const { error } = existing
         ? await supabase.from('project_scurve_baseline_data').update({ planned_pct: numVal }).eq('id', existing.id)
-        : await supabase.from('project_scurve_baseline_data').insert({ baseline_id: selectedBaselineId, period_date, planned_pct: numVal })
+        : await supabase.from('project_scurve_baseline_data').insert({ baseline_id: targetId, period_date, planned_pct: numVal })
       if (error) { showToast(error.message, 'error'); setSaving(false); return }
+      const { data } = await supabase.from('project_scurve_baseline_data')
+        .select('*').eq('baseline_id', targetId).order('period_date')
+      setBaselineDataMap(prev => ({ ...prev, [targetId]: data ?? [] }))
     } else if (type === 'actual') {
       const existing = actualMap[period_date]
       const { error } = existing
         ? await supabase.from('project_scurve_actual').update({ actual_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
         : await supabase.from('project_scurve_actual').insert({ project_id: project.id, period_date, actual_pct: numVal })
       if (error) { showToast(error.message, 'error'); setSaving(false); return }
+      const { data } = await supabase.from('project_scurve_actual').select('*').eq('project_id', project.id).order('period_date')
+      setActuals(data ?? [])
     } else if (type === 'forecast') {
       const existing = forecastMap[period_date]
       const { error } = existing
         ? await supabase.from('project_scurve_forecast').update({ forecast_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
         : await supabase.from('project_scurve_forecast').insert({ project_id: project.id, period_date, forecast_pct: numVal })
       if (error) { showToast(error.message, 'error'); setSaving(false); return }
+      const { data } = await supabase.from('project_scurve_forecast').select('*').eq('project_id', project.id).order('period_date')
+      setForecasts(data ?? [])
     }
 
     setSaving(false)
     setEditCell(null)
     setEditValue('')
     showToast('Saved')
-    reloadData()
   }
 
   const handleAddMonth = async () => {
-    if (!selectedBaselineId) { showToast('Select a baseline first', 'error'); return }
-    const refPeriods = baselineData.length > 0 ? baselineData : allPeriods.map(p => ({ period_date: p }))
+    if (!primaryBaselineId) { showToast('Select a baseline first', 'error'); return }
+    const primaryData = baselineDataMap[primaryBaselineId] ?? []
+    const refPeriods = primaryData.length > 0 ? primaryData : allPeriods.map(p => ({ period_date: p }))
     let period_date
     if (refPeriods.length > 0) {
       const last = refPeriods[refPeriods.length - 1].period_date
@@ -414,37 +516,67 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       period_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
     }
     const { error } = await supabase.from('project_scurve_baseline_data')
-      .insert({ baseline_id: selectedBaselineId, period_date })
+      .insert({ baseline_id: primaryBaselineId, period_date })
     if (error) { showToast(error.message, 'error'); return }
     const { data } = await supabase.from('project_scurve_baseline_data')
-      .select('*').eq('baseline_id', selectedBaselineId).order('period_date')
-    setBaselineData(data ?? [])
+      .select('*').eq('baseline_id', primaryBaselineId).order('period_date')
+    setBaselineDataMap(prev => ({ ...prev, [primaryBaselineId]: data ?? [] }))
   }
 
-  const selectedBaseline = baselines.find(b => b.id === selectedBaselineId)
-  const totalW           = LABEL_W + COL_W * filteredPeriods.length
+  const totalW = LABEL_W + COL_W * filteredPeriods.length
 
+  const containerRef   = useRef(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+  useEffect(() => {
+    if (!containerRef.current) return
+    const ro = new ResizeObserver(entries => setContainerWidth(entries[0].contentRect.width))
+    ro.observe(containerRef.current)
+    return () => ro.disconnect()
+  }, [])
+
+  const effectiveWidth = Math.max(totalW, containerWidth)
+  const effectiveColW  = filteredPeriods.length > 0
+    ? (effectiveWidth - LABEL_W) / filteredPeriods.length
+    : COL_W
+
+  const primaryBaseline = baselines.find(b => b.id === primaryBaselineId)
+
+  // One row per selected baseline + Actual + Forecast
   const INPUT_ROWS = [
-    { label: 'Planned',  type: 'baseline', color: '#9ca3af', bg: '#ffffff', adminOnly: true },
-    { label: 'Actual',   type: 'actual',   color: '#86efac', bg: '#fafbfc', adminOnly: false },
-    { label: 'Forecast', type: 'forecast', color: '#fde047', bg: '#ffffff', adminOnly: false },
+    ...selectedBaselineIds.map((id, i) => ({
+      label:      baselines.find(b => b.id === id)?.name ?? 'Baseline',
+      type:       'baseline',
+      baselineId: id,
+      color:      BASELINE_COLORS[i % BASELINE_COLORS.length],
+      bg:         '#ffffff',
+      adminOnly:  true,
+    })),
+    { label: 'Actual',   type: 'actual',   baselineId: null, color: '#86efac', bg: '#fafbfc', adminOnly: false },
+    { label: 'Forecast', type: 'forecast', baselineId: null, color: '#fde047', bg: '#ffffff', adminOnly: false },
+  ]
+
+  const CUMULATIVE_ROWS = [
+    ...selectedBaselineIds.map((id, i) => ({
+      label: baselines.find(b => b.id === id)?.name ?? 'Baseline',
+      key:   `bl_${id}`,
+      color: BASELINE_COLORS[i % BASELINE_COLORS.length],
+      bg:    '#ffffff',
+    })),
+    { label: 'Actual',   key: 'actual',   color: '#86efac', bg: '#fafbfc' },
+    { label: 'Forecast', key: 'forecast', color: '#fde047', bg: '#ffffff' },
   ]
 
   return (
-    <div className="py-4 sm:py-5 space-y-5">
+    <div ref={containerRef} className="py-4 sm:py-5 space-y-5">
 
-      {/* Baseline selector */}
+      {/* Baseline multi-select + actions */}
       <div className="flex items-center gap-3 flex-wrap">
-        <div className="w-64">
-          <SearchDropdown
-            fluid
-            options={baselines.map(b => ({ value: b.id, label: b.name }))}
-            value={selectedBaselineId ?? ''}
-            onChange={setSelectedBaselineId}
-            emptyValue="" emptyLabel="No baseline selected"
-            placeholder="Select baseline…"
-          />
-        </div>
+        <BaselineMultiSelect
+          baselines={baselines}
+          selectedIds={selectedBaselineIds}
+          onChange={setSelectedBaselineIds}
+          colors={BASELINE_COLORS}
+        />
         {isAdmin && (
           <button
             onClick={() => setShowNewBaseline(v => !v)}
@@ -453,8 +585,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
             + New Baseline
           </button>
         )}
-        {/* Import into existing baseline */}
-        {isAdmin && selectedBaselineId && (
+        {isAdmin && primaryBaselineId && (
           <>
             <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
               onChange={handleImportExisting} className="hidden" />
@@ -478,9 +609,13 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
               </svg>
               Template
             </button>
+            {selectedBaselineIds.length > 1 && (
+              <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                Import/Add Month applies to: {primaryBaseline?.name}
+              </span>
+            )}
           </>
         )}
-        {/* Download baseline picker */}
         {baselines.length > 0 && (
           <div className="relative">
             <button
@@ -505,9 +640,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
             )}
           </div>
         )}
-        {selectedBaseline?.cutoff_date && (
+        {primaryBaseline?.cutoff_date && (
           <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-            Re-baseline · cutoff {selectedBaseline.cutoff_date.slice(0, 7)}
+            Re-baseline · cutoff {primaryBaseline.cutoff_date.slice(0, 7)}
           </span>
         )}
       </div>
@@ -532,7 +667,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
               <div key={c.period_date} className="flex items-center gap-3 text-xs text-amber-700">
                 <span className="font-semibold w-16">{c.period_date.slice(0, 7)}</span>
                 <span className="text-amber-500">existing: {c.existing_pct}%</span>
-                <span className="text-amber-800">→ new: {c.planned_pct}%</span>
+                <span className="text-amber-800">new: {c.planned_pct}%</span>
               </div>
             ))}
           </div>
@@ -544,7 +679,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           <div className="flex gap-2 pt-1">
             <button
               onClick={async () => {
-                await applyBaselineImport(importConflict.newRows, importConflict.conflicts)
+                await applyBaselineImport(importConflict.newRows, importConflict.conflicts, importConflict.targetId)
                 showToast(`Imported ${importConflict.allRows.length} periods (conflicts overwritten)`)
               }}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition">
@@ -552,7 +687,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
             </button>
             <button
               onClick={async () => {
-                await applyBaselineImport(importConflict.newRows, [])
+                await applyBaselineImport(importConflict.newRows, [], importConflict.targetId)
                 showToast(`Imported ${importConflict.newRows.length} new periods (conflicts skipped)`)
               }}
               className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition">
@@ -580,12 +715,21 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
               >{mode}</button>
             ))}
           </div>
-          <div className="flex items-center gap-4 text-xs text-gray-500">
-            <span className="flex items-center gap-1.5">
-              <span className="w-6 h-0.5 rounded bg-gray-400 inline-block" />
-              <span className="w-2.5 h-2.5 rounded-sm inline-block bg-gray-400 opacity-30 -ml-4 mr-1" />
-              Baseline
-            </span>
+          <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
+            {selectedBaselineIds.map((id, i) => {
+              const bl    = baselines.find(b => b.id === id)
+              const color = BASELINE_COLORS[i % BASELINE_COLORS.length]
+              return (
+                <span key={id} className="flex items-center gap-1.5">
+                  <span className="w-6 h-0.5 rounded inline-block" style={{ backgroundColor: color }} />
+                  <span className="w-2.5 h-2.5 rounded-sm inline-block opacity-30 -ml-4 mr-1" style={{ backgroundColor: color }} />
+                  {bl?.name ?? 'Baseline'}
+                </span>
+              )
+            })}
+            {selectedBaselineIds.length === 0 && (
+              <span className="text-gray-300">No baseline selected</span>
+            )}
             <span className="flex items-center gap-1.5">
               <span className="w-3 h-0.5 rounded bg-green-400 inline-block" />
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
@@ -615,30 +759,46 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
       {/* Chart + tables */}
       {allPeriods.length > 0 && (() => {
-        const chartDataByDate    = Object.fromEntries(chartData.map(d => [d._date, d]))
-        const combinedData       = filteredPeriods.map(p =>
-          chartDataByDate[p] ?? { period: p, baseline: null, actual: null, forecast: null, _date: p }
+        const chartDataByDate = Object.fromEntries(chartData.map(d => [d._date, d]))
+        const combinedData    = filteredPeriods.map(p => {
+          if (chartDataByDate[p]) return chartDataByDate[p]
+          const point = { period: formatPeriod(p), actual: null, forecast: null, _date: p }
+          for (const id of selectedBaselineIds) point[`bl_${id}`] = null
+          return point
+        })
+        const hasChartData = chartData.some(d =>
+          d.actual != null || d.forecast != null ||
+          selectedBaselineIds.some(id => d[`bl_${id}`] != null)
         )
-        const hasChartData = chartData.some(d => d.baseline != null || d.actual != null || d.forecast != null)
 
         return (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
-            <div className="overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
-              <div style={{ width: totalW, minWidth: totalW }}>
+          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
+              <div style={{ width: effectiveWidth, minWidth: totalW }}>
 
                 {/* Chart */}
                 {hasChartData && (
-                  <ComposedChart width={totalW} height={280} data={combinedData}
+                  <ComposedChart width={effectiveWidth} height={280} data={combinedData}
                     margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="period" tick={false} tickLine={false}
                       axisLine={{ stroke: '#e5e7eb' }}
-                      padding={{ left: COL_W / 2, right: COL_W / 2 }} height={8} />
+                      padding={{ left: effectiveColW / 2, right: effectiveColW / 2 }} height={8} />
                     <YAxis width={LABEL_W} domain={[0, 100]} tickFormatter={v => v + '%'}
                       tickLine={false} axisLine={false} fontSize={11}
                       label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#9ca3af' } }} />
                     <Tooltip formatter={val => val != null ? val.toFixed(2) + '%' : '—'} />
-                    <Area dataKey="baseline" name="Baseline" stroke="#9ca3af" fill="#9ca3af" fillOpacity={0.15} strokeWidth={2} dot={false} connectNulls />
+                    {selectedBaselineIds.map((id, i) => (
+                      <Area key={id}
+                        dataKey={`bl_${id}`}
+                        name={baselines.find(b => b.id === id)?.name ?? 'Baseline'}
+                        stroke={BASELINE_COLORS[i % BASELINE_COLORS.length]}
+                        fill={BASELINE_COLORS[i % BASELINE_COLORS.length]}
+                        fillOpacity={0.12}
+                        strokeWidth={2}
+                        dot={false}
+                        connectNulls
+                      />
+                    ))}
                     <Line dataKey="actual"   name="Actual"   stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls />
                     <Line dataKey="forecast" name="Forecast" stroke="#fde047" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
                   </ComposedChart>
@@ -646,36 +806,32 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
                 {/* Cumulative % table */}
                 {hasChartData && (
-                  <table className="text-xs border-t border-gray-100" style={{ width: totalW, tableLayout: 'fixed' }}>
+                  <table className="text-xs border-t border-gray-100" style={{ width: effectiveWidth, tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
-                        <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9' }}
+                        <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
                           className="text-left px-3 py-2 sticky left-0 z-10 border-r border-gray-200">
                           <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Cumulative %</span>
                         </th>
                         {combinedData.map(d => (
-                          <th key={d._date} style={{ width: COL_W }} className="text-center px-1 py-2 font-medium text-gray-400 whitespace-nowrap">
+                          <th key={d._date} style={{ width: effectiveColW }} className="text-center px-1 py-2 font-medium text-gray-400 whitespace-nowrap">
                             {d.period}
                           </th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {[
-                        { label: 'Baseline', key: 'baseline', color: '#9ca3af', bg: '#ffffff' },
-                        { label: 'Actual',   key: 'actual',   color: '#86efac', bg: '#fafbfc' },
-                        { label: 'Forecast', key: 'forecast', color: '#fde047', bg: '#ffffff' },
-                      ].map(({ label, key, color, bg }) => (
+                      {CUMULATIVE_ROWS.map(({ label, key, color, bg }) => (
                         <tr key={key} className="border-b border-gray-50 last:border-b-0 hover:bg-[#f0f4f8]" style={{ backgroundColor: bg }}>
-                          <td style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: bg }}
+                          <td style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: bg, boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
                             className="px-3 py-2 sticky left-0 z-10 border-r border-gray-100">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 min-w-0">
                               <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: color }} />
-                              <span className="font-semibold text-gray-600">{label}</span>
+                              <span className="font-semibold text-gray-600 truncate">{label}</span>
                             </div>
                           </td>
                           {combinedData.map(d => (
-                            <td key={d._date} style={{ width: COL_W }} className="text-center px-1 py-2 tabular-nums text-gray-700">
+                            <td key={d._date} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums text-gray-700">
                               {d[key] != null ? `${d[key].toFixed(2)}%` : <span className="text-gray-300">—</span>}
                             </td>
                           ))}
@@ -687,39 +843,43 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
                 {/* Monthly input table */}
                 {viewMode === 'monthly' && (
-                  <table className="text-xs border-t-2 border-gray-300" style={{ width: totalW, tableLayout: 'fixed' }}>
+                  <table className="text-xs border-t-2 border-gray-300" style={{ width: effectiveWidth, tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
-                        <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9' }}
+                        <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
                           className="text-left px-3 py-1.5 sticky left-0 z-10 border-r border-gray-200">
                           <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Monthly Input</span>
                         </th>
-                        {filteredPeriods.map(p => <th key={p} style={{ width: COL_W }} />)}
+                        {filteredPeriods.map(p => <th key={p} style={{ width: effectiveColW }} />)}
                       </tr>
                     </thead>
                     <tbody>
-                      {INPUT_ROWS.map(({ label, type, color, bg, adminOnly }) => {
+                      {INPUT_ROWS.map(({ label, type, baselineId, color, bg, adminOnly }) => {
                         const canEditRow = adminOnly ? isAdmin : canEdit
                         return (
-                          <tr key={type} className="border-b border-gray-50 last:border-b-0 hover:bg-[#f0f4f8]" style={{ backgroundColor: bg }}>
-                            <td style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: bg }}
+                          <tr key={type === 'baseline' ? `baseline_${baselineId}` : type}
+                            className="border-b border-gray-50 last:border-b-0 hover:bg-[#f0f4f8]" style={{ backgroundColor: bg }}>
+                            <td style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: bg, boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
                               className="px-3 py-2 sticky left-0 z-10 border-r border-gray-100">
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 min-w-0">
                                 <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: color }} />
-                                <span className="font-semibold text-gray-600">{label}</span>
+                                <span className="font-semibold text-gray-600 truncate">{label}</span>
                               </div>
                             </td>
                             {filteredPeriods.map(p => {
-                              const isEditing = editCell?.period_date === p && editCell?.type === type
-                              const rawVal = type === 'baseline' ? (baselineMap[p]?.planned_pct ?? null)
-                                : type === 'actual' ? (actualMap[p]?.actual_pct ?? null)
-                                : (forecastMap[p]?.forecast_pct ?? null)
+                              const isEditing = editCell?.period_date === p && editCell?.type === type &&
+                                (type !== 'baseline' || editCell?.baselineId === baselineId)
+                              const rawVal = type === 'baseline'
+                                ? ((baselineMaps[baselineId] ?? {})[p]?.planned_pct ?? null)
+                                : type === 'actual'
+                                  ? (actualMap[p]?.actual_pct ?? null)
+                                  : (forecastMap[p]?.forecast_pct ?? null)
                               const displayVal = (rawVal ?? 0) > 0 ? rawVal : null
                               const notEditable = (type === 'forecast' && (actualMap[p]?.actual_pct ?? 0) > 0)
-                                || (type === 'baseline' && !selectedBaselineId)
+                                || (type === 'baseline' && !baselineId)
 
                               return (
-                                <td key={p} style={{ width: COL_W }} className="text-center px-1 py-2 tabular-nums">
+                                <td key={p} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums">
                                   {isEditing ? (
                                     <div className="flex items-center gap-0.5 justify-center">
                                       <input
@@ -743,7 +903,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                                     <button
                                       onClick={() => {
                                         if (!canEditRow) return
-                                        setEditCell({ period_date: p, type })
+                                        setEditCell({ period_date: p, type, ...(type === 'baseline' ? { baselineId } : {}) })
                                         setEditValue(displayVal != null ? String(displayVal) : '')
                                       }}
                                       className={`transition-colors ${canEditRow ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} ${displayVal != null ? 'text-gray-700 font-medium' : canEditRow ? 'text-gray-400 hover:text-[#ed6055]' : 'text-gray-200'}`}
@@ -762,7 +922,6 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                 )}
 
               </div>
-            </div>
           </div>
         )
       })()}
@@ -776,19 +935,22 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           {isAdmin && baselines.length === 0 && (
             <p className="text-xs text-gray-400 mt-1">Create a baseline to get started</p>
           )}
-          {isAdmin && baselines.length > 0 && !selectedBaselineId && (
-            <p className="text-xs text-gray-400 mt-1">Select a baseline then add months</p>
+          {baselines.length > 0 && !selectedBaselineIds.length && (
+            <p className="text-xs text-gray-400 mt-1">Select a baseline to view data</p>
           )}
         </div>
       )}
 
-      {/* Add month (admin only, requires baseline selected) */}
-      {isAdmin && selectedBaselineId && (
-        <div>
+      {/* Add month (admin only, requires primary baseline) */}
+      {isAdmin && primaryBaselineId && (
+        <div className="flex items-center gap-2">
           <button onClick={handleAddMonth}
             className="text-xs font-semibold px-4 py-2 rounded-xl border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition">
             + Add Month
           </button>
+          {selectedBaselineIds.length > 1 && (
+            <span className="text-[10px] text-gray-400">to {primaryBaseline?.name}</span>
+          )}
         </div>
       )}
 

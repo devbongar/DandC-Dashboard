@@ -7,6 +7,7 @@ import { GanttContent } from './GanttModal'
 import SCurveTab from './SCurveTab'
 import useProfile from '../hooks/useProfile'
 import ReportBuilderModal from './ReportBuilderModal'
+import SearchDropdown from './SearchDropdown'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -3004,18 +3005,33 @@ function IssuesTab({ project, isAdmin, showToast }) {
 
       {!loading && rows.length > 0 && (
         <div className="flex flex-wrap gap-2 mb-3">
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={fCls}>
-            <option value="all">All Statuses</option>
-            {Object.entries(ISSUE_STATUS_CONFIG).map(([val, cfg]) => <option key={val} value={val}>{cfg.label}</option>)}
-          </select>
-          <select value={filterGroup} onChange={e => setFilterGroup(e.target.value)} className={fCls}>
-            <option value="all">All Groups</option>
-            {ISSUE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-          </select>
-          <select value={filterMgmtLevel} onChange={e => setFilterMgmtLevel(e.target.value)} className={fCls}>
-            <option value="all">All Mgmt Levels</option>
-            {MANAGEMENT_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-          </select>
+          <SearchDropdown
+            options={Object.entries(ISSUE_STATUS_CONFIG).map(([val, cfg]) => ({ value: val, label: cfg.label }))}
+            value={filterStatus}
+            onChange={setFilterStatus}
+            emptyValue="all"
+            emptyLabel="All Statuses"
+            placeholder="Search status…"
+            minWidth={120}
+          />
+          <SearchDropdown
+            options={ISSUE_GROUPS.map(g => ({ value: g, label: g }))}
+            value={filterGroup}
+            onChange={setFilterGroup}
+            emptyValue="all"
+            emptyLabel="All Groups"
+            placeholder="Search group…"
+            minWidth={110}
+          />
+          <SearchDropdown
+            options={MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))}
+            value={filterMgmtLevel}
+            onChange={setFilterMgmtLevel}
+            emptyValue="all"
+            emptyLabel="All Mgmt Levels"
+            placeholder="Search level…"
+            minWidth={130}
+          />
           {hasFilter && (
             <button onClick={clearFilters} className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 bg-white transition whitespace-nowrap">
               Clear
@@ -3146,23 +3162,30 @@ function IssuesTab({ project, isAdmin, showToast }) {
             <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Group</label>
-                <select value={form.issue_group} onChange={e => setForm(f => ({ ...f, issue_group: e.target.value }))} className={iCls}>
-                  <option value="">— Select Group —</option>
-                  {ISSUE_GROUPS.map(g => <option key={g} value={g}>{g}</option>)}
-                </select>
+                <SelectDropdown
+                  options={[{ value: '', label: '— Select Group —' }, ...ISSUE_GROUPS.map(g => ({ value: g, label: g }))]}
+                  value={form.issue_group}
+                  onChange={v => setForm(f => ({ ...f, issue_group: v }))}
+                  placeholder="— Select Group —"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Management Level</label>
-                <select value={form.management_level} onChange={e => setForm(f => ({ ...f, management_level: e.target.value }))} className={iCls}>
-                  <option value="">— Select Level —</option>
-                  {MANAGEMENT_LEVELS.map(l => <option key={l} value={l}>{l}</option>)}
-                </select>
+                <SelectDropdown
+                  options={[{ value: '', label: '— Select Level —' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))]}
+                  value={form.management_level}
+                  onChange={v => setForm(f => ({ ...f, management_level: v }))}
+                  placeholder="— Select Level —"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
-                <select value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} className={iCls}>
-                  {Object.entries(ISSUE_STATUS_CONFIG).map(([val, cfg]) => <option key={val} value={val}>{cfg.label}</option>)}
-                </select>
+                <SelectDropdown
+                  options={Object.entries(ISSUE_STATUS_CONFIG).map(([val, cfg]) => ({ value: val, label: cfg.label }))}
+                  value={form.status}
+                  onChange={v => setForm(f => ({ ...f, status: v }))}
+                  placeholder="— Select Status —"
+                />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Date Presented</label>
@@ -3476,6 +3499,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
   const [sortOrder, setSortOrder]         = useState('newest')
   const [monthOpen, setMonthOpen]         = useState(false)
   const [tagOpen, setTagOpen]             = useState(false)
+  const [deletePhoto, setDeletePhoto]     = useState(null)
 
   const load = async () => {
     setLoading(true)
@@ -3532,12 +3556,17 @@ function PhotosTab({ project, isAdmin, showToast }) {
   const toggleFilterTag = (tag) =>
     setFilterTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag])
 
-  const handleDelete = async (photo, e) => {
+  const handleDelete = (photo, e) => {
     e.stopPropagation()
-    if (!window.confirm(`Delete "${photo.file_name}"?`)) return
-    await supabase.storage.from('project-photos').remove([photo.storage_path])
-    await supabase.from('project_photos').delete().eq('id', photo.id)
+    setDeletePhoto(photo)
+  }
+
+  const confirmDeletePhoto = async () => {
+    if (!deletePhoto) return
+    await supabase.storage.from('project-photos').remove([deletePhoto.storage_path])
+    await supabase.from('project_photos').delete().eq('id', deletePhoto.id)
     showToast('Photo deleted')
+    setDeletePhoto(null)
     setLightbox(null)
     load()
   }
@@ -3772,6 +3801,13 @@ function PhotosTab({ project, isAdmin, showToast }) {
             </div>
           </div>
         </div>
+      )}
+
+      {deletePhoto && (
+        <ConfirmDeleteModal
+          onConfirm={confirmDeletePhoto}
+          onCancel={() => setDeletePhoto(null)}
+        />
       )}
     </div>
   )
@@ -4426,8 +4462,24 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         <div className="flex-shrink-0 border-b border-black/20 flex items-stretch"
           style={{ background: 'rgba(63,63,63,1)' }}>
 
+          {/* Project name (page mode only) */}
+          {asPage && (
+            <div className="flex items-center px-4 border-r border-white/10 flex-shrink-0">
+              <span className="text-sm font-semibold text-white/90 max-w-[200px] truncate">{project.name}</span>
+            </div>
+          )}
+
           {/* Tabs */}
-          <div className="flex overflow-x-auto flex-1" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+          <div
+            role="tablist"
+            className="flex overflow-x-auto flex-1"
+            style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+              maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
+            }}
+          >
             {tabs.map(t => {
               const count =
                 t === 'Permits'           ? tabCounts.permits    :
@@ -4438,13 +4490,15 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
               return (
                 <button
                   key={t}
+                  role="tab"
+                  aria-selected={isActive}
                   onClick={() => switchTab(t)}
-                  className="flex items-center gap-1.5 px-5 py-2 text-sm whitespace-nowrap border-b-[3px] -mb-px active:scale-[0.97]"
+                  className="flex items-center gap-1.5 px-5 py-2 text-sm whitespace-nowrap border-b-[3px] -mb-px active:scale-[0.97] hover:bg-white/5"
                   style={{
                     color:             isActive ? 'white' : 'rgba(255,255,255,0.52)',
                     fontWeight:        isActive ? 600 : 400,
                     borderBottomColor: isActive ? '#ed6055' : 'transparent',
-                    background:        isActive ? 'rgba(255,255,255,0.08)' : 'transparent',
+                    background:        isActive ? 'rgba(255,255,255,0.08)' : undefined,
                     borderRadius:      isActive ? '6px 6px 0 0' : '0',
                     transition: 'color 150ms ease, border-color 150ms ease, background 150ms ease, transform 100ms ease-out',
                   }}
@@ -4470,8 +4524,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           <div className="flex items-center gap-1.5 px-3 flex-shrink-0 border-l border-white/10">
             <button
               onClick={() => setShowReportBuilder(true)}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold active:scale-[0.97]"
-              style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.85)', transition: 'background 150ms ease, transform 100ms ease-out' }}
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-white/85 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] transition-all duration-150"
               title="Generate report"
             >
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
@@ -4482,8 +4535,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             {isAdmin && (
               <button
                 onClick={() => switchTab('Project Info')}
-                className="flex items-center justify-center w-8 h-8 rounded-lg active:scale-[0.97]"
-                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', transition: 'background 150ms ease, transform 100ms ease-out' }}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-white/70 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] transition-all duration-150"
                 title="Edit project details"
                 aria-label="Edit project details"
               >
@@ -4493,8 +4545,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             {!asPage && (
               <button
                 onClick={onClose}
-                className="flex items-center justify-center w-8 h-8 rounded-lg active:scale-[0.97]"
-                style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', transition: 'background 150ms ease, transform 100ms ease-out' }}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-white/70 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] transition-all duration-150"
                 aria-label="Close"
               >
                 <XIcon />

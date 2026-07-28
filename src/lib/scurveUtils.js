@@ -48,7 +48,7 @@ export function detectConflicts(importedRows, baselineMap) {
   return { conflicts, newRows }
 }
 
-const formatPeriod = (dateStr) => {
+export const formatPeriod = (dateStr) => {
   const d = new Date(dateStr + 'T00:00:00')
   const mon = d.toLocaleDateString('en-US', { month: 'short' })
   const yr  = String(d.getFullYear()).slice(2)
