@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildAllPeriods, computeChartData } from '../lib/scurveUtils'
+import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts } from '../lib/scurveUtils'
 
 describe('buildAllPeriods', () => {
   it('returns union of baseline, actual, forecast periods sorted', () => {
@@ -102,5 +102,78 @@ describe('computeChartData', () => {
 
   it('returns empty array for empty periods', () => {
     expect(computeChartData([], [], [], [])).toEqual([])
+  })
+})
+
+describe('parsePeriodDate', () => {
+  it('parses YYYY-MM-DD to first of month', () => {
+    expect(parsePeriodDate('2026-03-15')).toBe('2026-03-01')
+  })
+
+  it('parses YYYY-MM to first of month', () => {
+    expect(parsePeriodDate('2026-03')).toBe('2026-03-01')
+  })
+
+  it("parses 'Jan \\u002726' label format", () => {
+    expect(parsePeriodDate("Jan '26")).toBe('2026-01-01')
+  })
+
+  it('parses full month name and year', () => {
+    expect(parsePeriodDate('March 2026')).toBe('2026-03-01')
+  })
+
+  it('returns null for empty input', () => {
+    expect(parsePeriodDate('')).toBeNull()
+    expect(parsePeriodDate(null)).toBeNull()
+    expect(parsePeriodDate(undefined)).toBeNull()
+  })
+
+  it('returns null for unrecognized format', () => {
+    expect(parsePeriodDate('not-a-date')).toBeNull()
+  })
+})
+
+describe('detectConflicts', () => {
+  const baselineMap = {
+    '2026-01-01': { planned_pct: 10 },
+    '2026-02-01': { planned_pct: 0 },
+    '2026-03-01': { planned_pct: null },
+  }
+
+  it('separates new rows from conflicting rows', () => {
+    const rows = [
+      { period_date: '2026-01-01', planned_pct: 15 }, // conflict
+      { period_date: '2026-04-01', planned_pct: 20 }, // new
+    ]
+    const { conflicts, newRows } = detectConflicts(rows, baselineMap)
+    expect(conflicts).toHaveLength(1)
+    expect(conflicts[0].period_date).toBe('2026-01-01')
+    expect(conflicts[0].existing_pct).toBe(10)
+    expect(newRows).toHaveLength(1)
+    expect(newRows[0].period_date).toBe('2026-04-01')
+  })
+
+  it('treats zero planned_pct as non-conflict', () => {
+    const rows = [{ period_date: '2026-02-01', planned_pct: 5 }]
+    const { conflicts, newRows } = detectConflicts(rows, baselineMap)
+    expect(conflicts).toHaveLength(0)
+    expect(newRows).toHaveLength(1)
+  })
+
+  it('treats null planned_pct as non-conflict', () => {
+    const rows = [{ period_date: '2026-03-01', planned_pct: 5 }]
+    const { conflicts, newRows } = detectConflicts(rows, baselineMap)
+    expect(conflicts).toHaveLength(0)
+    expect(newRows).toHaveLength(1)
+  })
+
+  it('returns all as new when baselineMap is empty', () => {
+    const rows = [
+      { period_date: '2026-01-01', planned_pct: 10 },
+      { period_date: '2026-02-01', planned_pct: 20 },
+    ]
+    const { conflicts, newRows } = detectConflicts(rows, {})
+    expect(conflicts).toHaveLength(0)
+    expect(newRows).toHaveLength(2)
   })
 })

@@ -1,13 +1,15 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import SearchDropdown from './SearchDropdown'
-import { buildAllPeriods, computeChartData } from '../lib/scurveUtils'
+import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts } from '../lib/scurveUtils'
+import { downloadWorkbook, downloadBaselineTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from 'recharts'
 
 const COL_W   = 80
 const LABEL_W = 88
+
 
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 const THIS_YEAR   = new Date().getFullYear()
@@ -47,22 +49,53 @@ function MonthYearPicker({ value, onChange, min, max }) {
   )
 }
 
+function parseBaselineExcel(wb) {
+  const sheet = wb['Baseline Data'] ?? Object.values(wb)[0] ?? []
+  return sheet
+    .map(row => {
+      const period_date = parsePeriodDate(row['Period'] ?? row['Period (locked)'] ?? row['period'])
+      const planned_pct = toFloat(row['Planned %'] ?? row['planned_pct'] ?? row['planned'])
+      return period_date ? { period_date, planned_pct } : null
+    })
+    .filter(Boolean)
+}
+
 function NewBaselineForm({ actuals, onSave, onCancel }) {
-  const [name,       setName]       = useState('')
-  const [cutoffDate, setCutoffDate] = useState('')
-  const [notes,      setNotes]      = useState('')
-  const [saving,     setSaving]     = useState(false)
+  const [name,         setName]         = useState('')
+  const [cutoffDate,   setCutoffDate]   = useState('')
+  const [notes,        setNotes]        = useState('')
+  const [saving,       setSaving]       = useState(false)
+  const [importedRows, setImportedRows] = useState(null)
+  const [importing,    setImporting]    = useState(false)
+  const fileRef = useRef(null)
 
   const pastCount = actuals.filter(a => a.period_date.slice(0, 7) <= cutoffDate).length
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setImporting(true)
+    try {
+      const wb   = await parseWorkbook(file)
+      const rows = parseBaselineExcel(wb)
+      setImportedRows(rows.length > 0 ? rows : null)
+      if (rows.length === 0) alert('No valid rows found. Check column headers: "Period" and "Planned %".')
+    } catch {
+      alert('Failed to read file.')
+    }
+    setImporting(false)
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
     if (!name.trim()) return
     setSaving(true)
     await onSave({
-      name:        name.trim(),
-      cutoff_date: cutoffDate ? cutoffDate + '-01' : null,
-      notes:       notes.trim() || null,
+      name:         name.trim(),
+      cutoff_date:  cutoffDate ? cutoffDate + '-01' : null,
+      notes:        notes.trim() || null,
+      importedRows: importedRows ?? null,
     })
     setSaving(false)
   }
@@ -84,7 +117,7 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
           </label>
           <input type="month" value={cutoffDate} onChange={e => setCutoffDate(e.target.value)}
             className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#ed6055]" />
-          {cutoffDate && (
+          {cutoffDate && !importedRows && (
             <p className="text-[10px] text-gray-500 mt-1">
               Will copy {pastCount} actual period{pastCount !== 1 ? 's' : ''} as planned %
             </p>
@@ -96,6 +129,34 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
             placeholder="Optional" className={inputCls} />
         </div>
       </div>
+
+      {/* Excel import */}
+      <div className="flex items-center gap-3 pt-1 border-t border-gray-200">
+        <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} className="hidden" />
+        <button type="button" onClick={() => fileRef.current?.click()} disabled={importing}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+          </svg>
+          {importing ? 'Reading…' : 'Import from Excel'}
+        </button>
+        {importedRows && (
+          <span className="text-xs text-green-600 font-medium flex items-center gap-1">
+            ✓ {importedRows.length} periods loaded
+            <button type="button" onClick={() => setImportedRows(null)}
+              className="text-gray-400 hover:text-[#ed6055] ml-1 font-bold">✕</button>
+          </span>
+        )}
+        <button type="button" onClick={downloadBaselineTemplate}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition">
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+          </svg>
+          Download Template
+        </button>
+        <span className="text-[10px] text-gray-400">Columns: "Period", "Planned %"</span>
+      </div>
+
       <div className="flex gap-2">
         <button type="submit" disabled={saving || !name.trim()}
           className="px-4 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white hover:bg-[#c94f45] transition disabled:opacity-50">
@@ -123,6 +184,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [saving,             setSaving]             = useState(false)
   const [toast,              setToast]              = useState(null)
   const [showNewBaseline,    setShowNewBaseline]    = useState(false)
+  const [importConflict,     setImportConflict]     = useState(null) // { conflicts, newRows } for existing baseline import
+  const [showDownloadPicker, setShowDownloadPicker] = useState(false)
+  const [downloading,        setDownloading]        = useState(false)
+  const [importingExisting,  setImportingExisting]  = useState(false)
+  const existingImportRef = useRef(null)
 
   const dateRangeKey = `scurve_dateRange_${project.id}`
   const [fromMonth, setFromMonthRaw] = useState(() => {
@@ -194,14 +260,18 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     return result
   }, [chartData, fromMonth, toMonth])
 
-  const handleCreateBaseline = async ({ name, cutoff_date, notes }) => {
+  const handleCreateBaseline = async ({ name, cutoff_date, notes, importedRows }) => {
     const { data: bl, error } = await supabase
       .from('project_scurve_baselines')
       .insert({ project_id: project.id, name, cutoff_date, notes })
       .select().single()
     if (error) { showToast(error.message, 'error'); return }
 
-    if (cutoff_date) {
+    if (importedRows?.length > 0) {
+      await supabase.from('project_scurve_baseline_data').insert(
+        importedRows.map(r => ({ baseline_id: bl.id, period_date: r.period_date, planned_pct: r.planned_pct }))
+      )
+    } else if (cutoff_date) {
       const past = actuals.filter(a => a.period_date.slice(0, 7) <= cutoff_date.slice(0, 7))
       if (past.length > 0) {
         await supabase.from('project_scurve_baseline_data').insert(
@@ -214,6 +284,75 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     setSelectedBaselineId(bl.id)
     showToast('Baseline created')
     load()
+  }
+
+  const handleDownloadBaseline = async (baselineId) => {
+    setDownloading(true)
+    setShowDownloadPicker(false)
+    const bl = baselines.find(b => b.id === baselineId)
+    const { data: rows } = await supabase.from('project_scurve_baseline_data')
+      .select('period_date, planned_pct').eq('baseline_id', baselineId).order('period_date')
+    const data = (rows ?? []).map(r => ({
+      period:    r.period_date,
+      planned:   r.planned_pct ?? '',
+    }))
+    downloadWorkbook(
+      [{
+        sheetName: 'Baseline Data',
+        columns: [
+          { key: 'period',  header: 'Period' },
+          { key: 'planned', header: 'Planned %' },
+        ],
+        rows: data,
+        lockedCells: data.map(() => [1]),
+      }],
+      `baseline-${bl?.name ?? baselineId}-${new Date().toISOString().slice(0, 10)}.xlsx`
+    )
+    setDownloading(false)
+  }
+
+  const handleImportExisting = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file || !selectedBaselineId) return
+    e.target.value = ''
+    setImportingExisting(true)
+    try {
+      const wb      = await parseWorkbook(file)
+      const parsed  = parseBaselineExcel(wb)
+      if (!parsed.length) { showToast('No valid rows found', 'error'); setImportingExisting(false); return }
+      const { conflicts, newRows } = detectConflicts(parsed, baselineMap)
+      if (conflicts.length > 0) {
+        setImportConflict({ conflicts, newRows, allRows: parsed })
+      } else {
+        await applyBaselineImport(newRows, [])
+        showToast(`Imported ${newRows.length} periods`)
+      }
+    } catch {
+      showToast('Failed to read file', 'error')
+    }
+    setImportingExisting(false)
+  }
+
+  const applyBaselineImport = async (newRows, overwriteRows) => {
+    const toInsert  = newRows.filter(r => !baselineMap[r.period_date])
+    const toUpdate  = [...newRows.filter(r => baselineMap[r.period_date]), ...overwriteRows]
+
+    await Promise.all([
+      toInsert.length > 0
+        ? supabase.from('project_scurve_baseline_data').insert(
+            toInsert.map(r => ({ baseline_id: selectedBaselineId, period_date: r.period_date, planned_pct: r.planned_pct }))
+          )
+        : Promise.resolve(),
+      ...toUpdate.map(r =>
+        supabase.from('project_scurve_baseline_data')
+          .update({ planned_pct: r.planned_pct })
+          .eq('id', baselineMap[r.period_date].id)
+      ),
+    ])
+    setImportConflict(null)
+    const { data } = await supabase.from('project_scurve_baseline_data')
+      .select('*').eq('baseline_id', selectedBaselineId).order('period_date')
+    setBaselineData(data ?? [])
   }
 
   const reloadData = async () => {
@@ -314,6 +453,58 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
             + New Baseline
           </button>
         )}
+        {/* Import into existing baseline */}
+        {isAdmin && selectedBaselineId && (
+          <>
+            <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
+              onChange={handleImportExisting} className="hidden" />
+            <button
+              onClick={() => existingImportRef.current?.click()}
+              disabled={importingExisting}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+              </svg>
+              {importingExisting ? 'Reading…' : 'Import'}
+            </button>
+            <button
+              onClick={downloadBaselineTemplate}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition"
+              title="Download blank Excel template"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Template
+            </button>
+          </>
+        )}
+        {/* Download baseline picker */}
+        {baselines.length > 0 && (
+          <div className="relative">
+            <button
+              onClick={() => setShowDownloadPicker(v => !v)}
+              disabled={downloading}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              {downloading ? 'Downloading…' : 'Download Baseline'}
+            </button>
+            {showDownloadPicker && (
+              <div className="absolute top-full mt-1 left-0 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-48">
+                {baselines.map(b => (
+                  <button key={b.id} onClick={() => handleDownloadBaseline(b.id)}
+                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 hover:text-[#ed6055] transition">
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
         {selectedBaseline?.cutoff_date && (
           <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
             Re-baseline · cutoff {selectedBaseline.cutoff_date.slice(0, 7)}
@@ -328,6 +519,52 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           onSave={handleCreateBaseline}
           onCancel={() => setShowNewBaseline(false)}
         />
+      )}
+
+      {/* Conflict resolution panel */}
+      {importConflict && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+          <p className="text-xs font-bold text-amber-800">
+            Import conflicts — {importConflict.conflicts.length} period{importConflict.conflicts.length !== 1 ? 's' : ''} already have data
+          </p>
+          <div className="max-h-48 overflow-y-auto space-y-1">
+            {importConflict.conflicts.map(c => (
+              <div key={c.period_date} className="flex items-center gap-3 text-xs text-amber-700">
+                <span className="font-semibold w-16">{c.period_date.slice(0, 7)}</span>
+                <span className="text-amber-500">existing: {c.existing_pct}%</span>
+                <span className="text-amber-800">→ new: {c.planned_pct}%</span>
+              </div>
+            ))}
+          </div>
+          {importConflict.newRows.length > 0 && (
+            <p className="text-[10px] text-amber-600">
+              + {importConflict.newRows.length} new period{importConflict.newRows.length !== 1 ? 's' : ''} will be added regardless
+            </p>
+          )}
+          <div className="flex gap-2 pt-1">
+            <button
+              onClick={async () => {
+                await applyBaselineImport(importConflict.newRows, importConflict.conflicts)
+                showToast(`Imported ${importConflict.allRows.length} periods (conflicts overwritten)`)
+              }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-amber-600 text-white hover:bg-amber-700 transition">
+              Overwrite conflicts
+            </button>
+            <button
+              onClick={async () => {
+                await applyBaselineImport(importConflict.newRows, [])
+                showToast(`Imported ${importConflict.newRows.length} new periods (conflicts skipped)`)
+              }}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-amber-300 text-amber-700 hover:bg-amber-100 transition">
+              Skip conflicts
+            </button>
+            <button
+              onClick={() => setImportConflict(null)}
+              className="px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-100 transition">
+              Cancel
+            </button>
+          </div>
+        </div>
       )}
 
       {/* View mode + legend + date range */}

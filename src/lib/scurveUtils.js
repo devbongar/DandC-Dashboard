@@ -1,3 +1,53 @@
+export function parsePeriodDate(val) {
+  if (!val) return null
+  const s = String(val).trim()
+  if (!s) return null
+
+  // YYYY-MM-DD
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s.slice(0, 7) + '-01'
+
+  // YYYY-MM
+  if (/^\d{4}-\d{2}$/.test(s)) return s + '-01'
+
+  // "Jan '26" — short month + apostrophe + 2-digit year
+  const shortMatch = s.match(/^([A-Za-z]{3})\s+'(\d{2})$/)
+  if (shortMatch) {
+    const fullYear = 2000 + parseInt(shortMatch[2], 10)
+    const d = new Date(`${shortMatch[1]} 1 ${fullYear}`)
+    if (!isNaN(d.getTime())) {
+      return `${fullYear}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+    }
+    return null
+  }
+
+  // "January 2026" — full or short month + 4-digit year
+  const longMatch = s.match(/^([A-Za-z]+)\s+(\d{4})$/)
+  if (longMatch) {
+    const d = new Date(`${longMatch[1]} 1 ${longMatch[2]}`)
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear()
+      if (y >= 1900 && y <= 2100) return `${y}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
+    }
+    return null
+  }
+
+  return null
+}
+
+export function detectConflicts(importedRows, baselineMap) {
+  const conflicts = []
+  const newRows   = []
+  for (const row of importedRows) {
+    const existing = baselineMap[row.period_date]
+    if (existing && (existing.planned_pct ?? 0) > 0) {
+      conflicts.push({ ...row, existing_pct: existing.planned_pct })
+    } else {
+      newRows.push(row)
+    }
+  }
+  return { conflicts, newRows }
+}
+
 const formatPeriod = (dateStr) => {
   const d = new Date(dateStr + 'T00:00:00')
   const mon = d.toLocaleDateString('en-US', { month: 'short' })
