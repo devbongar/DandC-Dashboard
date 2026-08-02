@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts } from '../lib/scurveUtils'
+import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, getScopeConfig } from '../lib/scurveUtils'
 
 describe('buildAllPeriods', () => {
   it('returns union of baseline, actual, forecast periods sorted', () => {
@@ -175,5 +175,29 @@ describe('detectConflicts', () => {
     const { conflicts, newRows } = detectConflicts(rows, {})
     expect(conflicts).toHaveLength(0)
     expect(newRows).toHaveLength(2)
+  })
+})
+
+describe('getScopeConfig', () => {
+  it('returns project tables when buildingId is null', () => {
+    const cfg = getScopeConfig(null)
+    expect(cfg.actualTable).toBe('project_scurve_actual')
+    expect(cfg.forecastTable).toBe('project_scurve_forecast')
+    expect(cfg.baselineTable).toBe('project_scurve_baseline_data')
+    expect(cfg.scopeFilter).toBeNull()
+  })
+
+  it('returns tower tables when buildingId is provided', () => {
+    const cfg = getScopeConfig('building-uuid-123')
+    expect(cfg.actualTable).toBe('tower_scurve_actual')
+    expect(cfg.forecastTable).toBe('tower_scurve_forecast')
+    expect(cfg.baselineTable).toBe('tower_scurve_baseline_data')
+    expect(cfg.scopeFilter).toEqual({ building_id: 'building-uuid-123' })
+  })
+
+  it('scopeFilter is null when buildingId is undefined', () => {
+    const cfg = getScopeConfig(undefined)
+    expect(cfg.scopeFilter).toBeNull()
+    expect(cfg.actualTable).toBe('project_scurve_actual')
   })
 })

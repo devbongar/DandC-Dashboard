@@ -55,6 +55,21 @@ export const formatPeriod = (dateStr) => {
   return `${mon} '${yr}`
 }
 
+export function getScopeConfig(buildingId) {
+  if (!buildingId) return {
+    actualTable:   'project_scurve_actual',
+    forecastTable: 'project_scurve_forecast',
+    baselineTable: 'project_scurve_baseline_data',
+    scopeFilter:   null,
+  }
+  return {
+    actualTable:   'tower_scurve_actual',
+    forecastTable: 'tower_scurve_forecast',
+    baselineTable: 'tower_scurve_baseline_data',
+    scopeFilter:   { building_id: buildingId },
+  }
+}
+
 export function buildAllPeriods(baselineData, actuals, forecasts) {
   const set = new Set([
     ...baselineData.map(r => r.period_date),

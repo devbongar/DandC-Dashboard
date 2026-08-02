@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod } from '../lib/scurveUtils'
+import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeConfig } from '../lib/scurveUtils'
 import { downloadWorkbook, downloadBaselineTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
@@ -381,6 +381,10 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [importingExisting,    setImportingExisting]    = useState(false)
   const [milestones,           setMilestones]           = useState([])
   const [selectedActivityIds,  setSelectedActivityIds]  = useState([])
+  const [buildings,            setBuildings]            = useState([])
+  const [selectedBuildingId,   setSelectedBuildingId]   = useState(null) // null = project level
+  const [scopeOpen,            setScopeOpen]            = useState(false)
+  const scopeRef = useRef(null)
   const existingImportRef = useRef(null)
 
   const dateRangeKey = `scurve_dateRange_${project.id}`
@@ -407,22 +411,37 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   // Primary baseline = first selected (target for import / add month)
   const primaryBaselineId = selectedBaselineIds[0] ?? null
 
-  const load = async () => {
+  const load = async (buildingId = selectedBuildingId) => {
     setLoading(true)
-    const [{ data: bl }, { data: acts }, { data: fors }] = await Promise.all([
+    const { actualTable, forecastTable, scopeFilter } = getScopeConfig(buildingId)
+    const [{ data: bl }, { data: bldgs }, actsRes, forsRes] = await Promise.all([
       supabase.from('project_scurve_baselines').select('*').eq('project_id', project.id).order('created_at'),
-      supabase.from('project_scurve_actual').select('*').eq('project_id', project.id).order('period_date'),
-      supabase.from('project_scurve_forecast').select('*').eq('project_id', project.id).order('period_date'),
+      supabase.from('project_buildings').select('id, name, sort_order').eq('project_id', project.id).order('sort_order'),
+      scopeFilter
+        ? supabase.from(actualTable).select('*').eq('project_id', project.id).eq('building_id', scopeFilter.building_id).order('period_date')
+        : supabase.from(actualTable).select('*').eq('project_id', project.id).order('period_date'),
+      scopeFilter
+        ? supabase.from(forecastTable).select('*').eq('project_id', project.id).eq('building_id', scopeFilter.building_id).order('period_date')
+        : supabase.from(forecastTable).select('*').eq('project_id', project.id).order('period_date'),
     ])
     const bls = bl ?? []
     setBaselines(bls)
-    setActuals(acts ?? [])
-    setForecasts(fors ?? [])
+    setBuildings(bldgs ?? [])
+    setActuals(actsRes.data ?? [])
+    setForecasts(forsRes.data ?? [])
     setSelectedBaselineIds(prev => prev.length > 0 ? prev : (bls[0] ? [bls[0].id] : []))
     setLoading(false)
   }
 
-  useEffect(() => { load() }, [project.id])
+  useEffect(() => { load(null) }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const switchScope = (buildingId) => {
+    setSelectedBuildingId(buildingId)
+    setActuals([])
+    setForecasts([])
+    setBaselineDataMap({})
+    load(buildingId)
+  }
 
   // Fetch work program milestones from latest confirmed milestone baseline
   useEffect(() => {
@@ -447,17 +466,18 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     fetchMilestones()
   }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Load baseline data whenever selection changes
+  // Load baseline data whenever selection or scope changes
   useEffect(() => {
     if (!selectedBaselineIds.length) { setBaselineDataMap({}); return }
+    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
     Promise.all(
-      selectedBaselineIds.map(id =>
-        supabase.from('project_scurve_baseline_data').select('*')
-          .eq('baseline_id', id).order('period_date')
-          .then(({ data }) => [id, data ?? []])
-      )
+      selectedBaselineIds.map(id => {
+        let q = supabase.from(baselineTable).select('*').eq('baseline_id', id)
+        if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+        return q.order('period_date').then(({ data }) => [id, data ?? []])
+      })
     ).then(entries => setBaselineDataMap(Object.fromEntries(entries)))
-  }, [JSON.stringify(selectedBaselineIds)]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(selectedBaselineIds), selectedBuildingId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const baselineMaps = useMemo(() => {
     const result = {}
@@ -510,15 +530,16 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       .select().single()
     if (error) { showToast(error.message, 'error'); return }
 
+    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
     if (importedRows?.length > 0) {
-      await supabase.from('project_scurve_baseline_data').insert(
-        importedRows.map(r => ({ baseline_id: bl.id, period_date: r.period_date, planned_pct: r.planned_pct }))
+      await supabase.from(baselineTable).insert(
+        importedRows.map(r => ({ baseline_id: bl.id, period_date: r.period_date, planned_pct: r.planned_pct, ...(scopeFilter ?? {}) }))
       )
     } else if (cutoff_date) {
       const past = actuals.filter(a => a.period_date.slice(0, 7) <= cutoff_date.slice(0, 7))
       if (past.length > 0) {
-        await supabase.from('project_scurve_baseline_data').insert(
-          past.map(a => ({ baseline_id: bl.id, period_date: a.period_date, planned_pct: a.actual_pct }))
+        await supabase.from(baselineTable).insert(
+          past.map(a => ({ baseline_id: bl.id, period_date: a.period_date, planned_pct: a.actual_pct, ...(scopeFilter ?? {}) }))
         )
       }
     }
@@ -534,9 +555,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const handleDownloadBaseline = async (baselineId) => {
     setDownloading(true)
     setShowDownloadPicker(false)
+    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
     const bl = baselines.find(b => b.id === baselineId)
-    const { data: rows } = await supabase.from('project_scurve_baseline_data')
-      .select('period_date, planned_pct').eq('baseline_id', baselineId).order('period_date')
+    let q = supabase.from(baselineTable).select('period_date, planned_pct').eq('baseline_id', baselineId)
+    if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+    const { data: rows } = await q.order('period_date')
     const data = (rows ?? []).map(r => ({ period: r.period_date, planned: r.planned_pct ?? '' }))
     downloadWorkbook(
       [{
@@ -578,25 +601,25 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   }
 
   const applyBaselineImport = async (newRows, overwriteRows, targetId) => {
-    const pBMap = baselineMaps[targetId] ?? {}
-    const toInsert  = newRows.filter(r => !pBMap[r.period_date])
-    const toUpdate  = [...newRows.filter(r => pBMap[r.period_date]), ...overwriteRows]
+    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
+    const pBMap    = baselineMaps[targetId] ?? {}
+    const toInsert = newRows.filter(r => !pBMap[r.period_date])
+    const toUpdate = [...newRows.filter(r => pBMap[r.period_date]), ...overwriteRows]
 
     await Promise.all([
       toInsert.length > 0
-        ? supabase.from('project_scurve_baseline_data').insert(
-            toInsert.map(r => ({ baseline_id: targetId, period_date: r.period_date, planned_pct: r.planned_pct }))
+        ? supabase.from(baselineTable).insert(
+            toInsert.map(r => ({ baseline_id: targetId, period_date: r.period_date, planned_pct: r.planned_pct, ...(scopeFilter ?? {}) }))
           )
         : Promise.resolve(),
       ...toUpdate.map(r =>
-        supabase.from('project_scurve_baseline_data')
-          .update({ planned_pct: r.planned_pct })
-          .eq('id', pBMap[r.period_date].id)
+        supabase.from(baselineTable).update({ planned_pct: r.planned_pct }).eq('id', pBMap[r.period_date].id)
       ),
     ])
     setImportConflict(null)
-    const { data } = await supabase.from('project_scurve_baseline_data')
-      .select('*').eq('baseline_id', targetId).order('period_date')
+    let q = supabase.from(baselineTable).select('*').eq('baseline_id', targetId)
+    if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+    const { data } = await q.order('period_date')
     setBaselineDataMap(prev => ({ ...prev, [targetId]: data ?? [] }))
   }
 
@@ -604,34 +627,41 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     const numVal = parseFloat(editValue)
     if (isNaN(numVal) || numVal < 0 || numVal > 100) { showToast('Value must be 0–100', 'error'); return }
     setSaving(true)
+    const { actualTable, forecastTable, baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
 
     if (type === 'baseline') {
       const targetId = editCell.baselineId
       const bMap     = baselineMaps[targetId] ?? {}
       const existing = bMap[period_date]
+      const insertRow = { baseline_id: targetId, period_date, planned_pct: numVal, ...(scopeFilter ?? {}) }
       const { error } = existing
-        ? await supabase.from('project_scurve_baseline_data').update({ planned_pct: numVal }).eq('id', existing.id)
-        : await supabase.from('project_scurve_baseline_data').insert({ baseline_id: targetId, period_date, planned_pct: numVal })
+        ? await supabase.from(baselineTable).update({ planned_pct: numVal }).eq('id', existing.id)
+        : await supabase.from(baselineTable).insert(insertRow)
       if (error) { showToast(error.message, 'error'); setSaving(false); return }
-      const { data } = await supabase.from('project_scurve_baseline_data')
-        .select('*').eq('baseline_id', targetId).order('period_date')
+      let q = supabase.from(baselineTable).select('*').eq('baseline_id', targetId)
+      if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+      const { data } = await q.order('period_date')
       setBaselineDataMap(prev => ({ ...prev, [targetId]: data ?? [] }))
     } else if (type === 'actual') {
       const existing = actualMap[period_date]
+      const insertRow = { project_id: project.id, period_date, actual_pct: numVal, ...(scopeFilter ?? {}) }
       const { error } = existing
-        ? await supabase.from('project_scurve_actual').update({ actual_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
-        : await supabase.from('project_scurve_actual').insert({ project_id: project.id, period_date, actual_pct: numVal })
+        ? await supabase.from(actualTable).update({ actual_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
+        : await supabase.from(actualTable).insert(insertRow)
       if (error) { showToast(error.message, 'error'); setSaving(false); return }
-      const { data } = await supabase.from('project_scurve_actual').select('*').eq('project_id', project.id).order('period_date')
-      setActuals(data ?? [])
+      let q = supabase.from(actualTable).select('*').eq('project_id', project.id)
+      if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+      setActuals((await q.order('period_date')).data ?? [])
     } else if (type === 'forecast') {
       const existing = forecastMap[period_date]
+      const insertRow = { project_id: project.id, period_date, forecast_pct: numVal, ...(scopeFilter ?? {}) }
       const { error } = existing
-        ? await supabase.from('project_scurve_forecast').update({ forecast_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
-        : await supabase.from('project_scurve_forecast').insert({ project_id: project.id, period_date, forecast_pct: numVal })
+        ? await supabase.from(forecastTable).update({ forecast_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
+        : await supabase.from(forecastTable).insert(insertRow)
       if (error) { showToast(error.message, 'error'); setSaving(false); return }
-      const { data } = await supabase.from('project_scurve_forecast').select('*').eq('project_id', project.id).order('period_date')
-      setForecasts(data ?? [])
+      let q = supabase.from(forecastTable).select('*').eq('project_id', project.id)
+      if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+      setForecasts((await q.order('period_date')).data ?? [])
     }
 
     setSaving(false)
@@ -654,11 +684,13 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       const now = new Date()
       period_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
     }
-    const { error } = await supabase.from('project_scurve_baseline_data')
-      .insert({ baseline_id: primaryBaselineId, period_date })
+    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
+    const { error } = await supabase.from(baselineTable)
+      .insert({ baseline_id: primaryBaselineId, period_date, ...(scopeFilter ?? {}) })
     if (error) { showToast(error.message, 'error'); return }
-    const { data } = await supabase.from('project_scurve_baseline_data')
-      .select('*').eq('baseline_id', primaryBaselineId).order('period_date')
+    let q = supabase.from(baselineTable).select('*').eq('baseline_id', primaryBaselineId)
+    if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+    const { data } = await q.order('period_date')
     setBaselineDataMap(prev => ({ ...prev, [primaryBaselineId]: data ?? [] }))
   }
 
@@ -720,6 +752,57 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
   return (
     <div ref={containerRef} className="py-4 sm:py-5 space-y-5">
+
+      {/* Scope switcher: Project / Tower dropdown */}
+      {buildings.length > 0 && (() => {
+        const scopeLabel = selectedBuildingId
+          ? (buildings.find(b => b.id === selectedBuildingId)?.name ?? 'Tower')
+          : 'Project'
+        const isProject = selectedBuildingId === null
+        return (
+          <div ref={scopeRef} className="relative flex items-center gap-2">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Scope</span>
+            <button
+              type="button"
+              onClick={() => {
+                setScopeOpen(v => !v)
+                const handler = e => { if (scopeRef.current && !scopeRef.current.contains(e.target)) setScopeOpen(false) }
+                document.addEventListener('mousedown', handler, { once: true })
+              }}
+              className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition min-w-36"
+              style={isProject
+                ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff', borderColor: 'transparent' }
+                : { background: '#fff', color: '#374151', borderColor: '#e5e7eb' }}
+            >
+              <span className="flex-1 text-left truncate">{scopeLabel}</span>
+              <svg className="w-3 h-3 flex-shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+            {scopeOpen && (
+              <div className="absolute top-full mt-1 left-8 z-30 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-44 max-h-64 overflow-y-auto">
+                <button type="button"
+                  onClick={() => { switchScope(null); setScopeOpen(false) }}
+                  className={`w-full text-left px-4 py-2 text-xs font-semibold transition flex items-center gap-2 ${selectedBuildingId === null ? 'text-[#ed6055]' : 'text-gray-700 hover:bg-gray-50'}`}
+                >
+                  {selectedBuildingId === null && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                  Project
+                </button>
+                {buildings.length > 0 && <div className="border-t border-gray-100 my-1" />}
+                {buildings.map(b => (
+                  <button key={b.id} type="button"
+                    onClick={() => { switchScope(b.id); setScopeOpen(false) }}
+                    className={`w-full text-left px-4 py-2 text-xs transition flex items-center gap-2 ${selectedBuildingId === b.id ? 'text-[#ed6055] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    {selectedBuildingId === b.id && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                    {b.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Baseline multi-select + actions */}
       <div className="flex items-center gap-3 flex-wrap">
@@ -890,9 +973,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
               <span className="text-gray-300">No baseline selected</span>
             )}
             <span className="flex items-center gap-1.5">
-              <span className="w-3 h-0.5 rounded bg-green-400 inline-block" />
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 inline-block" />
-              <span className="w-3 h-0.5 rounded bg-green-400 inline-block" />
+              <span className="w-6 h-0.5 rounded bg-green-400 inline-block" />
               Actual
             </span>
             <span className="flex items-center gap-1.5">
@@ -994,8 +1075,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
                 {/* Chart */}
                 {hasChartData && (
-                  <ComposedChart width={effectiveWidth} height={280} data={displayData}
-                    margin={{ top: 8, right: 0, bottom: 0, left: 0 }}>
+                  <ComposedChart width={effectiveWidth} height={500} data={displayData}
+                    margin={{ top: 50, right: 0, bottom: 0, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="period" tick={false} tickLine={false}
                       axisLine={{ stroke: '#e5e7eb' }}
@@ -1016,8 +1097,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                         connectNulls
                       />
                     ))}
-                    <Line dataKey="actual"   name="Actual"   stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls />
                     <Line dataKey="forecast" name="Forecast" stroke="#fde047" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
+                    <Line dataKey="actual"   name="Actual"   stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls />
                     {activityMarkers.map(({ id, name, periodLabel, yOffset }) => (
                       <ReferenceLine key={id} x={periodLabel}
                         stroke="#6366f1" strokeDasharray="4 2" strokeWidth={1.5}
