@@ -2,6 +2,10 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Permit table row actions — visible on row hover only */
+.permit-row .permit-actions { opacity: 0; transition: opacity 150ms; }
+.permit-row:hover .permit-actions { opacity: 1; }
+
 html, body {
   margin: 0;
   background-color: #111111;
