@@ -384,6 +384,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [buildings,            setBuildings]            = useState([])
   const [selectedBuildingId,   setSelectedBuildingId]   = useState(null) // null = project level
   const [scopeOpen,            setScopeOpen]            = useState(false)
+  const [settingsOpen,         setSettingsOpen]         = useState(false)
   const scopeRef = useRef(null)
   const existingImportRef = useRef(null)
 
@@ -751,136 +752,191 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   ]
 
   return (
-    <div ref={containerRef} className="py-4 sm:py-5 space-y-5">
+    <div ref={containerRef} className="py-4 sm:py-5 space-y-3">
 
-      {/* Scope switcher: Project / Tower dropdown */}
-      {buildings.length > 0 && (() => {
-        const scopeLabel = selectedBuildingId
-          ? (buildings.find(b => b.id === selectedBuildingId)?.name ?? 'Tower')
-          : 'Project'
-        const isProject = selectedBuildingId === null
-        return (
-          <div ref={scopeRef} className="relative flex items-center gap-2">
-            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Scope</span>
-            <button
-              type="button"
-              onClick={() => {
-                setScopeOpen(v => !v)
-                const handler = e => { if (scopeRef.current && !scopeRef.current.contains(e.target)) setScopeOpen(false) }
-                document.addEventListener('mousedown', handler, { once: true })
-              }}
-              className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition min-w-36"
-              style={isProject
-                ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff', borderColor: 'transparent' }
-                : { background: '#fff', color: '#374151', borderColor: '#e5e7eb' }}
-            >
-              <span className="flex-1 text-left truncate">{scopeLabel}</span>
-              <svg className="w-3 h-3 flex-shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-              </svg>
-            </button>
-            {scopeOpen && (
-              <div className="absolute top-full mt-1 left-8 z-30 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-44 max-h-64 overflow-y-auto">
-                <button type="button"
-                  onClick={() => { switchScope(null); setScopeOpen(false) }}
-                  className={`w-full text-left px-4 py-2 text-xs font-semibold transition flex items-center gap-2 ${selectedBuildingId === null ? 'text-[#ed6055]' : 'text-gray-700 hover:bg-gray-50'}`}
-                >
-                  {selectedBuildingId === null && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
-                  Project
-                </button>
-                {buildings.length > 0 && <div className="border-t border-gray-100 my-1" />}
-                {buildings.map(b => (
-                  <button key={b.id} type="button"
-                    onClick={() => { switchScope(b.id); setScopeOpen(false) }}
-                    className={`w-full text-left px-4 py-2 text-xs transition flex items-center gap-2 ${selectedBuildingId === b.id ? 'text-[#ed6055] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    {selectedBuildingId === b.id && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
-                    {b.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )
-      })()}
-
-      {/* Baseline multi-select + actions */}
+      {/* Toolbar: scope + baseline + settings */}
       <div className="flex items-center gap-3 flex-wrap">
+        {buildings.length > 0 && (() => {
+          const scopeLabel = selectedBuildingId
+            ? (buildings.find(b => b.id === selectedBuildingId)?.name ?? 'Tower')
+            : 'Project'
+          const isProject = selectedBuildingId === null
+          return (
+            <div ref={scopeRef} className="relative">
+              <button
+                type="button"
+                onClick={() => {
+                  setScopeOpen(v => !v)
+                  const handler = e => { if (scopeRef.current && !scopeRef.current.contains(e.target)) setScopeOpen(false) }
+                  document.addEventListener('mousedown', handler, { once: true })
+                }}
+                className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition min-w-36"
+                style={isProject
+                  ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff', borderColor: 'transparent' }
+                  : { background: '#fff', color: '#374151', borderColor: '#e5e7eb' }}
+              >
+                <span className="flex-1 text-left truncate">{scopeLabel}</span>
+                <svg className="w-3 h-3 flex-shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              {scopeOpen && (
+                <div className="absolute top-full mt-1 left-0 z-30 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-44 max-h-64 overflow-y-auto">
+                  <button type="button"
+                    onClick={() => { switchScope(null); setScopeOpen(false) }}
+                    className={`w-full text-left px-4 py-2 text-xs font-semibold transition flex items-center gap-2 ${selectedBuildingId === null ? 'text-[#ed6055]' : 'text-gray-700 hover:bg-gray-50'}`}
+                  >
+                    {selectedBuildingId === null && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                    Project
+                  </button>
+                  {buildings.length > 0 && <div className="border-t border-gray-100 my-1" />}
+                  {buildings.map(b => (
+                    <button key={b.id} type="button"
+                      onClick={() => { switchScope(b.id); setScopeOpen(false) }}
+                      className={`w-full text-left px-4 py-2 text-xs transition flex items-center gap-2 ${selectedBuildingId === b.id ? 'text-[#ed6055] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      {selectedBuildingId === b.id && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                      {b.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )
+        })()}
         <BaselineMultiSelect
           baselines={baselines}
           selectedIds={selectedBaselineIds}
           onChange={setSelectedBaselineIds}
           colors={BASELINE_COLORS}
         />
-        {isAdmin && (
-          <button
-            onClick={() => setShowNewBaseline(v => !v)}
-            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition"
-          >
-            + New Baseline
-          </button>
-        )}
-        {isAdmin && primaryBaselineId && (
-          <>
-            <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
-              onChange={handleImportExisting} className="hidden" />
+        <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
+          onChange={handleImportExisting} className="hidden" />
+        {(() => {
+          const hasActiveFilters = !!(fromMonth || toMonth || selectedActivityIds.length > 0)
+          return (
             <button
-              onClick={() => existingImportRef.current?.click()}
-              disabled={importingExisting}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
+              onClick={() => setSettingsOpen(v => !v)}
+              className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
               </svg>
-              {importingExisting ? 'Reading…' : 'Import'}
+              Settings
+              {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
             </button>
-            <button
-              onClick={downloadBaselineTemplate}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition"
-              title="Download blank Excel template"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              Template
-            </button>
-            {selectedBaselineIds.length > 1 && (
-              <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-                Import/Add Month applies to: {primaryBaseline?.name}
-              </span>
-            )}
-          </>
-        )}
-        {baselines.length > 0 && (
-          <div className="relative">
-            <button
-              onClick={() => setShowDownloadPicker(v => !v)}
-              disabled={downloading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-              </svg>
-              {downloading ? 'Downloading…' : 'Download Baseline'}
-            </button>
-            {showDownloadPicker && (
-              <div className="absolute top-full mt-1 left-0 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-48">
-                {baselines.map(b => (
-                  <button key={b.id} onClick={() => handleDownloadBaseline(b.id)}
-                    className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 hover:text-[#ed6055] transition">
-                    {b.name}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-        {primaryBaseline?.cutoff_date && (
-          <span className="text-[10px] text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
-            Re-baseline · cutoff {primaryBaseline.cutoff_date.slice(0, 7)}
-          </span>
-        )}
+          )
+        })()}
       </div>
+
+      {/* Settings panel */}
+      {settingsOpen && (
+        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+          {/* View controls row */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Display</span>
+            {['monthly', 'quarterly'].map(mode => (
+              <button key={mode} onClick={() => setViewMode(mode)}
+                className="px-4 py-1.5 rounded-full text-xs font-semibold transition capitalize"
+                style={viewMode === mode
+                  ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff' }
+                  : { background: '#e5e7eb', color: '#6b7280' }}
+              >{mode}</button>
+            ))}
+            {milestones.length > 0 && (
+              <ActivityMultiSelect
+                milestones={milestones}
+                selectedIds={selectedActivityIds}
+                onChange={setSelectedActivityIds}
+              />
+            )}
+            <div className="flex items-center gap-2 flex-wrap ml-auto">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">From</span>
+              <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">To</span>
+              <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
+              {(fromMonth || toMonth) && (
+                <button onClick={() => { setFromMonth(''); setToMonth('') }}
+                  className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium">
+                  Clear
+                </button>
+              )}
+            </div>
+          </div>
+          {/* Data actions row (admin) */}
+          {(isAdmin || baselines.length > 0) && (
+            <div className="flex items-center gap-2 flex-wrap border-t border-gray-200 pt-3">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Data</span>
+              {isAdmin && (
+                <button
+                  onClick={() => setShowNewBaseline(v => !v)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition"
+                >
+                  + New Baseline
+                </button>
+              )}
+              {isAdmin && primaryBaselineId && (
+                <>
+                  <button
+                    onClick={() => existingImportRef.current?.click()}
+                    disabled={importingExisting}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+                    </svg>
+                    {importingExisting ? 'Reading…' : 'Import'}
+                  </button>
+                  <button
+                    onClick={downloadBaselineTemplate}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Template
+                  </button>
+                  {selectedBaselineIds.length > 1 && (
+                    <span className="text-[10px] text-gray-400 bg-white border border-gray-200 px-2 py-1 rounded-full">
+                      Import/Add Month applies to: {primaryBaseline?.name}
+                    </span>
+                  )}
+                </>
+              )}
+              {baselines.length > 0 && (
+                <div className="relative">
+                  <button
+                    onClick={() => setShowDownloadPicker(v => !v)}
+                    disabled={downloading}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    {downloading ? 'Downloading…' : 'Download Baseline'}
+                  </button>
+                  {showDownloadPicker && (
+                    <div className="absolute top-full mt-1 left-0 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-48">
+                      {baselines.map(b => (
+                        <button key={b.id} onClick={() => handleDownloadBaseline(b.id)}
+                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 hover:text-[#ed6055] transition">
+                          {b.name}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+              {primaryBaseline?.cutoff_date && (
+                <span className="text-[10px] text-gray-400 bg-white border border-gray-200 px-2 py-1 rounded-full">
+                  Re-baseline · cutoff {primaryBaseline.cutoff_date.slice(0, 7)}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* New baseline form */}
       {showNewBaseline && isAdmin && (
@@ -936,66 +992,6 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           </div>
         </div>
       )}
-
-      {/* View mode + legend + date range */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-2">
-            {['monthly', 'quarterly'].map(mode => (
-              <button key={mode} onClick={() => setViewMode(mode)}
-                className="px-4 py-1.5 rounded-full text-xs font-semibold transition capitalize"
-                style={viewMode === mode
-                  ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff' }
-                  : { background: '#f3f4f6', color: '#6b7280' }}
-              >{mode}</button>
-            ))}
-            {milestones.length > 0 && (
-              <ActivityMultiSelect
-                milestones={milestones}
-                selectedIds={selectedActivityIds}
-                onChange={setSelectedActivityIds}
-              />
-            )}
-          </div>
-          <div className="flex items-center gap-4 text-xs text-gray-500 flex-wrap">
-            {selectedBaselineIds.map((id, i) => {
-              const bl    = baselines.find(b => b.id === id)
-              const color = BASELINE_COLORS[i % BASELINE_COLORS.length]
-              return (
-                <span key={id} className="flex items-center gap-1.5">
-                  <span className="w-6 h-0.5 rounded inline-block" style={{ backgroundColor: color }} />
-                  <span className="w-2.5 h-2.5 rounded-sm inline-block opacity-30 -ml-4 mr-1" style={{ backgroundColor: color }} />
-                  {bl?.name ?? 'Baseline'}
-                </span>
-              )
-            })}
-            {selectedBaselineIds.length === 0 && (
-              <span className="text-gray-300">No baseline selected</span>
-            )}
-            <span className="flex items-center gap-1.5">
-              <span className="w-6 h-0.5 rounded bg-green-400 inline-block" />
-              Actual
-            </span>
-            <span className="flex items-center gap-1.5">
-              <span style={{ background: 'repeating-linear-gradient(90deg,#fde047 0,#fde047 5px,transparent 5px,transparent 8px)', height: 2, width: 24, display: 'inline-block', borderRadius: 2 }} />
-              Forecast
-            </span>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">From</span>
-          <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">To</span>
-          <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
-          {(fromMonth || toMonth) && (
-            <button onClick={() => { setFromMonth(''); setToMonth('') }}
-              className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium">
-              Clear
-            </button>
-          )}
-        </div>
-      </div>
 
       {/* Chart + tables */}
       {allPeriods.length > 0 && (() => {
@@ -1070,7 +1066,30 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         })()
 
         return (
-          <div className="bg-white rounded-xl border border-gray-200 overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
+          <div className="bg-white rounded-xl border border-gray-200">
+            {/* Legend */}
+            <div className="flex items-center gap-4 px-4 pt-3 pb-2 text-xs text-gray-500 flex-wrap border-b border-gray-100">
+              {selectedBaselineIds.map((id, i) => {
+                const bl    = baselines.find(b => b.id === id)
+                const color = BASELINE_COLORS[i % BASELINE_COLORS.length]
+                return (
+                  <span key={id} className="flex items-center gap-1.5">
+                    <span className="w-6 h-0.5 rounded inline-block" style={{ backgroundColor: color }} />
+                    <span className="w-2.5 h-2.5 rounded-sm inline-block opacity-30 -ml-4 mr-1" style={{ backgroundColor: color }} />
+                    {bl?.name ?? 'Baseline'}
+                  </span>
+                )
+              })}
+              <span className="flex items-center gap-1.5">
+                <span className="w-6 h-0.5 rounded bg-green-400 inline-block" />
+                Actual
+              </span>
+              <span className="flex items-center gap-1.5">
+                <span style={{ background: 'repeating-linear-gradient(90deg,#fde047 0,#fde047 5px,transparent 5px,transparent 8px)', height: 2, width: 24, display: 'inline-block', borderRadius: 2 }} />
+                Forecast
+              </span>
+            </div>
+            <div className="overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
               <div style={{ width: effectiveWidth, minWidth: totalW }}>
 
                 {/* Chart */}
@@ -1244,9 +1263,23 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   </table>
 
               </div>
+            </div>
           </div>
         )
       })()}
+
+      {/* Loading state */}
+      {loading && allPeriods.length === 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 flex items-center justify-center" style={{ height: 220 }}>
+          <div className="flex flex-col items-center gap-3 text-gray-400">
+            <svg className="w-7 h-7 animate-spin" fill="none" viewBox="0 0 24 24">
+              <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
+              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+            </svg>
+            <span className="text-xs font-medium">Loading…</span>
+          </div>
+        </div>
+      )}
 
       {/* Empty state */}
       {allPeriods.length === 0 && !loading && (
