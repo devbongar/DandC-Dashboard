@@ -67,6 +67,15 @@ html, body {
   to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 
+/* ── Settings panel slide-down ──────────────────────────────── */
+@keyframes ph1-panel-down {
+  from { opacity: 0; transform: translateY(-4px) scale(0.99); }
+  to   { opacity: 1; transform: translateY(0)    scale(1);    }
+}
+.settings-panel-enter {
+  animation: ph1-panel-down 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
 /* ── Reduced motion: disable all custom animations ─────────── */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

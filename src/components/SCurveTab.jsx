@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeConfig } from '../lib/scurveUtils'
+import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeFilter } from '../lib/scurveUtils'
 import { downloadWorkbook, downloadBaselineTemplate, downloadActualTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
@@ -189,7 +189,7 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
       <div className="flex items-center gap-3 pt-1 border-t border-gray-200">
         <input ref={fileRef} type="file" accept=".xlsx,.xls,.csv" onChange={handleFileChange} className="hidden" />
         <button type="button" onClick={() => fileRef.current?.click()} disabled={importing}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50">
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97] disabled:opacity-50">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
           </svg>
@@ -203,7 +203,7 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
           </span>
         )}
         <button type="button" onClick={downloadBaselineTemplate}
-          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition">
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]">
           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
           </svg>
@@ -470,6 +470,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [importingExisting,    setImportingExisting]    = useState(false)
   const [showActual,           setShowActual]           = useState(true)
   const [showForecast,         setShowForecast]         = useState(true)
+  const [renamingId,           setRenamingId]           = useState(null)
+  const [renameValue,          setRenameValue]          = useState('')
+  const [renameSaving,         setRenameSaving]         = useState(false)
   const [importingActual,      setImportingActual]      = useState(false)
   const [milestones,           setMilestones]           = useState([])
   const [selectedActivityIds,  setSelectedActivityIds]  = useState([])
@@ -507,16 +510,18 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
   const load = async (buildingId = selectedBuildingId) => {
     setLoading(true)
-    const { actualTable, forecastTable, scopeFilter } = getScopeConfig(buildingId)
+    const { building_id } = getScopeFilter(buildingId)
+    const actsQ = building_id
+      ? supabase.from('scurve_actual').select('*').eq('project_id', project.id).eq('building_id', building_id).order('period_date')
+      : supabase.from('scurve_actual').select('*').eq('project_id', project.id).is('building_id', null).order('period_date')
+    const forsQ = building_id
+      ? supabase.from('scurve_forecast').select('*').eq('project_id', project.id).eq('building_id', building_id).order('period_date')
+      : supabase.from('scurve_forecast').select('*').eq('project_id', project.id).is('building_id', null).order('period_date')
     const [{ data: bl }, { data: bldgs }, actsRes, forsRes] = await Promise.all([
       supabase.from('project_scurve_baselines').select('*').eq('project_id', project.id).order('created_at'),
       supabase.from('project_buildings').select('id, name, sort_order').eq('project_id', project.id).order('sort_order'),
-      scopeFilter
-        ? supabase.from(actualTable).select('*').eq('project_id', project.id).eq('building_id', scopeFilter.building_id).order('period_date')
-        : supabase.from(actualTable).select('*').eq('project_id', project.id).order('period_date'),
-      scopeFilter
-        ? supabase.from(forecastTable).select('*').eq('project_id', project.id).eq('building_id', scopeFilter.building_id).order('period_date')
-        : supabase.from(forecastTable).select('*').eq('project_id', project.id).order('period_date'),
+      actsQ,
+      forsQ,
     ])
     const bls = bl ?? []
     setBaselines(bls)
@@ -563,11 +568,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   // Load baseline data whenever selection or scope changes
   useEffect(() => {
     if (!selectedBaselineIds.length) { setBaselineDataMap({}); return }
-    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
+    const { building_id } = getScopeFilter(selectedBuildingId)
     Promise.all(
       selectedBaselineIds.map(id => {
-        let q = supabase.from(baselineTable).select('*').eq('baseline_id', id)
-        if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+        let q = supabase.from('scurve_baseline_data').select('*').eq('baseline_id', id)
+        q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
         return q.order('period_date').then(({ data }) => [id, data ?? []])
       })
     ).then(entries => setBaselineDataMap(Object.fromEntries(entries)))
@@ -624,16 +629,16 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       .select().single()
     if (error) { showToast(error.message, 'error'); return }
 
-    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
+    const { building_id } = getScopeFilter(selectedBuildingId)
     if (importedRows?.length > 0) {
-      await supabase.from(baselineTable).insert(
-        importedRows.map(r => ({ baseline_id: bl.id, period_date: r.period_date, planned_pct: r.planned_pct, ...(scopeFilter ?? {}) }))
+      await supabase.from('scurve_baseline_data').insert(
+        importedRows.map(r => ({ baseline_id: bl.id, project_id: project.id, period_date: r.period_date, planned_pct: r.planned_pct, building_id }))
       )
     } else if (cutoff_date) {
       const past = actuals.filter(a => a.period_date.slice(0, 7) <= cutoff_date.slice(0, 7))
       if (past.length > 0) {
-        await supabase.from(baselineTable).insert(
-          past.map(a => ({ baseline_id: bl.id, period_date: a.period_date, planned_pct: a.actual_pct, ...(scopeFilter ?? {}) }))
+        await supabase.from('scurve_baseline_data').insert(
+          past.map(a => ({ baseline_id: bl.id, project_id: project.id, period_date: a.period_date, planned_pct: a.actual_pct, building_id }))
         )
       }
     }
@@ -649,10 +654,10 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const handleDownloadBaseline = async (baselineId) => {
     setDownloading(true)
     setShowDownloadPicker(false)
-    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
+    const { building_id } = getScopeFilter(selectedBuildingId)
     const bl = baselines.find(b => b.id === baselineId)
-    let q = supabase.from(baselineTable).select('period_date, planned_pct').eq('baseline_id', baselineId)
-    if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+    let q = supabase.from('scurve_baseline_data').select('period_date, planned_pct').eq('baseline_id', baselineId)
+    q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
     const { data: rows } = await q.order('period_date')
     let cumSum = 0
     const data = (rows ?? []).map(r => {
@@ -712,18 +717,18 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         setImportingActual(false)
         return
       }
-      const { actualTable, scopeFilter } = getScopeConfig(selectedBuildingId)
+      const { building_id } = getScopeFilter(selectedBuildingId)
       const actualMap = Object.fromEntries(actuals.map(r => [r.period_date, r]))
       await Promise.all(parsed.map(r => {
-        const insertRow = { project_id: project.id, period_date: r.period_date, actual_pct: r.actual_pct, ...(scopeFilter ?? {}) }
+        const insertRow = { project_id: project.id, period_date: r.period_date, actual_pct: r.actual_pct, building_id }
         const existing  = actualMap[r.period_date]
         return existing
-          ? supabase.from(actualTable).update({ actual_pct: r.actual_pct, updated_at: new Date().toISOString() }).eq('id', existing.id)
-          : supabase.from(actualTable).insert(insertRow)
+          ? supabase.from('scurve_actual').update({ actual_pct: r.actual_pct, updated_at: new Date().toISOString() }).eq('id', existing.id)
+          : supabase.from('scurve_actual').insert(insertRow)
       }))
       // Reload actuals
-      let q = supabase.from(actualTable).select('*').eq('project_id', project.id)
-      if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+      let q = supabase.from('scurve_actual').select('*').eq('project_id', project.id)
+      q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
       setActuals((await q.order('period_date')).data ?? [])
       showToast(`Imported ${parsed.length} actual periods`)
     } catch {
@@ -732,25 +737,37 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     setImportingActual(false)
   }
 
+  const handleRenameBaseline = async (id) => {
+    const trimmed = renameValue.trim()
+    if (!trimmed) return
+    setRenameSaving(true)
+    await supabase.from('project_scurve_baselines').update({ name: trimmed }).eq('id', id)
+    const { data: bls } = await supabase.from('project_scurve_baselines').select('*').eq('project_id', project.id).order('created_at')
+    setBaselines(bls ?? [])
+    setRenamingId(null)
+    setRenameSaving(false)
+    showToast('Baseline renamed')
+  }
+
   const applyBaselineImport = async (newRows, overwriteRows, targetId) => {
-    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
+    const { building_id } = getScopeFilter(selectedBuildingId)
     const pBMap    = baselineMaps[targetId] ?? {}
     const toInsert = newRows.filter(r => !pBMap[r.period_date])
     const toUpdate = [...newRows.filter(r => pBMap[r.period_date]), ...overwriteRows]
 
     await Promise.all([
       toInsert.length > 0
-        ? supabase.from(baselineTable).insert(
-            toInsert.map(r => ({ baseline_id: targetId, period_date: r.period_date, planned_pct: r.planned_pct, ...(scopeFilter ?? {}) }))
+        ? supabase.from('scurve_baseline_data').insert(
+            toInsert.map(r => ({ baseline_id: targetId, project_id: project.id, period_date: r.period_date, planned_pct: r.planned_pct, building_id }))
           )
         : Promise.resolve(),
       ...toUpdate.map(r =>
-        supabase.from(baselineTable).update({ planned_pct: r.planned_pct }).eq('id', pBMap[r.period_date].id)
+        supabase.from('scurve_baseline_data').update({ planned_pct: r.planned_pct }).eq('id', pBMap[r.period_date].id)
       ),
     ])
     setImportConflict(null)
-    let q = supabase.from(baselineTable).select('*').eq('baseline_id', targetId)
-    if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+    let q = supabase.from('scurve_baseline_data').select('*').eq('baseline_id', targetId)
+    q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
     const { data } = await q.order('period_date')
     setBaselineDataMap(prev => ({ ...prev, [targetId]: data ?? [] }))
   }
@@ -759,40 +776,40 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     const numVal = parseFloat(editValue)
     if (isNaN(numVal) || numVal < 0 || numVal > 100) { showToast('Value must be 0–100', 'error'); return }
     setSaving(true)
-    const { actualTable, forecastTable, baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
+    const { building_id } = getScopeFilter(selectedBuildingId)
 
     if (type === 'baseline') {
       const targetId = editCell.baselineId
       const bMap     = baselineMaps[targetId] ?? {}
       const existing = bMap[period_date]
-      const insertRow = { baseline_id: targetId, period_date, planned_pct: numVal, ...(scopeFilter ?? {}) }
+      const insertRow = { baseline_id: targetId, project_id: project.id, period_date, planned_pct: numVal, building_id }
       const { error } = existing
-        ? await supabase.from(baselineTable).update({ planned_pct: numVal }).eq('id', existing.id)
-        : await supabase.from(baselineTable).insert(insertRow)
+        ? await supabase.from('scurve_baseline_data').update({ planned_pct: numVal }).eq('id', existing.id)
+        : await supabase.from('scurve_baseline_data').insert(insertRow)
       if (error) { showToast(error.message, 'error'); setSaving(false); return }
-      let q = supabase.from(baselineTable).select('*').eq('baseline_id', targetId)
-      if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+      let q = supabase.from('scurve_baseline_data').select('*').eq('baseline_id', targetId)
+      q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
       const { data } = await q.order('period_date')
       setBaselineDataMap(prev => ({ ...prev, [targetId]: data ?? [] }))
     } else if (type === 'actual') {
       const existing = actualMap[period_date]
-      const insertRow = { project_id: project.id, period_date, actual_pct: numVal, ...(scopeFilter ?? {}) }
+      const insertRow = { project_id: project.id, period_date, actual_pct: numVal, building_id }
       const { error } = existing
-        ? await supabase.from(actualTable).update({ actual_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
-        : await supabase.from(actualTable).insert(insertRow)
+        ? await supabase.from('scurve_actual').update({ actual_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
+        : await supabase.from('scurve_actual').insert(insertRow)
       if (error) { showToast(error.message, 'error'); setSaving(false); return }
-      let q = supabase.from(actualTable).select('*').eq('project_id', project.id)
-      if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+      let q = supabase.from('scurve_actual').select('*').eq('project_id', project.id)
+      q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
       setActuals((await q.order('period_date')).data ?? [])
     } else if (type === 'forecast') {
       const existing = forecastMap[period_date]
-      const insertRow = { project_id: project.id, period_date, forecast_pct: numVal, ...(scopeFilter ?? {}) }
+      const insertRow = { project_id: project.id, period_date, forecast_pct: numVal, building_id }
       const { error } = existing
-        ? await supabase.from(forecastTable).update({ forecast_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
-        : await supabase.from(forecastTable).insert(insertRow)
+        ? await supabase.from('scurve_forecast').update({ forecast_pct: numVal, updated_at: new Date().toISOString() }).eq('id', existing.id)
+        : await supabase.from('scurve_forecast').insert(insertRow)
       if (error) { showToast(error.message, 'error'); setSaving(false); return }
-      let q = supabase.from(forecastTable).select('*').eq('project_id', project.id)
-      if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+      let q = supabase.from('scurve_forecast').select('*').eq('project_id', project.id)
+      q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
       setForecasts((await q.order('period_date')).data ?? [])
     }
 
@@ -816,12 +833,12 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       const now = new Date()
       period_date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
     }
-    const { baselineTable, scopeFilter } = getScopeConfig(selectedBuildingId)
-    const { error } = await supabase.from(baselineTable)
-      .insert({ baseline_id: primaryBaselineId, period_date, ...(scopeFilter ?? {}) })
+    const { building_id } = getScopeFilter(selectedBuildingId)
+    const { error } = await supabase.from('scurve_baseline_data')
+      .insert({ baseline_id: primaryBaselineId, project_id: project.id, period_date, building_id })
     if (error) { showToast(error.message, 'error'); return }
-    let q = supabase.from(baselineTable).select('*').eq('baseline_id', primaryBaselineId)
-    if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+    let q = supabase.from('scurve_baseline_data').select('*').eq('baseline_id', primaryBaselineId)
+    q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
     const { data } = await q.order('period_date')
     setBaselineDataMap(prev => ({ ...prev, [primaryBaselineId]: data ?? [] }))
   }
@@ -954,7 +971,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           return (
             <button
               onClick={() => setSettingsOpen(v => !v)}
-              className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
+              className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -969,16 +986,18 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
       {/* Settings panel */}
       {settingsOpen && (
-        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+        <div className="settings-panel-enter rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
           {/* View controls row */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Display</span>
             {['monthly', 'quarterly'].map(mode => (
               <button key={mode} onClick={() => setViewMode(mode)}
-                className="px-4 py-1.5 rounded-full text-xs font-semibold transition capitalize"
-                style={viewMode === mode
-                  ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff' }
-                  : { background: '#e5e7eb', color: '#6b7280' }}
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold capitalize transition-all duration-150 ease-out active:scale-[0.97] ${
+                  viewMode === mode
+                    ? 'text-white shadow-sm'
+                    : 'bg-gray-200 text-gray-500 hover:bg-gray-300'
+                }`}
+                style={viewMode === mode ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)' } : undefined}
               >{mode}</button>
             ))}
             {milestones.length > 0 && (
@@ -1008,7 +1027,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
               {isAdmin && (
                 <button
                   onClick={() => setShowNewBaseline(v => !v)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition"
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]"
                 >
                   + New Baseline
                 </button>
@@ -1018,7 +1037,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   <button
                     onClick={() => existingImportRef.current?.click()}
                     disabled={importingExisting}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
@@ -1027,7 +1046,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   </button>
                   <button
                     onClick={downloadBaselineTemplate}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1046,7 +1065,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   <button
                     onClick={() => actualImportRef.current?.click()}
                     disabled={importingActual}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
@@ -1055,7 +1074,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   </button>
                   <button
                     onClick={downloadActualTemplate}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1069,7 +1088,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   <button
                     onClick={() => setShowDownloadPicker(v => !v)}
                     disabled={downloading}
-                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
@@ -1077,10 +1096,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                     {downloading ? 'Downloading…' : 'Download Baseline'}
                   </button>
                   {showDownloadPicker && (
-                    <div className="absolute top-full mt-1 left-0 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-48">
+                    <div className="absolute top-full mt-1 left-0 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-48"
+                      style={{ animation: 'ph1-dropdown 150ms cubic-bezier(0.23,1,0.32,1) both', transformOrigin: 'top left' }}>
                       {baselines.map(b => (
                         <button key={b.id} onClick={() => handleDownloadBaseline(b.id)}
-                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 hover:text-[#ed6055] transition">
+                          className="w-full text-left px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 hover:text-[#ed6055] transition-[color,background-color] duration-150 ease-out active:scale-[0.98]">
                           {b.name}
                         </button>
                       ))}
@@ -1093,6 +1113,62 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   Re-baseline · cutoff {primaryBaseline.cutoff_date.slice(0, 7)}
                 </span>
               )}
+            </div>
+          )}
+          {/* Baseline rename row */}
+          {isAdmin && baselines.length > 0 && (
+            <div className="flex flex-col gap-1.5 border-t border-gray-200 pt-3">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Baselines</span>
+              {baselines.map((b, i) => {
+                const color = BASELINE_COLORS[i % BASELINE_COLORS.length]
+                const isRenaming = renamingId === b.id
+                return (
+                  <div key={b.id} className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                    {isRenaming ? (
+                      <>
+                        <input
+                          autoFocus
+                          value={renameValue}
+                          onChange={e => setRenameValue(e.target.value)}
+                          onKeyDown={e => {
+                            if (e.key === 'Enter') handleRenameBaseline(b.id)
+                            if (e.key === 'Escape') setRenamingId(null)
+                          }}
+                          className="flex-1 px-2 py-1 text-xs border border-[#ed6055] rounded-lg outline-none bg-white min-w-0"
+                        />
+                        <button
+                          onClick={() => handleRenameBaseline(b.id)}
+                          disabled={renameSaving || !renameValue.trim()}
+                          className="px-2 py-1 text-xs font-semibold rounded-lg bg-[#ed6055] text-white hover:bg-[#c94f45] transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] disabled:opacity-50 flex-shrink-0"
+                        >
+                          {renameSaving ? '…' : 'Save'}
+                        </button>
+                        <button
+                          onClick={() => setRenamingId(null)}
+                          className="text-xs text-gray-400 hover:text-gray-600 transition-colors duration-150 ease-out flex-shrink-0"
+                        >
+                          Cancel
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <span className="flex-1 text-xs text-gray-700 truncate">{b.name}</span>
+                        {b.cutoff_date && <span className="text-[10px] text-gray-400 flex-shrink-0">re-baseline</span>}
+                        <button
+                          onClick={() => { setRenamingId(b.id); setRenameValue(b.name) }}
+                          className="flex-shrink-0 p-1 -m-1 rounded text-gray-400 hover:text-[#ed6055] transition-colors duration-150 ease-out active:scale-[0.9]"
+                          title="Rename"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                      </>
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
         </div>

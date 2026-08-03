@@ -50,9 +50,10 @@ export async function fetchReportData(projectIds) {
       .in('project_id', ids)
       .gte('m4_date', '1900-01-01')),
 
-    supabase.from('project_scurve_actual')
+    supabase.from('scurve_actual')
       .select('project_id, period_date, actual_pct')
       .in('project_id', ids)
+      .is('building_id', null)
       .order('period_date', { ascending: true })
       .then(r => r.data ?? []),
 

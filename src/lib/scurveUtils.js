@@ -73,19 +73,10 @@ export const formatPeriod = (dateStr) => {
   return `${mon} '${yr}`
 }
 
-export function getScopeConfig(buildingId) {
-  if (!buildingId) return {
-    actualTable:   'project_scurve_actual',
-    forecastTable: 'project_scurve_forecast',
-    baselineTable: 'project_scurve_baseline_data',
-    scopeFilter:   null,
-  }
-  return {
-    actualTable:   'tower_scurve_actual',
-    forecastTable: 'tower_scurve_forecast',
-    baselineTable: 'tower_scurve_baseline_data',
-    scopeFilter:   { building_id: buildingId },
-  }
+// Returns { building_id: uuid | null } — spread into inserts, use for query filters.
+// All three scurve tables share this shape: NULL = project scope, UUID = tower scope.
+export function getScopeFilter(buildingId) {
+  return { building_id: buildingId ?? null }
 }
 
 export function buildAllPeriods(baselineData, actuals, forecasts) {
