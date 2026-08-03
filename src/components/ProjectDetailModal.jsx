@@ -3361,6 +3361,26 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
 
 const PHOTO_TAGS = ['Foundation', 'Structural', 'MEP', 'Finishing', 'Facade', 'Landscaping', 'Issues', 'Progress', 'Inspection']
 
+function createThumbnail(file, maxSize = 400) {
+  return new Promise((resolve) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale = Math.min(maxSize / img.width, maxSize / img.height, 1)
+      const w = Math.round(img.width * scale)
+      const h = Math.round(img.height * scale)
+      const canvas = document.createElement('canvas')
+      canvas.width = w
+      canvas.height = h
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h)
+      canvas.toBlob(resolve, 'image/jpeg', 0.75)
+    }
+    img.onerror = () => { URL.revokeObjectURL(url); resolve(null) }
+    img.src = url
+  })
+}
+
 const fmtPhotoMonth = (ym) => {
   const d = new Date(ym + '-01T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'short' }) + " '" + String(d.getFullYear()).slice(2)
@@ -3415,6 +3435,11 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
       const path = `${project.id}/${Date.now()}_${Math.random().toString(36).slice(2)}.${ext}`
       const { error } = await supabase.storage.from('project-photos').upload(path, file)
       if (error) { showToast(`Failed: ${file.name}`, 'error'); continue }
+      // Generate and upload thumbnail
+      const thumbBlob = await createThumbnail(file)
+      if (thumbBlob) {
+        await supabase.storage.from('project-photos').upload(`thumbs/${path}`, thumbBlob, { contentType: 'image/jpeg' })
+      }
       await supabase.from('project_photos').insert({
         project_id: project.id, storage_path: path, file_name: file.name,
         tags: uploadTags, photo_date: uploadDate,
@@ -3542,6 +3567,9 @@ function PhotosTab({ project, isAdmin, showToast }) {
 
   const getUrl = (path) =>
     supabase.storage.from('project-photos').getPublicUrl(path).data.publicUrl
+
+  const getThumbnailUrl = (path) =>
+    supabase.storage.from('project-photos').getPublicUrl(`thumbs/${path}`).data.publicUrl
 
   const months = useMemo(() => {
     const seen = new Set()
@@ -3739,8 +3767,13 @@ function PhotosTab({ project, isAdmin, showToast }) {
                     <div key={photo.id}
                       className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm hover:shadow-md transition"
                       onClick={() => setLightbox(photo._flatIdx)}>
-                      <img src={getUrl(photo.storage_path)} alt={photo.file_name}
-                        className="w-full h-full object-cover transition duration-200 group-hover:scale-105" />
+                      <img
+                        src={getThumbnailUrl(photo.storage_path)}
+                        onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = getUrl(photo.storage_path) }}
+                        alt={photo.file_name}
+                        loading="lazy"
+                        className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                      />
                       {(photo.tags ?? []).length > 0 && (
                         <div className="absolute top-2 left-2 flex flex-wrap gap-1">
                           {(photo.tags ?? []).slice(0, 2).map(tag => (
@@ -4412,6 +4445,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   const toastTimerRef = useRef(null)
   const [tabCounts, setTabCounts] = useState({ permits: null, issues: null })
   const [showReportBuilder, setShowReportBuilder] = useState(false)
+  const [showTabSheet, setShowTabSheet] = useState(false)
 
   useEffect(() => {
     if (asPage) return
@@ -4481,6 +4515,11 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           from { opacity: 0; transform: scale(0.95); }
           to   { opacity: 1; transform: scale(1); }
         }
+        @keyframes sheet-up {
+          from { transform: translateY(100%); }
+          to   { transform: translateY(0); }
+        }
+        .tab-sheet { animation: sheet-up 220ms cubic-bezier(0.23, 1, 0.32, 1) both; }
       `}</style>
       <div className="bg-white rounded-none shadow-2xl w-full h-full flex flex-col overflow-hidden">
 
@@ -4495,10 +4534,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             </div>
           )}
 
-          {/* Tabs */}
+          {/* Tabs — desktop: horizontal scroll row */}
           <div
             role="tablist"
-            className="flex overflow-x-auto flex-1"
+            className="hidden sm:flex overflow-x-auto flex-1"
             style={{
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
@@ -4545,6 +4584,76 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
               )
             })}
           </div>
+
+          {/* Tabs — mobile: picker button */}
+          <button
+            className="sm:hidden flex items-center gap-2 px-4 flex-1 min-w-0 active:bg-white/10 transition-colors duration-150"
+            onClick={() => setShowTabSheet(true)}
+            aria-haspopup="listbox"
+            aria-expanded={showTabSheet}
+          >
+            <span className="text-sm font-semibold text-white truncate flex-1 text-left">{tab}</span>
+            {(() => {
+              const count = tab === 'Permits' ? tabCounts.permits : tab === 'Issues & Concerns' ? tabCounts.issues : null
+              const isAlert = tab === 'Issues & Concerns' && tabCounts.issues > 0
+              return count != null ? (
+                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
+                  style={isAlert ? { background: 'rgba(237,96,85,0.35)', color: '#fca5a5' } : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)' }}>
+                  {count}
+                </span>
+              ) : null
+            })()}
+            <svg className="w-4 h-4 text-white/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+
+          {/* Mobile tab bottom sheet */}
+          {showTabSheet && (
+            <div className="sm:hidden fixed inset-0 z-[200] flex flex-col justify-end">
+              <div className="absolute inset-0 bg-black/50" onClick={() => setShowTabSheet(false)} />
+              <div className="tab-sheet relative bg-white rounded-t-2xl shadow-2xl pb-safe overflow-hidden">
+                <div className="flex justify-center pt-3 pb-1">
+                  <div className="w-10 h-1 rounded-full bg-gray-300" />
+                </div>
+                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-2">Switch tab</p>
+                <div className="px-3 pb-4 space-y-0.5">
+                  {tabs.map(t => {
+                    const count = t === 'Permits' ? tabCounts.permits : t === 'Issues & Concerns' ? tabCounts.issues : null
+                    const isAlert = t === 'Issues & Concerns' && tabCounts.issues > 0
+                    const isActive = tab === t
+                    return (
+                      <button
+                        key={t}
+                        onClick={() => { switchTab(t); setShowTabSheet(false) }}
+                        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl text-sm transition-colors duration-100 active:scale-[0.98]"
+                        style={{
+                          background: isActive ? 'rgba(237,96,85,0.08)' : 'transparent',
+                          color:      isActive ? '#ed6055' : '#374151',
+                          fontWeight: isActive ? 600 : 400,
+                        }}
+                      >
+                        <span>{t}</span>
+                        <span className="flex items-center gap-2">
+                          {count != null && (
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
+                              style={isAlert ? { background: '#fee2e2', color: '#ef4444' } : { background: '#f3f4f6', color: '#9ca3af' }}>
+                              {count}
+                            </span>
+                          )}
+                          {isActive && (
+                            <svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                            </svg>
+                          )}
+                        </span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="flex items-center gap-1.5 px-3 flex-shrink-0 border-l border-white/10">

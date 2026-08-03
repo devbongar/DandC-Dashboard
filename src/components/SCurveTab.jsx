@@ -452,13 +452,16 @@ function makeSeriesLabel(color, yOffsets) {
 }
 
 export default function SCurveTab({ project, isAdmin, canEdit }) {
+  const viewKey = `scurve_view_${project.id}`
+  const _sv = (() => { try { return JSON.parse(localStorage.getItem(viewKey)) ?? {} } catch { return {} } })()
+
   const [baselines,            setBaselines]            = useState([])
-  const [selectedBaselineIds,  setSelectedBaselineIds]  = useState([])
+  const [selectedBaselineIds,  setSelectedBaselineIds]  = useState(_sv.selectedBaselineIds ?? [])
   const [baselineDataMap,      setBaselineDataMap]      = useState({}) // id → rows[]
   const [actuals,              setActuals]              = useState([])
   const [forecasts,            setForecasts]            = useState([])
   const [loading,              setLoading]              = useState(true)
-  const [viewMode,             setViewMode]             = useState('monthly')
+  const [viewMode,             setViewMode]             = useState(_sv.viewMode ?? 'monthly')
   const [editCell,             setEditCell]             = useState(null) // { period_date, type, baselineId? }
   const [editValue,            setEditValue]            = useState('')
   const [saving,               setSaving]               = useState(false)
@@ -468,8 +471,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [showDownloadPicker,   setShowDownloadPicker]   = useState(false)
   const [downloading,          setDownloading]          = useState(false)
   const [importingExisting,    setImportingExisting]    = useState(false)
-  const [showActual,           setShowActual]           = useState(true)
-  const [showForecast,         setShowForecast]         = useState(true)
+  const [showActual,           setShowActual]           = useState(_sv.showActual ?? true)
+  const [showForecast,         setShowForecast]         = useState(_sv.showForecast ?? true)
   const [renamingId,           setRenamingId]           = useState(null)
   const [renameValue,          setRenameValue]          = useState('')
   const [renameSaving,         setRenameSaving]         = useState(false)
@@ -477,7 +480,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [milestones,           setMilestones]           = useState([])
   const [selectedActivityIds,  setSelectedActivityIds]  = useState([])
   const [buildings,            setBuildings]            = useState([])
-  const [selectedBuildingId,   setSelectedBuildingId]   = useState(null) // null = project level
+  const [selectedBuildingId,   setSelectedBuildingId]   = useState(_sv.selectedBuildingId ?? null)
   const [scopeOpen,            setScopeOpen]            = useState(false)
   const [settingsOpen,         setSettingsOpen]         = useState(false)
   const scopeRef = useRef(null)
@@ -528,11 +531,14 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     setBuildings(bldgs ?? [])
     setActuals(actsRes.data ?? [])
     setForecasts(forsRes.data ?? [])
-    setSelectedBaselineIds(prev => prev.length > 0 ? prev : (bls[0] ? [bls[0].id] : []))
+    setSelectedBaselineIds(prev => {
+      const valid = prev.filter(id => bls.some(b => b.id === id))
+      return valid.length > 0 ? valid : (bls[0] ? [bls[0].id] : [])
+    })
     setLoading(false)
   }
 
-  useEffect(() => { load(null) }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load() }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const switchScope = (buildingId) => {
     setSelectedBuildingId(buildingId)
@@ -621,6 +627,21 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       return point
     })
   }, [allPeriods, baselineDataMap, actuals, forecasts, selectedBaselineIds]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSaveView = () => {
+    try {
+      localStorage.setItem(viewKey, JSON.stringify({
+        selectedBaselineIds,
+        showActual,
+        showForecast,
+        viewMode,
+        selectedBuildingId,
+      }))
+      showToast('View saved')
+    } catch {
+      showToast('Failed to save view', 'error')
+    }
+  }
 
   const handleCreateBaseline = async ({ name, cutoff_date, notes, importedRows }) => {
     const { data: bl, error } = await supabase
@@ -966,12 +987,22 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           onChange={handleImportExisting} className="hidden" />
         <input ref={actualImportRef} type="file" accept=".xlsx,.xls,.csv"
           onChange={handleImportActual} className="hidden" />
+        <button
+          onClick={handleSaveView}
+          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-emerald-500 hover:text-emerald-600 transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]"
+          title="Save current view (baselines, scope, filters)"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+          </svg>
+          Save View
+        </button>
         {(() => {
           const hasActiveFilters = !!(fromMonth || toMonth || selectedActivityIds.length > 0)
           return (
             <button
               onClick={() => setSettingsOpen(v => !v)}
-              className={`ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
@@ -1376,6 +1407,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                       const el    = endLabelMap[`bl_${id}`]
                       return (
                         <Area key={id}
+                          type="monotone"
                           dataKey={`bl_${id}`}
                           name={baselines.find(b => b.id === id)?.name ?? 'Baseline'}
                           stroke={color}
@@ -1389,11 +1421,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                       )
                     })}
                     {showForecast && (
-                      <Line dataKey="forecast" name="Forecast" stroke="#fde047" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls
+                      <Line type="monotone" dataKey="forecast" name="Forecast" stroke="#fde047" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls
                         label={endLabelMap['forecast'] ? { content: makeSeriesLabel('#fde047', endLabelMap['forecast'].yOffsets) } : undefined} />
                     )}
                     {showActual && (
-                      <Line dataKey="actual" name="Actual" stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls
+                      <Line type="monotone" dataKey="actual" name="Actual" stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls
                         label={endLabelMap['actual'] ? { content: makeSeriesLabel('#86efac', endLabelMap['actual'].yOffsets) } : undefined} />
                     )}
                     {activityMarkers.map(({ id, name, periodLabel, yOffset }) => (
