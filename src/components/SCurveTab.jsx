@@ -226,7 +226,7 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
   )
 }
 
-function BaselineMultiSelect({ baselines, selectedIds, onChange, colors }) {
+function BaselineMultiSelect({ baselines, selectedIds, onChange, colors, extras = [] }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -267,7 +267,27 @@ function BaselineMultiSelect({ baselines, selectedIds, onChange, colors }) {
       </button>
       {open && (
         <div className="absolute top-full mt-1 left-0 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-52">
-          {baselines.length === 0 ? (
+          {extras.length > 0 && (
+            <>
+              {extras.map(({ label, color, checked, onToggle }) => (
+                <button key={label} type="button" onClick={onToggle}
+                  className="w-full flex items-center gap-2 px-4 py-2 text-xs text-gray-700 hover:bg-gray-50 transition text-left">
+                  <span className="w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center"
+                    style={checked ? { backgroundColor: color, borderColor: color } : { borderColor: '#d1d5db' }}>
+                    {checked && (
+                      <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                      </svg>
+                    )}
+                  </span>
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                  <span className="flex-1">{label}</span>
+                </button>
+              ))}
+              {baselines.length > 0 && <div className="border-t border-gray-100 my-1" />}
+            </>
+          )}
+          {baselines.length === 0 && extras.length === 0 ? (
             <p className="px-4 py-2 text-xs text-gray-400">No baselines yet</p>
           ) : baselines.map((b, i) => {
             const checked = selectedIds.includes(b.id)
@@ -418,6 +438,19 @@ function ActivityRefLabel({ viewBox, name, yOffset = 0 }) {
   )
 }
 
+function makeSeriesLabel(color, yOffsets) {
+  return function SeriesLabel({ x, y, value, index }) {
+    if (value == null) return null
+    const yOff = yOffsets?.[index] ?? -12
+    return (
+      <text x={x} y={y + yOff} fill={color} fontWeight={700}
+        textAnchor="middle" dominantBaseline="middle" style={{ pointerEvents: 'none', fontSize: 11 }}>
+        {value.toFixed(1)}%
+      </text>
+    )
+  }
+}
+
 export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [baselines,            setBaselines]            = useState([])
   const [selectedBaselineIds,  setSelectedBaselineIds]  = useState([])
@@ -435,6 +468,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [showDownloadPicker,   setShowDownloadPicker]   = useState(false)
   const [downloading,          setDownloading]          = useState(false)
   const [importingExisting,    setImportingExisting]    = useState(false)
+  const [showActual,           setShowActual]           = useState(true)
+  const [showForecast,         setShowForecast]         = useState(true)
   const [importingActual,      setImportingActual]      = useState(false)
   const [milestones,           setMilestones]           = useState([])
   const [selectedActivityIds,  setSelectedActivityIds]  = useState([])
@@ -832,8 +867,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       bg:         '#ffffff',
       adminOnly:  true,
     })),
-    { label: 'Actual',   type: 'actual',   baselineId: null, color: '#86efac', bg: '#fafbfc', adminOnly: false },
-    { label: 'Forecast', type: 'forecast', baselineId: null, color: '#fde047', bg: '#ffffff', adminOnly: false },
+    ...(showActual   ? [{ label: 'Actual',   type: 'actual',   baselineId: null, color: '#86efac', bg: '#fafbfc', adminOnly: false }] : []),
+    ...(showForecast ? [{ label: 'Forecast', type: 'forecast', baselineId: null, color: '#fde047', bg: '#ffffff', adminOnly: false }] : []),
   ]
 
   const CUMULATIVE_ROWS = [
@@ -843,8 +878,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       color: BASELINE_COLORS[i % BASELINE_COLORS.length],
       bg:    '#ffffff',
     })),
-    { label: 'Actual',   key: 'actual',   color: '#86efac', bg: '#fafbfc' },
-    { label: 'Forecast', key: 'forecast', color: '#fde047', bg: '#ffffff' },
+    ...(showActual   ? [{ label: 'Actual',   key: 'actual',   color: '#86efac', bg: '#fafbfc' }] : []),
+    ...(showForecast ? [{ label: 'Forecast', key: 'forecast', color: '#fde047', bg: '#ffffff' }] : []),
   ]
 
   return (
@@ -905,6 +940,10 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           selectedIds={selectedBaselineIds}
           onChange={setSelectedBaselineIds}
           colors={BASELINE_COLORS}
+          extras={[
+            { label: 'Actual',   color: '#86efac', checked: showActual,   onToggle: () => setShowActual(v => !v)   },
+            { label: 'Forecast', color: '#fde047', checked: showForecast, onToggle: () => setShowForecast(v => !v) },
+          ]}
         />
         <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
           onChange={handleImportExisting} className="hidden" />
@@ -1149,6 +1188,33 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         })
         const displayData = viewMode === 'quarterly' ? [...quarterMap.values()] : combinedData
 
+        // Per-point label y-offsets — collision avoidance at each index
+        const endLabelMap = (() => {
+          const seriesDef = [
+            ...selectedBaselineIds.map((id, i) => ({
+              key: `bl_${id}`, color: BASELINE_COLORS[i % BASELINE_COLORS.length],
+            })),
+            ...(showActual   ? [{ key: 'actual',   color: '#86efac' }] : []),
+            ...(showForecast ? [{ key: 'forecast', color: '#fde047' }] : []),
+          ]
+          const yOffsets = {} // key → number[] (one offset per displayData index)
+          for (let i = 0; i < displayData.length; i++) {
+            const present = seriesDef
+              .map(s => ({ ...s, val: displayData[i]?.[s.key] ?? null }))
+              .filter(s => s.val != null)
+            present.sort((a, b) => b.val - a.val)
+            let prevYOff = null, prevVal = null
+            for (const s of present) {
+              let yOff = -12
+              if (prevYOff !== null && prevVal - s.val < 8) yOff = prevYOff + 16
+              if (!yOffsets[s.key]) yOffsets[s.key] = new Array(displayData.length).fill(-12)
+              yOffsets[s.key][i] = yOff
+              prevYOff = yOff; prevVal = s.val
+            }
+          }
+          return Object.fromEntries(seriesDef.map(s => [s.key, { color: s.color, yOffsets: yOffsets[s.key] }]))
+        })()
+
         // Quarterly grouping for Periodic % table (sum of monthly increments per quarter)
         const periodicQMap = new Map()
         filteredPeriods.forEach(p => {
@@ -1201,14 +1267,18 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   </span>
                 )
               })}
-              <span className="flex items-center gap-1.5">
-                <span className="w-6 h-0.5 rounded bg-green-400 inline-block" />
-                Actual
-              </span>
-              <span className="flex items-center gap-1.5">
-                <span style={{ background: 'repeating-linear-gradient(90deg,#fde047 0,#fde047 5px,transparent 5px,transparent 8px)', height: 2, width: 24, display: 'inline-block', borderRadius: 2 }} />
-                Forecast
-              </span>
+              {showActual && (
+                <span className="flex items-center gap-1.5">
+                  <span className="w-6 h-0.5 rounded bg-green-400 inline-block" />
+                  Actual
+                </span>
+              )}
+              {showForecast && (
+                <span className="flex items-center gap-1.5">
+                  <span style={{ background: 'repeating-linear-gradient(90deg,#fde047 0,#fde047 5px,transparent 5px,transparent 8px)', height: 2, width: 24, display: 'inline-block', borderRadius: 2 }} />
+                  Forecast
+                </span>
+              )}
             </div>
             <div className="overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
               <div style={{ width: effectiveWidth, minWidth: totalW }}>
@@ -1216,7 +1286,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                 {/* Chart */}
                 {hasChartData && (
                   <ComposedChart width={effectiveWidth} height={500} data={displayData}
-                    margin={{ top: 50, right: 0, bottom: 0, left: 0 }}>
+                    margin={{ top: 50, right: 52, bottom: 0, left: 0 }}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="period" tick={false} tickLine={false}
                       axisLine={{ stroke: '#e5e7eb' }}
@@ -1225,20 +1295,31 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                       tickLine={false} axisLine={false} fontSize={11}
                       label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#9ca3af' } }} />
                     <Tooltip formatter={val => val != null ? val.toFixed(2) + '%' : '—'} />
-                    {selectedBaselineIds.map((id, i) => (
-                      <Area key={id}
-                        dataKey={`bl_${id}`}
-                        name={baselines.find(b => b.id === id)?.name ?? 'Baseline'}
-                        stroke={BASELINE_COLORS[i % BASELINE_COLORS.length]}
-                        fill={BASELINE_COLORS[i % BASELINE_COLORS.length]}
-                        fillOpacity={0.12}
-                        strokeWidth={2}
-                        dot={false}
-                        connectNulls
-                      />
-                    ))}
-                    <Line dataKey="forecast" name="Forecast" stroke="#fde047" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls />
-                    <Line dataKey="actual"   name="Actual"   stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls />
+                    {selectedBaselineIds.map((id, i) => {
+                      const color = BASELINE_COLORS[i % BASELINE_COLORS.length]
+                      const el    = endLabelMap[`bl_${id}`]
+                      return (
+                        <Area key={id}
+                          dataKey={`bl_${id}`}
+                          name={baselines.find(b => b.id === id)?.name ?? 'Baseline'}
+                          stroke={color}
+                          fill={color}
+                          fillOpacity={0.12}
+                          strokeWidth={2}
+                          dot={false}
+                          connectNulls
+                          label={el ? { content: makeSeriesLabel(color, el.yOffsets) } : undefined}
+                        />
+                      )
+                    })}
+                    {showForecast && (
+                      <Line dataKey="forecast" name="Forecast" stroke="#fde047" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls
+                        label={endLabelMap['forecast'] ? { content: makeSeriesLabel('#fde047', endLabelMap['forecast'].yOffsets) } : undefined} />
+                    )}
+                    {showActual && (
+                      <Line dataKey="actual" name="Actual" stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls
+                        label={endLabelMap['actual'] ? { content: makeSeriesLabel('#86efac', endLabelMap['actual'].yOffsets) } : undefined} />
+                    )}
                     {activityMarkers.map(({ id, name, periodLabel, yOffset }) => (
                       <ReferenceLine key={id} x={periodLabel}
                         stroke="#6366f1" strokeDasharray="4 2" strokeWidth={1.5}
