@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeConfig } from '../lib/scurveUtils'
-import { downloadWorkbook, downloadBaselineTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
+import { downloadWorkbook, downloadBaselineTemplate, downloadActualTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
 } from 'recharts'
@@ -49,15 +49,71 @@ function MonthYearPicker({ value, onChange, min, max }) {
   )
 }
 
+function diagnoseBaselineExcel(wb) {
+  const sheetNames = Object.keys(wb)
+  const sheet      = wb['Baseline Data'] ?? Object.values(wb)[0] ?? []
+  const usedSheet  = wb['Baseline Data'] ? 'Baseline Data' : (sheetNames[0] ?? '(none)')
+
+  if (sheet.length === 0)
+    return `Sheet "${usedSheet}" is empty. Sheets found: ${sheetNames.join(', ')}`
+
+  const keys       = Object.keys(sheet[0] ?? {})
+  const hasPeriod  = keys.some(k => ['Period', 'Period (locked)', 'period'].includes(k))
+  const hasPlanned = keys.some(k => ['Planned %', 'planned_pct', 'planned'].includes(k))
+
+  if (!hasPeriod || !hasPlanned) {
+    const missing = [...(!hasPeriod ? ['"Period"'] : []), ...(!hasPlanned ? ['"Planned %"'] : [])]
+    return `Missing column${missing.length > 1 ? 's' : ''}: ${missing.join(', ')}. Columns found: ${keys.map(k => `"${k}"`).join(', ')}`
+  }
+
+  const samples = sheet.slice(0, 5).map(row => {
+    const raw    = row['Period'] ?? row['Period (locked)'] ?? row['period']
+    const parsed = parsePeriodDate(String(raw ?? ''))
+    return `"${raw}" → ${parsed ?? 'unrecognized'}`
+  })
+  return `Period format not recognized. Samples: ${samples.join(' | ')}. Use m/d/yyyy (e.g. 1/1/2026).`
+}
+
 function parseBaselineExcel(wb) {
   const sheet = wb['Baseline Data'] ?? Object.values(wb)[0] ?? []
-  return sheet
+  const parsed = sheet
     .map(row => {
       const period_date = parsePeriodDate(row['Period'] ?? row['Period (locked)'] ?? row['period'])
       const planned_pct = toFloat(row['Planned %'] ?? row['planned_pct'] ?? row['planned'])
       return period_date ? { period_date, planned_pct } : null
     })
     .filter(Boolean)
+    .sort((a, b) => a.period_date.localeCompare(b.period_date))
+
+  // Input is cumulative — convert to periodic increments for storage
+  let prevCum = 0
+  return parsed.map(r => {
+    const cum      = r.planned_pct ?? 0
+    const periodic = Math.max(0, cum - prevCum)
+    prevCum        = cum
+    return { ...r, planned_pct: periodic }
+  })
+}
+
+function parseActualExcel(wb) {
+  const sheet = wb['Actual Data'] ?? wb['Baseline Data'] ?? Object.values(wb)[0] ?? []
+  const parsed = sheet
+    .map(row => {
+      const period_date = parsePeriodDate(row['Period'] ?? row['Period (locked)'] ?? row['period'])
+      const actual_pct  = toFloat(row['Actual %'] ?? row['actual_pct'] ?? row['actual'])
+      return period_date && actual_pct !== null ? { period_date, actual_pct } : null
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.period_date.localeCompare(b.period_date))
+
+  // Input is cumulative — convert to periodic increments for storage
+  let prevCum = 0
+  return parsed.map(r => {
+    const cum      = r.actual_pct ?? 0
+    const periodic = Math.max(0, cum - prevCum)
+    prevCum        = cum
+    return { ...r, actual_pct: periodic }
+  })
 }
 
 function NewBaselineForm({ actuals, onSave, onCancel }) {
@@ -80,7 +136,7 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
       const wb   = await parseWorkbook(file)
       const rows = parseBaselineExcel(wb)
       setImportedRows(rows.length > 0 ? rows : null)
-      if (rows.length === 0) alert('No valid rows found. Check column headers: "Period" and "Planned %".')
+      if (rows.length === 0) alert('Import failed: ' + diagnoseBaselineExcel(wb))
     } catch {
       alert('Failed to read file.')
     }
@@ -379,6 +435,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [showDownloadPicker,   setShowDownloadPicker]   = useState(false)
   const [downloading,          setDownloading]          = useState(false)
   const [importingExisting,    setImportingExisting]    = useState(false)
+  const [importingActual,      setImportingActual]      = useState(false)
   const [milestones,           setMilestones]           = useState([])
   const [selectedActivityIds,  setSelectedActivityIds]  = useState([])
   const [buildings,            setBuildings]            = useState([])
@@ -387,6 +444,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [settingsOpen,         setSettingsOpen]         = useState(false)
   const scopeRef = useRef(null)
   const existingImportRef = useRef(null)
+  const actualImportRef = useRef(null)
 
   const dateRangeKey = `scurve_dateRange_${project.id}`
   const [fromMonth, setFromMonthRaw] = useState(() => {
@@ -561,7 +619,12 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     let q = supabase.from(baselineTable).select('period_date, planned_pct').eq('baseline_id', baselineId)
     if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
     const { data: rows } = await q.order('period_date')
-    const data = (rows ?? []).map(r => ({ period: r.period_date, planned: r.planned_pct ?? '' }))
+    let cumSum = 0
+    const data = (rows ?? []).map(r => {
+      cumSum = Math.min(100, cumSum + (r.planned_pct ?? 0))
+      const d = new Date(r.period_date + 'T00:00:00')
+      return { period: `${d.getMonth() + 1}/${d.getDate()}/${d.getFullYear()}`, planned: cumSum || '' }
+    })
     downloadWorkbook(
       [{
         sheetName: 'Baseline Data',
@@ -586,7 +649,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     try {
       const wb      = await parseWorkbook(file)
       const parsed  = parseBaselineExcel(wb)
-      if (!parsed.length) { showToast('No valid rows found', 'error'); setImportingExisting(false); return }
+      if (!parsed.length) { showToast('Import failed: ' + diagnoseBaselineExcel(wb), 'error'); setImportingExisting(false); return }
       const pBMap = baselineMaps[targetId] ?? {}
       const { conflicts, newRows } = detectConflicts(parsed, pBMap)
       if (conflicts.length > 0) {
@@ -599,6 +662,39 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       showToast('Failed to read file', 'error')
     }
     setImportingExisting(false)
+  }
+
+  const handleImportActual = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setImportingActual(true)
+    try {
+      const wb     = await parseWorkbook(file)
+      const parsed = parseActualExcel(wb)
+      if (!parsed.length) {
+        showToast('Import failed: no valid rows found. Check "Period" and "Actual %" columns.', 'error')
+        setImportingActual(false)
+        return
+      }
+      const { actualTable, scopeFilter } = getScopeConfig(selectedBuildingId)
+      const actualMap = Object.fromEntries(actuals.map(r => [r.period_date, r]))
+      await Promise.all(parsed.map(r => {
+        const insertRow = { project_id: project.id, period_date: r.period_date, actual_pct: r.actual_pct, ...(scopeFilter ?? {}) }
+        const existing  = actualMap[r.period_date]
+        return existing
+          ? supabase.from(actualTable).update({ actual_pct: r.actual_pct, updated_at: new Date().toISOString() }).eq('id', existing.id)
+          : supabase.from(actualTable).insert(insertRow)
+      }))
+      // Reload actuals
+      let q = supabase.from(actualTable).select('*').eq('project_id', project.id)
+      if (scopeFilter) q = q.eq('building_id', scopeFilter.building_id)
+      setActuals((await q.order('period_date')).data ?? [])
+      showToast(`Imported ${parsed.length} actual periods`)
+    } catch {
+      showToast('Failed to read file', 'error')
+    }
+    setImportingActual(false)
   }
 
   const applyBaselineImport = async (newRows, overwriteRows, targetId) => {
@@ -812,6 +908,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         />
         <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
           onChange={handleImportExisting} className="hidden" />
+        <input ref={actualImportRef} type="file" accept=".xlsx,.xls,.csv"
+          onChange={handleImportActual} className="hidden" />
         {(() => {
           const hasActiveFilters = !!(fromMonth || toMonth || selectedActivityIds.length > 0)
           return (
@@ -902,6 +1000,29 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                       Import/Add Month applies to: {primaryBaseline?.name}
                     </span>
                   )}
+                </>
+              )}
+              {canEdit && (
+                <>
+                  <button
+                    onClick={() => actualImportRef.current?.click()}
+                    disabled={importingActual}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition disabled:opacity-50"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+                    </svg>
+                    {importingActual ? 'Reading…' : 'Import Actual'}
+                  </button>
+                  <button
+                    onClick={downloadActualTemplate}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Actual Template
+                  </button>
                 </>
               )}
               {baselines.length > 0 && (

@@ -128,6 +128,17 @@ describe('parsePeriodDate', () => {
     expect(parsePeriodDate(undefined)).toBeNull()
   })
 
+  it('handles JS Date objects (from Excel cellDates:true)', () => {
+    expect(parsePeriodDate(new Date('2026-01-15'))).toBe('2026-01-01')
+    expect(parsePeriodDate(new Date('2026-12-01'))).toBe('2026-12-01')
+  })
+
+  it('parses m/d/yyyy format to first of month', () => {
+    expect(parsePeriodDate('1/1/2026')).toBe('2026-01-01')
+    expect(parsePeriodDate('12/15/2026')).toBe('2026-12-01')
+    expect(parsePeriodDate('3/1/2026')).toBe('2026-03-01')
+  })
+
   it('returns null for unrecognized format', () => {
     expect(parsePeriodDate('not-a-date')).toBeNull()
   })

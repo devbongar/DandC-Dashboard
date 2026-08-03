@@ -110,6 +110,85 @@ export function toInt(val) {
   return isNaN(n) ? null : n
 }
 
+export async function downloadActualTemplate(filename = 'actual-import-template.xlsx') {
+  const wb = new ExcelJS.Workbook()
+
+  // ── Instructions sheet ───────────────────────────────────────────────────
+  const ins = wb.addWorksheet('Instructions')
+  ins.columns = [{ width: 22 }, { width: 68 }]
+
+  const title = ins.addRow(['Actual Import Template — Instructions'])
+  ins.mergeCells('A1:B1')
+  title.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }
+  title.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFED6055' } }
+  title.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+  title.height = 24
+
+  ins.addRow([])
+
+  const addRow = (label, text) => {
+    const r = ins.addRow([label, text])
+    r.getCell(1).font = { bold: true, color: { argb: 'FF111827' } }
+    r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }
+    r.getCell(2).font = { color: { argb: 'FF374151' } }
+    r.getCell(2).alignment = { wrapText: true }
+    r.height = 32
+  }
+
+  addRow('Period column',   'Use m/d/yyyy format — e.g. 1/1/2026 · 12/31/2026. Other accepted: 2026-01-01 · Jan \'26 · January 2026')
+  addRow('Actual % column', 'Enter the CUMULATIVE % at the end of each period (0–100). The system converts to increments automatically.')
+  addRow('Column headers',  'Do not rename "Period" or "Actual %" — these exact names are required for import to work.')
+  addRow('Sheet name',      'Any sheet name works — the first sheet in the file is used.')
+  addRow('Example',         'If Jan=5%, Feb=13%, Mar=23% cumulative — enter 5, 13, 23 (not 5, 8, 10).')
+
+  ins.addRow([])
+
+  const exHeader = ins.addRow(['Example data:'])
+  exHeader.getCell(1).font = { bold: true, color: { argb: 'FF111827' } }
+
+  const exColHeader = ins.addRow(['Period', 'Actual %'])
+  exColHeader.eachCell(c => {
+    c.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B7280' } }
+  })
+
+  ;[['1/1/2026', 5], ['2/1/2026', 13], ['3/1/2026', 23]].forEach(([p, v]) => {
+    const r = ins.addRow([p, v])
+    r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } } })
+  })
+
+  // ── Actual Data sheet (fill in here) ────────────────────────────────────
+  const ws = wb.addWorksheet('Actual Data')
+  ws.columns = [
+    { header: 'Period',   key: 'period', width: 18 },
+    { header: 'Actual %', key: 'actual', width: 14 },
+  ]
+
+  const header = ws.getRow(1)
+  header.font = { bold: true, color: { argb: 'FF111827' } }
+  header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }
+  header.height = 20
+
+  const now = new Date()
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    ws.addRow([`${d.getMonth() + 1}/1/${d.getFullYear()}`, ''])
+  }
+
+  ws.addRow([])
+  const note = ws.addRow(['← Add more rows below as needed', ''])
+  note.getCell(1).font = { italic: true, color: { argb: 'FF9CA3AF' } }
+
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url    = URL.createObjectURL(blob)
+  const a      = document.createElement('a')
+  a.href       = url
+  a.download   = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function downloadBaselineTemplate(filename = 'baseline-import-template.xlsx') {
   const wb = new ExcelJS.Workbook()
 
@@ -135,11 +214,11 @@ export async function downloadBaselineTemplate(filename = 'baseline-import-templ
     r.height = 32
   }
 
-  addRow('Period column',    "Each row = one month. Accepted formats: 2026-01-01 · 2026-01 · Jan '26 · January 2026")
-  addRow('Planned % column', 'Enter the MONTHLY INCREMENT (not cumulative). Must be 0–100. Leave blank for months with no planned progress.')
+  addRow('Period column',    'Use m/d/yyyy format — e.g. 1/1/2026 · 12/31/2026. Other accepted: 2026-01-01 · Jan \'26 · January 2026')
+  addRow('Planned % column', 'Enter the CUMULATIVE % at the end of each period (0–100). The system converts to increments automatically.')
   addRow('Column headers',   'Do not rename "Period" or "Planned %" — these exact names are required for import to work.')
   addRow('Sheet name',       'Keep this sheet named "Baseline Data". If renamed, the first sheet in the file will be used instead.')
-  addRow('Cumulative %',     'The system automatically computes cumulative % from your monthly increments. Do not enter cumulative values.')
+  addRow('Example',          'If Jan=5%, Feb=13%, Mar=23% cumulative — enter 5, 13, 23 (not 5, 8, 10).')
 
   ins.addRow([])
 
@@ -152,7 +231,7 @@ export async function downloadBaselineTemplate(filename = 'baseline-import-templ
     c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B7280' } }
   })
 
-  ;[['2026-01-01', 5], ['2026-02-01', 8], ['2026-03-01', 10]].forEach(([p, v]) => {
+  ;[['1/1/2026', 5], ['2/1/2026', 13], ['3/1/2026', 23]].forEach(([p, v]) => {
     const r = ins.addRow([p, v])
     r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } } })
   })
@@ -172,7 +251,7 @@ export async function downloadBaselineTemplate(filename = 'baseline-import-templ
   const now = new Date()
   for (let i = 0; i < 12; i++) {
     const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
-    ws.addRow([`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`, ''])
+    ws.addRow([`${d.getMonth() + 1}/1/${d.getFullYear()}`, ''])
   }
 
   // Add a note row after the 12 months

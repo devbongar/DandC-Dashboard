@@ -1,5 +1,13 @@
 export function parsePeriodDate(val) {
   if (!val) return null
+
+  // JS Date object — from Excel with cellDates:true
+  if (val instanceof Date && !isNaN(val)) {
+    const y = val.getFullYear()
+    const m = val.getMonth() + 1
+    return `${y}-${String(m).padStart(2, '0')}-01`
+  }
+
   const s = String(val).trim()
   if (!s) return null
 
@@ -28,6 +36,16 @@ export function parsePeriodDate(val) {
       const y = d.getFullYear()
       if (y >= 1900 && y <= 2100) return `${y}-${String(d.getMonth() + 1).padStart(2, '0')}-01`
     }
+    return null
+  }
+
+  // m/d/yyyy or mm/dd/yyyy
+  const mdyMatch = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (mdyMatch) {
+    const m = parseInt(mdyMatch[1], 10)
+    const y = parseInt(mdyMatch[3], 10)
+    if (m >= 1 && m <= 12 && y >= 1900 && y <= 2100)
+      return `${y}-${String(m).padStart(2, '0')}-01`
     return null
   }
 
