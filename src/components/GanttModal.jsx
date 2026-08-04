@@ -5,9 +5,9 @@ import { CSS } from '@dnd-kit/utilities'
 import { supabase } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr } from '../lib/excelUtils'
 import TriangleLoader from './TriangleLoader'
-import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors, scheduleMilestones, scheduleProjected } from '../lib/ganttDependencies'
+import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors, scheduleMilestones, scheduleProjected, expandDependencies } from '../lib/ganttDependencies'
 import { buildChildAddForm, computeReorder } from '../lib/ganttUtils'
-import { copyTemplateToBaseline, copyBaselineToBaseline } from '../lib/templateUtils'
+import { copyTemplateToBaseline, snapshotTasksToBaseline } from '../lib/templateUtils'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
@@ -1494,7 +1494,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   useEffect(() => {
     const loadBaselines = async () => {
       const { data } = await supabase
-        .from('milestone_baselines')
+        .from('workprogram_baselines')
         .select('id, label, created_at, scheduling_mode, start_date, confirmed_at')
         .eq('project_id', project.id)
         .order('created_at', { ascending: true })
@@ -1509,51 +1509,37 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const loadMilestones = async (blId) => {
     setLoading(true)
     const resolvedId = blId ?? activeBL
-    const [{ data: ms }, { data: deps }] = await Promise.all([
-      supabase.from('workprogram_activities').select('*').eq('project_id', project.id).eq('baseline_id', resolvedId).order('sort_order'),
-      supabase.from('workprogram_dependencies').select('*').eq('baseline_id', resolvedId),
+
+    const [{ data: rawTasks }, { data: snapshots }] = await Promise.all([
+      supabase
+        .from('workprogram_tasks')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('sort_order'),
+      resolvedId
+        ? supabase
+            .from('workprogram_baseline_snapshots')
+            .select('task_id, baseline_start, baseline_end')
+            .eq('baseline_id', resolvedId)
+        : Promise.resolve({ data: [] }),
     ])
-    const msArr   = ms   ?? []
-    const depsArr = deps ?? []
 
-    // Restore any pending sort_order changes from session storage
-    const applySessionOrder = (arr) => {
-      try {
-        const saved = sessionStorage.getItem(`milestone-order-${resolvedId}`)
-        if (!saved) return { ms: arr, dirty: false }
-        const orderMap = new Map(JSON.parse(saved).map(({ id, sort_order, phase, parent_id }) => [id, { sort_order, phase, parent_id }]))
-        return { ms: arr.map(m => orderMap.has(m.id) ? { ...m, ...orderMap.get(m.id) } : m), dirty: true }
-      } catch { return { ms: arr, dirty: false } }
-    }
+    const snapshotMap = Object.fromEntries(
+      (snapshots ?? []).map(s => [s.task_id, s])
+    )
 
-    // Auto-recalculate projected dates whenever any row has actual dates
-    const hasActuals = msArr.some(m => m.actual_start || m.actual_end)
-    if (hasActuals) {
-      const projected = scheduleProjected(msArr, depsArr)
-      if (projected && !projected.error) {
-        const entries = Object.entries(projected)
-        if (entries.length) {
-          entries.forEach(([id, dates]) =>
-            supabase.from('workprogram_activities')
-              .update({ projected_start: dates.projected_start, projected_end: dates.projected_end })
-              .eq('id', id)
-          )
-          const projMap = new Map(entries)
-          const merged = msArr.map(m => projMap.has(m.id) ? { ...m, ...projMap.get(m.id) } : m)
-          const { ms: finalMs, dirty } = applySessionOrder(merged)
-          setMilestones(finalMs)
-          setOrderDirty(dirty)
-          setDependencies(depsArr)
-          setLoading(false)
-          return
-        }
-      }
-    }
+    const tasks = (rawTasks ?? []).map(t => ({
+      ...t,
+      planned_start:   snapshotMap[t.id]?.baseline_start ?? t.baseline_start,
+      planned_end:     snapshotMap[t.id]?.baseline_end   ?? t.baseline_end,
+      projected_start: t.forecast_start,
+      projected_end:   t.forecast_end,
+    }))
 
-    const { ms: finalMs, dirty } = applySessionOrder(msArr)
-    setMilestones(finalMs)
-    setOrderDirty(dirty)
-    setDependencies(depsArr)
+    const depRows = expandDependencies(tasks)
+
+    setMilestones(tasks)
+    setDependencies(depRows)
     setLoading(false)
   }
 
@@ -1569,7 +1555,15 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     })
     if (!dirty.length) return
     const results = await Promise.all(
-      dirty.map(([id, name]) => supabase.from('workprogram_activities').update({ milestone_name: name.trim() }).eq('id', id))
+      dirty.map(([id, name]) => {
+        const updates = { milestone_name: name.trim() }
+        const dbUpdates = { ...updates }
+        if ('planned_start'   in dbUpdates) { dbUpdates.baseline_start = dbUpdates.planned_start;   delete dbUpdates.planned_start }
+        if ('planned_end'     in dbUpdates) { dbUpdates.baseline_end   = dbUpdates.planned_end;     delete dbUpdates.planned_end }
+        if ('projected_start' in dbUpdates) { dbUpdates.forecast_start = dbUpdates.projected_start; delete dbUpdates.projected_start }
+        if ('projected_end'   in dbUpdates) { dbUpdates.forecast_end   = dbUpdates.projected_end;   delete dbUpdates.projected_end }
+        return supabase.from('workprogram_tasks').update(dbUpdates).eq('id', id)
+      })
     )
     const failed = results.filter(r => r.error)
     if (failed.length) { showToast(`${failed.length} error(s) saving.`, 'error'); return }
@@ -1579,24 +1573,33 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleDelete = async (id) => {
-    const { error } = await supabase.from('workprogram_activities').delete().eq('id', id)
+    const { error } = await supabase.from('workprogram_tasks').delete().eq('id', id)
     if (error) { showToast(error.message, 'error'); return }
     showToast('Deleted.', 'success')
     loadMilestones()
   }
 
   const handleSaveDate = async (milestoneId, field, value) => {
-    const updates = { [field]: value || null }
+    const fieldMap = {
+      planned_start:   'baseline_start',
+      planned_end:     'baseline_end',
+      projected_start: 'forecast_start',
+      projected_end:   'forecast_end',
+      actual_start:    'actual_start',
+      actual_end:      'actual_end',
+    }
+    const dbField = fieldMap[field] ?? field
+    const updates = { [dbField]: value || null }
     // When actual start/end is set, sync projected if not already filled
     if (field === 'actual_start' && value) {
       const m = milestones.find(x => x.id === milestoneId)
-      if (!m?.projected_start) updates.projected_start = value
+      if (!m?.projected_start) updates.forecast_start = value
     }
     if (field === 'actual_end' && value) {
       const m = milestones.find(x => x.id === milestoneId)
-      if (!m?.projected_end) updates.projected_end = value
+      if (!m?.projected_end) updates.forecast_end = value
     }
-    const { error } = await supabase.from('workprogram_activities').update(updates).eq('id', milestoneId)
+    const { error } = await supabase.from('workprogram_tasks').update(updates).eq('id', milestoneId)
     if (error) { showToast(error.message, 'error'); return }
     if (field === 'actual_start' || field === 'actual_end') {
       // loadMilestones will recalculate projected dates for all downstream tasks
@@ -1618,23 +1621,23 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       let sort_order = 0
       if (parentId) {
         const { data: sibs } = await supabase
-          .from('workprogram_activities').select('sort_order')
+          .from('workprogram_tasks').select('sort_order')
           .eq('parent_id', parentId).order('sort_order', { ascending: false }).limit(1)
         sort_order = sibs?.length ? (sibs[0].sort_order ?? 0) + 1 : 0
       } else {
         const { data: sibs } = await supabase
-          .from('workprogram_activities').select('sort_order')
-          .eq('baseline_id', activeBL).eq('phase', inlineAdd.phase).is('parent_id', null)
+          .from('workprogram_tasks').select('sort_order')
+          .eq('project_id', project.id).eq('phase', inlineAdd.phase).is('parent_id', null)
           .order('sort_order', { ascending: false }).limit(1)
         sort_order = sibs?.length ? (sibs[0].sort_order ?? 0) + 1 : 0
       }
-      const { error } = await supabase.from('workprogram_activities').insert({
+      const { error } = await supabase.from('workprogram_tasks').insert({
         project_id:     project.id,
-        baseline_id:    activeBL,
         phase:          inlineAdd.phase,
         parent_id:      parentId,
         milestone_name: inlineAddName.trim(),
         sort_order,
+        dependencies:   [],
       })
       if (error) { showToast(error.message, 'error'); return }
       setInlineAdd(null); setInlineAddName('')
@@ -2085,29 +2088,12 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       showToast('A task cannot be its own predecessor.', 'error')
       return
     }
-    const current = dependencies.filter(d => d.to_id === milestoneId)
-    const toDelete = current.filter(c =>
-      !parsed.some(p => p.fromId === c.from_id && p.type === c.type && (c.lag_days ?? 0) === p.lagDays)
-    )
-    const toInsert = parsed.filter(p =>
-      !current.some(c => c.from_id === p.fromId && c.type === p.type && (c.lag_days ?? 0) === p.lagDays)
-    )
-    if (!toDelete.length && !toInsert.length) return
-    for (const dep of toDelete) {
-      const { error } = await supabase.from('workprogram_dependencies').delete().eq('id', dep.id)
-      if (error) { showToast(error.message, 'error'); await loadMilestones(activeBL); return }
-    }
-    for (const p of toInsert) {
-      const { error } = await supabase.from('workprogram_dependencies').insert({
-        project_id:  project.id,
-        baseline_id: activeBL,
-        from_id:     p.fromId,
-        to_id:       milestoneId,
-        type:        p.type,
-        lag_days:    p.lagDays,
-      })
-      if (error) { showToast(error.message, 'error'); await loadMilestones(activeBL); return }
-    }
+    const depsJson = parsed.map(d => ({ id: d.fromId, type: d.type, lag: d.lagDays ?? 0 }))
+    const { error } = await supabase
+      .from('workprogram_tasks')
+      .update({ dependencies: depsJson })
+      .eq('id', milestoneId)
+    if (error) { showToast(error.message, 'error'); return }
     if (isAutoMode && blStartDate) {
       await runScheduler()
     } else if (!isBLConfirmed) {
@@ -2220,8 +2206,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
   const handleSaveDuration = async (milestoneId, duration) => {
     const { error } = await supabase
-      .from('workprogram_activities')
-      .update({ duration: duration ?? null })
+      .from('workprogram_tasks')
+      .update({ duration: duration ?? null, baseline_duration: duration ?? null })
       .eq('id', milestoneId)
     if (error) { showToast(error.message, 'error'); return }
     // Use baseline start date, or fall back to earliest planned_start already set
