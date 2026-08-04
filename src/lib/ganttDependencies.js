@@ -160,8 +160,8 @@ export function formatPredecessors(deps, idToRowNum) {
 }
 
 // Computes planned_start / planned_end for all schedulable leaf tasks using CPM forward pass.
-// milestones: workprogram_activities rows for the active baseline (must include .duration, .parent_id, .id)
-// dependencies: workprogram_dependencies rows for the active baseline
+// milestones: workprogram_tasks rows (must include .duration, .parent_id, .id)
+// dependencies: flat dep rows from expandDependencies(tasks)
 // startDate: ISO date string (YYYY-MM-DD) — the project start anchor
 // Returns { [milestoneId]: { planned_start, planned_end } } on success, or { error: 'circular' } on cycle.
 export function scheduleMilestones(milestones, dependencies, startDate) {
