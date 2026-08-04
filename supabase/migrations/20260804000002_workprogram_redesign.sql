@@ -38,7 +38,7 @@ CREATE TABLE workprogram_baseline_snapshots (
 -- ── 2. Migrate baselines ───────────────────────────────────────────────────────
 
 INSERT INTO workprogram_baselines (id, project_id, name, created_at)
-SELECT id, project_id, name, created_at
+SELECT id, project_id, label, created_at
 FROM milestone_baselines
 ON CONFLICT DO NOTHING;
 
