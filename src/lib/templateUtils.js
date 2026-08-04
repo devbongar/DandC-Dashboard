@@ -9,7 +9,7 @@
  */
 export async function copyBaselineToBaseline(sourceId, targetId, supabase, projectId) {
   const { data: sourceMilestones, error: fetchErr } = await supabase
-    .from('project_milestones')
+    .from('workprogram_activities')
     .select('*')
     .eq('baseline_id', sourceId)
     .order('sort_order')
@@ -23,7 +23,7 @@ export async function copyBaselineToBaseline(sourceId, targetId, supabase, proje
   const children = sourceMilestones.filter(m =>  m.parent_id)
 
   const { data: insertedParents, error: parentErr } = await supabase
-    .from('project_milestones')
+    .from('workprogram_activities')
     .insert(parents.map(m => ({
       project_id: projectId, baseline_id: targetId,
       phase: m.phase, milestone_name: m.milestone_name,
@@ -56,7 +56,7 @@ export async function copyBaselineToBaseline(sourceId, targetId, supabase, proje
     }).filter(Boolean)
 
     const { data: insertedChildren, error: childErr } = await supabase
-      .from('project_milestones').insert(childPayloads).select('id, sort_order')
+      .from('workprogram_activities').insert(childPayloads).select('id, sort_order')
     if (childErr) return { error: childErr.message }
 
     const childSortToId = new Map((insertedChildren ?? []).map(r => [Number(r.sort_order), r.id]))
@@ -67,7 +67,7 @@ export async function copyBaselineToBaseline(sourceId, targetId, supabase, proje
   }
 
   const { data: sourceDeps } = await supabase
-    .from('milestone_dependencies')
+    .from('workprogram_dependencies')
     .select('*')
     .eq('baseline_id', sourceId)
 
@@ -84,7 +84,7 @@ export async function copyBaselineToBaseline(sourceId, targetId, supabase, proje
     }).filter(Boolean)
 
     if (depRows.length) {
-      const { error: depErr } = await supabase.from('milestone_dependencies').insert(depRows)
+      const { error: depErr } = await supabase.from('workprogram_dependencies').insert(depRows)
       if (depErr) return { error: depErr.message }
     }
   }
@@ -144,13 +144,13 @@ export function parseTemplatePredecessors(text, seqToId) {
 }
 
 /**
- * Copies all work_program_template_tasks into a new baseline as project_milestones.
- * Also inserts milestone_dependencies by resolving predecessor_text.
+ * Copies all work_program_template_tasks into a new baseline as workprogram_activities.
+ * Also inserts workprogram_dependencies by resolving predecessor_text.
  * If sourceBaselineId is provided, actual/projected dates from matching milestones
  * in that baseline are carried over to the new baseline (matched by phase + name).
  * @param {string} baselineId - the newly created milestone_baselines.id
  * @param {object} supabase - Supabase client
- * @param {string} projectId - the project id (needed for project_milestones.project_id)
+ * @param {string} projectId - the project id (needed for workprogram_activities.project_id)
  * @param {string|null} sourceBaselineId - existing baseline whose actual dates to carry over
  * @returns {Promise<{error: string|null}>}
  */
@@ -166,7 +166,7 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId, so
   const templateToNewId = new Map()
 
   // Assign clean sequential integers for sort_order (template values may be fractional
-  // after inline insertions, which would fail project_milestones INTEGER column)
+  // after inline insertions, which would fail workprogram_activities INTEGER column)
   const seqSortOrder = new Map(tasks.map((t, i) => [t.id, i + 1]))
 
   const parents  = tasks.filter(t => !t.parent_id)
@@ -174,7 +174,7 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId, so
 
   // Batch insert all parents in one DB call
   const { data: insertedParents, error: parentErr } = await supabase
-    .from('project_milestones')
+    .from('workprogram_activities')
     .insert(parents.map(t => ({
       project_id: projectId, baseline_id: baselineId,
       phase: t.phase, milestone_name: t.milestone_name,
@@ -204,7 +204,7 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId, so
       .filter(Boolean)
 
     const { data: insertedChildren, error: childErr } = await supabase
-      .from('project_milestones')
+      .from('workprogram_activities')
       .insert(childPayloads)
       .select('id, sort_order')
     if (childErr) return { error: childErr.message }
@@ -243,7 +243,7 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId, so
 
   if (depRows.length) {
     const { error: depErr } = await supabase
-      .from('milestone_dependencies')
+      .from('workprogram_dependencies')
       .insert(depRows)
     if (depErr) return { error: depErr.message }
   }
@@ -251,7 +251,7 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId, so
   // Carry over actual/projected dates from the source baseline (matched by phase + name)
   if (sourceBaselineId) {
     const { data: sourceMilestones } = await supabase
-      .from('project_milestones')
+      .from('workprogram_activities')
       .select('phase, milestone_name, actual_start, actual_end, projected_start, projected_end')
       .eq('baseline_id', sourceBaselineId)
 
@@ -280,7 +280,7 @@ export async function copyTemplateToBaseline(baselineId, supabase, projectId, so
       if (updates.length) {
         const results = await Promise.all(
           updates.map(u =>
-            supabase.from('project_milestones')
+            supabase.from('workprogram_activities')
               .update({
                 actual_start:    u.actual_start,
                 actual_end:      u.actual_end,

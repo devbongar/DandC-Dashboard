@@ -1510,8 +1510,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setLoading(true)
     const resolvedId = blId ?? activeBL
     const [{ data: ms }, { data: deps }] = await Promise.all([
-      supabase.from('project_milestones').select('*').eq('project_id', project.id).eq('baseline_id', resolvedId).order('sort_order'),
-      supabase.from('milestone_dependencies').select('*').eq('baseline_id', resolvedId),
+      supabase.from('workprogram_activities').select('*').eq('project_id', project.id).eq('baseline_id', resolvedId).order('sort_order'),
+      supabase.from('workprogram_dependencies').select('*').eq('baseline_id', resolvedId),
     ])
     const msArr   = ms   ?? []
     const depsArr = deps ?? []
@@ -1534,7 +1534,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         const entries = Object.entries(projected)
         if (entries.length) {
           entries.forEach(([id, dates]) =>
-            supabase.from('project_milestones')
+            supabase.from('workprogram_activities')
               .update({ projected_start: dates.projected_start, projected_end: dates.projected_end })
               .eq('id', id)
           )
@@ -1569,7 +1569,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     })
     if (!dirty.length) return
     const results = await Promise.all(
-      dirty.map(([id, name]) => supabase.from('project_milestones').update({ milestone_name: name.trim() }).eq('id', id))
+      dirty.map(([id, name]) => supabase.from('workprogram_activities').update({ milestone_name: name.trim() }).eq('id', id))
     )
     const failed = results.filter(r => r.error)
     if (failed.length) { showToast(`${failed.length} error(s) saving.`, 'error'); return }
@@ -1579,7 +1579,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleDelete = async (id) => {
-    const { error } = await supabase.from('project_milestones').delete().eq('id', id)
+    const { error } = await supabase.from('workprogram_activities').delete().eq('id', id)
     if (error) { showToast(error.message, 'error'); return }
     showToast('Deleted.', 'success')
     loadMilestones()
@@ -1596,7 +1596,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       const m = milestones.find(x => x.id === milestoneId)
       if (!m?.projected_end) updates.projected_end = value
     }
-    const { error } = await supabase.from('project_milestones').update(updates).eq('id', milestoneId)
+    const { error } = await supabase.from('workprogram_activities').update(updates).eq('id', milestoneId)
     if (error) { showToast(error.message, 'error'); return }
     if (field === 'actual_start' || field === 'actual_end') {
       // loadMilestones will recalculate projected dates for all downstream tasks
@@ -1618,17 +1618,17 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       let sort_order = 0
       if (parentId) {
         const { data: sibs } = await supabase
-          .from('project_milestones').select('sort_order')
+          .from('workprogram_activities').select('sort_order')
           .eq('parent_id', parentId).order('sort_order', { ascending: false }).limit(1)
         sort_order = sibs?.length ? (sibs[0].sort_order ?? 0) + 1 : 0
       } else {
         const { data: sibs } = await supabase
-          .from('project_milestones').select('sort_order')
+          .from('workprogram_activities').select('sort_order')
           .eq('baseline_id', activeBL).eq('phase', inlineAdd.phase).is('parent_id', null)
           .order('sort_order', { ascending: false }).limit(1)
         sort_order = sibs?.length ? (sibs[0].sort_order ?? 0) + 1 : 0
       }
-      const { error } = await supabase.from('project_milestones').insert({
+      const { error } = await supabase.from('workprogram_activities').insert({
         project_id:     project.id,
         baseline_id:    activeBL,
         phase:          inlineAdd.phase,
@@ -1802,7 +1802,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     try {
       const { error } = await Promise.all(
         milestones.map(m =>
-          supabase.from('project_milestones').update({ sort_order: m.sort_order, phase: m.phase, parent_id: m.parent_id }).eq('id', m.id)
+          supabase.from('workprogram_activities').update({ sort_order: m.sort_order, phase: m.phase, parent_id: m.parent_id }).eq('id', m.id)
         )
       ).then(results => results.find(r => r.error) ?? {})
       if (error) { showToast(error.message, 'error'); return }
@@ -1992,7 +1992,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       const parentNameToDbId = {}
       if (uniqueParentNames.length > 0) {
         const { data: ins, error: pErr } = await supabase
-          .from('project_milestones')
+          .from('workprogram_activities')
           .insert(uniqueParentNames.map((name, i) => ({
             project_id: pid, baseline_id: blId,
             phase: newRows.find(r => r._parentName === name)?.phase ?? 'initiation',
@@ -2003,7 +2003,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         uniqueParentNames.forEach((name, i) => { parentNameToDbId[name] = ins[i].id })
       }
 
-      const { error: cErr } = await supabase.from('project_milestones').insert(
+      const { error: cErr } = await supabase.from('workprogram_activities').insert(
         newRows.map(({ _parentName, ...rest }) => ({
           ...rest, baseline_id: blId,
           parent_id: _parentName ? (parentNameToDbId[_parentName] ?? null) : null,
@@ -2026,7 +2026,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleDeleteBaseline = async (blId) => {
-    const { error: mErr } = await supabase.from('project_milestones').delete().eq('baseline_id', blId)
+    const { error: mErr } = await supabase.from('workprogram_activities').delete().eq('baseline_id', blId)
     if (mErr) { showToast(mErr.message, 'error'); return }
     const { error } = await supabase.from('milestone_baselines').delete().eq('id', blId)
     if (error) { showToast(error.message, 'error'); return }
@@ -2094,11 +2094,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     )
     if (!toDelete.length && !toInsert.length) return
     for (const dep of toDelete) {
-      const { error } = await supabase.from('milestone_dependencies').delete().eq('id', dep.id)
+      const { error } = await supabase.from('workprogram_dependencies').delete().eq('id', dep.id)
       if (error) { showToast(error.message, 'error'); await loadMilestones(activeBL); return }
     }
     for (const p of toInsert) {
-      const { error } = await supabase.from('milestone_dependencies').insert({
+      const { error } = await supabase.from('workprogram_dependencies').insert({
         project_id:  project.id,
         baseline_id: activeBL,
         from_id:     p.fromId,
@@ -2181,8 +2181,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       if (!startDate || !activeBL) return false
 
       const [{ data: ms }, { data: deps }] = await Promise.all([
-        supabase.from('project_milestones').select('*').eq('project_id', project.id).eq('baseline_id', activeBL).order('sort_order'),
-        supabase.from('milestone_dependencies').select('*').eq('baseline_id', activeBL),
+        supabase.from('workprogram_activities').select('*').eq('project_id', project.id).eq('baseline_id', activeBL).order('sort_order'),
+        supabase.from('workprogram_dependencies').select('*').eq('baseline_id', activeBL),
       ])
 
       const result = scheduleMilestones(ms ?? [], deps ?? [], startDate)
@@ -2200,7 +2200,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
       const results = await Promise.all(
         entries.map(([id, dates]) =>
-          supabase.from('project_milestones')
+          supabase.from('workprogram_activities')
             .update({ planned_start: dates.planned_start, planned_end: dates.planned_end })
             .eq('id', id)
         )
@@ -2220,7 +2220,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
   const handleSaveDuration = async (milestoneId, duration) => {
     const { error } = await supabase
-      .from('project_milestones')
+      .from('workprogram_activities')
       .update({ duration: duration ?? null })
       .eq('id', milestoneId)
     if (error) { showToast(error.message, 'error'); return }

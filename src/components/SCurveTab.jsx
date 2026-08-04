@@ -560,7 +560,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         .maybeSingle()
       if (!mbl) { setMilestones([]); return }
       const { data: ms } = await supabase
-        .from('project_milestones')
+        .from('workprogram_activities')
         .select('id, milestone_name, phase, planned_start')
         .eq('project_id', project.id)
         .eq('baseline_id', mbl.id)

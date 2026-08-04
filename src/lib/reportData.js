@@ -26,7 +26,7 @@ export async function fetchReportData(projectIds) {
       .order('date_presented', { ascending: false })
       .then(r => r.data ?? []),
 
-    supabase.from('project_milestones')
+    supabase.from('workprogram_activities')
       .select('id, project_id, milestone_name, target_date, actual_date, status, baseline_id')
       .in('project_id', ids)
       .order('target_date', { ascending: true })
