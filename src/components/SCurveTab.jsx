@@ -393,8 +393,8 @@ function ActivityMultiSelect({ milestones, selectedIds, onChange }) {
                       )}
                     </span>
                     <span className="flex-1 truncate">{m.milestone_name}</span>
-                    {m.planned_start && (
-                      <span className="text-gray-400 whitespace-nowrap font-mono">{m.planned_start.slice(0, 7)}</span>
+                    {m.baseline_start && (
+                      <span className="text-gray-400 whitespace-nowrap font-mono">{m.baseline_start.slice(0, 7)}</span>
                     )}
                   </button>
                 )
@@ -548,11 +548,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     load(buildingId)
   }
 
-  // Fetch work program milestones from latest confirmed milestone baseline
+  // Fetch work program milestones from latest confirmed baseline
   useEffect(() => {
     const fetchMilestones = async () => {
       const { data: mbl } = await supabase
-        .from('milestone_baselines')
+        .from('workprogram_baselines')
         .select('id')
         .eq('project_id', project.id)
         .order('confirmed_at', { ascending: false })
@@ -560,12 +560,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         .maybeSingle()
       if (!mbl) { setMilestones([]); return }
       const { data: ms } = await supabase
-        .from('workprogram_activities')
-        .select('id, milestone_name, phase, planned_start')
+        .from('workprogram_tasks')
+        .select('id, milestone_name, phase, baseline_start')
         .eq('project_id', project.id)
-        .eq('baseline_id', mbl.id)
-        .not('planned_start', 'is', null)
-        .order('planned_start')
+        .not('baseline_start', 'is', null)
+        .order('baseline_start')
       setMilestones(ms ?? [])
     }
     fetchMilestones()
@@ -1338,17 +1337,17 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         const activityMarkers = (() => {
           const slotsByPeriod = new Map()
           return milestones
-            .filter(m => selectedActivityIds.includes(m.id) && m.planned_start)
+            .filter(m => selectedActivityIds.includes(m.id) && m.baseline_start)
             .map(m => {
               let periodLabel = null
               if (viewMode === 'quarterly') {
-                const d    = new Date(m.planned_start)
+                const d    = new Date(m.baseline_start)
                 const q    = Math.floor(d.getMonth() / 3) + 1
                 const year = d.getFullYear()
                 const lbl  = `Q${q} '${String(year).slice(2)}`
                 if (displayData.some(pt => pt.period === lbl)) periodLabel = lbl
               } else {
-                const monthStr = m.planned_start.slice(0, 7) + '-01'
+                const monthStr = m.baseline_start.slice(0, 7) + '-01'
                 if (filteredPeriods.includes(monthStr)) periodLabel = formatPeriod(monthStr)
               }
               if (!periodLabel) return null
