@@ -1805,7 +1805,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     try {
       const { error } = await Promise.all(
         milestones.map(m =>
-          supabase.from('workprogram_activities').update({ sort_order: m.sort_order, phase: m.phase, parent_id: m.parent_id }).eq('id', m.id)
+          supabase.from('workprogram_tasks').update({ sort_order: m.sort_order, phase: m.phase, parent_id: m.parent_id }).eq('id', m.id)
         )
       ).then(results => results.find(r => r.error) ?? {})
       if (error) { showToast(error.message, 'error'); return }
@@ -1838,44 +1838,41 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
   const handleCreateBaseline = async () => {
     const label = newBLName.trim()
-    if (!label || creatingBL) return
+    if (!label) return
     setCreatingBL(true)
-    const { data, error } = await supabase
-      .from('milestone_baselines')
-      .insert({ project_id: project.id, label, scheduling_mode: 'auto', start_date: null })
-      .select('id, label, created_at, scheduling_mode, start_date')
-      .single()
-    if (error) { showToast(error.message, 'error'); setCreatingBL(false); return }
-    if (!data) { showToast('Failed to create baseline.', 'error'); setCreatingBL(false); return }
+    try {
+      const { data, error: blErr } = await supabase
+        .from('workprogram_baselines')
+        .insert({ project_id: project.id, name: label })
+        .select('id')
+        .single()
+      if (blErr || !data) { showToast(blErr?.message ?? 'Failed to create baseline', 'error'); return }
 
-    if (baselines.length > 0) {
-      // BL1+: copy everything from the currently active baseline
-      const sourceLabel = baselines.find(b => b.id === activeBL)?.label ?? 'previous baseline'
-      const { error: copyErr } = await copyBaselineToBaseline(activeBL, data.id, supabase, project.id)
-      if (copyErr) {
-        showToast(`Baseline created but copy failed: ${copyErr}`, 'error')
+      const { data: existingTasks } = await supabase
+        .from('workprogram_tasks')
+        .select('id')
+        .eq('project_id', project.id)
+        .limit(1)
+
+      if (!existingTasks?.length) {
+        const { error: copyErr } = await copyTemplateToBaseline(data.id, project.id, supabase)
+        if (copyErr) { showToast(copyErr, 'error'); return }
       } else {
-        showToast(`"${label}" created from ${sourceLabel}. Edit as needed.`, 'success')
+        const { error: snapErr } = await snapshotTasksToBaseline(data.id, project.id, supabase)
+        if (snapErr) { showToast(snapErr, 'error'); return }
       }
-    } else if (loadTemplate && templateCount > 0) {
-      // BL0 with template: copy from the standard work program template
-      const { error: copyErr } = await copyTemplateToBaseline(data.id, supabase, project.id, null)
-      if (copyErr) {
-        showToast(`Baseline created but template copy failed: ${copyErr}`, 'error')
-      } else {
-        showToast(`"${label}" created with standard work program.`, 'success')
-      }
-    } else {
-      showToast(`"${label}" created.`, 'success')
+
+      const { data: newBLs } = await supabase
+        .from('workprogram_baselines')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('created_at')
+      if (newBLs) { setBaselines(newBLs); setActiveBL(data.id) }
+      setNewBLName('')
+      showToast('Baseline created.', 'success')
+    } finally {
+      setCreatingBL(false)
     }
-
-    setBaselines(prev => [...prev, data])
-    setActiveBL(data.id)
-    setInlineAdd(null); setInlineAddName('')
-    setNewBLName('')
-    setShowNewBLModal(false)
-    setCreatingBL(false)
-    // No explicit loadMilestones here — setActiveBL triggers the useEffect which loads milestones
   }
 
   const handleExport = async () => {
@@ -1985,8 +1982,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       if (errors.length > 0) { setImportErrors(errors); return }
 
       const { data: blData, error: blErr } = await supabase
-        .from('milestone_baselines')
-        .insert({ project_id: pid, label })
+        .from('workprogram_baselines')
+        .insert({ project_id: pid, name: label })
         .select('id').single()
       if (blErr) throw blErr
       const blId = blData.id
@@ -1995,28 +1992,36 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       const parentNameToDbId = {}
       if (uniqueParentNames.length > 0) {
         const { data: ins, error: pErr } = await supabase
-          .from('workprogram_activities')
+          .from('workprogram_tasks')
           .insert(uniqueParentNames.map((name, i) => ({
-            project_id: pid, baseline_id: blId,
+            project_id: pid,
             phase: newRows.find(r => r._parentName === name)?.phase ?? 'initiation',
             milestone_name: name, sort_order: -(uniqueParentNames.length - i),
+            dependencies: [],
           })))
           .select('id')
         if (pErr) throw pErr
         uniqueParentNames.forEach((name, i) => { parentNameToDbId[name] = ins[i].id })
       }
 
-      const { error: cErr } = await supabase.from('workprogram_activities').insert(
-        newRows.map(({ _parentName, ...rest }) => ({
-          ...rest, baseline_id: blId,
+      const { error: cErr } = await supabase.from('workprogram_tasks').insert(
+        newRows.map(({ _parentName, planned_start, planned_end, projected_start, projected_end, ...rest }) => ({
+          ...rest,
+          baseline_start:  planned_start   || null,
+          baseline_end:    planned_end     || null,
+          forecast_start:  projected_start || null,
+          forecast_end:    projected_end   || null,
           parent_id: _parentName ? (parentNameToDbId[_parentName] ?? null) : null,
+          dependencies: [],
         }))
       )
       if (cErr) throw cErr
 
+      await snapshotTasksToBaseline(blId, pid, supabase)
+
       const { data: newBLs } = await supabase
-        .from('milestone_baselines')
-        .select('id, label, created_at, scheduling_mode, start_date, confirmed_at')
+        .from('workprogram_baselines')
+        .select('*')
         .eq('project_id', pid)
         .order('created_at', { ascending: true })
       if (newBLs) { setBaselines(newBLs); setActiveBL(blId); setInlineAdd(null); setInlineAddName('') }
@@ -2029,9 +2034,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleDeleteBaseline = async (blId) => {
-    const { error: mErr } = await supabase.from('workprogram_activities').delete().eq('baseline_id', blId)
-    if (mErr) { showToast(mErr.message, 'error'); return }
-    const { error } = await supabase.from('milestone_baselines').delete().eq('id', blId)
+    const { error } = await supabase.from('workprogram_baselines').delete().eq('id', blId)
     if (error) { showToast(error.message, 'error'); return }
     showToast('Baseline deleted.', 'success')
     const remaining = baselines.filter(b => b.id !== blId)
@@ -2121,7 +2124,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const handleSaveStartDate = async (isoDate) => {
     const val = isoDate || null
     const { error } = await supabase
-      .from('milestone_baselines')
+      .from('workprogram_baselines')
       .update({ start_date: val })
       .eq('id', activeBL)
     if (error) { showToast(error.message, 'error'); return }
@@ -2134,7 +2137,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const handleConfirmBaseline = async () => {
     const now = new Date().toISOString()
     const { error } = await supabase
-      .from('milestone_baselines')
+      .from('workprogram_baselines')
       .update({ confirmed_at: now })
       .eq('id', activeBL)
     if (error) { showToast(error.message, 'error'); return }
@@ -2145,7 +2148,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
   const handleSaveMode = async (newMode) => {
     const { error } = await supabase
-      .from('milestone_baselines')
+      .from('workprogram_baselines')
       .update({ scheduling_mode: newMode })
       .eq('id', activeBL)
     if (error) { showToast(error.message, 'error'); return }
@@ -2166,12 +2169,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       const startDate = startDateOverride ?? blStartDate
       if (!startDate || !activeBL) return false
 
-      const [{ data: ms }, { data: deps }] = await Promise.all([
-        supabase.from('workprogram_activities').select('*').eq('project_id', project.id).eq('baseline_id', activeBL).order('sort_order'),
-        supabase.from('workprogram_dependencies').select('*').eq('baseline_id', activeBL),
-      ])
+      const { data: ms } = await supabase
+        .from('workprogram_tasks')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('sort_order')
+      const deps = expandDependencies(ms ?? []).map(d => ({ ...d, lag_days: d.lag ?? 0 }))
 
-      const result = scheduleMilestones(ms ?? [], deps ?? [], startDate)
+      const result = scheduleMilestones(ms ?? [], deps, startDate)
 
       if (result?.error === 'circular') {
         showToast('Circular dependency detected — schedule not updated.', 'error')
@@ -2186,8 +2191,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
 
       const results = await Promise.all(
         entries.map(([id, dates]) =>
-          supabase.from('workprogram_activities')
-            .update({ planned_start: dates.planned_start, planned_end: dates.planned_end })
+          supabase.from('workprogram_tasks')
+            .update({ baseline_start: dates.planned_start, baseline_end: dates.planned_end })
             .eq('id', id)
         )
       )
