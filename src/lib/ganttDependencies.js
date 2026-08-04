@@ -6,6 +6,22 @@ export const DEP_TYPES = [
   { value: 'SF', label: 'SF — Start to Finish',  desc: 'B finishes after A starts' },
 ]
 
+// Converts JSONB dependencies on each task into flat dep rows for visualization.
+// Input: tasks array where each task has .dependencies = [{id, type, lag}]
+// Output: [{from_id, to_id, type, lag}] matching old workprogram_dependencies row shape
+export function expandDependencies(tasks) {
+  const rows = []
+  for (const task of tasks) {
+    const deps = Array.isArray(task.dependencies) ? task.dependencies : []
+    for (const dep of deps) {
+      if (dep.id && dep.type) {
+        rows.push({ from_id: dep.id, to_id: task.id, type: dep.type, lag: dep.lag ?? 0 })
+      }
+    }
+  }
+  return rows
+}
+
 // Build a flat display list from a flat milestone array.
 // Supports up to 4 levels of nesting (depth 0–3).
 // collapsedIds: Set of milestone ids whose children should be hidden.
