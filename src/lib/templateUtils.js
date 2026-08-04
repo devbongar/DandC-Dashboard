@@ -1,3 +1,12 @@
+// Returns a Map<taskId, seqNumber> (1-based) sorted by sort_order.
+// Used by WorkProgramTemplate for predecessor text numbering.
+export function assignSeqNumbers(tasks) {
+  const sorted = [...tasks].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+  const map = new Map()
+  sorted.forEach((t, i) => map.set(t.id, i + 1))
+  return map
+}
+
 /**
  * Copies work_program_template_tasks into workprogram_tasks for a project,
  * then snapshots planned dates into workprogram_baseline_snapshots.
