@@ -42,7 +42,7 @@ SELECT id, project_id, label, created_at
 FROM milestone_baselines
 ON CONFLICT DO NOTHING;
 
--- ── 3. Migrate tasks (one row per task, dedup by project+sort_order+name) ────
+-- ── 3a. Insert tasks with parent_id = NULL (avoids FK mismatch across baselines) ──
 
 INSERT INTO workprogram_tasks (
   id, project_id, sort_order, milestone_name,
@@ -64,13 +64,26 @@ SELECT DISTINCT ON (wa.project_id, wa.sort_order, wa.milestone_name)
   wa.projected_end   AS forecast_end,
   wa.actual_start,
   wa.actual_end,
-  wa.parent_id,
+  NULL               AS parent_id,
   wa.phase,
   NULL               AS status,
   wa.created_at,
   '[]'::jsonb        AS dependencies
 FROM workprogram_activities wa
 ORDER BY wa.project_id, wa.sort_order, wa.milestone_name, wa.baseline_id DESC;
+
+-- ── 3b. Wire up parent_ids via logical match ──────────────────────────────────
+
+UPDATE workprogram_tasks child_wt
+SET parent_id = parent_wt.id
+FROM workprogram_activities child_wa
+JOIN workprogram_activities parent_wa ON parent_wa.id = child_wa.parent_id
+JOIN workprogram_tasks parent_wt
+  ON parent_wt.project_id      = parent_wa.project_id
+ AND parent_wt.sort_order      = parent_wa.sort_order
+ AND parent_wt.milestone_name  = parent_wa.milestone_name
+WHERE child_wt.id = child_wa.id
+  AND child_wa.parent_id IS NOT NULL;
 
 -- ── 4. Migrate dependencies to JSONB ──────────────────────────────────────────
 
