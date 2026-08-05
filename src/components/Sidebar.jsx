@@ -133,6 +133,31 @@ export default function Sidebar({ profile, open, onClose }) {
               </div>
             </div>
           )}
+
+          {/* ── Permits Monitoring section (HO users only) ── */}
+          {profile?.team === 'ho' && (
+            <div className="mt-6 px-4">
+              <p className="mb-2 text-[10px] font-semibold text-white/20 uppercase tracking-widest select-none">
+                Permits Monitoring
+              </p>
+              <div className="grid grid-cols-2 gap-2">
+                <NavLink
+                  to="/admin/permits"
+                  onClick={onClose}
+                  className={({ isActive }) => [
+                    'flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl',
+                    'border transition-all duration-150 text-center',
+                    isActive
+                      ? 'bg-white/10 border-[#ed6055]/50 text-white'
+                      : 'bg-white/[0.04] border-white/[0.08] text-white/50 hover:bg-white/[0.08] hover:text-white/80',
+                  ].join(' ')}
+                >
+                  <ClipboardListIcon className="w-5 h-5 flex-shrink-0" />
+                  <span className="text-[10px] font-medium leading-tight">Permits Dashboard</span>
+                </NavLink>
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* ── Footer ── */}
@@ -232,6 +257,13 @@ function TemplateIcon({ className }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+    </svg>
+  )
+}
+function ClipboardListIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
     </svg>
   )
 }
