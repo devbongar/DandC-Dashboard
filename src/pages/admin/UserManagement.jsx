@@ -76,7 +76,7 @@ export default function UserManagement() {
     ] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, email, full_name, role, team, is_active, created_at, avatar_url, position')
+        .select('id, email, full_name, role, team, is_active, created_at, avatar_url, position, user_code')
         .order('full_name', { ascending: true }),
       supabase
         .from('projects')
@@ -294,6 +294,9 @@ export default function UserManagement() {
                           )}
                         </div>
                         <p className="text-xs text-gray-400 truncate mt-0.5">{user.email}</p>
+                        {user.user_code && (
+                          <p className="text-xs text-gray-500 font-mono font-semibold truncate mt-1">{user.user_code}</p>
+                        )}
                         {user.position && (
                           <p className="text-xs text-gray-400 italic truncate">{user.position}</p>
                         )}
@@ -354,6 +357,9 @@ export default function UserManagement() {
                     </button>
                   </div>
                   <p className="text-sm text-gray-500 truncate mt-0.5">{selectedUser.email}</p>
+                  {selectedUser.user_code && (
+                    <p className="text-xs text-gray-600 font-mono font-semibold truncate mt-1">{selectedUser.user_code}</p>
+                  )}
                 </div>
                 {/* Close on mobile */}
                 <button
