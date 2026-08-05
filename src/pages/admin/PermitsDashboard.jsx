@@ -117,25 +117,25 @@ export default function PermitsDashboard() {
         </div>
 
         {/* Summary cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {CARDS.map(c => {
             const active = filterStatus === c.filterKey
             return (
               <button
                 key={c.label}
                 onClick={() => setFilterStatus(active && c.filterKey !== 'all' ? 'all' : c.filterKey)}
-                className={`text-left rounded-xl border p-4 transition-[transform,box-shadow] duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${c.bg} ${
+                className={`flex-none w-28 sm:w-auto text-left rounded-xl border p-3 sm:p-4 transition-[transform,box-shadow] duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${c.bg} ${
                   active
                     ? `bg-white dark:bg-gray-800 border-transparent ring-2 ${c.ring} shadow-md`
                     : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600'
                 }`}
               >
-                <div className="flex flex-col items-center text-center gap-1.5">
-                  <svg className={`w-5 h-5 ${c.icon}`} viewBox="0 0 20 20" fill="currentColor">
+                <div className="flex flex-col items-center text-center gap-1">
+                  <svg className={`w-4 h-4 sm:w-5 sm:h-5 ${c.icon}`} viewBox="0 0 20 20" fill="currentColor">
                     {CARD_ICONS[c.key]}
                   </svg>
-                  <p className={`text-2xl font-bold tabular-nums ${c.num}`}>{counts[c.key]}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400">{c.label}</p>
+                  <p className={`text-xl sm:text-2xl font-bold tabular-nums ${c.num}`}>{counts[c.key]}</p>
+                  <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 leading-tight">{c.label}</p>
                 </div>
               </button>
             )
@@ -143,9 +143,9 @@ export default function PermitsDashboard() {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           {/* Search */}
-          <div className="relative flex-1 min-w-[220px]">
+          <div className="relative flex-1 min-w-0 w-full sm:w-auto sm:min-w-[220px]">
             <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M9 3.5a5.5 5.5 0 100 11 5.5 5.5 0 000-11zM2 9a7 7 0 1112.452 4.391l3.328 3.329a.75.75 0 11-1.06 1.06l-3.329-3.328A7 7 0 012 9z" clipRule="evenodd" />
             </svg>
@@ -194,8 +194,89 @@ export default function PermitsDashboard() {
           )}
         </div>
 
-        {/* Table */}
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {/* Mobile card list */}
+        <div className="md:hidden space-y-2">
+          {rows.length === 0 && (
+            <div className="py-12 text-center bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+              <p className="text-sm font-medium text-gray-500 dark:text-gray-400">No permits found</p>
+              {hasActiveFilter && (
+                <button onClick={clearFilters} className="mt-2 text-xs text-[#ed6055] hover:underline">
+                  Clear filters to see all permits
+                </button>
+              )}
+            </div>
+          )}
+          {(() => {
+            const map = {}
+            for (const p of rows) {
+              const key = p.project_id
+              if (!map[key]) map[key] = { name: p.projects?.name ?? p.project_id, permits: [] }
+              map[key].permits.push(p)
+            }
+            return Object.entries(map).map(([projectId, group]) => (
+              <div key={projectId}>
+                <div className="flex items-center gap-2 px-1 py-1.5">
+                  <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-wider">{group.name}</span>
+                  <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400 font-medium">{group.permits.length}</span>
+                </div>
+                <div className="space-y-2">
+                  {group.permits.map(permit => {
+                    const status   = computePermitStatus(permit)
+                    const reqs     = permit.permit_requirements ?? []
+                    const reqTotal = reqs.length
+                    const reqDone  = reqs.filter(r => r.is_complete).length
+                    const hasIssue = (permit.permit_issues ?? []).some(i => i.status === 'open')
+                    const delayed  = permit.planned_finish && status !== 'acquired'
+                      ? Math.max(0, Math.floor((Date.now() - new Date(permit.planned_finish).getTime()) / 86400000))
+                      : 0
+                    return (
+                      <button
+                        key={permit.id}
+                        onClick={() => setSelected(permit)}
+                        className="w-full text-left bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 active:scale-[0.99] transition-[transform,box-shadow] shadow-sm hover:shadow-md"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-semibold text-gray-900 dark:text-white">{permit.name}</span>
+                              {hasIssue && (
+                                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 text-[10px] font-semibold flex-shrink-0">
+                                  <IssueIcon />
+                                  Issue
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-[11px] font-mono text-gray-400 dark:text-gray-500 mt-0.5">{permit.id}</p>
+                          </div>
+                          <span className={`flex-shrink-0 inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>
+                        </div>
+                        <div className="flex items-center gap-3 mt-2 flex-wrap">
+                          {reqTotal > 0 && (
+                            <span className={`text-xs ${reqDone === reqTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                              {reqDone}/{reqTotal} reqs
+                            </span>
+                          )}
+                          {permit.planned_finish && (
+                            <span className="text-xs text-gray-400 dark:text-gray-500">Planned {permit.planned_finish}</span>
+                          )}
+                          {delayed > 0 && (
+                            <span className="text-xs font-semibold text-red-600 dark:text-red-400">{delayed}d delayed</span>
+                          )}
+                          {permit.responsible_person && (
+                            <span className="text-xs text-gray-400 dark:text-gray-500 truncate">{permit.responsible_person}</span>
+                          )}
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+            ))
+          })()}
+        </div>
+
+        {/* Desktop table */}
+        <div className="hidden md:block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
           {/* Table meta row */}
           <div className="px-4 py-2.5 border-b border-gray-200 dark:border-gray-700 flex items-center justify-between">
             <span className="text-xs text-gray-500 dark:text-gray-400">
