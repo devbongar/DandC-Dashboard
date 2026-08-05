@@ -116,8 +116,8 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
       supabase.from('app_settings').select('value').eq('key', 'teams_webhook_url').single()
         .then(async ({ data: setting }) => {
           if (setting?.value) {
-            const { data: prof } = await supabase.from('profiles').select('full_name').eq('id', currentUserId).single()
-            sendTeamsPermitAcquired(data, prof?.full_name ?? null, setting.value)
+            const { data: prof } = await supabase.from('profiles').select('full_name, email').eq('id', currentUserId).single()
+            sendTeamsPermitAcquired(data, prof?.full_name ?? null, prof?.email ?? null, setting.value)
           }
         })
     }

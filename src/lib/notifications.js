@@ -51,23 +51,27 @@ export function sendTeamsNotification(payload, webhookUrl) {
 
 export function sendTeamsIssueNotification(issue, permit, assignedUser, webhookUrl) {
   return postToTeams(webhookUrl, {
-    event:      'issue_raised',
-    title:      '⚠ Issue Raised',
-    text:       issue.description ? `${issue.issue} — ${issue.description}` : issue.issue,
-    permitId:   permit.id,
-    permitName: permit.name,
-    assignedTo: assignedUser?.full_name ?? '—',
+    event:         'issue_raised',
+    title:         '⚠ Issue Raised',
+    text:          issue.description ? `${issue.issue} — ${issue.description}` : issue.issue,
+    projectName:   permit.projects?.name ?? '—',
+    permitId:      permit.id,
+    permitName:    permit.name,
+    assignedTo:    assignedUser?.full_name ?? '—',
+    assignedEmail: assignedUser?.email ?? '',
   })
 }
 
-export function sendTeamsPermitAcquired(permit, acquiredBy, webhookUrl) {
+export function sendTeamsPermitAcquired(permit, acquiredBy, acquiredByEmail, webhookUrl) {
   return postToTeams(webhookUrl, {
-    event:      'permit_acquired',
-    title:      '✅ Permit Acquired',
-    text:       permit.name,
-    permitId:   permit.id,
-    permitName: permit.name,
-    assignedTo: acquiredBy ?? '—',
+    event:         'permit_acquired',
+    title:         '✅ Permit Acquired',
+    text:          permit.name,
+    projectName:   permit.projects?.name ?? '—',
+    permitId:      permit.id,
+    permitName:    permit.name,
+    assignedTo:    acquiredBy ?? '—',
+    assignedEmail: acquiredByEmail ?? '',
   })
 }
 
