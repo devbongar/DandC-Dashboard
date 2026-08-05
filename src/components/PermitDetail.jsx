@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabaseClient'
 import { computePermitStatus, STATUS_BADGE } from '../lib/permitUtils'
 import { sendIssueNotification, sendTeamsIssueNotification, sendTeamsPermitAcquired } from '../lib/notifications'
@@ -205,7 +206,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
 
   function handleClose() { onUpdated?.(); onClose() }
 
-  return (
+  return createPortal(
     <>
       {/* Backdrop */}
       <div
@@ -498,6 +499,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
           </div>
         )}
       </div>
-    </>
+    </>,
+    document.body
   )
 }
