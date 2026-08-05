@@ -1495,10 +1495,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const loadBaselines = async () => {
       const { data } = await supabase
         .from('workprogram_baselines')
-        .select('id, label, created_at, scheduling_mode, start_date, confirmed_at')
+        .select('id, name, created_at, scheduling_mode, start_date, confirmed_at')
         .eq('project_id', project.id)
         .order('created_at', { ascending: true })
-      const bls = data ?? []
+      // Add .label alias so all display code continues to work
+      const bls = (data ?? []).map(b => ({ ...b, label: b.name }))
       setBaselines(bls)
       setActiveBL(bls.length > 0 ? bls[bls.length - 1].id : null)
       setInlineAdd(null); setInlineAddName('')
