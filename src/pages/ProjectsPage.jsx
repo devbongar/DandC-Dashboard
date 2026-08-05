@@ -383,125 +383,178 @@ export default function ProjectsPage() {
             )}
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-gray-100">
-                  {/* No. */}
-                  <th className="text-center px-3 py-3 bg-gray-50/80 whitespace-nowrap w-10">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">No.</span>
-                  </th>
-                  {/* Project Name — sortable */}
-                  <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                    <button
-                      onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-                      aria-label={`Sort by project name ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-black transition group"
-                    >
-                      Project Name
-                      <span className="flex flex-col gap-[1px] opacity-50 group-hover:opacity-100 transition">
-                        <svg className={`w-2.5 h-2.5 ${sortOrder === 'asc' ? 'text-[#ed6055]' : 'text-gray-400'}`} viewBox="0 0 10 6" fill="currentColor"><path d="M5 0L0 6h10z"/></svg>
-                        <svg className={`w-2.5 h-2.5 ${sortOrder === 'desc' ? 'text-[#ed6055]' : 'text-gray-400'}`} viewBox="0 0 10 6" fill="currentColor"><path d="M5 6L10 0H0z"/></svg>
-                      </span>
-                    </button>
-                  </th>
-
-                  {/* Business Unit */}
-                  <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Business Unit</span>
-                  </th>
-
-                  {/* Development Type */}
-                  <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Development Type</span>
-                  </th>
-
-                  {/* 4PH */}
-                  <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">4PH</span>
-                  </th>
-
-                  {/* Location */}
-                  <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Location</span>
-                  </th>
-
-                  {/* Phase */}
-                  <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                    <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Phase</span>
-                  </th>
-
-                  {isAdmin && (
-                    <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80">
-                      Actions
-                    </th>
-                  )}
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-50">
-                {filtered.map((project, idx) => {
-                  const phaseColor = PHASE_MAP[project.phase]?.color ?? '#e5e7eb'
-                  return (
-                  <tr
+          <>
+            {/* ── Mobile cards (hidden sm+) ── */}
+            <div className="sm:hidden divide-y divide-gray-100">
+              {filtered.map((project, idx) => {
+                const ph = PHASE_MAP[project.phase]
+                const phaseColor = ph?.color ?? '#e5e7eb'
+                const location = project.city && project.province
+                  ? `${project.city}, ${project.province}`
+                  : project.city || project.province || null
+                return (
+                  <div
                     key={project.id}
                     onClick={() => navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } })}
-                    className="hover:bg-gray-50/60 transition cursor-pointer"
-                    style={{ boxShadow: `inset 3px 0 0 ${phaseColor}` }}
+                    className="flex items-start gap-3 px-4 py-4 active:bg-gray-50 transition cursor-pointer"
+                    style={{ borderLeft: `3px solid ${phaseColor}` }}
                   >
-                    <td className="px-3 py-4 text-center">
-                      <span className="text-xs font-medium text-gray-400 tabular-nums">{idx + 1}</span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-black">{project.name}</p>
-                    </td>
-                    <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">{project.business_unit || <span className="text-gray-300 italic">—</span>}</td>
-                    <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap capitalize">
-                      {project.development_type
-                        ? project.development_type === 'housing' ? 'Housing' : 'Condominium'
-                        : <span className="text-gray-300 italic">—</span>}
-                    </td>
-                    <td className="px-5 py-4 text-xs whitespace-nowrap">
-                      {project.is_4ph_project
-                        ? <span className="font-semibold px-2.5 py-1 rounded-full bg-[#ed6055]/10 text-[#ed6055]">4PH</span>
-                        : <span className="text-gray-300 italic">—</span>}
-                    </td>
-                    <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
-                      {project.city && project.province
-                        ? `${project.city}, ${project.province}`
-                        : project.city || project.province || <span className="text-gray-300 italic">—</span>}
-                    </td>
-                    <td className="px-5 py-4 text-xs whitespace-nowrap">
-                      {project.phase
-                        ? (() => {
-                            const ph = PHASE_MAP[project.phase]
-                            return (
-                              <span
-                                className={`inline-block font-semibold px-2.5 py-1 rounded-full border text-xs ${ph?.badge ?? 'bg-gray-50 text-gray-500 border-gray-200'}`}
-                              >
-                                {ph?.label ?? project.phase}
-                              </span>
-                            )
-                          })()
-                        : <span className="text-gray-300 italic">—</span>}
-                    </td>
+                    {/* Index */}
+                    <span className="flex-shrink-0 text-xs font-medium text-gray-400 tabular-nums w-5 pt-0.5">{idx + 1}</span>
+
+                    {/* Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2 mb-1.5">
+                        <p className="font-semibold text-black text-sm leading-snug">{project.name}</p>
+                        {ph && (
+                          <span className={`flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${ph.badge}`}>
+                            {ph.label}
+                          </span>
+                        )}
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                        {project.business_unit && <span>{project.business_unit}</span>}
+                        {project.development_type && (
+                          <span className="capitalize">{project.development_type}</span>
+                        )}
+                        {project.is_4ph_project && (
+                          <span className="font-semibold text-[#ed6055]">4PH</span>
+                        )}
+                        {location && (
+                          <span className="flex items-center gap-1 text-gray-400">
+                            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                            </svg>
+                            {location}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Admin actions */}
                     {isAdmin && (
-                      <td className="px-5 py-4">
-                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                          <button onClick={e => { e.stopPropagation(); navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } }) }} className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition" title="Edit">
-                            <PencilIcon />
-                          </button>
-                          <button onClick={e => { e.stopPropagation(); setDeleteTarget(project) }} className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#ed6055] hover:bg-[#ed6055]/5 transition" title="Delete">
-                            <TrashIcon />
-                          </button>
-                        </div>
-                      </td>
+                      <div className="flex-shrink-0 flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                        <button
+                          onClick={e => { e.stopPropagation(); setDeleteTarget(project) }}
+                          className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#ed6055] hover:bg-[#ed6055]/5 active:bg-[#ed6055]/10 transition"
+                        >
+                          <TrashIcon />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+
+            {/* ── Desktop table (hidden below sm) ── */}
+            <div className="hidden sm:block overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-gray-100">
+                    <th className="text-center px-3 py-3 bg-gray-50/80 whitespace-nowrap w-10">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">No.</span>
+                    </th>
+                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
+                      <button
+                        onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+                        aria-label={`Sort by project name ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
+                        className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-black transition group"
+                      >
+                        Project Name
+                        <span className="flex flex-col gap-[1px] opacity-50 group-hover:opacity-100 transition">
+                          <svg className={`w-2.5 h-2.5 ${sortOrder === 'asc' ? 'text-[#ed6055]' : 'text-gray-400'}`} viewBox="0 0 10 6" fill="currentColor"><path d="M5 0L0 6h10z"/></svg>
+                          <svg className={`w-2.5 h-2.5 ${sortOrder === 'desc' ? 'text-[#ed6055]' : 'text-gray-400'}`} viewBox="0 0 10 6" fill="currentColor"><path d="M5 6L10 0H0z"/></svg>
+                        </span>
+                      </button>
+                    </th>
+                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Business Unit</span>
+                    </th>
+                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Development Type</span>
+                    </th>
+                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">4PH</span>
+                    </th>
+                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Location</span>
+                    </th>
+                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
+                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Phase</span>
+                    </th>
+                    {isAdmin && (
+                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80">
+                        Actions
+                      </th>
                     )}
                   </tr>
-                )})}
-
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {filtered.map((project, idx) => {
+                    const phaseColor = PHASE_MAP[project.phase]?.color ?? '#e5e7eb'
+                    return (
+                      <tr
+                        key={project.id}
+                        onClick={() => navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } })}
+                        className="hover:bg-gray-50/60 transition cursor-pointer"
+                        style={{ boxShadow: `inset 3px 0 0 ${phaseColor}` }}
+                      >
+                        <td className="px-3 py-4 text-center">
+                          <span className="text-xs font-medium text-gray-400 tabular-nums">{idx + 1}</span>
+                        </td>
+                        <td className="px-5 py-4">
+                          <p className="font-semibold text-black">{project.name}</p>
+                        </td>
+                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">{project.business_unit || <span className="text-gray-300 italic">—</span>}</td>
+                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap capitalize">
+                          {project.development_type
+                            ? project.development_type === 'housing' ? 'Housing' : 'Condominium'
+                            : <span className="text-gray-300 italic">—</span>}
+                        </td>
+                        <td className="px-5 py-4 text-xs whitespace-nowrap">
+                          {project.is_4ph_project
+                            ? <span className="font-semibold px-2.5 py-1 rounded-full bg-[#ed6055]/10 text-[#ed6055]">4PH</span>
+                            : <span className="text-gray-300 italic">—</span>}
+                        </td>
+                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
+                          {project.city && project.province
+                            ? `${project.city}, ${project.province}`
+                            : project.city || project.province || <span className="text-gray-300 italic">—</span>}
+                        </td>
+                        <td className="px-5 py-4 text-xs whitespace-nowrap">
+                          {project.phase
+                            ? (() => {
+                                const ph = PHASE_MAP[project.phase]
+                                return (
+                                  <span className={`inline-block font-semibold px-2.5 py-1 rounded-full border text-xs ${ph?.badge ?? 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                                    {ph?.label ?? project.phase}
+                                  </span>
+                                )
+                              })()
+                            : <span className="text-gray-300 italic">—</span>}
+                        </td>
+                        {isAdmin && (
+                          <td className="px-5 py-4">
+                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                              <button onClick={e => { e.stopPropagation(); navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } }) }} className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition" title="Edit">
+                                <PencilIcon />
+                              </button>
+                              <button onClick={e => { e.stopPropagation(); setDeleteTarget(project) }} className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#ed6055] hover:bg-[#ed6055]/5 transition" title="Delete">
+                                <TrashIcon />
+                              </button>
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
         )}
       </div>
       <p className="text-xs text-gray-500 mt-2 text-right">{filtered.length} of {projects.length} shown</p>
