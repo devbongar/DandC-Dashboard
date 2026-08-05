@@ -7,8 +7,8 @@ import Unauthorized from './pages/Unauthorized'
 import Disabled from './pages/Disabled'
 import Dashboard from './pages/Dashboard'
 import AdminDashboard from './pages/dashboards/AdminDashboard'
-import ApproverDashboard from './pages/dashboards/ApproverDashboard'
-import UpdaterDashboard from './pages/dashboards/UpdaterDashboard'
+import HODashboard       from './pages/dashboards/HODashboard'
+import ReporterDashboard from './pages/dashboards/ReporterDashboard'
 import ViewerDashboard from './pages/dashboards/ViewerDashboard'
 import RoleAssignment from './pages/admin/RoleAssignment'
 import UserManagement from './pages/admin/UserManagement'
@@ -36,8 +36,8 @@ function App() {
 
         {/* Role dashboards */}
         <Route path="/admin/dashboard" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-        <Route path="/approver/dashboard" element={<ProtectedRoute roles={['approver']}><ApproverDashboard /></ProtectedRoute>} />
-        <Route path="/updater/dashboard" element={<ProtectedRoute roles={['updater']}><UpdaterDashboard /></ProtectedRoute>} />
+        <Route path="/ho/dashboard"       element={<ProtectedRoute roles={['head', 'reviewer']}><HODashboard /></ProtectedRoute>} />
+        <Route path="/reporter/dashboard" element={<ProtectedRoute roles={['endorser', 'reporter']}><ReporterDashboard /></ProtectedRoute>} />
         <Route path="/viewer/dashboard" element={<ProtectedRoute roles={['viewer']}><ViewerDashboard /></ProtectedRoute>} />
 
         {/* Shared pages (all authenticated roles) */}

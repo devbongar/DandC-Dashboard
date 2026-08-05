@@ -36,7 +36,7 @@ function AuthenticatedRoute({ children, roles }) {
       } else {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('role, is_active')
+          .select('role, team, is_active')
           .eq('id', session.user.id)
           .single()
 

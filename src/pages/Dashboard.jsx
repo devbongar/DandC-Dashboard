@@ -5,8 +5,10 @@ import LoadingScreen from '../components/LoadingScreen'
 
 const DESTINATIONS = {
   admin:    '/admin/dashboard',
-  approver: '/approver/dashboard',
-  updater:  '/updater/dashboard',
+  head:     '/ho/dashboard',
+  reviewer: '/ho/dashboard',
+  endorser: '/reporter/dashboard',
+  reporter: '/reporter/dashboard',
   viewer:   '/viewer/dashboard',
 }
 
@@ -20,7 +22,7 @@ export default function Dashboard() {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('role')
+        .select('role, team')
         .eq('id', session.user.id)
         .single()
 
