@@ -63,13 +63,7 @@ export default function SignIn() {
       .eq('id', signInData.user.id)
       .single()
 
-    const destinations = {
-      admin:    '/admin/dashboard',
-      approver: '/approver/dashboard',
-      updater:  '/updater/dashboard',
-      viewer:   '/viewer/dashboard',
-    }
-    navigate(destinations[prof?.role] ?? '/viewer/dashboard')
+    navigate('/admin/dashboard')
   }
 
   return (
