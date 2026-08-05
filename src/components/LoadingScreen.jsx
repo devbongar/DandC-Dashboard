@@ -14,7 +14,7 @@ export default function LoadingScreen() {
   return (
     <div
       className="fixed inset-0 bg-[#111111] flex flex-col items-center justify-center z-[9999] overflow-hidden"
-      style={{ animation: 'ph1-screen-in 0.3s ease-out both' }}
+      style={{ animation: 'ph1-screen-in 0.3s ease-out both', minHeight: '100dvh' }}
     >
       {/* Subtle background triangles */}
       {BG_TRIANGLES.map((t, i) => (

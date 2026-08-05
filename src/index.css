@@ -8,8 +8,7 @@
 
 html, body {
   margin: 0;
-  background-color: #111111;
-  overscroll-behavior: none;
+  background-color: #e4e7ec;
 }
 
 /* ── Floating triangle variants ─────────────────────────── */
