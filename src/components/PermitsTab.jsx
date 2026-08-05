@@ -148,7 +148,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
       )}
 
       {/* Permit cards — div not button to avoid nested button (delete) */}
-      <div className="space-y-2">
+      <div className="space-y-3">
         {permits.map(permit => {
           const status   = computePermitStatus(permit)
           const reqs     = permit.permit_requirements ?? []
