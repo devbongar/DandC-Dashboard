@@ -364,7 +364,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="sm:bg-white sm:rounded-2xl sm:shadow-sm sm:border sm:border-gray-100 sm:overflow-hidden">
         {loading ? (
           <TriangleLoader label="Loading projects…" />
         ) : filtered.length === 0 ? (
