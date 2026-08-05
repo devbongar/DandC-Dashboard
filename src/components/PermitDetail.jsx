@@ -388,7 +388,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
             <section>
               <SectionHeader
                 title={`Issues${openIssues > 0 ? ` · ${openIssues} open` : ''}`}
-                action={canManage && !showRaiseForm && (
+                action={!showRaiseForm && (
                   <button onClick={() => setShowRaiseForm(true)} className={BTN_GHOST}>+ Raise Issue</button>
                 )}
               />
