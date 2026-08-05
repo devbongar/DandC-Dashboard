@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Sidebar from './Sidebar'
 import Logo from './Logo'
+import NotificationBell from './NotificationBell'
 import { supabase } from '../lib/supabaseClient'
 
 const ROLE_LABELS = {
@@ -72,6 +73,9 @@ export default function DashboardLayout({ profile, children }) {
 
         {/* Spacer */}
         <div className="flex-1" />
+
+        {/* Notification bell */}
+        <NotificationBell userId={profile?.id} />
 
         {/* User menu */}
         <div className="relative flex-shrink-0 px-3 sm:px-5" ref={menuRef}>
