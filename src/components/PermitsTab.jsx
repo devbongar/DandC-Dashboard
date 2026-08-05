@@ -18,7 +18,6 @@ const SUMMARY = [
   { label: 'Overdue',     key: 'overdue' },
 ]
 
-const BG = 'bg-[#e4e7ec] dark:bg-gray-900'
 const INPUT = 'w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40'
 
 export default function PermitsTab({ project, isAdmin, isHead, currentUserId, showToast }) {
@@ -64,7 +63,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
   }
 
   if (loading) {
-    return <div className={`min-h-full -mx-3 sm:-mx-6 px-3 sm:px-6 py-6 text-sm text-gray-400 ${BG}`}>Loading permits...</div>
+    return <div className="py-6 text-sm text-gray-400">Loading permits...</div>
   }
 
   const counts = {
@@ -75,8 +74,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
   }
 
   return (
-    <div className={`min-h-full -mx-3 sm:-mx-6 px-3 sm:px-6 py-4 ${BG}`}>
-      <div className="max-w-3xl mx-auto space-y-4">
+    <div className="max-w-3xl mx-auto space-y-4">
 
       {/* Summary strip */}
       {permits.length > 0 && (
@@ -226,7 +224,6 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
           onUpdated={load}
         />
       )}
-      </div>
     </div>
   )
 }
