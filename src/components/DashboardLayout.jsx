@@ -37,7 +37,7 @@ export default function DashboardLayout({ profile, children }) {
   }
 
   return (
-    <div className="min-h-screen bg-[#e4e7ec]" style={{ minHeight: '100dvh', backgroundColor: '#e4e7ec' }}>
+    <div className="min-h-screen bg-[#e4e7ec] overscroll-none" style={{ minHeight: '100dvh', backgroundColor: '#e4e7ec' }}>
 
       {/* ── Topbar ── */}
       <div
