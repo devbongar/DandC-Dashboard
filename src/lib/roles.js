@@ -1,4 +1,4 @@
-export const ROLES = ['admin', 'head', 'reviewer', 'endorser', 'reporter', 'viewer']
+export const ROLES = ['admin', 'head', 'reviewer', 'endorser', 'reporter', 'viewer', 'approver', 'updater']
 export const TEAMS = ['ho', 'site']
 
 export const ROLE_LABELS = {
@@ -8,6 +8,8 @@ export const ROLE_LABELS = {
   endorser: 'Endorser',
   reporter: 'Reporter',
   viewer:   'Viewer',
+  approver: 'Approver',
+  updater:  'Updater',
 }
 
 export const ROLE_COLORS = {
@@ -17,6 +19,8 @@ export const ROLE_COLORS = {
   endorser: 'bg-emerald-600 text-white',
   reporter: 'bg-sky-600 text-white',
   viewer:   'bg-gray-500 text-white',
+  approver: 'bg-blue-600 text-white',
+  updater:  'bg-teal-600 text-white',
 }
 
 export const ROLE_BADGE = {
@@ -26,6 +30,8 @@ export const ROLE_BADGE = {
   endorser: 'bg-emerald-500 text-white',
   reporter: 'bg-sky-500 text-white',
   viewer:   'bg-gray-500 text-white',
+  approver: 'bg-blue-500 text-white',
+  updater:  'bg-teal-500 text-white',
 }
 
 export const isHO   = (profile) => profile?.team === 'ho'
@@ -42,5 +48,6 @@ export const navKeyForProfile = (profile) => {
   if (role === 'admin')                           return 'admin'
   if (role === 'head' || role === 'reviewer')     return 'ho'
   if (role === 'endorser' || role === 'reporter') return 'reporter'
+  if (role === 'approver' || role === 'updater')  return 'member'
   return 'viewer'
 }

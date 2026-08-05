@@ -26,6 +26,10 @@ const NAV = {
     { label: 'Dashboard', path: '/viewer/dashboard', Icon: HomeIcon },
     { label: 'Projects',  path: '/projects',         Icon: FolderIcon },
   ],
+  member: [
+    { label: 'Dashboard', path: '/admin/dashboard', Icon: HomeIcon },
+    { label: 'Projects',  path: '/projects',        Icon: FolderIcon },
+  ],
 }
 
 // ── Component ───────────────────────────────────────────────────────────────
