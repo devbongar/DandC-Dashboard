@@ -40,7 +40,7 @@ function App() {
         <Route path="/admin/dashboard" element={<ProtectedRoute roles={['admin']}><AdminDashboard /></ProtectedRoute>} />
         <Route path="/ho/dashboard"       element={<ProtectedRoute roles={['head', 'reviewer']}><HODashboard /></ProtectedRoute>} />
         <Route path="/reporter/dashboard" element={<ProtectedRoute roles={['endorser', 'reporter']}><ReporterDashboard /></ProtectedRoute>} />
-        <Route path="/viewer/dashboard" element={<ProtectedRoute roles={['viewer']}><ViewerDashboard /></ProtectedRoute>} />
+        <Route path="/viewer/dashboard" element={<ProtectedRoute roles={['viewer','approver','updater']}><ViewerDashboard /></ProtectedRoute>} />
 
         {/* Shared pages (all authenticated roles) */}
         <Route path="/projects"    element={<ProtectedRoute><ProjectsPage /></ProtectedRoute>} />

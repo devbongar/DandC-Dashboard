@@ -10,6 +10,8 @@ const DESTINATIONS = {
   endorser: '/reporter/dashboard',
   reporter: '/reporter/dashboard',
   viewer:   '/viewer/dashboard',
+  approver: '/viewer/dashboard',
+  updater:  '/viewer/dashboard',
 }
 
 export default function Dashboard() {
