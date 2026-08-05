@@ -117,29 +117,33 @@ export default function PermitsDashboard() {
         </div>
 
         {/* Summary cards */}
-        <div className="flex gap-3 overflow-x-auto pb-1 sm:grid sm:grid-cols-5 sm:overflow-visible sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-          {CARDS.map(c => {
-            const active = filterStatus === c.filterKey
-            return (
-              <button
-                key={c.label}
-                onClick={() => setFilterStatus(active && c.filterKey !== 'all' ? 'all' : c.filterKey)}
-                className={`flex-none w-28 sm:w-auto text-left rounded-xl border p-3 sm:p-4 transition-[transform,box-shadow] duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${c.bg} ${
-                  active
-                    ? `bg-white dark:bg-gray-800 border-transparent ring-2 ${c.ring} shadow-md`
-                    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600'
-                }`}
-              >
-                <div className="flex flex-col items-center text-center gap-1">
-                  <svg className={`w-4 h-4 sm:w-5 sm:h-5 ${c.icon}`} viewBox="0 0 20 20" fill="currentColor">
-                    {CARD_ICONS[c.key]}
-                  </svg>
-                  <p className={`text-xl sm:text-2xl font-bold tabular-nums ${c.num}`}>{counts[c.key]}</p>
-                  <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 leading-tight">{c.label}</p>
-                </div>
-              </button>
-            )
-          })}
+        <div className="relative -mx-4 sm:mx-0">
+          <div className="flex gap-3 overflow-x-auto py-2 px-4 sm:grid sm:grid-cols-5 sm:overflow-visible sm:py-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {CARDS.map(c => {
+              const active = filterStatus === c.filterKey
+              return (
+                <button
+                  key={c.label}
+                  onClick={() => setFilterStatus(active && c.filterKey !== 'all' ? 'all' : c.filterKey)}
+                  className={`flex-none w-28 sm:w-auto text-left rounded-xl border p-3 sm:p-4 transition-[transform,box-shadow] duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${c.bg} ${
+                    active
+                      ? `bg-white dark:bg-gray-800 border-transparent ring-2 ${c.ring} shadow-md`
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex flex-col items-center text-center gap-1">
+                    <svg className={`w-4 h-4 sm:w-5 sm:h-5 ${c.icon}`} viewBox="0 0 20 20" fill="currentColor">
+                      {CARD_ICONS[c.key]}
+                    </svg>
+                    <p className={`text-xl sm:text-2xl font-bold tabular-nums ${c.num}`}>{counts[c.key]}</p>
+                    <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 leading-tight">{c.label}</p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+          {/* Scroll hint gradient — mobile only */}
+          <div className="pointer-events-none absolute right-0 top-0 bottom-0 w-10 bg-gradient-to-l from-gray-50 dark:from-gray-900 to-transparent sm:hidden" />
         </div>
 
         {/* Filters */}
