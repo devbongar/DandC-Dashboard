@@ -1,5 +1,9 @@
 -- supabase/migrations/20260805000002_role_system_redesign.sql
 
+-- 0. Drop role check first so backfill and role migration can run freely
+--    (may already exist with new values from a partial prior run)
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_role_check;
+
 -- 1. Add team column
 ALTER TABLE profiles
   ADD COLUMN IF NOT EXISTS team TEXT;
@@ -24,6 +28,7 @@ UPDATE profiles SET role = CASE
 END;
 
 -- 4. Add NOT NULL constraint and check constraint on team
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_team_check;
 ALTER TABLE profiles
   ALTER COLUMN team SET NOT NULL,
   ADD CONSTRAINT profiles_team_check CHECK (team IN ('ho', 'site'));
