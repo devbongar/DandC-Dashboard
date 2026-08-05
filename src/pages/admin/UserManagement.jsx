@@ -141,6 +141,18 @@ export default function UserManagement() {
     showToast('Position updated.', 'success')
   }
 
+  // ── Update team ───────────────────────────────────────────────────────────
+  const updateTeam = async (newTeam) => {
+    if (!selectedUser) return
+    const { error } = await supabase
+      .from('profiles')
+      .update({ team: newTeam })
+      .eq('id', selectedUser.id)
+    if (error) { showToast('Failed to update team: ' + error.message, 'error'); return }
+    setUsers(prev => prev.map(u => u.id === selectedUser.id ? { ...u, team: newTeam } : u))
+    showToast('Team updated.', 'success')
+  }
+
   // ── Update global role ────────────────────────────────────────────────────
   const updateRole = async (newRole) => {
     if (!selectedUser) return
@@ -397,6 +409,26 @@ export default function UserManagement() {
                         </span>
                       ) : 'Save'}
                     </button>
+                  </div>
+                </div>
+
+                {/* Team */}
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Team</label>
+                  <div className="flex gap-2">
+                    {['ho', 'site'].map(t => (
+                      <button
+                        key={t}
+                        onClick={() => updateTeam(t)}
+                        className={`px-4 py-2 rounded-lg text-sm font-semibold border transition ${
+                          selectedUser.team === t
+                            ? 'bg-[#ed6055] text-white border-[#ed6055]'
+                            : 'bg-white text-gray-600 border-gray-200 hover:border-[#ed6055]/40 hover:text-[#ed6055]'
+                        }`}
+                      >
+                        {t === 'ho' ? 'HO' : 'Site'}
+                      </button>
+                    ))}
                   </div>
                 </div>
 

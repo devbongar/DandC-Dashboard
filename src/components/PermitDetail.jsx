@@ -16,24 +16,72 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   const [permit,       setPermit]       = useState(initialPermit)
   const [requirements, setRequirements] = useState([])
   const [issues,       setIssues]       = useState([])
-  const [saving,       setSaving]       = useState(false)
-  const [remarksDraft, setRemarksDraft] = useState(initialPermit.remarks ?? '')
+  const [saving,         setSaving]         = useState(false)
+  const [remarksDraft,   setRemarksDraft]   = useState(initialPermit.remarks ?? '')
+  const [editingRemarks, setEditingRemarks] = useState(!initialPermit.remarks)
 
   const [issueText,    setIssueText]    = useState('')
   const [issueDesc,    setIssueDesc]    = useState('')
+  const [assignedToId, setAssignedToId] = useState('')
   const [raisingIssue, setRaisingIssue] = useState(false)
+  const [hoUsers,      setHoUsers]      = useState([])
+
+  const [reqText,    setReqText]    = useState('')
+  const [addingReq,  setAddingReq]  = useState(false)
+  const [acquiring,  setAcquiring]  = useState(false)
 
   const overlayRef = useRef(null)
 
-  useEffect(() => { fetchDetail() }, [permit.id])
+  useEffect(() => { fetchDetail(); fetchHoUsers() }, [permit.id])
 
   async function fetchDetail() {
     const [{ data: rData }, { data: iData }] = await Promise.all([
       supabase.from('permit_requirements').select('*').eq('permit_id', permit.id).order('sort_order'),
-      supabase.from('permit_issues').select('*, raised_profile:profiles!raised_by(full_name), assigned_profile:profiles!assigned_to(full_name)').eq('permit_id', permit.id).order('created_at'),
+      supabase.from('permit_issues').select('*').eq('permit_id', permit.id).order('created_at'),
     ])
+
+    const userIds = [...new Set([
+      ...(iData ?? []).map(i => i.raised_by).filter(Boolean),
+      ...(iData ?? []).map(i => i.assigned_to).filter(Boolean),
+    ])]
+    let profileMap = {}
+    if (userIds.length) {
+      const { data: pData } = await supabase.from('profiles').select('id, full_name').in('id', userIds)
+      profileMap = Object.fromEntries((pData ?? []).map(p => [p.id, p]))
+    }
+
     setRequirements(rData ?? [])
-    setIssues(iData ?? [])
+    setIssues((iData ?? []).map(i => ({
+      ...i,
+      raised_profile:   profileMap[i.raised_by]   ?? null,
+      assigned_profile: profileMap[i.assigned_to] ?? null,
+    })))
+  }
+
+  async function fetchHoUsers() {
+    const { data } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('team', 'ho')
+      .eq('is_active', true)
+      .order('full_name')
+    setHoUsers(data ?? [])
+  }
+
+  async function markAcquired() {
+    setAcquiring(true)
+    const patch = {
+      status:        'acquired',
+      actual_finish: permit.actual_finish ?? new Date().toISOString().slice(0, 10),
+    }
+    const { data } = await supabase
+      .from('permits')
+      .update(patch)
+      .eq('id', permit.id)
+      .select()
+      .single()
+    if (data) setPermit(data)
+    setAcquiring(false)
   }
 
   async function saveRemarks() {
@@ -45,7 +93,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
       .select()
       .single()
     setSaving(false)
-    if (data) { setPermit(data); onUpdated?.() }
+    if (data) { setPermit(data); setEditingRemarks(false) }
   }
 
   async function toggleRequirement(req) {
@@ -63,6 +111,22 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
     if (data) setRequirements(prev => prev.map(r => r.id === data.id ? data : r))
   }
 
+  async function addRequirement(e) {
+    e.preventDefault()
+    if (!reqText.trim()) return
+    setAddingReq(true)
+    const { data } = await supabase
+      .from('permit_requirements')
+      .insert({ permit_id: permit.id, description: reqText.trim(), sort_order: requirements.length, is_complete: false })
+      .select()
+      .single()
+    if (data) {
+      setRequirements(prev => [...prev, data])
+      setReqText('')
+    }
+    setAddingReq(false)
+  }
+
   async function resolveIssue(issue) {
     if (!isAdmin && !isHead) return
     const { data } = await supabase
@@ -76,12 +140,21 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
 
   async function raiseIssue(e) {
     e.preventDefault()
-    if (!issueText.trim()) return
+    if (!issueText.trim() || !assignedToId) return
     setRaisingIssue(true)
+
+    const assignedUser = hoUsers.find(u => u.id === assignedToId) ?? null
 
     const { data: newIssue, error } = await supabase
       .from('permit_issues')
-      .insert({ permit_id: permit.id, issue: issueText.trim(), description: issueDesc.trim() || null, raised_by: currentUserId, status: 'open' })
+      .insert({
+        permit_id:   permit.id,
+        issue:       issueText.trim(),
+        description: issueDesc.trim() || null,
+        raised_by:   currentUserId,
+        assigned_to: assignedToId,
+        status:      'open',
+      })
       .select()
       .single()
 
@@ -89,15 +162,26 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
       setIssues(prev => [...prev, newIssue])
       setIssueText('')
       setIssueDesc('')
+      setAssignedToId('')
 
-      sendIssueNotification(newIssue, permit, {})
+      // In-app notification
+      await supabase.from('notifications').insert({
+        user_id: assignedToId,
+        type:    'issue_raised',
+        payload: { permit_id: permit.id, permit_name: permit.name, issue: newIssue.issue },
+      })
+      window.dispatchEvent(new CustomEvent('refetch-notifications'))
 
+      // Email
+      if (assignedUser) sendIssueNotification(newIssue, permit, assignedUser)
+
+      // Teams
       supabase.from('app_settings').select('value').eq('key', 'teams_webhook_url').single()
         .then(({ data: setting }) => {
           if (setting?.value) {
             sendTeamsNotification({
               title: `Issue raised on ${permit.id}`,
-              text:  newIssue.issue,
+              text:  `${newIssue.issue} — Assigned to ${assignedUser?.full_name ?? assignedToId}`,
               permitId:   permit.id,
               permitName: permit.name,
             }, setting.value)
@@ -111,13 +195,15 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   const status = computePermitStatus(permit)
   const canManage = isAdmin || isHead
 
+  function handleClose() { onUpdated?.(); onClose() }
+
   return (
     <>
       {/* Backdrop */}
       <div
         ref={overlayRef}
         className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm"
-        onClick={e => { if (e.target === overlayRef.current) onClose() }}
+        onClick={e => { if (e.target === overlayRef.current) handleClose() }}
       />
 
       {/* Drawer */}
@@ -134,7 +220,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
               <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{permit.responsible_person}</p>
             )}
           </div>
-          <button onClick={onClose} className="flex-shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xl leading-none font-bold">&times;</button>
+          <button onClick={handleClose} className="flex-shrink-0 text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 text-xl leading-none font-bold">&times;</button>
         </div>
 
         {/* Body */}
@@ -155,23 +241,47 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
 
           {/* Remarks */}
           <section>
-            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Remarks</h3>
-            <textarea
-              value={remarksDraft}
-              onChange={e => setRemarksDraft(e.target.value)}
-              rows={3}
-              readOnly={!canManage}
-              placeholder={canManage ? 'Add remarks...' : 'No remarks.'}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 disabled:opacity-60"
-            />
-            {canManage && (
-              <button
-                onClick={saveRemarks}
-                disabled={saving}
-                className="mt-2 px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition"
-              >
-                {saving ? 'Saving...' : 'Save Remarks'}
-              </button>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Remarks</h3>
+              {canManage && !editingRemarks && (
+                <button
+                  onClick={() => setEditingRemarks(true)}
+                  className="text-xs font-medium text-[#ed6055] hover:underline"
+                >
+                  Edit
+                </button>
+              )}
+            </div>
+            {!canManage || !editingRemarks ? (
+              <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap min-h-[2.5rem]">
+                {remarksDraft || <span className="text-gray-400 italic">No remarks.</span>}
+              </p>
+            ) : (
+              <>
+                <textarea
+                  value={remarksDraft}
+                  onChange={e => setRemarksDraft(e.target.value)}
+                  rows={3}
+                  autoFocus
+                  placeholder="Add remarks..."
+                  className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40"
+                />
+                <div className="flex gap-2 mt-2">
+                  <button
+                    onClick={saveRemarks}
+                    disabled={saving}
+                    className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition"
+                  >
+                    {saving ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => { setRemarksDraft(permit.remarks ?? ''); setEditingRemarks(false) }}
+                    className="px-4 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
             )}
           </section>
 
@@ -200,6 +310,25 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                 </li>
               ))}
             </ul>
+
+            {canManage && (
+              <form onSubmit={addRequirement} className="mt-3 flex gap-2">
+                <input
+                  type="text"
+                  value={reqText}
+                  onChange={e => setReqText(e.target.value)}
+                  placeholder="New requirement..."
+                  className="flex-1 px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40"
+                />
+                <button
+                  type="submit"
+                  disabled={addingReq || !reqText.trim()}
+                  className="px-3 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition"
+                >
+                  {addingReq ? '...' : 'Add'}
+                </button>
+              </form>
+            )}
           </section>
 
           {/* Issues */}
@@ -250,9 +379,20 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                 rows={2}
                 className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 resize-none focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40"
               />
+              <select
+                required
+                value={assignedToId}
+                onChange={e => setAssignedToId(e.target.value)}
+                className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40"
+              >
+                <option value="">Raise issue to...</option>
+                {hoUsers.map(u => (
+                  <option key={u.id} value={u.id}>{u.full_name ?? u.email}</option>
+                ))}
+              </select>
               <button
                 type="submit"
-                disabled={raisingIssue || !issueText.trim()}
+                disabled={raisingIssue || !issueText.trim() || !assignedToId}
                 className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition"
               >
                 {raisingIssue ? 'Raising...' : 'Raise Issue'}
@@ -260,6 +400,39 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
             </form>
           </section>
         </div>
+
+        {/* Sticky footer — Mark Acquired */}
+        {canManage && (
+          <div className="flex-shrink-0 px-6 py-4 border-t border-gray-100 dark:border-gray-800 bg-white dark:bg-gray-900">
+            {status === 'acquired' ? (
+              <div className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <span className="text-sm font-semibold">Permit acquired</span>
+              </div>
+            ) : (
+              <button
+                onClick={markAcquired}
+                disabled={acquiring}
+                style={{ transition: 'transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 160ms ease' }}
+                onMouseDown={e => { e.currentTarget.style.transform = 'scale(0.97)' }}
+                onMouseUp={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'scale(1)' }}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {acquiring ? (
+                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                ) : (
+                  <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                )}
+                {acquiring ? 'Saving…' : 'Mark as Acquired'}
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </>
   )
