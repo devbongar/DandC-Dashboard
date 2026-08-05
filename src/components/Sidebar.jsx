@@ -153,6 +153,11 @@ export default function Sidebar({ profile, open, onClose }) {
               <p className="text-white/80 text-xs font-semibold truncate leading-tight group-hover:text-white transition">
                 {profile?.full_name ?? profile?.email}
               </p>
+              {profile?.user_code && (
+                <p className="text-white/50 text-[9px] font-mono truncate mt-0.5 leading-tight">
+                  {profile.user_code}
+                </p>
+              )}
               <span className={`inline-block mt-0.5 text-[9px] font-bold px-1.5 py-0.5 rounded-full ${ROLE_BADGE[profile?.role] ?? 'bg-gray-500 text-white'}`}>
                 {ROLE_LABELS[profile?.role] ?? profile?.role}
               </span>
