@@ -1,13 +1,13 @@
 -- ── user_code: add column + sequence + trigger ────────────────────────────────
 
+-- Drop constraints from any prior partial run so migration is re-runnable
+ALTER TABLE profiles DROP CONSTRAINT IF EXISTS profiles_user_code_key;
+
 -- Create sequence for user codes (starts at 1, increments by 1)
 CREATE SEQUENCE IF NOT EXISTS user_code_seq START 1 INCREMENT 1;
 
--- Add user_code column to profiles
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS user_code text UNIQUE NOT NULL DEFAULT '';
-
--- Create index for fast lookups
-CREATE INDEX IF NOT EXISTS idx_profiles_user_code ON profiles(user_code);
+-- Add user_code column without constraints (backfill runs before unique is added)
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS user_code text DEFAULT '';
 
 -- Function to generate next user code
 CREATE OR REPLACE FUNCTION next_user_code()
@@ -56,3 +56,10 @@ BEGIN
     counter := counter + 1;
   END LOOP;
 END $$;
+
+-- Add UNIQUE + NOT NULL + index after all rows have distinct codes
+ALTER TABLE profiles
+  ALTER COLUMN user_code SET NOT NULL,
+  ADD CONSTRAINT profiles_user_code_key UNIQUE (user_code);
+
+CREATE INDEX IF NOT EXISTS idx_profiles_user_code ON profiles(user_code);
