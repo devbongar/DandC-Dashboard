@@ -11,6 +11,7 @@ import TriangleLoader from '../components/TriangleLoader'
 import { downloadWorkbook, parseWorkbook, toFloat } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
 import ReportBuilderModal from '../components/ReportBuilderModal'
+import SearchDropdown from '../components/SearchDropdown'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation',            color: '#94a3b8', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -377,26 +378,44 @@ export default function ProjectsPage() {
             </div>
 
             {showFilters && (
-              <div className="mt-2 p-3 bg-white rounded-xl border border-gray-200 shadow-sm space-y-2">
+              <div className="mt-2 p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <select value={phaseFilter} onChange={e => setPhaseFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent">
-                    <option value="all">All Phases</option>
-                    {PHASES.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
-                  </select>
-                  <select value={businessUnitFilter} onChange={e => setBusinessUnitFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent">
-                    <option value="all">All Business Units</option>
-                    {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code}>{u.code}</option>)}
-                  </select>
-                  <select value={devTypeFilter} onChange={e => setDevTypeFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent">
-                    <option value="all">All Dev Types</option>
-                    <option value="housing">Housing</option>
-                    <option value="condominium">Condominium</option>
-                  </select>
-                  <select value={is4phFilter} onChange={e => setIs4phFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent">
-                    <option value="all">All Types</option>
-                    <option value="yes">4PH</option>
-                    <option value="no">Non-4PH</option>
-                  </select>
+                  <SearchDropdown
+                    fluid
+                    options={PHASES.map(p => ({ value: p.key, label: p.label }))}
+                    value={phaseFilter}
+                    onChange={setPhaseFilter}
+                    emptyValue="all"
+                    emptyLabel="All Phases"
+                    placeholder="Search phases…"
+                  />
+                  <SearchDropdown
+                    fluid
+                    options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))}
+                    value={businessUnitFilter}
+                    onChange={setBusinessUnitFilter}
+                    emptyValue="all"
+                    emptyLabel="All Business Units"
+                    placeholder="Search units…"
+                  />
+                  <SearchDropdown
+                    fluid
+                    options={[{ value: 'housing', label: 'Housing' }, { value: 'condominium', label: 'Condominium' }]}
+                    value={devTypeFilter}
+                    onChange={setDevTypeFilter}
+                    emptyValue="all"
+                    emptyLabel="All Dev Types"
+                    placeholder="Search types…"
+                  />
+                  <SearchDropdown
+                    fluid
+                    options={[{ value: 'yes', label: '4PH' }, { value: 'no', label: 'Non-4PH' }]}
+                    value={is4phFilter}
+                    onChange={setIs4phFilter}
+                    emptyValue="all"
+                    emptyLabel="All Types"
+                    placeholder="Search…"
+                  />
                 </div>
               </div>
             )}
