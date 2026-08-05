@@ -4701,7 +4701,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         ) : (
           <div key={tab} className="flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5" style={{ animation: 'fade-in-up 180ms ease-out forwards' }}>
             {tab === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
-            {tab === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'updater'} />}
+            {tab === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} />}
             {tab === 'Permits'            && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
             {tab === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
             {tab === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}

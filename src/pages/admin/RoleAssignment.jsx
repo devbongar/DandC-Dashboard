@@ -4,27 +4,14 @@ import DashboardLayout from '../../components/DashboardLayout'
 import useProfile from '../../hooks/useProfile'
 import LoadingScreen from '../../components/LoadingScreen'
 import useMinLoading from '../../hooks/useMinLoading'
-
-const ROLES = ['admin', 'approver', 'updater', 'viewer']
-
-const ROLE_LABELS = {
-  admin:    'Admin',
-  approver: 'Approver',
-  updater:  'Updater',
-  viewer:   'Viewer',
-}
-
-const ROLE_COLORS = {
-  admin:    'bg-black text-white',
-  approver: 'bg-[#ed6055] text-white',
-  updater:  'bg-blue-600 text-white',
-  viewer:   'bg-gray-500 text-white',
-}
+import { ROLES, ROLE_LABELS, ROLE_COLORS } from '../../lib/roles'
 
 const ROLE_ACCENT = {
   admin:    '#111111',
-  approver: '#ed6055',
-  updater:  '#2563eb',
+  head:     '#7c3aed',
+  reviewer: '#f59e0b',
+  endorser: '#059669',
+  reporter: '#0284c7',
   viewer:   '#6b7280',
 }
 
@@ -45,7 +32,7 @@ export default function RoleAssignment() {
     setLoading(true)
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, email, full_name, role, is_active, created_at')
+      .select('id, email, full_name, role, team, is_active, created_at')
       .order('created_at', { ascending: false })
     if (!error && data) setUsers(data)
     setLoading(false)
