@@ -5,6 +5,7 @@ import useProfile from '../../hooks/useProfile'
 import LoadingScreen from '../../components/LoadingScreen'
 import PermitDetail from '../../components/PermitDetail'
 import { computePermitStatus, STATUS_BADGE } from '../../lib/permitUtils'
+import SearchDropdown from '../../components/SearchDropdown'
 
 const CARD_ICONS = {
   pending:     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />,
@@ -208,22 +209,16 @@ export default function PermitsDashboard() {
             )}
           </div>
           {/* Project dropdown */}
-          <div className="relative">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M1 2.75A.75.75 0 011.75 2h10.5a.75.75 0 010 1.5H12v13.75a.75.75 0 01-.75.75h-1.5a.75.75 0 01-.75-.75v-2.5a.75.75 0 00-.75-.75h-2.5a.75.75 0 00-.75.75v2.5a.75.75 0 01-.75.75H3.75A.75.75 0 013 17.25V3.5h-.25A.75.75 0 011 2.75zM15 4.75a.75.75 0 00-1.5 0v.5a.75.75 0 001.5 0v-.5zM18.25 4a.75.75 0 01.75.75v.5a.75.75 0 01-1.5 0v-.5a.75.75 0 01.75-.75zM15 8.25a.75.75 0 00-1.5 0v.5a.75.75 0 001.5 0v-.5zM18.25 7.5a.75.75 0 01.75.75v.5a.75.75 0 01-1.5 0v-.5a.75.75 0 01.75-.75zM15 11.75a.75.75 0 00-1.5 0v.5a.75.75 0 001.5 0v-.5zM18.25 11a.75.75 0 01.75.75v.5a.75.75 0 01-1.5 0v-.5a.75.75 0 01.75-.75zM15 15.25a.75.75 0 00-1.5 0v.5a.75.75 0 001.5 0v-.5zM18.25 14.5a.75.75 0 01.75.75v.5a.75.75 0 01-1.5 0v-.5a.75.75 0 01.75-.75zM1.75 16.5a.75.75 0 000 1.5H19.25a.75.75 0 000-1.5H1.75z" clipRule="evenodd" />
-            </svg>
-            <select
-              value={filterProject}
-              onChange={e => setFilterProject(e.target.value)}
-              className="appearance-none pl-9 pr-8 py-2.5 text-sm rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white shadow-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 focus:border-[#ed6055]/60 transition-shadow cursor-pointer"
-            >
-              <option value="all">All Projects</option>
-              {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <svg className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" viewBox="0 0 20 20" fill="currentColor">
-              <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.168l3.71-3.938a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clipRule="evenodd" />
-            </svg>
-          </div>
+          <SearchDropdown
+            options={projects.map(p => ({ value: p.id, label: p.name }))}
+            value={filterProject}
+            onChange={setFilterProject}
+            emptyValue="all"
+            emptyLabel="All Projects"
+            placeholder="Search projects…"
+            icon="M2.25 21l.75-9m4.5 0l.75 9M9.75 3h4.5M12 3v18M4.5 12H3m18 0h-1.5M6.75 6.75h10.5"
+            minWidth={160}
+          />
           {hasActiveFilter && (
             <button
               onClick={clearFilters}
