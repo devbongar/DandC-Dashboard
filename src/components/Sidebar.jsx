@@ -2,23 +2,24 @@ import { useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import Logo from './Logo'
+import { ROLE_LABELS, ROLE_BADGE, navKeyForProfile } from '../lib/roles'
 
 // ── Nav items per role ──────────────────────────────────────────────────────
 const NAV = {
   admin: [
-    { label: 'Dashboard',            path: '/admin/dashboard',              Icon: HomeIcon },
-    { label: 'Projects',             path: '/projects',                     Icon: FolderIcon },
-    { label: 'Standard Permits',     path: '/admin/standard-permits',       Icon: DocumentCheckIcon },
-    { label: 'Role Assignment',      path: '/admin/roles',                  Icon: ShieldIcon },
-    { label: 'Work Program Template', path: '/admin/work-program-template', Icon: TemplateIcon },
+    { label: 'Dashboard',             path: '/admin/dashboard',              Icon: HomeIcon },
+    { label: 'Projects',              path: '/projects',                     Icon: FolderIcon },
+    { label: 'Standard Permits',      path: '/admin/standard-permits',       Icon: DocumentCheckIcon },
+    { label: 'Role Assignment',       path: '/admin/roles',                  Icon: ShieldIcon },
+    { label: 'Work Program Template', path: '/admin/work-program-template',  Icon: TemplateIcon },
   ],
-  approver: [
-    { label: 'Dashboard', path: '/approver/dashboard', Icon: HomeIcon },
+  ho: [
+    { label: 'Dashboard', path: '/ho/dashboard', Icon: HomeIcon },
+    { label: 'Projects',  path: '/projects',     Icon: FolderIcon },
+  ],
+  reporter: [
+    { label: 'Dashboard', path: '/reporter/dashboard', Icon: HomeIcon },
     { label: 'Projects',  path: '/projects',           Icon: FolderIcon },
-  ],
-  updater: [
-    { label: 'Dashboard', path: '/updater/dashboard', Icon: HomeIcon },
-    { label: 'Projects',  path: '/projects',          Icon: FolderIcon },
   ],
   viewer: [
     { label: 'Dashboard', path: '/viewer/dashboard', Icon: HomeIcon },
@@ -26,18 +27,10 @@ const NAV = {
   ],
 }
 
-const ROLE_LABELS = { admin: 'Admin', approver: 'Approver', updater: 'Updater', viewer: 'Viewer' }
-const ROLE_BADGE  = {
-  admin:    'bg-white text-black',
-  approver: 'bg-[#ed6055] text-white',
-  updater:  'bg-blue-500 text-white',
-  viewer:   'bg-gray-500 text-white',
-}
-
 // ── Component ───────────────────────────────────────────────────────────────
 export default function Sidebar({ profile, open, onClose }) {
   const navigate = useNavigate()
-  const items = NAV[profile?.role] ?? []
+  const items = NAV[navKeyForProfile(profile)] ?? []
 
   const signOut = async () => {
     await supabase.auth.signOut()
