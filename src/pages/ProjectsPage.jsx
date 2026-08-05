@@ -338,7 +338,6 @@ export default function ProjectsPage() {
       {/* Filters */}
       {(() => {
         const activeCount = [
-          search,
           phaseFilter !== 'all' ? phaseFilter : '',
           businessUnitFilter !== 'all' ? businessUnitFilter : '',
           devTypeFilter !== 'all' ? devTypeFilter : '',
@@ -348,9 +347,16 @@ export default function ProjectsPage() {
         return (
           <div className="mb-5">
             <div className="flex items-center gap-2">
+              <input
+                type="text"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                placeholder="Search projects…"
+                className="flex-1 min-w-0 px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white"
+              />
               <button
                 onClick={() => setShowFilters(v => !v)}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition ${showFilters || activeCount > 0 ? 'border-[#ed6055] text-[#ed6055] bg-[#ed6055]/5' : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'}`}
+                className={`flex-shrink-0 flex items-center gap-2 px-3 py-2.5 rounded-lg border text-sm font-medium transition ${showFilters || activeCount > 0 ? 'border-[#ed6055] text-[#ed6055] bg-[#ed6055]/5' : 'border-gray-200 text-gray-600 bg-white hover:bg-gray-50'}`}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
@@ -362,23 +368,16 @@ export default function ProjectsPage() {
               </button>
               {activeCount > 0 && (
                 <button
-                  onClick={() => { setSearch(''); setPhaseFilter('all'); setBusinessUnitFilter('all'); setDevTypeFilter('all'); setIs4phFilter('all') }}
-                  className="text-xs text-gray-400 hover:text-gray-600 transition"
+                  onClick={() => { setPhaseFilter('all'); setBusinessUnitFilter('all'); setDevTypeFilter('all'); setIs4phFilter('all') }}
+                  className="flex-shrink-0 text-xs text-gray-400 hover:text-gray-600 transition"
                 >
-                  Clear all
+                  Clear
                 </button>
               )}
             </div>
 
             {showFilters && (
               <div className="mt-2 p-3 bg-white rounded-xl border border-gray-200 shadow-sm space-y-2">
-                <input
-                  type="text"
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search projects…"
-                  className="w-full px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white"
-                />
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   <select value={phaseFilter} onChange={e => setPhaseFilter(e.target.value)} className="px-3 py-2.5 rounded-lg border border-gray-200 text-sm text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent">
                     <option value="all">All Phases</option>
