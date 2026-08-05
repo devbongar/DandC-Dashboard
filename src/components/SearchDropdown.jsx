@@ -7,10 +7,11 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 // icon: optional SVG path string shown in the trigger
 // disabled: grays out and disables the control
 export default function SearchDropdown({ options, value, onChange, emptyValue, emptyLabel, placeholder, icon, disabled = false, minWidth = 130, fluid = false }) {
-  const [open, setOpen]   = useState(false)
-  const [query, setQuery] = useState('')
-  const ref               = useRef(null)
-  const inputRef          = useRef(null)
+  const [open, setOpen]       = useState(false)
+  const [query, setQuery]     = useState('')
+  const [alignRight, setAlignRight] = useState(false)
+  const ref                   = useRef(null)
+  const inputRef              = useRef(null)
 
   const isEmptyVal    = value === emptyValue
   const selectedLabel = isEmptyVal ? emptyLabel : (options.find(o => o.value === value)?.label ?? emptyLabel)
@@ -28,6 +29,10 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
 
   const openDropdown = () => {
     if (disabled) return
+    if (ref.current) {
+      const rect = ref.current.getBoundingClientRect()
+      setAlignRight(rect.left + 220 > window.innerWidth - 8)
+    }
     setOpen(true)
     setQuery('')
     setTimeout(() => inputRef.current?.focus(), 0)
@@ -72,7 +77,7 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
       {/* Popover */}
       {open && !disabled && (
         <div
-          className="absolute left-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
+          className={`absolute top-full mt-1.5 z-50 rounded-xl overflow-hidden ${alignRight ? 'right-0' : 'left-0'}`}
           style={{
             width: 220,
             background: '#fff',
