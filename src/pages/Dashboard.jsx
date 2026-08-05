@@ -5,13 +5,13 @@ import LoadingScreen from '../components/LoadingScreen'
 
 const DESTINATIONS = {
   admin:    '/admin/dashboard',
-  head:     '/ho/dashboard',
-  reviewer: '/ho/dashboard',
-  endorser: '/reporter/dashboard',
-  reporter: '/reporter/dashboard',
-  viewer:   '/viewer/dashboard',
-  approver: '/viewer/dashboard',
-  updater:  '/viewer/dashboard',
+  head:     '/admin/dashboard',
+  reviewer: '/admin/dashboard',
+  endorser: '/admin/dashboard',
+  reporter: '/admin/dashboard',
+  viewer:   '/admin/dashboard',
+  approver: '/admin/dashboard',
+  updater:  '/admin/dashboard',
 }
 
 export default function Dashboard() {
