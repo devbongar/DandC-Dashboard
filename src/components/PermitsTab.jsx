@@ -12,10 +12,10 @@ function IssueIcon() {
 }
 
 const SUMMARY = [
-  { label: 'Pending',     key: 'pending' },
-  { label: 'In Progress', key: 'inProgress' },
-  { label: 'Acquired',    key: 'acquired' },
-  { label: 'Overdue',     key: 'overdue' },
+  { label: 'Pending',     key: 'pending',    icon: <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" /> },
+  { label: 'In Progress', key: 'inProgress', icon: <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" /> },
+  { label: 'Acquired',    key: 'acquired',   icon: <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" /> },
+  { label: 'Overdue',     key: 'overdue',    icon: <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" /> },
 ]
 
 const INPUT = 'w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40'
@@ -81,6 +81,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {SUMMARY.map(c => (
             <div key={c.key} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 flex flex-col items-center gap-1.5 shadow-sm">
+              <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" viewBox="0 0 20 20" fill="currentColor">{c.icon}</svg>
               <span className="text-2xl font-bold leading-none text-gray-900 dark:text-white tabular-nums">{counts[c.key]}</span>
               <span className="text-xs font-medium text-gray-400 dark:text-gray-500 text-center leading-tight">{c.label}</span>
             </div>
