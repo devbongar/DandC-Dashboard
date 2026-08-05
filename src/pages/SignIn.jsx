@@ -187,7 +187,7 @@ export default function SignIn() {
                     onFocus={() => setFocusedField('email')}
                     onBlur={() => setFocusedField(null)}
                     placeholder="you@company.com"
-                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-black placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent transition bg-white"
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 text-black placeholder-gray-400 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent transition bg-white"
                   />
                 </div>
 
@@ -220,7 +220,7 @@ export default function SignIn() {
                       onFocus={() => setFocusedField('password')}
                       onBlur={() => setFocusedField(null)}
                       placeholder="••••••••"
-                      className="w-full px-4 py-3 pr-11 rounded-xl border border-gray-200 text-black placeholder-gray-400 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent transition bg-white"
+                      className="w-full px-4 py-3 pr-11 rounded-xl border border-gray-200 text-black placeholder-gray-400 text-base sm:text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent transition bg-white"
                     />
                     <button
                       type="button"
