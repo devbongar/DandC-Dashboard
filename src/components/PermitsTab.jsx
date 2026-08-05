@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import PermitDetail from './PermitDetail'
 import { computePermitStatus, STATUS_BADGE } from '../lib/permitUtils'
@@ -27,6 +27,17 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
   const [creating, setCreating] = useState(false)
   const [form,     setForm]     = useState({ name: '', responsible_person: '', planned_start: '', planned_finish: '', remarks: '' })
   const [saving,   setSaving]   = useState(false)
+  const cardScrollRef = useRef(null)
+  const [cardScrollPos, setCardScrollPos] = useState(0)
+
+  function scrollCards(dir) {
+    const el = cardScrollRef.current
+    if (!el) return
+    el.scrollBy({ left: dir * 120, behavior: 'smooth' })
+  }
+  function onCardScroll() {
+    setCardScrollPos(cardScrollRef.current?.scrollLeft ?? 0)
+  }
 
   useEffect(() => { load() }, [project.id])
 
@@ -78,14 +89,40 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
 
       {/* Summary strip */}
       {permits.length > 0 && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-          {SUMMARY.map(c => (
-            <div key={c.key} className="rounded-xl ring-1 ring-black/5 bg-white dark:bg-gray-800 p-4 flex flex-col items-center gap-1.5 shadow">
-              <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" viewBox="0 0 20 20" fill="currentColor">{c.icon}</svg>
-              <span className="text-2xl font-bold leading-none text-gray-900 dark:text-white tabular-nums">{counts[c.key]}</span>
-              <span className="text-xs font-medium text-gray-400 dark:text-gray-500 text-center leading-tight">{c.label}</span>
-            </div>
-          ))}
+        <div className="relative -mx-3 sm:mx-0">
+          <div
+            ref={cardScrollRef}
+            onScroll={onCardScroll}
+            className="flex gap-2 overflow-x-auto py-2 px-3 sm:grid sm:grid-cols-4 sm:overflow-visible sm:py-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          >
+            {SUMMARY.map(c => (
+              <div key={c.key} className="flex-none w-24 sm:w-auto rounded-xl ring-1 ring-black/5 bg-white dark:bg-gray-800 p-3 flex flex-col items-center gap-1 shadow">
+                <svg className="w-4 h-4 text-gray-400 dark:text-gray-500" viewBox="0 0 20 20" fill="currentColor">{c.icon}</svg>
+                <span className="text-xl font-bold leading-none text-gray-900 dark:text-white tabular-nums">{counts[c.key]}</span>
+                <span className="text-[11px] font-medium text-gray-400 dark:text-gray-500 text-center leading-tight">{c.label}</span>
+              </div>
+            ))}
+          </div>
+          {/* Left gradient arrow — mobile only */}
+          <button
+            onClick={() => scrollCards(-1)}
+            aria-label="Scroll left"
+            className={`sm:hidden absolute left-0 top-0 bottom-0 w-9 flex items-center justify-center bg-gradient-to-r from-[#e4e7ec] to-transparent transition-opacity duration-200 ${cardScrollPos > 8 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          >
+            <svg className="w-4 h-4 text-gray-500 drop-shadow" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
+            </svg>
+          </button>
+          {/* Right gradient arrow — mobile only */}
+          <button
+            onClick={() => scrollCards(1)}
+            aria-label="Scroll right"
+            className={`sm:hidden absolute right-0 top-0 bottom-0 w-9 flex items-center justify-center bg-gradient-to-l from-[#e4e7ec] to-transparent transition-opacity duration-200 ${cardScrollRef.current && cardScrollPos < cardScrollRef.current.scrollWidth - cardScrollRef.current.clientWidth - 8 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+          >
+            <svg className="w-4 h-4 text-gray-500 drop-shadow" viewBox="0 0 20 20" fill="currentColor">
+              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+            </svg>
+          </button>
         </div>
       )}
 
