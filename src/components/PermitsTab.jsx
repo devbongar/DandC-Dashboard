@@ -74,15 +74,15 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-4">
+    <div className="max-w-3xl mx-auto space-y-4 pt-4">
 
       {/* Summary strip */}
       {permits.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {SUMMARY.map(c => (
-            <div key={c.key} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 flex flex-col items-center gap-0.5 shadow-sm">
-              <span className="text-xl font-bold leading-none text-gray-900 dark:text-white tabular-nums">{counts[c.key]}</span>
-              <span className="text-[10px] font-medium text-gray-400 dark:text-gray-500 text-center leading-tight">{c.label}</span>
+            <div key={c.key} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 flex flex-col items-center gap-1.5 shadow-sm">
+              <span className="text-2xl font-bold leading-none text-gray-900 dark:text-white tabular-nums">{counts[c.key]}</span>
+              <span className="text-xs font-medium text-gray-400 dark:text-gray-500 text-center leading-tight">{c.label}</span>
             </div>
           ))}
         </div>
