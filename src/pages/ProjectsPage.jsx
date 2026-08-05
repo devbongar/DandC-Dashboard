@@ -385,8 +385,8 @@ export default function ProjectsPage() {
         ) : (
           <>
             {/* ── Mobile cards (hidden sm+) ── */}
-            <div className="sm:hidden divide-y divide-gray-100">
-              {filtered.map((project, idx) => {
+            <div className="sm:hidden space-y-3 p-3">
+              {filtered.map((project) => {
                 const ph = PHASE_MAP[project.phase]
                 const phaseColor = ph?.color ?? '#e5e7eb'
                 const location = project.city && project.province
@@ -396,51 +396,47 @@ export default function ProjectsPage() {
                   <div
                     key={project.id}
                     onClick={() => navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } })}
-                    className="flex items-start gap-3 px-4 py-4 active:bg-gray-50 transition cursor-pointer"
+                    className="bg-white rounded-xl ring-1 ring-black/5 px-4 py-3 shadow hover:shadow-lg active:scale-[0.99] transition-[transform,box-shadow] duration-150 cursor-pointer select-none touch-manipulation"
                     style={{ borderLeft: `3px solid ${phaseColor}` }}
                   >
-                    {/* Index */}
-                    <span className="flex-shrink-0 text-xs font-medium text-gray-400 tabular-nums w-5 pt-0.5">{idx + 1}</span>
-
-                    {/* Content */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2 mb-1.5">
-                        <p className="font-semibold text-black text-sm leading-snug">{project.name}</p>
-                        {ph && (
-                          <span className={`flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${ph.badge}`}>
-                            {ph.label}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
-                        {project.business_unit && <span>{project.business_unit}</span>}
-                        {project.development_type && (
-                          <span className="capitalize">{project.development_type}</span>
-                        )}
-                        {project.is_4ph_project && (
-                          <span className="font-semibold text-[#ed6055]">4PH</span>
-                        )}
-                        {location && (
-                          <span className="flex items-center gap-1 text-gray-400">
-                            <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
-                            </svg>
-                            {location}
-                          </span>
-                        )}
-                      </div>
+                    {/* Top row: name + phase badge */}
+                    <div className="flex items-start justify-between gap-2 mb-1.5">
+                      <p className="font-semibold text-gray-900 text-sm leading-snug">{project.name}</p>
+                      {ph && (
+                        <span className={`flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full border ${ph.badge}`}>
+                          {ph.label}
+                        </span>
+                      )}
                     </div>
 
-                    {/* Admin actions */}
+                    {/* Meta row */}
+                    <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-500">
+                      {project.business_unit && <span>{project.business_unit}</span>}
+                      {project.development_type && (
+                        <span className="capitalize">{project.development_type}</span>
+                      )}
+                      {project.is_4ph_project && (
+                        <span className="font-semibold text-[#ed6055]">4PH</span>
+                      )}
+                      {location && (
+                        <span className="flex items-center gap-1 text-gray-400">
+                          <svg className="w-3 h-3 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                          </svg>
+                          {location}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Admin delete */}
                     {isAdmin && (
-                      <div className="flex-shrink-0 flex items-center gap-0.5" onClick={e => e.stopPropagation()}>
+                      <div className="mt-2 pt-2 border-t border-gray-100 flex justify-end" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={e => { e.stopPropagation(); setDeleteTarget(project) }}
-                          className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#ed6055] hover:bg-[#ed6055]/5 active:bg-[#ed6055]/10 transition"
+                          className="min-h-[32px] px-3 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
                         >
-                          <TrashIcon />
+                          Delete
                         </button>
                       </div>
                     )}
