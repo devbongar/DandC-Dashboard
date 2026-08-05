@@ -364,7 +364,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden" style={{ minHeight: 'calc(100dvh - 16rem)' }}>
         {loading ? (
           <TriangleLoader label="Loading projects…" />
         ) : filtered.length === 0 ? (
