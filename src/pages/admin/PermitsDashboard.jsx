@@ -130,58 +130,54 @@ export default function PermitsDashboard() {
         </div>
 
         {/* Summary cards */}
-        <div className="flex items-center gap-2 sm:block">
-          {/* Left arrow — mobile only, invisible (not removed) when at start to keep layout */}
+        <div className="relative -mx-4 sm:mx-0">
+          <div
+            ref={cardScrollRef}
+            onScroll={onCardScroll}
+            className="flex gap-3 overflow-x-auto py-2 px-4 sm:grid sm:grid-cols-5 sm:overflow-visible sm:py-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
+          >
+            {CARDS.map(c => {
+              const active = filterStatus === c.filterKey
+              return (
+                <button
+                  key={c.label}
+                  onClick={() => setFilterStatus(active && c.filterKey !== 'all' ? 'all' : c.filterKey)}
+                  className={`flex-none w-28 sm:w-auto text-left rounded-xl border p-3 sm:p-4 transition-[transform,box-shadow] duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${c.bg} ${
+                    active
+                      ? `bg-white dark:bg-gray-800 border-transparent ring-2 ${c.ring} shadow-md`
+                      : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600'
+                  }`}
+                >
+                  <div className="flex flex-col items-center text-center gap-1">
+                    <svg className={`w-4 h-4 sm:w-5 sm:h-5 ${c.icon}`} viewBox="0 0 20 20" fill="currentColor">
+                      {CARD_ICONS[c.key]}
+                    </svg>
+                    <p className={`text-xl sm:text-2xl font-bold tabular-nums ${c.num}`}>{counts[c.key]}</p>
+                    <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 leading-tight">{c.label}</p>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+
+          {/* Left gradient-button — mobile only, full height tap target */}
           <button
             onClick={() => scrollCards(-1)}
-            className={`sm:hidden flex-shrink-0 w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 active:scale-95 transition-[transform,opacity] duration-150 ${cardScrollPos > 8 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            aria-label="Scroll left"
+            className={`sm:hidden absolute left-0 top-0 bottom-0 w-10 flex items-center justify-center bg-gradient-to-r from-gray-50 dark:from-gray-900 to-transparent transition-opacity duration-200 ${cardScrollPos > 8 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
-            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <svg className="w-5 h-5 text-gray-500 dark:text-gray-300 drop-shadow" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
             </svg>
           </button>
 
-          {/* Scroll area */}
-          <div className="relative flex-1 sm:flex-none">
-            <div
-              ref={cardScrollRef}
-              onScroll={onCardScroll}
-              className="flex gap-3 overflow-x-auto py-2 sm:grid sm:grid-cols-5 sm:overflow-visible sm:py-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]"
-            >
-              {CARDS.map(c => {
-                const active = filterStatus === c.filterKey
-                return (
-                  <button
-                    key={c.label}
-                    onClick={() => setFilterStatus(active && c.filterKey !== 'all' ? 'all' : c.filterKey)}
-                    className={`flex-none w-28 sm:w-auto text-left rounded-xl border p-3 sm:p-4 transition-[transform,box-shadow] duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${c.bg} ${
-                      active
-                        ? `bg-white dark:bg-gray-800 border-transparent ring-2 ${c.ring} shadow-md`
-                        : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md hover:border-gray-300 dark:hover:border-gray-600'
-                    }`}
-                  >
-                    <div className="flex flex-col items-center text-center gap-1">
-                      <svg className={`w-4 h-4 sm:w-5 sm:h-5 ${c.icon}`} viewBox="0 0 20 20" fill="currentColor">
-                        {CARD_ICONS[c.key]}
-                      </svg>
-                      <p className={`text-xl sm:text-2xl font-bold tabular-nums ${c.num}`}>{counts[c.key]}</p>
-                      <p className="text-[11px] sm:text-xs text-gray-500 dark:text-gray-400 leading-tight">{c.label}</p>
-                    </div>
-                  </button>
-                )
-              })}
-            </div>
-            {/* Edge fades — mobile only */}
-            <div className={`pointer-events-none absolute left-0 top-0 bottom-0 w-6 bg-gradient-to-r from-gray-50 dark:from-gray-900 to-transparent sm:hidden transition-opacity duration-200 ${cardScrollPos > 8 ? 'opacity-100' : 'opacity-0'}`} />
-            <div className={`pointer-events-none absolute right-0 top-0 bottom-0 w-6 bg-gradient-to-l from-gray-50 dark:from-gray-900 to-transparent sm:hidden transition-opacity duration-200 ${cardScrollRef.current && cardScrollPos < cardScrollRef.current.scrollWidth - cardScrollRef.current.clientWidth - 8 ? 'opacity-100' : 'opacity-0'}`} />
-          </div>
-
-          {/* Right arrow — mobile only */}
+          {/* Right gradient-button — mobile only */}
           <button
             onClick={() => scrollCards(1)}
-            className={`sm:hidden flex-shrink-0 w-8 h-8 rounded-full bg-white dark:bg-gray-800 shadow border border-gray-200 dark:border-gray-700 flex items-center justify-center text-gray-500 dark:text-gray-400 active:scale-95 transition-[transform,opacity] duration-150 ${cardScrollRef.current && cardScrollPos < cardScrollRef.current.scrollWidth - cardScrollRef.current.clientWidth - 8 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
+            aria-label="Scroll right"
+            className={`sm:hidden absolute right-0 top-0 bottom-0 w-10 flex items-center justify-center bg-gradient-to-l from-gray-50 dark:from-gray-900 to-transparent transition-opacity duration-200 ${cardScrollRef.current && cardScrollPos < cardScrollRef.current.scrollWidth - cardScrollRef.current.clientWidth - 8 ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
           >
-            <svg className="w-4 h-4" viewBox="0 0 20 20" fill="currentColor">
+            <svg className="w-5 h-5 text-gray-500 dark:text-gray-300 drop-shadow" viewBox="0 0 20 20" fill="currentColor">
               <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
             </svg>
           </button>
