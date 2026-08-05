@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -v \"//\\\\|ConfirmDelete\\\\|FloorLayout\\\\|BulkAdd\\\\|deleteId\\\\|PermitModal\\\\|IssueModal\")",
+      "Bash(git commit -m ' *)",
+      "Bash(vercel --version)",
+      "Bash(npx vercel *)",
+      "Bash(python3 -c \"from PIL import Image; img = Image.open\\('public/logo.png'\\); print\\(img.size, img.format, img.mode\\)\")",
+      "Bash(python -c \"from PIL import Image; img = Image.open\\('public/logo.png'\\); print\\(img.size, img.format, img.mode\\)\")",
+      "Bash(node scripts/generate-icons.mjs)",
+      "Bash(find \"c:\\\\Users\\\\rbongar\\\\Videos\\\\DandC Dashboard\" -iname \"D and C*\" 2>/dev/null; find \"c:\\\\Users\\\\rbongar\" -maxdepth 3 -iname \"D and C*\" 2>/dev/null)",
+      "Read(//c/Users/rbongar/**)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({**d.get\\('dependencies',{}\\), **d.get\\('devDependencies',{}\\)}, indent=2\\)\\)\")",
+      "Bash(git commit *)",
+      "Bash(npm install *)",
+      "Bash(node -e \"const j = require\\('jspdf'\\); console.log\\(Object.keys\\(j\\).slice\\(0,10\\)\\)\")",
+      "Bash(node -e \"const j = require\\('jspdf'\\); console.log\\(typeof j.default, typeof j.jsPDF\\)\")",
+      "Bash(node -e \"const j = require\\('jspdf'\\); const PDF = j.jsPDF; const p = new PDF\\({orientation:'landscape',unit:'mm',format:'a4'}\\); console.log\\('pageW:', p.internal.pageSize.getWidth\\(\\)\\)\")"
+    ]
+  }
+}
