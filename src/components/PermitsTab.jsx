@@ -18,14 +18,16 @@ const SUMMARY = [
   { label: 'Overdue',     key: 'overdue' },
 ]
 
+const BG = 'bg-[#e4e7ec] dark:bg-gray-900'
+const INPUT = 'w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40'
+
 export default function PermitsTab({ project, isAdmin, isHead, currentUserId, showToast }) {
   const [permits,  setPermits]  = useState([])
   const [loading,  setLoading]  = useState(true)
   const [selected, setSelected] = useState(null)
   const [creating, setCreating] = useState(false)
-
-  const [form, setForm] = useState({ name: '', responsible_person: '', planned_start: '', planned_finish: '', remarks: '' })
-  const [saving, setSaving] = useState(false)
+  const [form,     setForm]     = useState({ name: '', responsible_person: '', planned_start: '', planned_finish: '', remarks: '' })
+  const [saving,   setSaving]   = useState(false)
 
   useEffect(() => { load() }, [project.id])
 
@@ -62,7 +64,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
   }
 
   if (loading) {
-    return <div className="p-6 text-sm text-gray-400">Loading permits...</div>
+    return <div className={`p-6 text-sm text-gray-400 ${BG}`}>Loading permits...</div>
   }
 
   const counts = {
@@ -72,14 +74,12 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
     overdue:    permits.filter(p => computePermitStatus(p) === 'overdue').length,
   }
 
-  const INPUT = 'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40'
-
   return (
-    <div className="p-4 space-y-4 bg-[#e4e7ec] dark:bg-gray-900 min-h-full">
+    <div className={`p-4 space-y-4 ${BG}`}>
 
       {/* Summary strip */}
       {permits.length > 0 && (
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {SUMMARY.map(c => (
             <div key={c.key} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-3 py-2.5 flex flex-col items-center gap-0.5 shadow-sm">
               <span className="text-xl font-bold leading-none text-gray-900 dark:text-white tabular-nums">{counts[c.key]}</span>
@@ -97,7 +97,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
         {isAdmin && !creating && (
           <button
             onClick={() => setCreating(true)}
-            className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] transition-colors"
+            className="min-h-[36px] px-4 text-xs font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] transition-colors"
           >
             + Add Permit
           </button>
@@ -106,7 +106,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
 
       {/* Create form */}
       {creating && (
-        <form onSubmit={createPermit} className="bg-gray-50 dark:bg-gray-800/60 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
+        <form onSubmit={createPermit} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3 shadow-sm">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">New Permit</p>
           <input required type="text" placeholder="Permit name (e.g. Building Permit)"
             value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={INPUT} />
@@ -124,11 +124,11 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
           </div>
           <div className="flex gap-2 justify-end">
             <button type="button" onClick={() => setCreating(false)}
-              className="px-4 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
+              className="min-h-[36px] px-4 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors">
               Cancel
             </button>
             <button type="submit" disabled={saving}
-              className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors">
+              className="min-h-[36px] px-4 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors">
               {saving ? 'Saving...' : 'Create'}
             </button>
           </div>
@@ -147,7 +147,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
         </div>
       )}
 
-      {/* Permit cards */}
+      {/* Permit cards — div not button to avoid nested button (delete) */}
       <div className="space-y-2">
         {permits.map(permit => {
           const status   = computePermitStatus(permit)
@@ -159,10 +159,10 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
             ? Math.max(0, Math.floor((Date.now() - new Date(permit.planned_finish).getTime()) / 86400000))
             : 0
           return (
-            <button
+            <div
               key={permit.id}
               onClick={() => setSelected(permit)}
-              className="w-full text-left bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 shadow-sm hover:shadow-md active:scale-[0.99] transition-[transform,box-shadow] duration-150"
+              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 shadow-sm hover:shadow-md active:scale-[0.99] transition-[transform,box-shadow] duration-150 cursor-pointer select-none"
             >
               {/* Top row: name + status */}
               <div className="flex items-start justify-between gap-2">
@@ -199,18 +199,18 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
                 )}
               </div>
 
-              {/* Admin delete */}
+              {/* Admin delete — separated from card click area */}
               {isAdmin && (
-                <div className="mt-2 flex justify-end">
+                <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-end">
                   <button
                     onClick={e => { e.stopPropagation(); deletePermit(permit.id) }}
-                    className="text-[11px] text-red-400 hover:text-red-600 transition-colors"
+                    className="min-h-[32px] px-3 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                   >
                     Delete
                   </button>
                 </div>
               )}
-            </button>
+            </div>
           )
         })}
       </div>
