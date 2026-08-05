@@ -42,7 +42,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   const [issues,         setIssues]         = useState([])
   const [saving,         setSaving]         = useState(false)
   const [remarksDraft,   setRemarksDraft]   = useState(initialPermit.remarks ?? '')
-  const [editingRemarks, setEditingRemarks] = useState(!initialPermit.remarks)
+  const [editingRemarks, setEditingRemarks] = useState(false)
 
   const [issueText,    setIssueText]    = useState('')
   const [issueDesc,    setIssueDesc]    = useState('')
