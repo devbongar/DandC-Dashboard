@@ -75,7 +75,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
   const INPUT = 'w-full px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40'
 
   return (
-    <div className="max-w-2xl mx-auto p-4 space-y-4">
+    <div className="p-4 space-y-4">
 
       {/* Summary strip */}
       {permits.length > 0 && (
