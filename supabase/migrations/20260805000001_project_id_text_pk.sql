@@ -25,6 +25,15 @@ ALTER TABLE project_unit_completion           DROP CONSTRAINT IF EXISTS project_
 ALTER TABLE project_buildings                 DROP CONSTRAINT IF EXISTS project_buildings_project_id_fkey;
 ALTER TABLE project_parking_floors            DROP CONSTRAINT IF EXISTS project_parking_floors_project_id_fkey;
 ALTER TABLE project_parking_unit_completion   DROP CONSTRAINT IF EXISTS project_parking_unit_completion_project_id_fkey;
+ALTER TABLE esa_issues                        DROP CONSTRAINT IF EXISTS esa_issues_project_id_fkey;
+ALTER TABLE project_unit_types                DROP CONSTRAINT IF EXISTS project_unit_types_project_id_fkey;
+ALTER TABLE project_parking                   DROP CONSTRAINT IF EXISTS project_parking_project_id_fkey;
+ALTER TABLE project_amenities                 DROP CONSTRAINT IF EXISTS project_amenities_project_id_fkey;
+ALTER TABLE workprogram_activities            DROP CONSTRAINT IF EXISTS project_milestones_project_id_fkey;
+ALTER TABLE milestone_baselines               DROP CONSTRAINT IF EXISTS milestone_baselines_project_id_fkey;
+ALTER TABLE workprogram_dependencies          DROP CONSTRAINT IF EXISTS milestone_dependencies_project_id_fkey;
+ALTER TABLE project_poc                       DROP CONSTRAINT IF EXISTS project_poc_project_id_fkey;
+ALTER TABLE project_poc_pending               DROP CONSTRAINT IF EXISTS project_poc_pending_project_id_fkey;
 
 -- ── 3. Change projects.id from uuid to text ───────────────────────────────────
 -- Drop PK first (required before altering the PK column type).
@@ -77,6 +86,15 @@ ALTER TABLE project_unit_completion           ALTER COLUMN project_id TYPE text;
 ALTER TABLE project_buildings                 ALTER COLUMN project_id TYPE text;
 ALTER TABLE project_parking_floors            ALTER COLUMN project_id TYPE text;
 ALTER TABLE project_parking_unit_completion   ALTER COLUMN project_id TYPE text;
+ALTER TABLE esa_issues                        ALTER COLUMN project_id TYPE text;
+ALTER TABLE project_unit_types                ALTER COLUMN project_id TYPE text;
+ALTER TABLE project_parking                   ALTER COLUMN project_id TYPE text;
+ALTER TABLE project_amenities                 ALTER COLUMN project_id TYPE text;
+ALTER TABLE workprogram_activities            ALTER COLUMN project_id TYPE text;
+ALTER TABLE milestone_baselines               ALTER COLUMN project_id TYPE text;
+ALTER TABLE workprogram_dependencies          ALTER COLUMN project_id TYPE text;
+ALTER TABLE project_poc                       ALTER COLUMN project_id TYPE text;
+ALTER TABLE project_poc_pending               ALTER COLUMN project_id TYPE text;
 
 -- ── 6. Recreate FK constraints ────────────────────────────────────────────────
 ALTER TABLE project_photos
@@ -137,4 +155,40 @@ ALTER TABLE project_parking_floors
 
 ALTER TABLE project_parking_unit_completion
   ADD CONSTRAINT project_parking_unit_completion_project_id_fkey
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+
+ALTER TABLE esa_issues
+  ADD CONSTRAINT esa_issues_project_id_fkey
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+
+ALTER TABLE project_unit_types
+  ADD CONSTRAINT project_unit_types_project_id_fkey
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+
+ALTER TABLE project_parking
+  ADD CONSTRAINT project_parking_project_id_fkey
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+
+ALTER TABLE project_amenities
+  ADD CONSTRAINT project_amenities_project_id_fkey
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+
+ALTER TABLE workprogram_activities
+  ADD CONSTRAINT project_milestones_project_id_fkey
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+
+ALTER TABLE milestone_baselines
+  ADD CONSTRAINT milestone_baselines_project_id_fkey
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+
+ALTER TABLE workprogram_dependencies
+  ADD CONSTRAINT milestone_dependencies_project_id_fkey
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+
+ALTER TABLE project_poc
+  ADD CONSTRAINT project_poc_project_id_fkey
+  FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
+
+ALTER TABLE project_poc_pending
+  ADD CONSTRAINT project_poc_pending_project_id_fkey
   FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE;
