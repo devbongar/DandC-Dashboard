@@ -294,7 +294,7 @@ export default function ProjectsPage() {
 
   return (
     <DashboardLayout profile={profile}>
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-6xl mx-auto flex flex-col flex-1">
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
         <div className="flex items-center gap-3">
@@ -364,7 +364,7 @@ export default function ProjectsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden flex-1">
         {loading ? (
           <TriangleLoader label="Loading projects…" />
         ) : filtered.length === 0 ? (
