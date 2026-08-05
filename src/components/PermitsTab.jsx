@@ -80,7 +80,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
       {permits.length > 0 && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {SUMMARY.map(c => (
-            <div key={c.key} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 flex flex-col items-center gap-1.5 shadow-sm">
+            <div key={c.key} className="rounded-xl ring-1 ring-black/5 bg-white dark:bg-gray-800 p-4 flex flex-col items-center gap-1.5 shadow">
               <svg className="w-5 h-5 text-gray-400 dark:text-gray-500" viewBox="0 0 20 20" fill="currentColor">{c.icon}</svg>
               <span className="text-2xl font-bold leading-none text-gray-900 dark:text-white tabular-nums">{counts[c.key]}</span>
               <span className="text-xs font-medium text-gray-400 dark:text-gray-500 text-center leading-tight">{c.label}</span>
@@ -106,7 +106,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
 
       {/* Create form */}
       {creating && (
-        <form onSubmit={createPermit} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3 shadow-sm">
+        <form onSubmit={createPermit} className="bg-white dark:bg-gray-800 rounded-xl ring-1 ring-black/5 p-4 space-y-3 shadow">
           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">New Permit</p>
           <input required type="text" placeholder="Permit name (e.g. Building Permit)"
             value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} className={INPUT} />
@@ -162,7 +162,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
             <div
               key={permit.id}
               onClick={() => setSelected(permit)}
-              className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 shadow-sm hover:shadow-md active:scale-[0.99] transition-[transform,box-shadow] duration-150 cursor-pointer select-none"
+              className="bg-white dark:bg-gray-800 rounded-xl ring-1 ring-black/5 px-4 py-3 shadow hover:shadow-lg active:scale-[0.99] transition-[transform,box-shadow] duration-150 cursor-pointer select-none touch-manipulation"
             >
               {/* Top row: name + status */}
               <div className="flex items-start justify-between gap-2">
