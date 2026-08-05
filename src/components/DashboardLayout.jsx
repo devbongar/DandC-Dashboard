@@ -168,7 +168,7 @@ export default function DashboardLayout({ profile, children }) {
 
       {/* Main content — offset = topbar (4rem) + safe-area-inset-top */}
       <div style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))' }}>
-        <div className="px-3 sm:px-4 py-3">
+        <div className="px-3 sm:px-4 pt-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           {children}
         </div>
       </div>
