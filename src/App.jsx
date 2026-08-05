@@ -15,6 +15,7 @@ import UserManagement from './pages/admin/UserManagement'
 import StandardPermits from './pages/admin/StandardPermits'
 import WorkProgramTemplate from './pages/admin/WorkProgramTemplate'
 import PermitsDashboard from './pages/admin/PermitsDashboard'
+import Settings from './pages/admin/Settings'
 import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProfilePage from './pages/ProfilePage'
@@ -52,6 +53,7 @@ function App() {
         <Route path="/admin/standard-permits"       element={<ProtectedRoute roles={['admin']}><StandardPermits /></ProtectedRoute>} />
         <Route path="/admin/work-program-template"  element={<ProtectedRoute roles={['admin']}><WorkProgramTemplate /></ProtectedRoute>} />
         <Route path="/admin/permits"                element={<ProtectedRoute roles={['admin','head','reviewer','endorser','reporter','viewer']}><PermitsDashboard /></ProtectedRoute>} />
+        <Route path="/admin/settings"               element={<ProtectedRoute roles={['admin']}><Settings /></ProtectedRoute>} />
 
         <Route path="/" element={<Navigate to="/signin" replace />} />
         <Route path="*" element={<Navigate to="/signin" replace />} />
