@@ -8,6 +8,7 @@ import SCurveTab from './SCurveTab'
 import useProfile from '../hooks/useProfile'
 import ReportBuilderModal from './ReportBuilderModal'
 import SearchDropdown from './SearchDropdown'
+import PermitsTab from './PermitsTab'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -4457,7 +4458,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   useEffect(() => {
     const pid = project.id
     Promise.all([
-      supabase.from('project_permits').select('*', { count: 'exact', head: true }).eq('project_id', pid),
+      supabase.from('permits').select('*', { count: 'exact', head: true }).eq('project_id', pid),
       supabase.from('issues').select('*', { count: 'exact', head: true }).eq('project_id', pid).eq('status', 'open'),
     ]).then(([permits, issues]) => {
       setTabCounts({
@@ -4702,7 +4703,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           <div key={tab} className="flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5" style={{ animation: 'fade-in-up 180ms ease-out forwards' }}>
             {tab === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
             {tab === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} />}
-            {tab === 'Permits'            && <ComplianceTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {tab === 'Permits'            && <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} currentUserId={profile?.id} showToast={showToast} />}
             {tab === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
             {tab === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
             {tab === 'Photos'             && <PhotosTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
