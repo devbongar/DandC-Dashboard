@@ -4,24 +4,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 import useProfile from '../../hooks/useProfile'
 import LoadingScreen from '../../components/LoadingScreen'
 import useMinLoading from '../../hooks/useMinLoading'
-
-// All known global roles — includes legacy values so nothing breaks
-const HO_ROLES = ['admin', 'head', 'reviewer', 'viewer_ho', 'approver', 'updater', 'viewer']
-
-const ROLE_COLORS = {
-  admin:       'bg-black text-white',
-  head:        'bg-purple-600 text-white',
-  reviewer:    'bg-amber-500 text-white',
-  viewer_ho:   'bg-gray-500 text-white',
-  approver:    'bg-[#ed6055] text-white',
-  updater:     'bg-blue-600 text-white',
-  viewer:      'bg-gray-400 text-white',
-  cm:          'bg-emerald-600 text-white',
-  reporter:    'bg-sky-600 text-white',
-  viewer_site: 'bg-slate-500 text-white',
-}
-
-const SITE_ROLES = ['cm', 'reporter', 'viewer_site']
+import { ROLES, ROLE_LABELS, ROLE_COLORS } from '../../lib/roles'
 
 function RoleBadge({ role }) {
   if (!role) return <span className="text-gray-400 text-xs italic">No role</span>
@@ -70,7 +53,6 @@ export default function UserManagement() {
 
   // Project assignment
   const [addProjectId,    setAddProjectId]    = useState('')
-  const [addRole,         setAddRole]         = useState('cm')
   const [addingMember,    setAddingMember]    = useState(false)
   const [removingMemberId, setRemovingMemberId] = useState(null)
 
@@ -94,7 +76,7 @@ export default function UserManagement() {
     ] = await Promise.all([
       supabase
         .from('profiles')
-        .select('id, email, full_name, role, is_active, created_at, avatar_url, position')
+        .select('id, email, full_name, role, team, is_active, created_at, avatar_url, position')
         .order('full_name', { ascending: true }),
       supabase
         .from('projects')
@@ -102,7 +84,7 @@ export default function UserManagement() {
         .order('name', { ascending: true }),
       supabase
         .from('project_members')
-        .select('id, project_id, user_id, role'),
+        .select('id, project_id, user_id'),
     ])
     if (e1 || e2 || e3) { showToast('Failed to load data.', 'error'); setLoading(false); return }
     if (usersData)    setUsers(usersData)
@@ -126,8 +108,8 @@ export default function UserManagement() {
       (u.email ?? '').toLowerCase().includes(q)
     const matchTab =
       filterTab === 'all'  ? true :
-      filterTab === 'ho'   ? u.role !== null :
-      filterTab === 'site' ? u.role === null : true
+      filterTab === 'ho'   ? u.team === 'ho' :
+      filterTab === 'site' ? u.team === 'site' : true
     return matchSearch && matchTab
   })
 
@@ -143,7 +125,6 @@ export default function UserManagement() {
     setSelectedUser(user)
     setPositionDraft(user.position ?? '')
     setAddProjectId('')
-    setAddRole('cm')
   }
 
   // ── Save position ─────────────────────────────────────────────────────────
@@ -180,14 +161,13 @@ export default function UserManagement() {
     setAddingMember(true)
     const { data, error } = await supabase
       .from('project_members')
-      .insert({ project_id: addProjectId, user_id: selectedUser.id, role: addRole })
-      .select('id, project_id, user_id, role')
+      .insert({ project_id: addProjectId, user_id: selectedUser.id })
+      .select('id, project_id, user_id')
       .single()
     setAddingMember(false)
     if (error) { showToast('Failed to add assignment: ' + error.message, 'error'); return }
     setMembers(prev => [...prev, data])
     setAddProjectId('')
-    setAddRole('cm')
     showToast('Project assignment added.', 'success')
   }
 
@@ -258,8 +238,8 @@ export default function UserManagement() {
             <div className="flex border-b border-gray-100">
               {[
                 { key: 'all',  label: 'All', count: users.length },
-                { key: 'ho',   label: 'HO Users', count: users.filter(u => u.role !== null).length },
-                { key: 'site', label: 'Site Users', count: users.filter(u => u.role === null).length },
+                { key: 'ho',   label: 'HO Users',   count: users.filter(u => u.team === 'ho').length },
+                { key: 'site', label: 'Site Users',  count: users.filter(u => u.team === 'site').length },
               ].map(tab => (
                 <button
                   key={tab.key}
@@ -416,7 +396,7 @@ export default function UserManagement() {
 
                 {/* Role section */}
                 <div>
-                  {selectedUser.role !== null ? (
+                  {selectedUser.team === 'ho' ? (
                     /* HO user */
                     <>
                       <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">HO Role</label>
@@ -427,7 +407,7 @@ export default function UserManagement() {
                           disabled={savingRole}
                           className="text-sm border border-gray-200 rounded-lg px-3 py-2.5 text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent disabled:opacity-50 transition"
                         >
-                          {HO_ROLES.map(r => (
+                          {ROLES.map(r => (
                             <option key={r} value={r}>{r}</option>
                           ))}
                         </select>
@@ -460,7 +440,6 @@ export default function UserManagement() {
                                 <span className="flex-1 text-sm text-black font-medium truncate">
                                   {projectName(m.project_id)}
                                 </span>
-                                <RoleBadge role={m.role} />
                                 <button
                                   onClick={() => removeMember(m.id)}
                                   disabled={removingMemberId === m.id}
@@ -492,16 +471,6 @@ export default function UserManagement() {
                               <option value="" disabled>Select project…</option>
                               {avail.map(p => (
                                 <option key={p.id} value={p.id}>{p.name}</option>
-                              ))}
-                            </select>
-                            <select
-                              value={addRole}
-                              onChange={e => setAddRole(e.target.value)}
-                              disabled={addingMember}
-                              className="text-sm border border-gray-200 rounded-lg px-3 py-2 text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent disabled:opacity-50 transition"
-                            >
-                              {SITE_ROLES.map(r => (
-                                <option key={r} value={r}>{r}</option>
                               ))}
                             </select>
                             <button
