@@ -81,44 +81,46 @@ export default async function handler(req, res) {
     month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila',
   })
 
-  let msg = `📋 **D&C Daily Update — ${dateStr}**\n\n`
+  const NL = '\r\n'
 
-  msg += `**Overview (Active Projects: ${activeProjects.length})**\n`
-  msg += `Total Permits: ${totalPermits}\n`
-  msg += `✅ Acquired: ${acquired}${totalPermits > 0 ? ` (${Math.round(acquired / totalPermits * 100)}%)` : ''}\n`
-  msg += `⏳ Pending: ${pending}\n`
-  msg += `⚠️ Expiring in 30 days: ${expiringSoon.length}\n`
-  msg += `🔴 Open Issues: ${openIssues.length}\n`
+  let msg = `📋 **Permits Daily Update — ${dateStr}**${NL}${NL}`
+
+  msg += `**Overview (Active Projects: ${activeProjects.length})**${NL}`
+  msg += ` Total Permits: ${totalPermits}${NL}`
+  msg += ` ✅ Acquired: ${acquired}${totalPermits > 0 ? ` (${Math.round(acquired / totalPermits * 100)}%)` : ''}${NL}`
+  msg += ` ⏳ Pending: ${pending}${NL}`
+  msg += ` ⚠️ Expiring in 30 days: ${expiringSoon.length}${NL}`
+  msg += ` 🔴 Open Issues: ${openIssues.length}${NL}`
 
   if (expiringSoon.length > 0) {
-    msg += `\n**Expiring Soon**\n`
+    msg += `${NL}**Expiring Soon**${NL}`
     for (const p of expiringSoon) {
       const daysLeft = Math.ceil((new Date(p.planned_finish) - now) / (1000 * 60 * 60 * 24))
-      msg += `⚠️ ${p.name} — ${projectMap[p.project_id] || '—'} (${daysLeft} day${daysLeft !== 1 ? 's' : ''})\n`
+      msg += ` ⚠️ ${p.name} — ${projectMap[p.project_id] || '—'} (${daysLeft} day${daysLeft !== 1 ? 's' : ''})${NL}`
     }
   }
 
   if (acquiredToday.length > 0) {
-    msg += `\n**Acquired Today**\n`
+    msg += `${NL}**Acquired Today**${NL}`
     for (const p of acquiredToday) {
-      msg += `✅ ${p.name} — ${projectMap[p.project_id] || '—'}\n`
+      msg += ` ✅ ${p.name} — ${projectMap[p.project_id] || '—'}${NL}`
     }
   }
 
   if (Object.keys(issuesByProject).length > 0) {
-    msg += `\n**Open Issues by Project**\n`
+    msg += `${NL}**Open Issues by Project**${NL}`
     for (const [pid, count] of Object.entries(issuesByProject).sort((a, b) => b[1] - a[1])) {
-      msg += `🔴 ${projectMap[pid] || '—'} — ${count} issue${count !== 1 ? 's' : ''}\n`
+      msg += ` 🔴 ${projectMap[pid] || '—'} — ${count} issue${count !== 1 ? 's' : ''}${NL}`
     }
   }
 
   if (Object.keys(reqTotal).length > 0) {
-    msg += `\n**Requirements Completion**\n`
+    msg += `${NL}**Requirements Completion**${NL}`
     for (const pid of Object.keys(reqTotal)) {
       const done  = reqDone[pid] || 0
       const total = reqTotal[pid]
       const pct   = Math.round(done / total * 100)
-      msg += `📊 ${projectMap[pid] || '—'}: ${done}/${total} (${pct}%)${pct === 100 ? ' ✅' : ''}\n`
+      msg += ` 📊 ${projectMap[pid] || '—'}: ${done}/${total} (${pct}%)${pct === 100 ? ' ✅' : ''}${NL}`
     }
   }
 
