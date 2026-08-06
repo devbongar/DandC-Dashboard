@@ -20,7 +20,7 @@ const SUMMARY = [
 
 const INPUT = 'w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40'
 
-export default function PermitsTab({ project, isAdmin, isHead, currentUserId, showToast }) {
+export default function PermitsTab({ project, isAdmin, isHead, isReporter, currentUserId, showToast }) {
   const [permits,  setPermits]  = useState([])
   const [loading,  setLoading]  = useState(true)
   const [selected, setSelected] = useState(null)
@@ -131,7 +131,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
         <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
           {permits.length} permit{permits.length !== 1 ? 's' : ''}
         </p>
-        {isAdmin && !creating && (
+        {(isAdmin || isReporter) && !creating && (
           <button
             onClick={() => setCreating(true)}
             className="min-h-[36px] px-4 text-xs font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] transition-colors"
