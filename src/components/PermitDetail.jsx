@@ -53,6 +53,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
 
   const [toast,        setToast]        = useState(null)
   const [confirmIssue, setConfirmIssue] = useState(null)
+  const [confirmReq,   setConfirmReq]   = useState(null)
 
   const [reqText,    setReqText]    = useState('')
   const [addingReq,  setAddingReq]  = useState(false)
@@ -169,6 +170,14 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
     setAddingReq(false)
   }
 
+  async function deleteRequirement(req) {
+    if (!isAdmin) return
+    const { error } = await supabase.from('permit_requirements').delete().eq('id', req.id)
+    if (error) { showToast('Failed to delete requirement.', 'error'); return }
+    setRequirements(prev => prev.filter(r => r.id !== req.id))
+    showToast('Requirement deleted.')
+  }
+
   async function deleteIssue(issue) {
     if (!canManage) return
     const { error } = await supabase.from('permit_issues').delete().eq('id', issue.id)
@@ -267,6 +276,37 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
             </div>
           </div>
           <style>{`@keyframes ios-sheet { from { opacity:0; transform:scale(0.92) translateY(12px) } to { opacity:1; transform:scale(1) translateY(0) } }`}</style>
+        </div>
+      )}
+
+      {/* Delete requirement confirmation */}
+      {confirmReq && (
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div className="w-full max-w-sm bg-white/90 dark:bg-gray-900/90 rounded-3xl shadow-2xl overflow-hidden" style={{ animation: 'ios-sheet 0.28s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+            <div className="px-6 pt-7 pb-5 text-center">
+              <div className="w-11 h-11 rounded-2xl bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+              </div>
+              <p className="text-base font-bold text-gray-900 dark:text-white mb-1">Delete Requirement?</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">{confirmReq.description}</p>
+            </div>
+            <div className="px-4 pb-5 flex flex-col gap-2.5">
+              <button
+                onClick={async () => { await deleteRequirement(confirmReq); setConfirmReq(null) }}
+                className="w-full py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98] text-white text-sm font-bold transition-all"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmReq(null)}
+                className="w-full py-3.5 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] text-gray-700 dark:text-gray-300 text-sm font-semibold transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -402,19 +442,31 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                     {requirements.map(req => (
                       <li
                         key={req.id}
-                        onClick={() => toggleRequirement(req)}
-                        className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors duration-150 ${canManage ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/60 active:bg-gray-100 dark:active:bg-gray-800' : ''}`}
+                        className={`flex items-start gap-3 px-3 py-2.5 rounded-lg transition-colors duration-150 group ${canManage ? 'hover:bg-gray-50 dark:hover:bg-gray-800/60' : ''}`}
                       >
-                        <div className={`mt-0.5 w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border-2 transition-colors duration-150 ${req.is_complete ? 'bg-[#ed6055] border-[#ed6055]' : 'border-gray-300 dark:border-gray-600'}`}>
+                        <div
+                          onClick={() => toggleRequirement(req)}
+                          className={`mt-0.5 w-4 h-4 rounded flex-shrink-0 flex items-center justify-center border-2 transition-colors duration-150 ${canManage ? 'cursor-pointer' : ''} ${req.is_complete ? 'bg-[#ed6055] border-[#ed6055]' : 'border-gray-300 dark:border-gray-600'}`}
+                        >
                           {req.is_complete && (
                             <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 10 10" fill="currentColor">
                               <path d="M8.5 2.5L4 7.5 1.5 5" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
                             </svg>
                           )}
                         </div>
-                        <span className={`text-sm leading-snug ${req.is_complete ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-200'}`}>
+                        <span onClick={() => toggleRequirement(req)} className={`flex-1 text-sm leading-snug ${canManage ? 'cursor-pointer' : ''} ${req.is_complete ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-200'}`}>
                           {req.description}
                         </span>
+                        {isAdmin && (
+                          <button
+                            onClick={() => setConfirmReq(req)}
+                            className="opacity-100 sm:opacity-0 sm:group-hover:opacity-100 ml-1 text-gray-300 hover:text-red-500 active:text-red-500 transition-all flex-shrink-0"
+                          >
+                            <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/>
+                            </svg>
+                          </button>
+                        )}
                       </li>
                     ))}
                   </ul>
