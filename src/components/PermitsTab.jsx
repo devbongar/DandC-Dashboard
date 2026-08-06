@@ -25,7 +25,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
   const [loading,  setLoading]  = useState(true)
   const [selected, setSelected] = useState(null)
   const [creating, setCreating] = useState(false)
-  const [form,     setForm]     = useState({ name: '', responsible_person: '', planned_start: '', planned_finish: '', remarks: '' })
+  const [form,     setForm]     = useState({ name: '', responsible_person: '', planned_start: '', planned_finish: '' })
   const [saving,   setSaving]   = useState(false)
   const cardScrollRef = useRef(null)
   const [cardScrollPos, setCardScrollPos] = useState(0)
@@ -61,7 +61,7 @@ export default function PermitsTab({ project, isAdmin, isHead, currentUserId, sh
       .insert({ ...form, project_id: project.id, status: 'pending', created_by: currentUserId })
     setSaving(false)
     if (error) { showToast?.('Failed to create permit: ' + error.message, 'error'); return }
-    setForm({ name: '', responsible_person: '', planned_start: '', planned_finish: '', remarks: '' })
+    setForm({ name: '', responsible_person: '', planned_start: '', planned_finish: '' })
     setCreating(false)
     load()
   }
