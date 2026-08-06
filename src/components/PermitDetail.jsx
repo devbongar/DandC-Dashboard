@@ -40,9 +40,10 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   const [permit,         setPermit]         = useState(initialPermit)
   const [requirements,   setRequirements]   = useState([])
   const [issues,         setIssues]         = useState([])
-  const [saving,         setSaving]         = useState(false)
-  const [remarksDraft,   setRemarksDraft]   = useState(initialPermit.remarks ?? '')
-  const [editingRemarks, setEditingRemarks] = useState(false)
+  const [remarks,         setRemarks]         = useState([])
+  const [newRemark,       setNewRemark]       = useState('')
+  const [addingRemark,    setAddingRemark]    = useState(false)
+  const [currentUserName, setCurrentUserName] = useState('')
 
   const [issueText,    setIssueText]    = useState('')
   const [issueDesc,    setIssueDesc]    = useState('')
@@ -75,18 +76,24 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   useEffect(() => { requestAnimationFrame(() => setVisible(true)) }, [])
 
   async function fetchDetail() {
-    const [{ data: rData }, { data: iData }] = await Promise.all([
+    const [{ data: rData }, { data: iData }, { data: remData }] = await Promise.all([
       supabase.from('permit_requirements').select('*').eq('permit_id', permit.id).order('sort_order'),
       supabase.from('permit_issues').select('*').eq('permit_id', permit.id).order('created_at'),
+      supabase.from('permit_remarks').select('*').eq('permit_id', permit.id).order('created_at'),
     ])
     const userIds = [...new Set([
       ...(iData ?? []).map(i => i.raised_by).filter(Boolean),
       ...(iData ?? []).map(i => i.assigned_to).filter(Boolean),
-    ])]
+      ...(remData ?? []).map(r => r.created_by).filter(Boolean),
+      currentUserId,
+    ].filter(Boolean))]
     let profileMap = {}
     if (userIds.length) {
       const { data: pData } = await supabase.from('profiles').select('id, full_name').in('id', userIds)
       profileMap = Object.fromEntries((pData ?? []).map(p => [p.id, p]))
+    }
+    if (currentUserId && profileMap[currentUserId]) {
+      setCurrentUserName(profileMap[currentUserId].full_name ?? '')
     }
     setRequirements(rData ?? [])
     setIssues((iData ?? []).map(i => ({
@@ -94,6 +101,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
       raised_profile:   profileMap[i.raised_by]   ?? null,
       assigned_profile: profileMap[i.assigned_to] ?? null,
     })))
+    setRemarks((remData ?? []).map(r => ({ ...r, profile: profileMap[r.created_by] ?? null })))
   }
 
   async function fetchResponsibleSuggestions() {
@@ -141,11 +149,18 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
     if (data) { setPermit(data); setEditingResponsible(false) }
   }
 
-  async function saveRemarks() {
-    setSaving(true)
-    const { data } = await supabase.from('permits').update({ remarks: remarksDraft }).eq('id', permit.id).select().single()
-    setSaving(false)
-    if (data) { setPermit(data); setEditingRemarks(false) }
+  async function addRemark() {
+    if (!newRemark.trim()) return
+    setAddingRemark(true)
+    const { data } = await supabase
+      .from('permit_remarks')
+      .insert({ permit_id: permit.id, body: newRemark.trim(), created_by: currentUserId })
+      .select().single()
+    if (data) {
+      setRemarks(prev => [...prev, { ...data, profile: { full_name: currentUserName || 'You' } }])
+      setNewRemark('')
+    }
+    setAddingRemark(false)
   }
 
   async function toggleRequirement(req) {
@@ -396,36 +411,52 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
 
             {/* Remarks */}
             <section>
-              <SectionHeader
-                title="Remarks"
-                action={canManage && !editingRemarks && (
-                  <button onClick={() => setEditingRemarks(true)} className={BTN_GHOST}>Edit</button>
+              <SectionHeader title="Remarks" />
+              <div className="space-y-3">
+                {remarks.length === 0 && (
+                  <p className="text-sm italic text-gray-400">No remarks yet.</p>
                 )}
-              />
-              {!canManage || !editingRemarks ? (
-                <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed min-h-[1.5rem]">
-                  {remarksDraft || <span className="italic text-gray-400">No remarks.</span>}
-                </p>
-              ) : (
-                <>
+                {remarks.map(r => {
+                  const name = r.profile?.full_name ?? 'Unknown'
+                  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                  const ts = new Date(r.created_at).toLocaleString('en-US', {
+                    month: 'short', day: 'numeric', year: 'numeric',
+                    hour: 'numeric', minute: '2-digit', hour12: true,
+                    timeZone: 'Asia/Manila',
+                  })
+                  return (
+                    <div key={r.id} className="flex gap-2.5">
+                      <div className="w-7 h-7 rounded-full bg-[#ed6055] flex items-center justify-center flex-shrink-0 mt-0.5">
+                        <span className="text-[10px] font-bold text-white">{initials}</span>
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-baseline gap-2 flex-wrap">
+                          <span className="text-xs font-semibold text-gray-900 dark:text-white">{name}</span>
+                          <span className="text-[11px] text-gray-400">{ts}</span>
+                        </div>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed mt-0.5">{r.body}</p>
+                      </div>
+                    </div>
+                  )
+                })}
+                <div className="pt-1 space-y-2">
                   <textarea
-                    value={remarksDraft}
-                    onChange={e => setRemarksDraft(e.target.value)}
+                    value={newRemark}
+                    onChange={e => setNewRemark(e.target.value)}
                     rows={3}
-                    autoFocus
-                    placeholder="Add remarks..."
+                    placeholder="Add a remark..."
                     className={`${INPUT_CLS} resize-none`}
+                    onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addRemark() }}
                   />
-                  <div className="flex gap-2 mt-2">
-                    <button onClick={saveRemarks} disabled={saving} className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors">
-                      {saving ? 'Saving...' : 'Save'}
-                    </button>
-                    <button onClick={() => { setRemarksDraft(permit.remarks ?? ''); setEditingRemarks(false) }} className="px-4 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors">
-                      Cancel
-                    </button>
-                  </div>
-                </>
-              )}
+                  <button
+                    onClick={addRemark}
+                    disabled={addingRemark || !newRemark.trim()}
+                    className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors"
+                  >
+                    {addingRemark ? 'Adding...' : 'Add Remark'}
+                  </button>
+                </div>
+              </div>
             </section>
 
             <div className="border-t border-gray-100 dark:border-gray-800" />
