@@ -36,22 +36,21 @@ export default async function handler(req, res) {
     supabase.from('permit_requirements').select('id, permit_id, is_complete'),
   ])
 
-  const allPermits     = permits      || []
-  const allIssues      = issues       || []
+  const allPermits      = permits      || []
+  const allIssues       = issues       || []
   const allRequirements = requirements || []
-  const allProjects    = projects     || []
+  const allProjects     = projects     || []
 
-  // Active = project has at least one pending permit
-  const pendingPermits    = allPermits.filter(p => p.status !== 'acquired' && !p.actual_finish)
-  const activeProjectIds  = new Set(pendingPermits.map(p => p.project_id))
-  const activeProjects    = allProjects.filter(p => activeProjectIds.has(p.id))
-  const projectMap        = Object.fromEntries(allProjects.map(p => [p.id, p.name]))
-  const permitProjectMap  = Object.fromEntries(allPermits.map(p => [p.id, p.project_id]))
+  const pendingPermits   = allPermits.filter(p => p.status !== 'acquired' && !p.actual_finish)
+  const activeProjectIds = new Set(pendingPermits.map(p => p.project_id))
+  const activeProjects   = allProjects.filter(p => activeProjectIds.has(p.id))
+  const projectMap       = Object.fromEntries(allProjects.map(p => [p.id, p.name]))
+  const permitProjectMap = Object.fromEntries(allPermits.map(p => [p.id, p.project_id]))
 
-  const activePermits  = allPermits.filter(p => activeProjectIds.has(p.project_id))
-  const totalPermits   = activePermits.length
-  const acquired       = activePermits.filter(p => p.status === 'acquired' || p.actual_finish).length
-  const pending        = totalPermits - acquired
+  const activePermits = allPermits.filter(p => activeProjectIds.has(p.project_id))
+  const totalPermits  = activePermits.length
+  const acquired      = activePermits.filter(p => p.status === 'acquired' || p.actual_finish).length
+  const pending       = totalPermits - acquired
 
   const expiringSoon = pendingPermits
     .filter(p => activeProjectIds.has(p.project_id) && p.planned_finish >= todayStr && p.planned_finish <= in30DaysStr)
@@ -81,46 +80,44 @@ export default async function handler(req, res) {
     month: 'long', day: 'numeric', year: 'numeric', timeZone: 'Asia/Manila',
   })
 
-  const NL = '\r\n'
+  let msg = `📋 <b>Permits Daily Update — ${dateStr}</b><br><br>`
 
-  let msg = `📋 **Permits Daily Update — ${dateStr}**${NL}${NL}`
-
-  msg += `**Overview (Active Projects: ${activeProjects.length})**${NL}`
-  msg += ` Total Permits: ${totalPermits}${NL}`
-  msg += ` ✅ Acquired: ${acquired}${totalPermits > 0 ? ` (${Math.round(acquired / totalPermits * 100)}%)` : ''}${NL}`
-  msg += ` ⏳ Pending: ${pending}${NL}`
-  msg += ` ⚠️ Expiring in 30 days: ${expiringSoon.length}${NL}`
-  msg += ` 🔴 Open Issues: ${openIssues.length}${NL}`
+  msg += `<b>Overview (Active Projects: ${activeProjects.length})</b><br>`
+  msg += `&nbsp;&nbsp;Total Permits: ${totalPermits}<br>`
+  msg += `&nbsp;&nbsp;✅ Acquired: ${acquired}${totalPermits > 0 ? ` (${Math.round(acquired / totalPermits * 100)}%)` : ''}<br>`
+  msg += `&nbsp;&nbsp;⏳ Pending: ${pending}<br>`
+  msg += `&nbsp;&nbsp;⚠️ Expiring in 30 days: ${expiringSoon.length}<br>`
+  msg += `&nbsp;&nbsp;🔴 Open Issues: ${openIssues.length}<br>`
 
   if (expiringSoon.length > 0) {
-    msg += `${NL}**Expiring Soon**${NL}`
+    msg += `<br><b>Expiring Soon</b><br>`
     for (const p of expiringSoon) {
       const daysLeft = Math.ceil((new Date(p.planned_finish) - now) / (1000 * 60 * 60 * 24))
-      msg += ` ⚠️ ${p.name} — ${projectMap[p.project_id] || '—'} (${daysLeft} day${daysLeft !== 1 ? 's' : ''})${NL}`
+      msg += `&nbsp;&nbsp;⚠️ ${p.name} — ${projectMap[p.project_id] || '—'} (${daysLeft} day${daysLeft !== 1 ? 's' : ''})<br>`
     }
   }
 
   if (acquiredToday.length > 0) {
-    msg += `${NL}**Acquired Today**${NL}`
+    msg += `<br><b>Acquired Today</b><br>`
     for (const p of acquiredToday) {
-      msg += ` ✅ ${p.name} — ${projectMap[p.project_id] || '—'}${NL}`
+      msg += `&nbsp;&nbsp;✅ ${p.name} — ${projectMap[p.project_id] || '—'}<br>`
     }
   }
 
   if (Object.keys(issuesByProject).length > 0) {
-    msg += `${NL}**Open Issues by Project**${NL}`
+    msg += `<br><b>Open Issues by Project</b><br>`
     for (const [pid, count] of Object.entries(issuesByProject).sort((a, b) => b[1] - a[1])) {
-      msg += ` 🔴 ${projectMap[pid] || '—'} — ${count} issue${count !== 1 ? 's' : ''}${NL}`
+      msg += `&nbsp;&nbsp;🔴 ${projectMap[pid] || '—'} — ${count} issue${count !== 1 ? 's' : ''}<br>`
     }
   }
 
   if (Object.keys(reqTotal).length > 0) {
-    msg += `${NL}**Requirements Completion**${NL}`
+    msg += `<br><b>Requirements Completion</b><br>`
     for (const pid of Object.keys(reqTotal)) {
       const done  = reqDone[pid] || 0
       const total = reqTotal[pid]
       const pct   = Math.round(done / total * 100)
-      msg += ` 📊 ${projectMap[pid] || '—'}: ${done}/${total} (${pct}%)${pct === 100 ? ' ✅' : ''}${NL}`
+      msg += `&nbsp;&nbsp;📊 ${projectMap[pid] || '—'}: ${done}/${total} (${pct}%)${pct === 100 ? ' ✅' : ''}<br>`
     }
   }
 
