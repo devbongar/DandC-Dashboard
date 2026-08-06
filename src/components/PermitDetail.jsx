@@ -447,7 +447,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                             <button onClick={() => resolveIssue(issue)} className={BTN_GHOST}>Resolve</button>
                           )}
                           {isAdmin && (
-                            <button onClick={() => deleteIssue(issue)} className={BTN_DANGER_GHOST}>Delete</button>
+                            <button onClick={() => { if (window.confirm('Delete this issue?')) deleteIssue(issue) }} className={BTN_DANGER_GHOST}>Delete</button>
                           )}
                         </div>
                       )}
