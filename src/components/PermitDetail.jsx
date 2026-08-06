@@ -327,6 +327,40 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
         </div>
       )}
 
+      {/* Raise Issue floating panel */}
+      {showRaiseForm && (
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div className="w-full max-w-sm bg-white/90 dark:bg-gray-900/90 rounded-3xl shadow-2xl overflow-hidden" style={{ animation: 'ios-sheet 0.28s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+            <div className="px-6 pt-6 pb-2">
+              <p className="text-base font-bold text-gray-900 dark:text-white mb-4">Raise an Issue</p>
+              <div className="space-y-2.5">
+                <input type="text" value={issueText} onChange={e => setIssueText(e.target.value)} placeholder="Issue title..." autoFocus className={INPUT_CLS} />
+                <textarea value={issueDesc} onChange={e => setIssueDesc(e.target.value)} placeholder="Details (optional)..." rows={2} className={`${INPUT_CLS} resize-none`} />
+                <select required value={assignedToId} onChange={e => setAssignedToId(e.target.value)} className={INPUT_CLS}>
+                  <option value="">Assign to...</option>
+                  {hoUsers.map(u => <option key={u.id} value={u.id}>{u.full_name ?? u.email}</option>)}
+                </select>
+              </div>
+            </div>
+            <div className="px-4 pb-5 pt-3 flex flex-col gap-2.5">
+              <button
+                onClick={raiseIssue}
+                disabled={raisingIssue || !issueText.trim() || !assignedToId}
+                className="w-full py-3.5 rounded-2xl bg-[#ed6055] hover:bg-[#d94f45] active:scale-[0.98] text-white text-sm font-bold disabled:opacity-40 transition-all"
+              >
+                {raisingIssue ? 'Raising...' : 'Raise Issue'}
+              </button>
+              <button
+                onClick={() => { setShowRaiseForm(false); setIssueText(''); setIssueDesc(''); setAssignedToId('') }}
+                className="w-full py-3.5 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] text-gray-700 dark:text-gray-300 text-sm font-semibold transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Drawer */}
       <div
         className="fixed inset-y-0 right-0 z-50 w-full max-w-xl bg-white dark:bg-gray-900 shadow-2xl flex flex-col overflow-hidden"
@@ -577,30 +611,6 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                 ))}
               </ul>
 
-              {/* Raise issue form */}
-              {showRaiseForm && (
-                <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-4 space-y-2.5">
-                  <p className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">Raise an Issue</p>
-                  <input type="text" value={issueText} onChange={e => setIssueText(e.target.value)} placeholder="Issue title..." required className={INPUT_CLS} />
-                  <textarea value={issueDesc} onChange={e => setIssueDesc(e.target.value)} placeholder="Details (optional)..." rows={2} className={`${INPUT_CLS} resize-none`} />
-                  <select required value={assignedToId} onChange={e => setAssignedToId(e.target.value)} className={INPUT_CLS}>
-                    <option value="">Assign to...</option>
-                    {hoUsers.map(u => <option key={u.id} value={u.id}>{u.full_name ?? u.email}</option>)}
-                  </select>
-                  <div className="flex gap-2 pt-1">
-                    <button
-                      onClick={raiseIssue}
-                      disabled={raisingIssue || !issueText.trim() || !assignedToId}
-                      className="px-4 py-2 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-40 transition-colors"
-                    >
-                      {raisingIssue ? 'Raising...' : 'Raise Issue'}
-                    </button>
-                    <button onClick={() => { setShowRaiseForm(false); setIssueText(''); setIssueDesc(''); setAssignedToId('') }} className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-white dark:hover:bg-gray-800 transition-colors">
-                      Cancel
-                    </button>
-                  </div>
-                </div>
-              )}
             </section>
 
           </div>
