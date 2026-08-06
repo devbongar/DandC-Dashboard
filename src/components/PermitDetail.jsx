@@ -152,9 +152,11 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   async function addRemark() {
     if (!newRemark.trim()) return
     setAddingRemark(true)
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { setAddingRemark(false); return }
     const { data } = await supabase
       .from('permit_remarks')
-      .insert({ permit_id: permit.id, body: newRemark.trim(), created_by: currentUserId })
+      .insert({ permit_id: permit.id, body: newRemark.trim(), created_by: user.id })
       .select().single()
     if (data) {
       setRemarks(prev => [...prev, { ...data, profile: { full_name: currentUserName || 'You' } }])
