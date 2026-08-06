@@ -51,6 +51,8 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   const [showRaiseForm, setShowRaiseForm] = useState(false)
   const [hoUsers,      setHoUsers]      = useState([])
 
+  const [toast,      setToast]      = useState(null)
+
   const [reqText,    setReqText]    = useState('')
   const [addingReq,  setAddingReq]  = useState(false)
   const [acquiring,  setAcquiring]  = useState(false)
@@ -63,6 +65,11 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   const overlayRef = useRef(null)
 
   useEffect(() => { fetchDetail(); fetchHoUsers(); fetchResponsibleSuggestions() }, [permit.id])
+
+  function showToast(msg, type = 'success') {
+    setToast({ msg, type })
+    setTimeout(() => setToast(null), 3000)
+  }
   useEffect(() => { requestAnimationFrame(() => setVisible(true)) }, [])
 
   async function fetchDetail() {
@@ -164,7 +171,9 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   async function deleteIssue(issue) {
     if (!canManage) return
     const { error } = await supabase.from('permit_issues').delete().eq('id', issue.id)
-    if (!error) setIssues(prev => prev.filter(i => i.id !== issue.id))
+    if (error) { showToast('Failed to delete issue.', 'error'); return }
+    setIssues(prev => prev.filter(i => i.id !== issue.id))
+    showToast('Issue deleted.')
   }
 
   async function resolveIssue(issue) {
@@ -215,6 +224,15 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
         style={{ opacity: visible ? 1 : 0 }}
         onClick={e => { if (e.target === overlayRef.current) handleClose() }}
       />
+
+      {/* Toast */}
+      {toast && (
+        <div className={`fixed bottom-6 left-1/2 -translate-x-1/2 z-[60] px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg transition-all ${
+          toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'
+        }`}>
+          {toast.msg}
+        </div>
+      )}
 
       {/* Drawer */}
       <div
