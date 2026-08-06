@@ -51,7 +51,8 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   const [showRaiseForm, setShowRaiseForm] = useState(false)
   const [hoUsers,      setHoUsers]      = useState([])
 
-  const [toast,      setToast]      = useState(null)
+  const [toast,        setToast]        = useState(null)
+  const [confirmIssue, setConfirmIssue] = useState(null)
 
   const [reqText,    setReqText]    = useState('')
   const [addingReq,  setAddingReq]  = useState(false)
@@ -231,6 +232,41 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
           toast.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-900 text-white'
         }`}>
           {toast.msg}
+        </div>
+      )}
+
+      {/* Delete issue confirmation */}
+      {confirmIssue && (
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div
+            className="w-full max-w-sm bg-white/90 dark:bg-gray-900/90 rounded-3xl shadow-2xl overflow-hidden"
+            style={{ animation: 'ios-sheet 0.28s cubic-bezier(0.34,1.56,0.64,1) both' }}
+          >
+            <div className="px-6 pt-7 pb-5 text-center">
+              <div className="w-11 h-11 rounded-2xl bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+              </div>
+              <p className="text-base font-bold text-gray-900 dark:text-white mb-1">Delete Issue?</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">{confirmIssue.issue}</p>
+            </div>
+            <div className="px-4 pb-5 flex flex-col gap-2.5">
+              <button
+                onClick={async () => { await deleteIssue(confirmIssue); setConfirmIssue(null) }}
+                className="w-full py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98] text-white text-sm font-bold transition-all"
+              >
+                Delete
+              </button>
+              <button
+                onClick={() => setConfirmIssue(null)}
+                className="w-full py-3.5 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] text-gray-700 dark:text-gray-300 text-sm font-semibold transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+          <style>{`@keyframes ios-sheet { from { opacity:0; transform:scale(0.92) translateY(12px) } to { opacity:1; transform:scale(1) translateY(0) } }`}</style>
         </div>
       )}
 
@@ -447,7 +483,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                             <button onClick={() => resolveIssue(issue)} className={BTN_GHOST}>Resolve</button>
                           )}
                           {isAdmin && (
-                            <button onClick={() => { if (window.confirm('Delete this issue?')) deleteIssue(issue) }} className={BTN_DANGER_GHOST}>Delete</button>
+                            <button onClick={() => setConfirmIssue(issue)} className={BTN_DANGER_GHOST}>Delete</button>
                           )}
                         </div>
                       )}
