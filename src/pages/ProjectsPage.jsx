@@ -340,25 +340,28 @@ export default function ProjectsPage() {
                     </button>
                   )}
                   {isAdmin && (
-                    <button
-                      onClick={() => { importRef.current?.click(); setShowActions(false) }}
-                      disabled={importing}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
-                    >
-                      <UploadIcon /> {importing ? 'Importing…' : 'Import'}
-                    </button>
+                    <>
+                      <button
+                        onClick={() => { importRef.current?.click(); setShowActions(false) }}
+                        disabled={importing}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+                      >
+                        <UploadIcon /> {importing ? 'Importing…' : 'Import'}
+                      </button>
+                      <div className="my-1 border-t border-gray-100" />
+                      <button
+                        onClick={() => { openAdd(); setShowActions(false) }}
+                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition"
+                      >
+                        <PlusIcon /> Add Project
+                      </button>
+                    </>
                   )}
                 </div>
               </>
             )}
           </div>
           <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
-          {/* Add */}
-          {isAdmin && (
-            <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#ed6055] hover:bg-[#d94f45] text-white text-sm font-semibold transition">
-              <PlusIcon /> Add Project
-            </button>
-          )}
         </div>
       </div>
 
