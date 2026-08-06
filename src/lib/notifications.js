@@ -58,9 +58,10 @@ export function sendTeamsIssueNotification(issue, permit, assignedUser, webhookU
     projectName:   permit.projects?.name ?? '—',
     permitId:      permit.id,
     permitName:    permit.name,
-    assignedTo:    assignedUser?.full_name ?? '—',
-    assignedEmail: assignedUser?.email ?? '',
-    raisedAt:      new Date().toISOString(),
+    assignedTo:         assignedUser?.full_name ?? '—',
+    assignedEmail:      assignedUser?.email ?? '',
+    responsiblePerson:  permit.responsible_person ?? '—',
+    raisedAt:           new Date().toISOString(),
   })
 }
 
