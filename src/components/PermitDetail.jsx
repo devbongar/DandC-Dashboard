@@ -164,6 +164,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   async function deleteIssue(issue) {
     if (!canManage) return
     const { error } = await supabase.from('permit_issues').delete().eq('id', issue.id)
+    if (error) { console.error('deleteIssue error:', error); return }
     if (!error) {
       setIssues(prev => prev.filter(i => i.id !== issue.id))
       onUpdated?.()
