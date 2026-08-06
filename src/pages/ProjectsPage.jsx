@@ -121,7 +121,9 @@ export default function ProjectsPage() {
   const [importing, setImporting]   = useState(false)
   const [importResults, setImportResults] = useState(null)
   const [showReportBuilder, setShowReportBuilder] = useState(false)
-  const [showFilters, setShowFilters] = useState(false)
+  const [showFilters, setShowFilters]   = useState(false)
+  const [showActions, setShowActions]   = useState(false)
+  const actionsRef = useRef(null)
   const importRef = useRef(null)
 
   useEffect(() => { fetchProjects() }, [])
@@ -307,31 +309,55 @@ export default function ProjectsPage() {
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* Report Builder */}
-          {projects.length > 0 && (
-            <button onClick={() => setShowReportBuilder(true)} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-[#ed6055]/5 hover:border-[#ed6055]/30 hover:text-[#ed6055] text-gray-600 text-sm font-semibold transition">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-              Report
+          {/* Actions dropdown */}
+          <div className="relative" ref={actionsRef}>
+            <button
+              onClick={() => setShowActions(v => !v)}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-[#ed6055]/5 hover:border-[#ed6055]/30 hover:text-[#ed6055] text-gray-600 text-sm font-semibold transition"
+            >
+              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+              Actions
             </button>
-          )}
-          {/* Export */}
-          {projects.length > 0 && (
-            <button onClick={handleExport} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-[#ed6055]/5 hover:border-[#ed6055]/30 hover:text-[#ed6055] text-gray-600 text-sm font-semibold transition">
-              <DownloadIcon /> Export
-            </button>
-          )}
+            {showActions && (
+              <>
+                <div className="fixed inset-0 z-30" onClick={() => setShowActions(false)} />
+                <div className="absolute right-0 top-full mt-1.5 z-40 bg-white rounded-xl border border-gray-200 shadow-lg py-1.5 min-w-[160px]">
+                  {projects.length > 0 && (
+                    <button
+                      onClick={() => { setShowReportBuilder(true); setShowActions(false) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                      Report
+                    </button>
+                  )}
+                  {projects.length > 0 && (
+                    <button
+                      onClick={() => { handleExport(); setShowActions(false) }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                    >
+                      <DownloadIcon /> Export
+                    </button>
+                  )}
+                  {isAdmin && (
+                    <button
+                      onClick={() => { importRef.current?.click(); setShowActions(false) }}
+                      disabled={importing}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+                    >
+                      <UploadIcon /> {importing ? 'Importing…' : 'Import'}
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+          <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
+          {/* Add */}
           {isAdmin && (
-            <>
-              {/* Import */}
-              <button onClick={() => importRef.current?.click()} disabled={importing} className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-[#ed6055]/5 hover:border-[#ed6055]/30 hover:text-[#ed6055] text-gray-600 text-sm font-semibold transition disabled:opacity-50">
-                <UploadIcon /> {importing ? 'Importing…' : 'Import'}
-              </button>
-              <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
-              {/* Add */}
-              <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#ed6055] hover:bg-[#d94f45] text-white text-sm font-semibold transition">
-                <PlusIcon /> Add Project
-              </button>
-            </>
+            <button onClick={openAdd} className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-[#ed6055] hover:bg-[#d94f45] text-white text-sm font-semibold transition">
+              <PlusIcon /> Add Project
+            </button>
           )}
         </div>
       </div>
