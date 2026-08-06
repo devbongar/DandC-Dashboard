@@ -5,27 +5,51 @@ import { computePermitStatus, STATUS_BADGE } from '../lib/permitUtils'
 import { sendIssueNotification, sendTeamsIssueNotification, sendTeamsPermitAcquired } from '../lib/notifications'
 import SearchDropdown from './SearchDropdown'
 
-function DateCard({ label, value }) {
+const DATE_CARD_BG = {
+  planned:  'bg-gray-50 dark:bg-gray-800/60',
+  forecast: 'bg-blue-50/70 dark:bg-blue-900/20',
+  actual:   'bg-emerald-50/70 dark:bg-emerald-900/20',
+}
+const DATE_LABEL_COLOR = {
+  planned:  'text-gray-400',
+  forecast: 'text-blue-400 dark:text-blue-400',
+  actual:   'text-emerald-500 dark:text-emerald-400',
+}
+
+function DateCard({ label, value, variant = 'planned' }) {
   return (
-    <div className="bg-gray-50 dark:bg-gray-800/60 rounded-lg px-3 py-2.5">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
+    <div className={`${DATE_CARD_BG[variant]} rounded-lg px-3 py-2.5`}>
+      <p className={`text-[10px] font-semibold ${DATE_LABEL_COLOR[variant]} uppercase tracking-wider mb-0.5`}>{label}</p>
       <p className="text-sm font-medium text-gray-900 dark:text-white tabular-nums">{value ?? '—'}</p>
     </div>
   )
 }
 
-const BTN_GHOST = 'min-h-[36px] px-3 text-xs font-medium rounded-lg text-[#ed6055] hover:bg-[#ed6055]/10 active:bg-[#ed6055]/20 transition-colors flex items-center'
-const BTN_GHOST_GRAY = 'min-h-[36px] px-3 text-xs font-medium rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors flex items-center'
-const BTN_DANGER_GHOST = 'min-h-[36px] px-3 text-xs font-medium rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 active:bg-red-100 transition-colors flex items-center'
+const BTN_GHOST = 'min-h-[36px] px-3 text-xs font-medium rounded-lg text-[#ed6055] hover:bg-[#ed6055]/10 active:bg-[#ed6055]/20 active:scale-[0.97] [transition:background-color_150ms_ease,color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)] flex items-center'
+const BTN_GHOST_GRAY = 'min-h-[36px] px-3 text-xs font-medium rounded-lg text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 active:scale-[0.97] [transition:background-color_150ms_ease,color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)] flex items-center'
+const BTN_DANGER_GHOST = 'min-h-[36px] px-3 text-xs font-medium rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 active:bg-red-100 active:scale-[0.97] [transition:background-color_150ms_ease,color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)] flex items-center'
 
-function SectionHeader({ title, action }) {
+function SectionHeader({ title, action, icon }) {
   return (
     <div className="flex items-center justify-between mb-3">
-      <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{title}</h3>
+      <div className="flex items-center gap-1.5">
+        {icon && (
+          <svg className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d={icon} />
+          </svg>
+        )}
+        <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">{title}</h3>
+      </div>
       {action}
     </div>
   )
 }
+
+const ICON_PERSON = 'M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z'
+const ICON_CALENDAR = 'M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5'
+const ICON_CHAT = 'M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 1.129.166 2.27.293 3.423.379.35.026.67.21.865.501L12 21l2.755-4.133a1.14 1.14 0 01.865-.501 48.172 48.172 0 003.423-.379c1.584-.233 2.707-1.626 2.707-3.228V6.741c0-1.602-1.123-2.995-2.707-3.228A48.394 48.394 0 0012 3c-2.392 0-4.744.175-7.043.513C3.373 3.746 2.25 5.14 2.25 6.741v6.018z'
+const ICON_CLIPBOARD = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'
+const ICON_WARNING = 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z'
 
 function CloseIcon() {
   return (
@@ -419,6 +443,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
             <section>
               <SectionHeader
                 title="Responsible Person"
+                icon={ICON_PERSON}
                 action={canManage && !editingResponsible && (
                   <button onClick={() => setEditingResponsible(true)} className={BTN_GHOST}>
                     {permit.responsible_person ? 'Edit' : 'Set'}
@@ -443,9 +468,18 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                   <button onClick={() => { setResponsibleDraft(permit.responsible_person ?? ''); setEditingResponsible(false) }} className="min-h-[40px] px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 transition-colors">Cancel</button>
                 </div>
               ) : (
-                <p className="text-sm text-gray-700 dark:text-gray-300">
-                  {permit.responsible_person || <span className="italic text-gray-400">Not set</span>}
-                </p>
+                permit.responsible_person ? (
+                  <div className="flex items-center gap-2.5 px-3 py-2.5 bg-gray-50 dark:bg-gray-800/60 rounded-lg">
+                    <div className="w-7 h-7 rounded-full bg-[#ed6055]/15 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-3.5 h-3.5 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d={ICON_PERSON} />
+                      </svg>
+                    </div>
+                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">{permit.responsible_person}</span>
+                  </div>
+                ) : (
+                  <p className="text-sm italic text-gray-400">Not set</p>
+                )
               )}
             </section>
 
@@ -453,14 +487,14 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
 
             {/* Schedule */}
             <section>
-              <SectionHeader title="Schedule" />
+              <SectionHeader title="Schedule" icon={ICON_CALENDAR} />
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <DateCard label="Planned Start"    value={permit.planned_start} />
-                <DateCard label="Planned Finish"   value={permit.planned_finish} />
-                <DateCard label="Forecast Start"   value={permit.forecast_start} />
-                <DateCard label="Forecast Finish"  value={permit.forecast_finish} />
-                <DateCard label="Actual Start"     value={permit.actual_start} />
-                <DateCard label="Actual Finish"    value={permit.actual_finish} />
+                <DateCard label="Planned Start"    value={permit.planned_start}   variant="planned" />
+                <DateCard label="Planned Finish"   value={permit.planned_finish}  variant="planned" />
+                <DateCard label="Forecast Start"   value={permit.forecast_start}  variant="forecast" />
+                <DateCard label="Forecast Finish"  value={permit.forecast_finish} variant="forecast" />
+                <DateCard label="Actual Start"     value={permit.actual_start}    variant="actual" />
+                <DateCard label="Actual Finish"    value={permit.actual_finish}   variant="actual" />
               </div>
             </section>
 
@@ -468,7 +502,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
 
             {/* Remarks */}
             <section>
-              <SectionHeader title="Remarks" />
+              <SectionHeader title="Remarks" icon={ICON_CHAT} />
               <div className="space-y-3">
                 {remarks.length === 0 && (
                   <p className="text-sm italic text-gray-400">No remarks yet.</p>
@@ -508,7 +542,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                   <button
                     onClick={addRemark}
                     disabled={addingRemark || !newRemark.trim()}
-                    className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors"
+                    className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] active:scale-[0.97] disabled:opacity-50 [transition:background-color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)]"
                   >
                     {addingRemark ? 'Adding...' : 'Add Remark'}
                   </button>
@@ -522,6 +556,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
             <section>
               <SectionHeader
                 title={`Requirements · ${reqDone}/${requirements.length}`}
+                icon={ICON_CLIPBOARD}
               />
               {requirements.length === 0
                 ? <p className="text-sm text-gray-400 italic">No requirements added yet.</p>
@@ -569,7 +604,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                     placeholder="Add requirement..."
                     className={INPUT_CLS}
                   />
-                  <button type="submit" disabled={addingReq || !reqText.trim()} className="px-3 py-2 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-40 transition-colors whitespace-nowrap">
+                  <button type="submit" disabled={addingReq || !reqText.trim()} className="px-3 py-2 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] active:scale-[0.97] disabled:opacity-40 [transition:background-color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)] whitespace-nowrap">
                     {addingReq ? '...' : 'Add'}
                   </button>
                 </form>
@@ -582,6 +617,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
             <section>
               <SectionHeader
                 title={`Issues${openIssues > 0 ? ` · ${openIssues} open` : ''}`}
+                icon={ICON_WARNING}
                 action={!showRaiseForm && (
                   <button onClick={() => setShowRaiseForm(true)} className={BTN_GHOST}>+ Raise Issue</button>
                 )}
