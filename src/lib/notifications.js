@@ -53,7 +53,8 @@ export function sendTeamsIssueNotification(issue, permit, assignedUser, webhookU
   return postToTeams(webhookUrl, {
     event:         'issue_raised',
     title:         '⚠ Issue Raised',
-    text:          issue.description ? `${issue.issue} — ${issue.description}` : issue.issue,
+    issueTitle:    issue.issue,
+    issueDetails:  issue.description ?? '',
     projectName:   permit.projects?.name ?? '—',
     permitId:      permit.id,
     permitName:    permit.name,
