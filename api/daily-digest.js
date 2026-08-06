@@ -52,6 +52,10 @@ export default async function handler(req, res) {
   const acquired      = activePermits.filter(p => p.status === 'acquired' || p.actual_finish).length
   const pending       = totalPermits - acquired
 
+  const overduePermits = pendingPermits
+    .filter(p => activeProjectIds.has(p.project_id) && p.planned_finish && p.planned_finish < todayStr)
+    .sort((a, b) => a.planned_finish.localeCompare(b.planned_finish))
+
   const expiringSoon = pendingPermits
     .filter(p => activeProjectIds.has(p.project_id) && p.planned_finish >= todayStr && p.planned_finish <= in30DaysStr)
     .sort((a, b) => a.planned_finish.localeCompare(b.planned_finish))
@@ -86,8 +90,17 @@ export default async function handler(req, res) {
   msg += `&nbsp;&nbsp;Total Permits: ${totalPermits}<br>`
   msg += `&nbsp;&nbsp;✅ Acquired: ${acquired}${totalPermits > 0 ? ` (${Math.round(acquired / totalPermits * 100)}%)` : ''}<br>`
   msg += `&nbsp;&nbsp;⏳ Pending: ${pending}<br>`
+  msg += `&nbsp;&nbsp;🚨 Overdue: ${overduePermits.length}<br>`
   msg += `&nbsp;&nbsp;⚠️ Expiring in 30 days: ${expiringSoon.length}<br>`
   msg += `&nbsp;&nbsp;🔴 Open Issues: ${openIssues.length}<br>`
+
+  if (overduePermits.length > 0) {
+    msg += `<br><b>Overdue Permits</b><br>`
+    for (const p of overduePermits) {
+      const daysOver = Math.floor((now - new Date(p.planned_finish)) / (1000 * 60 * 60 * 24))
+      msg += `&nbsp;&nbsp;🚨 ${p.name} — ${projectMap[p.project_id] || '—'} (${daysOver} day${daysOver !== 1 ? 's' : ''} overdue)<br>`
+    }
+  }
 
   if (expiringSoon.length > 0) {
     msg += `<br><b>Expiring Soon</b><br>`
