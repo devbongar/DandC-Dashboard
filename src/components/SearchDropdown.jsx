@@ -10,6 +10,7 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
   const [open, setOpen]       = useState(false)
   const [query, setQuery]     = useState('')
   const [alignRight, setAlignRight] = useState(false)
+  const [alignUp, setAlignUp] = useState(false)
   const ref                   = useRef(null)
   const inputRef              = useRef(null)
 
@@ -32,6 +33,7 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
     if (ref.current) {
       const rect = ref.current.getBoundingClientRect()
       setAlignRight(rect.left + 220 > window.innerWidth - 8)
+      setAlignUp(rect.bottom + 260 > window.innerHeight - 8)
     }
     setOpen(true)
     setQuery('')
@@ -77,7 +79,7 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
       {/* Popover */}
       {open && !disabled && (
         <div
-          className={`absolute top-full mt-1.5 z-50 rounded-xl overflow-hidden ${alignRight ? 'right-0' : 'left-0'}`}
+          className={`absolute z-50 rounded-xl overflow-hidden ${alignUp ? 'bottom-full mb-1.5' : 'top-full mt-1.5'} ${alignRight ? 'right-0' : 'left-0'}`}
           style={{
             width: 220,
             background: '#fff',

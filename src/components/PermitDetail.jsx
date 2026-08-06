@@ -331,12 +331,27 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
       {/* Raise Issue floating panel */}
       {showRaiseForm && (
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', backgroundColor: 'rgba(0,0,0,0.4)' }}>
-          <div className="w-full max-w-sm bg-white/90 dark:bg-gray-900/90 rounded-3xl shadow-2xl overflow-hidden" style={{ animation: 'ios-sheet 0.28s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+          <div className="w-full max-w-sm bg-white/90 dark:bg-gray-900/90 rounded-3xl shadow-2xl" style={{ animation: 'ios-sheet 0.28s cubic-bezier(0.34,1.56,0.64,1) both' }}>
             <div className="px-6 pt-6 pb-2">
               <p className="text-base font-bold text-gray-900 dark:text-white mb-4">Raise an Issue</p>
               <div className="space-y-2.5">
-                <input type="text" value={issueText} onChange={e => setIssueText(e.target.value)} placeholder="Issue title..." autoFocus className={INPUT_CLS} />
-                <textarea value={issueDesc} onChange={e => setIssueDesc(e.target.value)} placeholder="Details (optional)..." rows={2} className={`${INPUT_CLS} resize-none`} />
+                <textarea
+                  value={issueText}
+                  onChange={e => { setIssueText(e.target.value); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+                  placeholder="Issue title..."
+                  autoFocus
+                  rows={1}
+                  className={`${INPUT_CLS} resize-none overflow-hidden`}
+                  style={{ minHeight: '2.5rem' }}
+                />
+                <textarea
+                  value={issueDesc}
+                  onChange={e => { setIssueDesc(e.target.value); e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px' }}
+                  placeholder="Details (optional)..."
+                  rows={2}
+                  className={`${INPUT_CLS} resize-none overflow-hidden`}
+                  style={{ minHeight: '5rem' }}
+                />
                 <SearchDropdown
                   options={hoUsers.map(u => ({ value: u.id, label: u.full_name ?? u.email }))}
                   value={assignedToId}
@@ -344,6 +359,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                   emptyValue=""
                   emptyLabel="Assign to..."
                   placeholder="Search user..."
+                  fluid
                 />
               </div>
             </div>
@@ -383,7 +399,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                 <span className="font-mono text-[11px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{permit.id}</span>
                 <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>
               </div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white leading-snug">{permit.name}</h2>
+              <h2 className="text-base font-bold text-gray-900 dark:text-white leading-snug break-words">{permit.name}</h2>
             </div>
             <button
               onClick={handleClose}
@@ -475,7 +491,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                           <span className="text-xs font-semibold text-gray-900 dark:text-white">{name}</span>
                           <span className="text-[11px] text-gray-400">{ts}</span>
                         </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed mt-0.5">{r.body}</p>
+                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed mt-0.5 break-words">{r.body}</p>
                       </div>
                     </div>
                   )
@@ -526,7 +542,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                             </svg>
                           )}
                         </div>
-                        <span onClick={() => toggleRequirement(req)} className={`flex-1 text-sm leading-snug ${canManage ? 'cursor-pointer' : ''} ${req.is_complete ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-200'}`}>
+                        <span onClick={() => toggleRequirement(req)} className={`flex-1 min-w-0 text-sm leading-snug break-words ${canManage ? 'cursor-pointer' : ''} ${req.is_complete ? 'line-through text-gray-400' : 'text-gray-800 dark:text-gray-200'}`}>
                           {req.description}
                         </span>
                         {isAdmin && (
@@ -586,7 +602,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                     }`}
                   >
                     <div className="flex items-start justify-between gap-2">
-                      <p className="text-sm font-medium text-gray-900 dark:text-white leading-snug">{issue.issue}</p>
+                      <p className="text-sm font-medium text-gray-900 dark:text-white leading-snug break-words min-w-0 flex-1">{issue.issue}</p>
                       <span className={`flex-shrink-0 text-[11px] font-semibold px-2 py-0.5 rounded-full ${
                         issue.status === 'resolved'
                           ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300'
@@ -595,7 +611,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                         {issue.status}
                       </span>
                     </div>
-                    {issue.description && <p className="text-xs text-gray-500 dark:text-gray-400">{issue.description}</p>}
+                    {issue.description && <p className="text-xs text-gray-500 dark:text-gray-400 break-words">{issue.description}</p>}
                     <div className="flex items-center justify-between">
                       <p className="text-[11px] text-gray-400">
                         {issue.raised_profile?.full_name ?? 'Unknown'}
