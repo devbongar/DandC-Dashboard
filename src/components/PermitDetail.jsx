@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabaseClient'
 import { computePermitStatus, STATUS_BADGE } from '../lib/permitUtils'
 import { sendIssueNotification, sendTeamsIssueNotification, sendTeamsPermitAcquired } from '../lib/notifications'
+import SearchDropdown from './SearchDropdown'
 
 function DateCard({ label, value }) {
   return (
@@ -336,10 +337,14 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
               <div className="space-y-2.5">
                 <input type="text" value={issueText} onChange={e => setIssueText(e.target.value)} placeholder="Issue title..." autoFocus className={INPUT_CLS} />
                 <textarea value={issueDesc} onChange={e => setIssueDesc(e.target.value)} placeholder="Details (optional)..." rows={2} className={`${INPUT_CLS} resize-none`} />
-                <select required value={assignedToId} onChange={e => setAssignedToId(e.target.value)} className={INPUT_CLS}>
-                  <option value="">Assign to...</option>
-                  {hoUsers.map(u => <option key={u.id} value={u.id}>{u.full_name ?? u.email}</option>)}
-                </select>
+                <SearchDropdown
+                  options={hoUsers.map(u => ({ value: u.id, label: u.full_name ?? u.email }))}
+                  value={assignedToId}
+                  onChange={setAssignedToId}
+                  emptyValue=""
+                  emptyLabel="Assign to..."
+                  placeholder="Search user..."
+                />
               </div>
             </div>
             <div className="px-4 pb-5 pt-3 flex flex-col gap-2.5">
