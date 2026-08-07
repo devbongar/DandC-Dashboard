@@ -709,9 +709,9 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   if (editing) return (
-    <div className="flex h-full">
-      {/* Left: full-bleed photo panel */}
-      <div className="hidden sm:block w-1/2 flex-shrink-0 overflow-hidden">
+    <div className="h-full flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden">
+      {/* Cover photo: top on mobile, left half on desktop */}
+      <div className="w-full h-52 flex-shrink-0 overflow-hidden sm:h-full sm:w-1/2">
         <CoverPhotoPanel
           project={{ ...project, cover_photo_url: pendingCoverUrl !== undefined ? pendingCoverUrl : project.cover_photo_url }}
           isAdmin={isAdmin}
@@ -731,8 +731,8 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         />
       </div>
 
-      {/* Right: form */}
-      <div className="flex-1 min-w-0 px-6 sm:px-8 pt-5 pb-4 space-y-3 overflow-y-auto">
+      {/* Form */}
+      <div className="flex-1 min-w-0 px-6 sm:px-8 pt-5 pb-4 space-y-3 sm:overflow-y-auto">
         <div className="flex justify-end gap-2">
           <button onClick={cancelEdit} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors duration-200 active:scale-[0.97]">Cancel</button>
           <button onClick={save} disabled={saving || !form.name?.trim()} className="px-4 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-40 transition-colors duration-200 active:scale-[0.97]">
