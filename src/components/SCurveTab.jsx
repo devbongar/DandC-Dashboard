@@ -3,11 +3,12 @@ import { supabase } from '../lib/supabaseClient'
 import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeFilter } from '../lib/scurveUtils'
 import { downloadWorkbook, downloadBaselineTemplate, downloadActualTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
-  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine,
+  ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
 
-const COL_W   = 80
-const LABEL_W = 160
+const COL_W    = 80
+const LABEL_W  = 160
+const Y_AXIS_W = 58
 
 const BASELINE_COLORS = ['#9ca3af', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4']
 
@@ -226,7 +227,7 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
   )
 }
 
-function BaselineMultiSelect({ baselines, selectedIds, onChange, colors, extras = [] }) {
+function BaselineMultiSelect({ baselines, selectedIds, onChange, colors, extras = [], className = '' }) {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
@@ -252,7 +253,7 @@ function BaselineMultiSelect({ baselines, selectedIds, onChange, colors, extras 
       <button
         type="button"
         onClick={() => setOpen(v => !v)}
-        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-[#ed6055] transition min-w-52"
+        className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-[#ed6055] transition min-w-52 ${className}`}
       >
         <div className="flex items-center gap-1 flex-1 min-w-0">
           {selectedIds.map((id, i) => (
@@ -266,7 +267,7 @@ function BaselineMultiSelect({ baselines, selectedIds, onChange, colors, extras 
         </svg>
       </button>
       {open && (
-        <div className="absolute top-full mt-1 left-0 z-20 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-52">
+        <div className="absolute bottom-full mb-1 left-0 z-50 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-52">
           {extras.length > 0 && (
             <>
               {extras.map(({ label, color, checked, onToggle }) => (
@@ -489,11 +490,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [showLabelBaselines,   setShowLabelBaselines]   = useState(_sv.showLabelBaselines ?? true)
   const [showLabelActual,      setShowLabelActual]      = useState(_sv.showLabelActual    ?? true)
   const [showLabelForecast,    setShowLabelForecast]    = useState(_sv.showLabelForecast  ?? true)
-  const [chartSlotH,           setChartSlotH]           = useState(400)
   const [scopeOpen,            setScopeOpen]            = useState(false)
   const [settingsOpen,         setSettingsOpen]         = useState(false)
   const scopeRef      = useRef(null)
-  const chartSlotRef  = useRef(null)
   const existingImportRef = useRef(null)
   const actualImportRef = useRef(null)
 
@@ -894,16 +893,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     return () => ro.disconnect()
   }, [])
 
-  useEffect(() => {
-    if (!chartSlotRef.current) return
-    const ro = new ResizeObserver(entries => setChartSlotH(entries[0].contentRect.height))
-    ro.observe(chartSlotRef.current)
-    return () => ro.disconnect()
-  // re-attach when data arrives (ref may be null before chart slot mounts)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allPeriods.length > 0, showTable])
 
-  const effectiveWidth = Math.max(totalW, containerWidth)
+  // Sidebar width (w-32 = 128px) + gap-3 (12px) when cards are visible
+  const hasSidebar = chartData.some(d => d.actual != null)
+  const chartCardW = Math.max(0, containerWidth - (hasSidebar ? 128 + 12 : 0))
+  const effectiveWidth = Math.max(totalW, chartCardW)
 
   // Chart + cumulative table: quarterly or monthly columns
   const displayColCount = useMemo(() => {
@@ -948,8 +942,43 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     ...(showForecast ? [{ label: 'Forecast', key: 'forecast', color: forecastColor, bg: '#ffffff' }] : []),
   ]
 
+  // Summary card metrics
+  // baselines is already ordered created_at ASC from DB — .at(-1) = newest among selected
+  const refBaseline = selectedBaselineIds.length
+    ? baselines.filter(b => selectedBaselineIds.includes(b.id)).at(-1) ?? null
+    : null
+
+  const latestActualDate = chartData
+    .filter(d => d.actual != null)
+    .sort((a, b) => a._date < b._date ? 1 : -1)[0]?._date ?? null
+
+  const summaryActual = (() => {
+    const rows = chartData.filter(d => d.actual != null).sort((a, b) => a._date < b._date ? 1 : -1)
+    return rows.length ? rows[0].actual : null
+  })()
+
+  // Latest period covered by any data (actual or forecast) — used as planned reference
+  const latestDataDate = chartData
+    .filter(d => d.actual != null || d.forecast != null)
+    .sort((a, b) => a._date < b._date ? 1 : -1)[0]?._date ?? null
+
+  const summaryPlanned = (() => {
+    if (!refBaseline || !latestDataDate) return null
+    const blData = baselineDataMap[refBaseline.id] ?? []
+    const rows = [...blData]
+      .filter(r => r.period_date <= latestDataDate)
+      .sort((a, b) => a.period_date.localeCompare(b.period_date))
+    let cum = 0
+    rows.forEach(r => { cum = Math.min(100, cum + (r.planned_pct ?? 0)) })
+    return cum > 0 ? parseFloat(cum.toFixed(2)) : null
+  })()
+
+  const summaryVariance = summaryActual != null && summaryPlanned != null
+    ? summaryActual - summaryPlanned
+    : null
+
   return (
-    <div ref={containerRef} className="h-full flex flex-col overflow-hidden px-3 sm:px-6 py-3 sm:py-4 gap-3">
+    <div ref={containerRef} className="h-full flex flex-col overflow-hidden px-4 sm:px-8 py-3 sm:py-4 gap-3">
 
       {/* Toolbar: scope + baseline + settings */}
       <div className="flex-shrink-0 flex items-center gap-3 flex-wrap">
@@ -1001,16 +1030,6 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
             </div>
           )
         })()}
-        <BaselineMultiSelect
-          baselines={baselines}
-          selectedIds={selectedBaselineIds}
-          onChange={setSelectedBaselineIds}
-          colors={baselines.map((b, i) => blColor(b.id, i))}
-          extras={[
-            { label: 'Actual',   color: actualColor,   checked: showActual,   onToggle: () => setShowActual(v => !v)   },
-            { label: 'Forecast', color: forecastColor, checked: showForecast, onToggle: () => setShowForecast(v => !v) },
-          ]}
-        />
         <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
           onChange={handleImportExisting} className="hidden" />
         <input ref={actualImportRef} type="file" accept=".xlsx,.xls,.csv"
@@ -1025,27 +1044,20 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           </svg>
           Save View
         </button>
-        {(() => {
-          const hasActiveFilters = !!(fromMonth || toMonth || selectedActivityIds.length > 0)
-          return (
-            <button
-              onClick={() => setSettingsOpen(v => !v)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-              </svg>
-              Settings
-              {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
-            </button>
-          )
-        })()}
       </div>
 
-      {/* Settings panel */}
+      {/* Settings floating modal */}
       {settingsOpen && (
-        <div className="flex-shrink-0 settings-panel-enter rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center" onClick={() => setSettingsOpen(false)}>
+        <div className="settings-panel-enter rounded-xl border border-gray-200 bg-white shadow-2xl p-4 space-y-3 w-[min(92vw,780px)] max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+          <div className="flex items-center justify-between pb-2 border-b border-gray-200">
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Chart Settings</span>
+            <button onClick={() => setSettingsOpen(false)} className="p-1 rounded text-gray-400 hover:text-gray-600 transition-colors active:scale-[0.9]">
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
           {/* View controls row */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Display</span>
@@ -1310,6 +1322,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
             </div>
           )}
         </div>
+        </div>
       )}
 
       {/* New baseline form */}
@@ -1369,6 +1382,79 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         </div>
       )}
 
+      {/* Main content: cards left + chart right */}
+      <div className="flex-1 min-h-0 flex flex-row gap-3">
+
+      {/* Summary cards — stacked left column */}
+      {(summaryActual != null || summaryPlanned != null) && (() => {
+        const varColor = summaryVariance == null ? '#9ca3af' : summaryVariance >= 0 ? '#16a34a' : '#dc2626'
+        const cards = [
+          { label: 'Actual POC',  value: summaryActual,   accent: actualColor, sublabel: null },
+          { label: 'Planned POC', value: summaryPlanned,  accent: blColor(refBaseline?.id, 0), sublabel: refBaseline?.name },
+          { label: 'Variance',    value: summaryVariance, accent: varColor,    sublabel: 'vs planned at current period', semantic: true },
+        ]
+        return (
+          <div className="flex-shrink-0 flex flex-col gap-3 w-32">
+            {cards.map(card => (
+              <div key={card.label}
+                className="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm px-3 py-3 flex flex-col gap-1 overflow-hidden"
+                style={{ borderLeft: `3px solid ${card.accent}` }}
+              >
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-none">{card.label}</span>
+                <div className="flex items-baseline gap-1 mt-0.5">
+                  {card.semantic && card.value != null && (
+                    <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
+                      style={{ color: card.accent }} fill="currentColor">
+                      {card.value >= 0
+                        ? <polygon points="5,1 9,9 1,9" />
+                        : <polygon points="5,9 9,1 1,1" />}
+                    </svg>
+                  )}
+                  <span className="text-xl font-bold tabular-nums leading-tight"
+                    style={{ color: card.semantic ? card.accent : '#111827' }}>
+                    {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '—'}
+                  </span>
+                </div>
+                {card.sublabel && (
+                  <span className="text-[10px] text-gray-400 truncate leading-tight">{card.sublabel}</span>
+                )}
+              </div>
+            ))}
+
+            {/* Line selection + settings — below cards */}
+            <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
+              <BaselineMultiSelect
+                baselines={baselines}
+                selectedIds={selectedBaselineIds}
+                onChange={setSelectedBaselineIds}
+                colors={baselines.map((b, i) => blColor(b.id, i))}
+                extras={[
+                  { label: 'Actual',   color: actualColor,   checked: showActual,   onToggle: () => setShowActual(v => !v)   },
+                  { label: 'Forecast', color: forecastColor, checked: showForecast, onToggle: () => setShowForecast(v => !v) },
+                ]}
+                className="w-full !min-w-0"
+              />
+              {(() => {
+                const hasActiveFilters = !!(fromMonth || toMonth || selectedActivityIds.length > 0)
+                return (
+                  <button
+                    onClick={() => setSettingsOpen(v => !v)}
+                    className={`w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    Settings
+                    {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                  </button>
+                )
+              })()}
+            </div>
+          </div>
+        )
+      })()}
+
       {/* Chart + tables */}
       {allPeriods.length > 0 && (() => {
         const chartDataByDate = Object.fromEntries(chartData.map(d => [d._date, d]))
@@ -1384,25 +1470,39 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         )
 
         // Aggregate monthly → quarterly (last non-null cumulative value per series per quarter)
+        // For the current (incomplete) quarter, cap ALL series at latestActualDate so the
+        // tooltip compares actual vs planned at the same month rather than different dates.
+        const latestActualQk = latestActualDate ? (() => {
+          const ld = new Date(latestActualDate + 'T00:00:00')
+          return `${ld.getFullYear()}-Q${Math.floor(ld.getMonth() / 3) + 1}`
+        })() : null
+
         const quarterMap = new Map()
         combinedData.forEach(d => {
-          const dObj = new Date(d._date)
+          const dObj = new Date(d._date + 'T00:00:00')
           const q    = Math.floor(dObj.getMonth() / 3) + 1
           const year = dObj.getFullYear()
           const qk   = `${year}-Q${q}`
           if (!quarterMap.has(qk)) {
-            const Q_END = ['Mar','Jun','Sep','Dec']
-            const pt = { period: `${Q_END[q - 1]} '${String(year).slice(2)}`, _date: d._date, actual: null, forecast: null }
+            const pt = { period: '', _date: d._date, _lastDate: d._date, actual: null, forecast: null }
             for (const id of selectedBaselineIds) pt[`bl_${id}`] = null
             quarterMap.set(qk, pt)
           }
+          // Skip months after the last actual within the current quarter — keeps comparison fair
+          if (latestActualDate && d._date > latestActualDate && qk === latestActualQk) return
           const pt = quarterMap.get(qk)
+          pt._lastDate = d._date  // track last month that contributed to this quarter
           if (d.actual   != null) pt.actual   = d.actual
           if (d.forecast != null) pt.forecast = d.forecast
           for (const id of selectedBaselineIds) {
             if (d[`bl_${id}`] != null) pt[`bl_${id}`] = d[`bl_${id}`]
           }
         })
+        // Set period label from the last month that updated each quarter
+        for (const pt of quarterMap.values()) {
+          pt.period = formatPeriod(pt._lastDate)
+          delete pt._lastDate
+        }
         const displayData = viewMode === 'quarterly' ? [...quarterMap.values()] : combinedData
 
         // Per-point label y-offsets — collision avoidance at each index
@@ -1499,10 +1599,10 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
               )}
             </div>
             <div className="scurve-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
-              <div className="h-full flex flex-col" style={{ width: effectiveWidth, minWidth: totalW }}>
+              <div className="h-full flex flex-col" style={{ width: '100%', minWidth: totalW }}>
 
                 {/* Chart slot: fills remaining vertical space */}
-                <div ref={chartSlotRef} className="flex-1 min-h-0 overflow-hidden">
+                <div className="flex-1 min-h-0 overflow-hidden">
                 {/* Chart */}
                 {hasChartData && (() => {
                   const xHoriz = effectiveColW >= 56
@@ -1510,8 +1610,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                     ? Math.max(0, Math.ceil(52 / effectiveColW) - 1)
                     : Math.max(0, Math.ceil(12 / effectiveColW) - 1)
                   return (
-                  <ComposedChart width={effectiveWidth} height={Math.max(chartSlotH, 200)} data={displayData}
-                    margin={{ top: 50, right: 52, bottom: 0, left: 0 }}>
+                  <ResponsiveContainer width="100%" height="100%">
+                  <ComposedChart data={displayData}
+                    margin={{ top: 50, right: 52, bottom: 12, left: showTable ? LABEL_W - Y_AXIS_W : 20 }}>
                     <defs>
                       <filter id="line-glow" x="-10%" y="-30%" width="120%" height="160%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -1525,13 +1626,13 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                     <XAxis dataKey="period" tickLine={false}
                       axisLine={{ stroke: '#e5e7eb' }}
                       padding={{ left: effectiveColW / 2, right: effectiveColW / 2 }}
-                      height={xHoriz ? 36 : 64}
+                      height={xHoriz ? 24 : 52}
                       interval={labelInterval}
                       tick={({ x, y, payload }) => (
                         <g transform={`translate(${x},${y})`}>
                           <text
                             x={0} y={0}
-                            dy={xHoriz ? 16 : 4}
+                            dy={xHoriz ? 12 : 4}
                             dx={xHoriz ? 0 : -4}
                             textAnchor={xHoriz ? 'middle' : 'end'}
                             transform={xHoriz ? undefined : 'rotate(-90)'}
@@ -1540,9 +1641,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                           >{payload.value}</text>
                         </g>
                       )} />
-                    <YAxis width={LABEL_W} domain={[0, 110]} tickFormatter={v => v + '%'}
+                    <YAxis width={Y_AXIS_W} domain={[0, 110]} tickFormatter={v => v + '%'}
                       tickLine={false} axisLine={false} fontSize={11}
-                      label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#9ca3af' } }} />
+                      label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: -4, style: { fontSize: 10, fill: '#9ca3af' } }} />
                     <Tooltip formatter={val => val != null ? val.toFixed(2) + '%' : '—'} />
                     {selectedBaselineIds.map((id, i) => {
                       const color = blColor(id, i)
@@ -1569,7 +1670,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                         label={endLabelMap['forecast'] && showLabelForecast ? { content: makeSeriesLabel(forecastColor, endLabelMap['forecast'].yOffsets) } : undefined} />
                     )}
                     {showActual && (
-                      <Line type="monotone" dataKey="actual" name="Actual" stroke={actualColor} strokeWidth={2.5} dot={{ r: 3, fill: actualColor, strokeWidth: 0 }} connectNulls
+                      <Line type="monotone" dataKey="actual" name="Actual" stroke={actualColor} strokeWidth={2} dot={{ r: 3, fill: actualColor, strokeWidth: 0 }} connectNulls
                         filter="url(#line-glow)"
                         label={endLabelMap['actual'] && showLabelActual ? { content: makeSeriesLabel(actualColor, endLabelMap['actual'].yOffsets) } : undefined} />
                     )}
@@ -1580,13 +1681,14 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                       />
                     ))}
                   </ComposedChart>
+                  </ResponsiveContainer>
                   )
                 })()}
                 </div>
 
                 {/* Cumulative % table */}
                 {hasChartData && showTable && (
-                  <table className="text-xs border-t border-gray-100" style={{ width: effectiveWidth, tableLayout: 'fixed' }}>
+                  <table className="text-xs border-t border-gray-100" style={{ width: '100%', minWidth: totalW, tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
                         <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
@@ -1622,7 +1724,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                 )}
 
                 {/* Periodic input table */}
-                {showTable && <table className="text-xs border-t-2 border-gray-300" style={{ width: effectiveWidth, tableLayout: 'fixed' }}>
+                {showTable && <table className="text-xs border-t-2 border-gray-300" style={{ width: '100%', minWidth: totalW, tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
                         <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
@@ -1754,6 +1856,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           </div>
         </div>
       )}
+
+      </div>{/* end main content row */}
 
       {/* (Add Month moved to Settings → Data section) */}
       {isAdmin && primaryBaselineId && false && (
