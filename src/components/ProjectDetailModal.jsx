@@ -4620,14 +4620,14 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
                   <button
                     key={s.key}
                     onClick={() => navigate(s.key)}
-                    className="card-stagger group flex-shrink-0 w-[80px] sm:w-auto flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl bg-white border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 hover:-translate-y-0.5 active:scale-[0.95] active:shadow-none"
+                    className="card-stagger group flex-shrink-0 w-[80px] sm:w-auto flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl bg-white border border-black/[0.08] shadow-sm hover:bg-gray-50 hover:shadow-md hover:border-black/[0.12] hover:-translate-y-0.5 active:scale-[0.95] active:shadow-none active:bg-gray-100"
                     style={{
                       animationDelay: `${i * 35}ms`,
-                      transition: 'border-color 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 200ms cubic-bezier(0.23, 1, 0.32, 1)',
+                      transition: 'background-color 150ms ease, border-color 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 200ms cubic-bezier(0.23, 1, 0.32, 1)',
                       touchAction: 'manipulation',
                     }}
                   >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center relative bg-gray-100 text-gray-500 group-hover:bg-gray-200 transition-colors duration-200">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center relative bg-gray-100 ring-1 ring-black/[0.06] text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700 transition-colors duration-150">
                       {s.icon}
                       {s.badge != null && s.badge > 0 && (
                         <span
@@ -4641,7 +4641,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
                         </span>
                       )}
                     </div>
-                    <span className="text-xs font-medium text-gray-500 text-center leading-tight w-full">{s.label}</span>
+                    <span className="text-xs font-semibold text-gray-600 text-center leading-tight w-full">{s.label}</span>
                   </button>
                 ))}
               </div>
