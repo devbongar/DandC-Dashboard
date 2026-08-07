@@ -4436,18 +4436,21 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
 
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, reportOpen = false, onReportClose, asPage = false }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
 
-  // null = home (Project Info), string = active section name
-  const [activeSection, setActiveSection] = useState(
+  // Local state as fallback when used without controlled activeSection prop
+  const [localSection, setLocalSection] = useState(
     startEditing ? null : (startTab === 'Project Info' ? null : startTab)
   )
+  // Controlled if parent passes activeSection; otherwise use local state
+  const activeSection = controlledSection !== undefined ? controlledSection : localSection
+
   const navigate = (section) => {
-    setActiveSection(section)
-    onTabChange?.(section ?? 'Project Info')
+    setLocalSection(section)
     onSectionChange?.(section)
+    onTabChange?.(section ?? 'Project Info')
   }
 
   const [toast, setToast] = useState(null)

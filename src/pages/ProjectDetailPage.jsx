@@ -19,7 +19,10 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [section, setSection] = useState(null)
+  const [section, setSection] = useState(() => {
+    const tab = new URLSearchParams(window.location.search).get('tab') || 'Project Info'
+    return tab === 'Project Info' ? null : tab
+  })
   const [reportOpen, setReportOpen] = useState(false)
 
   useEffect(() => {
@@ -92,9 +95,9 @@ export default function ProjectDetailPage() {
           isAdmin={isAdmin}
           onClose={() => navigate('/projects')}
           onProjectUpdated={(updated) => setProject(updated)}
-          startTab={startTab}
-          onTabChange={(tab) => setSearchParams({ tab })}
+          activeSection={section}
           onSectionChange={setSection}
+          onTabChange={(tab) => setSearchParams({ tab })}
           reportOpen={reportOpen}
           onReportClose={() => setReportOpen(false)}
         />
