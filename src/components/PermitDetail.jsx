@@ -292,7 +292,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
   }
 
   const status = computePermitStatus(permit)
-  const canManage = isAdmin || isHead
+  const canManage = isAdmin || isHead || isReporter
   const reqDone = requirements.filter(r => r.is_complete).length
   const openIssues = issues.filter(i => i.status === 'open').length
 
@@ -521,7 +521,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
               <SectionHeader
                 title="Schedule"
                 icon={ICON_CALENDAR}
-                action={(isAdmin || isReporter) && (
+                action={(isAdmin || isReporter || isHead) && (
                   editingSchedule
                     ? <div className="flex items-center gap-2">
                         <button
