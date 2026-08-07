@@ -52,21 +52,18 @@ export default function ProjectDetailPage() {
   return (
     <DashboardLayout profile={profile}>
       <div
-        className="-mx-3 sm:-mx-4 -mt-3 flex flex-col overflow-hidden"
-        style={{ height: 'calc(100dvh - 4rem - env(safe-area-inset-top, 0px) - 0.75rem)' }}
+        className="fixed inset-x-0 bottom-0 overflow-hidden"
+        style={{ top: 'calc(4rem + env(safe-area-inset-top, 0px))' }}
       >
-        {/* Project detail panel */}
-        <div className="flex-1 overflow-hidden">
-          <ProjectDetailModal
-            asPage
-            project={project}
-            isAdmin={isAdmin}
-            onClose={() => navigate('/projects')}
-            onProjectUpdated={(updated) => setProject(updated)}
-            startTab={startTab}
-            onTabChange={(tab) => setSearchParams({ tab })}
-          />
-        </div>
+        <ProjectDetailModal
+          asPage
+          project={project}
+          isAdmin={isAdmin}
+          onClose={() => navigate('/projects')}
+          onProjectUpdated={(updated) => setProject(updated)}
+          startTab={startTab}
+          onTabChange={(tab) => setSearchParams({ tab })}
+        />
       </div>
     </DashboardLayout>
   )
