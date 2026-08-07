@@ -4620,7 +4620,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
                   <button
                     key={s.key}
                     onClick={() => navigate(s.key)}
-                    className="card-stagger group flex-shrink-0 w-[80px] sm:w-auto flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl bg-white border border-black/[0.08] shadow-sm hover:bg-gray-50 hover:shadow-md hover:border-black/[0.12] hover:-translate-y-0.5 active:scale-[0.95] active:shadow-none active:bg-gray-100"
+                    className="card-stagger group flex-shrink-0 w-[80px] sm:w-auto flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl bg-white border border-black/[0.08] shadow-sm hover:bg-gray-50 hover:shadow-lg hover:border-black/[0.12] hover:-translate-y-1.5 active:scale-[0.95] active:shadow-sm active:translate-y-0 active:bg-gray-100"
                     style={{
                       animationDelay: `${i * 35}ms`,
                       transition: 'background-color 150ms ease, border-color 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 200ms cubic-bezier(0.23, 1, 0.32, 1)',
