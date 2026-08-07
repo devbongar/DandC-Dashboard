@@ -4687,16 +4687,6 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
               </svg>
               Report
             </button>
-            {isAdmin && (
-              <button
-                onClick={() => switchTab('Project Info')}
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-white/70 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] transition-all duration-150"
-                title="Edit project details"
-                aria-label="Edit project details"
-              >
-                <PencilIcon />
-              </button>
-            )}
             {!asPage && (
               <button
                 onClick={onClose}
