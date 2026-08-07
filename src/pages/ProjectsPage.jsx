@@ -475,7 +475,7 @@ export default function ProjectsPage() {
           <>
             {/* ── Mobile cards (hidden sm+) ── */}
             <div className="sm:hidden space-y-3 p-3">
-              {filtered.map((project) => {
+              {filtered.map((project, idx) => {
                 const ph = PHASE_MAP[project.phase]
                 const phaseColor = ph?.color ?? '#e5e7eb'
                 const location = project.city && project.province
@@ -485,8 +485,13 @@ export default function ProjectsPage() {
                   <div
                     key={project.id}
                     onClick={() => navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } })}
-                    className="bg-white rounded-xl ring-1 ring-black/5 px-4 py-3 shadow hover:shadow-lg active:scale-[0.99] transition-[transform,box-shadow] duration-150 cursor-pointer select-none touch-manipulation"
-                    style={{ borderLeft: `3px solid ${phaseColor}` }}
+                    className="bg-white rounded-xl ring-1 ring-black/5 px-4 py-3 shadow-sm hover:shadow-lg hover:-translate-y-0.5 active:scale-[0.99] active:shadow-sm cursor-pointer select-none touch-manipulation"
+                    style={{
+                      borderLeft: `3px solid ${phaseColor}`,
+                      transition: 'transform 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1)',
+                      animation: 'ph1-fade-up 0.3s cubic-bezier(0.23, 1, 0.32, 1) both',
+                      animationDelay: `${idx * 40}ms`,
+                    }}
                   >
                     {/* Top row: name + phase badge */}
                     <div className="flex items-start justify-between gap-2 mb-1.5">
@@ -523,7 +528,7 @@ export default function ProjectsPage() {
                       <div className="mt-2 pt-2 border-t border-gray-100 flex justify-end" onClick={e => e.stopPropagation()}>
                         <button
                           onClick={e => { e.stopPropagation(); setDeleteTarget(project) }}
-                          className="min-h-[32px] px-3 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                          className="min-h-[32px] px-3 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
                         >
                           Delete
                         </button>
