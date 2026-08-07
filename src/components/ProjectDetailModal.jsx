@@ -488,7 +488,7 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
 
   return (
     <>
-      <div className="relative group h-full min-h-[380px] bg-[#1c1c1e]">
+      <div className="relative group h-full sm:min-h-[380px] bg-[#1c1c1e]">
         {url ? (
           <>
             {/* Click image to open preview */}
@@ -818,14 +818,14 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 
   return (
-    <div className="flex h-full">
-      {/* Left: full-bleed cover photo */}
-      <div className="hidden sm:block w-1/2 flex-shrink-0 overflow-hidden bg-gray-100">
+    <div className="h-full flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden">
+      {/* Cover photo: top on mobile, left half on desktop */}
+      <div className="w-full h-52 flex-shrink-0 overflow-hidden bg-gray-100 sm:h-full sm:w-1/2">
         <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} />
       </div>
 
-      {/* Right: editorial content panel — elevated shadow creates depth over the photo */}
-      <div className="flex-1 min-w-0 flex flex-col overflow-y-auto bg-white relative z-10" style={{ boxShadow: '-16px 0 48px rgba(0,0,0,0.14)' }}>
+      {/* Content panel: natural height on mobile, fill+scroll on desktop */}
+      <div className="flex-1 min-w-0 flex flex-col sm:overflow-y-auto bg-white relative z-10" style={{ boxShadow: '-16px 0 48px rgba(0,0,0,0.14)' }}>
 
         {/* Hero: phase badge + project name + subtitle */}
         <div className="px-8 pt-8 pb-6 border-b border-gray-100" style={{ animation: 'fade-in-up 220ms ease-out both' }}>
@@ -852,7 +852,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         )}
 
         {/* Details grid */}
-        <div className="px-8 py-6 grid grid-cols-2 gap-x-8 gap-y-5 flex-1" style={{ animation: 'fade-in-up 220ms 120ms ease-out both' }}>
+        <div className="px-8 py-6 grid grid-cols-2 gap-x-8 gap-y-5" style={{ animation: 'fade-in-up 220ms 120ms ease-out both' }}>
           <OverviewDetailItem
             label="Location"
             value={[project.city, project.province].filter(Boolean).join(', ')}
