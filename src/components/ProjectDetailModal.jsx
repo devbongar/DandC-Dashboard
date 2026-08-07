@@ -4620,14 +4620,14 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
                   <button
                     key={s.key}
                     onClick={() => navigate(s.key)}
-                    className="card-stagger group flex-shrink-0 w-[80px] sm:w-auto flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl bg-white border border-black/[0.08] shadow-sm hover:bg-gray-50 hover:shadow-lg hover:border-black/[0.12] hover:-translate-y-1.5 active:scale-[0.95] active:shadow-sm active:translate-y-0 active:bg-gray-100"
+                    className="card-stagger group flex-shrink-0 w-[80px] sm:w-auto flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl bg-white border border-black/[0.08] shadow-sm hover:bg-[#ed6055]/[0.04] hover:shadow-lg hover:border-[#ed6055]/25 hover:-translate-y-1.5 active:scale-[0.95] active:shadow-sm active:translate-y-0 active:bg-[#ed6055]/[0.07]"
                     style={{
                       animationDelay: `${i * 35}ms`,
-                      transition: 'background-color 150ms ease, border-color 200ms cubic-bezier(0.23, 1, 0.32, 1), box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 200ms cubic-bezier(0.23, 1, 0.32, 1)',
+                      transition: 'background-color 120ms ease, border-color 120ms ease, box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 200ms cubic-bezier(0.23, 1, 0.32, 1)',
                       touchAction: 'manipulation',
                     }}
                   >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center relative bg-gray-100 ring-1 ring-black/[0.06] text-gray-500 group-hover:bg-gray-200 group-hover:text-gray-700 transition-colors duration-150">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center relative bg-gray-100 ring-1 ring-black/[0.06] text-gray-500 group-hover:bg-[#ed6055]/10 group-hover:text-[#ed6055] transition-colors duration-[120ms] ease-[ease]">
                       {s.icon}
                       {s.badge != null && s.badge > 0 && (
                         <span
