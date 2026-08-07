@@ -1034,16 +1034,6 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           onChange={handleImportExisting} className="hidden" />
         <input ref={actualImportRef} type="file" accept=".xlsx,.xls,.csv"
           onChange={handleImportActual} className="hidden" />
-        <button
-          onClick={handleSaveView}
-          className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-emerald-500 hover:text-emerald-600 transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]"
-          title="Save current view (baselines, scope, filters)"
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-          </svg>
-          Save View
-        </button>
       </div>
 
       {/* Settings floating modal */}
@@ -1321,6 +1311,19 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
               })}
             </div>
           )}
+          {/* Save View */}
+          <div className="border-t border-gray-200 pt-3 flex justify-end">
+            <button
+              onClick={() => { handleSaveView(); setSettingsOpen(false) }}
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-emerald-500 hover:text-emerald-600 transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]"
+              title="Save current view (baselines, scope, filters)"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+              </svg>
+              Save View
+            </button>
+          </div>
         </div>
         </div>
       )}
