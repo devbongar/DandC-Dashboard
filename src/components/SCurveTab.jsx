@@ -1534,6 +1534,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
               prevYOff = yOff; prevVal = s.val
             }
           }
+          if (yOffsets['actual']) yOffsets['actual'] = yOffsets['actual'].map(() => 16)
           return Object.fromEntries(seriesDef.map(s => [s.key, { color: s.color, yOffsets: yOffsets[s.key] }]))
         })()
 
