@@ -1397,10 +1397,11 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           { label: 'Variance',    value: summaryVariance, accent: varColor,    sublabel: 'vs planned at current period', semantic: true },
         ]
         return (
-          <div className="flex-shrink-0 flex flex-col gap-1.5 w-32">
+          <div className="flex-shrink-0 flex flex-col gap-2 w-32 self-start">
+            <div className="flex flex-col gap-2 h-[400px]">
             {cards.map(card => (
               <div key={card.label}
-                className="bg-white rounded-lg border border-gray-200 shadow-sm px-2.5 py-1.5 flex flex-col gap-0.5 overflow-hidden"
+                className="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm px-2.5 py-2 flex flex-col gap-0.5 overflow-hidden"
                 style={{ borderLeft: `3px solid ${card.accent}` }}
               >
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-none">{card.label}</span>
@@ -1423,6 +1424,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                 )}
               </div>
             ))}
+            </div>
 
             {/* Line selection + settings — below cards */}
             <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
