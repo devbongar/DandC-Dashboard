@@ -13,7 +13,7 @@ const ROLE_LABELS = {
 }
 
 
-export default function DashboardLayout({ profile, children }) {
+export default function DashboardLayout({ profile, children, navOverride, actions }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [menuOpen,    setMenuOpen]    = useState(false)
   const menuRef = useRef(null)
@@ -47,14 +47,16 @@ export default function DashboardLayout({ profile, children }) {
         {/* Safe-area spacer — pushes content below the status bar on iOS PWA */}
         <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
         <div className="flex items-center h-16">
-        {/* Hamburger */}
-        <button
-          onClick={() => setSidebarOpen(true)}
-          aria-label="Open menu"
-          className="h-full px-4 flex items-center flex-shrink-0 text-white/70 hover:text-white hover:bg-white/10 transition"
-        >
-          <HamburgerIcon />
-        </button>
+        {/* Hamburger / nav override */}
+        {navOverride ?? (
+          <button
+            onClick={() => setSidebarOpen(true)}
+            aria-label="Open menu"
+            className="h-full px-4 flex items-center flex-shrink-0 text-white/70 hover:text-white hover:bg-white/10 transition"
+          >
+            <HamburgerIcon />
+          </button>
+        )}
 
         {/* Logo — desktop only; on mobile it lives inside the sidebar drawer */}
         <div className="px-2 sm:px-3 hidden sm:flex items-center flex-shrink-0">
@@ -73,6 +75,9 @@ export default function DashboardLayout({ profile, children }) {
 
         {/* Spacer */}
         <div className="flex-1" />
+
+        {/* Caller-supplied actions (e.g. Report button on project detail page) */}
+        {actions}
 
         {/* Notification bell */}
         <NotificationBell userId={profile?.id} />

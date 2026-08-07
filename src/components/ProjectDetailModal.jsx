@@ -4436,7 +4436,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 // ── Main Modal ────────────────────────────────────────────────────────────────
 
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, asPage = false }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, reportOpen = false, onReportClose, asPage = false }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
 
@@ -4447,13 +4447,13 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   const navigate = (section) => {
     setActiveSection(section)
     onTabChange?.(section ?? 'Project Info')
+    onSectionChange?.(section)
   }
 
   const [toast, setToast] = useState(null)
   const [toastIn, setToastIn] = useState(false)
   const toastTimerRef = useRef(null)
   const [tabCounts, setTabCounts] = useState({ permits: null, issues: null })
-  const [showReportBuilder, setShowReportBuilder] = useState(false)
 
   useEffect(() => {
     if (asPage) return
@@ -4583,55 +4583,20 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           }
         }
       `}</style>
+
+      {/* No modal header bar — navigation lives in DashboardLayout topbar (asPage) or via onClose */}
       <div className="bg-white rounded-none shadow-2xl w-full h-full flex flex-col overflow-hidden">
 
-        {/* Header */}
-        <div className="flex-shrink-0 border-b border-black/20 flex items-center h-11 px-2 gap-1.5"
-          style={{ background: 'rgba(63,63,63,1)' }}>
-
-          {activeSection !== null ? (
-            /* Section view: back arrow + section name */
-            <>
-              <button
-                onClick={() => navigate(null)}
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-white/70 hover:text-white hover:bg-white/10 active:scale-[0.95] flex-shrink-0"
-                style={{ transition: 'background 120ms ease, transform 100ms ease-out' }}
-                aria-label="Back to project home"
-              >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-                </svg>
-              </button>
-              <span className="flex-1 text-sm font-semibold text-white/90 truncate">{activeSection}</span>
-            </>
-          ) : (
-            /* Home view: project name */
-            <span className="flex-1 text-sm font-semibold text-white/90 truncate px-2">{project.name}</span>
-          )}
-
-          {/* Action buttons */}
+        {/* Non-page mode: floating close button */}
+        {!asPage && (
           <button
-            onClick={() => setShowReportBuilder(true)}
-            className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-white/85 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] flex-shrink-0"
-            style={{ transition: 'background 150ms ease, transform 100ms ease-out' }}
-            title="Generate report"
+            onClick={onClose}
+            className="absolute top-3 right-3 z-10 flex items-center justify-center w-8 h-8 rounded-lg bg-black/60 text-white hover:bg-black/80 active:scale-[0.95] transition-all duration-150"
+            aria-label="Close"
           >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-            </svg>
-            Report
+            <XIcon />
           </button>
-          {!asPage && (
-            <button
-              onClick={onClose}
-              className="flex items-center justify-center w-8 h-8 rounded-lg text-white/70 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] flex-shrink-0"
-              style={{ transition: 'background 150ms ease, transform 100ms ease-out' }}
-              aria-label="Close"
-            >
-              <XIcon />
-            </button>
-          )}
-        </div>
+        )}
 
         {/* Content */}
         {activeSection === null ? (
@@ -4716,9 +4681,9 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         </div>
       )}
 
-      {showReportBuilder && (
+      {reportOpen && (
         <ReportBuilderModal
-          onClose={() => setShowReportBuilder(false)}
+          onClose={() => onReportClose?.()}
           defaultProject={{ id: project.id, name: project.name }}
           defaultScope="this_project"
         />

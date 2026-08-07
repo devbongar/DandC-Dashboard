@@ -19,6 +19,8 @@ export default function ProjectDetailPage() {
 
   const [project, setProject] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [section, setSection] = useState(null)
+  const [reportOpen, setReportOpen] = useState(false)
 
   useEffect(() => {
     const idFromState = location.state?.id
@@ -26,7 +28,6 @@ export default function ProjectDetailPage() {
       supabase.from('projects').select('*').eq('id', idFromState).single()
         .then(({ data }) => { setProject(data); setLoading(false) })
     } else {
-      // Direct URL access — find project by matching slug against name / project_code
       supabase.from('projects').select('*')
         .then(({ data }) => {
           const match = data?.find(p =>
@@ -49,8 +50,38 @@ export default function ProjectDetailPage() {
 
   const startTab = searchParams.get('tab') || 'Project Info'
 
+  const navOverride = section ? (
+    <button
+      onClick={() => setSection(null)}
+      aria-label="Back to project home"
+      className="h-full px-4 flex items-center flex-shrink-0 text-white/70 hover:text-white hover:bg-white/10 active:bg-white/20 transition"
+      style={{ transition: 'background 120ms ease' }}
+    >
+      <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+      </svg>
+    </button>
+  ) : undefined
+
+  const actions = (
+    <button
+      onClick={() => setReportOpen(true)}
+      className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-white/85 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] flex-shrink-0 mr-1"
+      style={{ transition: 'background 150ms ease, transform 100ms ease-out' }}
+      title="Generate report"
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="16" y1="13" x2="8" y2="13"/>
+        <line x1="16" y1="17" x2="8" y2="17"/>
+      </svg>
+      Report
+    </button>
+  )
+
   return (
-    <DashboardLayout profile={profile}>
+    <DashboardLayout profile={profile} navOverride={navOverride} actions={actions}>
       <div
         className="fixed inset-x-0 bottom-0 overflow-hidden"
         style={{ top: 'calc(4rem + env(safe-area-inset-top, 0px))' }}
@@ -63,6 +94,9 @@ export default function ProjectDetailPage() {
           onProjectUpdated={(updated) => setProject(updated)}
           startTab={startTab}
           onTabChange={(tab) => setSearchParams({ tab })}
+          onSectionChange={setSection}
+          reportOpen={reportOpen}
+          onReportClose={() => setReportOpen(false)}
         />
       </div>
     </DashboardLayout>
