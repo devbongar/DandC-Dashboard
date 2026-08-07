@@ -61,7 +61,7 @@ function CloseIcon() {
 
 const INPUT_CLS = 'w-full px-3 py-2 text-base sm:text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition-shadow'
 
-export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, currentUserId, onClose, onUpdated }) {
+export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, isReporter, isViewer, currentUserId, onClose, onUpdated }) {
   const [permit,         setPermit]         = useState(initialPermit)
   const [requirements,   setRequirements]   = useState([])
   const [issues,         setIssues]         = useState([])
@@ -80,6 +80,10 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
   const [toast,        setToast]        = useState(null)
   const [confirmIssue, setConfirmIssue] = useState(null)
   const [confirmReq,   setConfirmReq]   = useState(null)
+
+  const [editingSchedule, setEditingSchedule] = useState(false)
+  const [scheduleDraft,   setScheduleDraft]   = useState({})
+  const [savingSchedule,  setSavingSchedule]  = useState(false)
 
   const [reqText,    setReqText]    = useState('')
   const [addingReq,  setAddingReq]  = useState(false)
@@ -164,6 +168,33 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
         })
     }
     setAcquiring(false)
+  }
+
+  function startEditSchedule() {
+    setScheduleDraft({
+      planned_start:   permit.planned_start   ?? '',
+      planned_finish:  permit.planned_finish  ?? '',
+      forecast_start:  permit.forecast_start  ?? '',
+      forecast_finish: permit.forecast_finish ?? '',
+      actual_start:    permit.actual_start    ?? '',
+      actual_finish:   permit.actual_finish   ?? '',
+    })
+    setEditingSchedule(true)
+  }
+
+  async function saveSchedule() {
+    setSavingSchedule(true)
+    const patch = {
+      planned_start:   scheduleDraft.planned_start   || null,
+      planned_finish:  scheduleDraft.planned_finish  || null,
+      forecast_start:  scheduleDraft.forecast_start  || null,
+      forecast_finish: scheduleDraft.forecast_finish || null,
+      actual_start:    scheduleDraft.actual_start    || null,
+      actual_finish:   scheduleDraft.actual_finish   || null,
+    }
+    const { data } = await supabase.from('permits').update(patch).eq('id', permit.id).select().single()
+    if (data) { setPermit(data); setEditingSchedule(false) }
+    setSavingSchedule(false)
   }
 
   async function saveResponsible() {
@@ -487,15 +518,55 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
 
             {/* Schedule */}
             <section>
-              <SectionHeader title="Schedule" icon={ICON_CALENDAR} />
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                <DateCard label="Planned Start"    value={permit.planned_start}   variant="planned" />
-                <DateCard label="Planned Finish"   value={permit.planned_finish}  variant="planned" />
-                <DateCard label="Forecast Start"   value={permit.forecast_start}  variant="forecast" />
-                <DateCard label="Forecast Finish"  value={permit.forecast_finish} variant="forecast" />
-                <DateCard label="Actual Start"     value={permit.actual_start}    variant="actual" />
-                <DateCard label="Actual Finish"    value={permit.actual_finish}   variant="actual" />
-              </div>
+              <SectionHeader
+                title="Schedule"
+                icon={ICON_CALENDAR}
+                action={(isAdmin || isReporter) && (
+                  editingSchedule
+                    ? <div className="flex items-center gap-2">
+                        <button
+                          onClick={saveSchedule}
+                          disabled={savingSchedule}
+                          className="px-3 py-1.5 text-xs font-semibold rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] active:scale-[0.97] disabled:opacity-40 [transition:background-color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)]"
+                        >
+                          {savingSchedule ? 'Saving…' : 'Save'}
+                        </button>
+                        <button onClick={() => setEditingSchedule(false)} className={BTN_GHOST_GRAY}>Cancel</button>
+                      </div>
+                    : <button onClick={startEditSchedule} className={BTN_GHOST}>Edit</button>
+                )}
+              />
+              {editingSchedule ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {[
+                    { key: 'planned_start',   label: 'Planned Start',   variant: 'planned'  },
+                    { key: 'planned_finish',  label: 'Planned Finish',  variant: 'planned'  },
+                    { key: 'forecast_start',  label: 'Forecast Start',  variant: 'forecast' },
+                    { key: 'forecast_finish', label: 'Forecast Finish', variant: 'forecast' },
+                    { key: 'actual_start',    label: 'Actual Start',    variant: 'actual'   },
+                    { key: 'actual_finish',   label: 'Actual Finish',   variant: 'actual'   },
+                  ].map(({ key, label, variant }) => (
+                    <div key={key} className={`${DATE_CARD_BG[variant]} rounded-lg px-3 py-2`}>
+                      <p className={`text-[10px] font-semibold ${DATE_LABEL_COLOR[variant]} uppercase tracking-wider mb-1`}>{label}</p>
+                      <input
+                        type="date"
+                        value={scheduleDraft[key]}
+                        onChange={e => setScheduleDraft(prev => ({ ...prev, [key]: e.target.value }))}
+                        className="w-full text-sm font-medium text-gray-900 dark:text-white bg-transparent outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                      />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  <DateCard label="Planned Start"    value={permit.planned_start}   variant="planned" />
+                  <DateCard label="Planned Finish"   value={permit.planned_finish}  variant="planned" />
+                  <DateCard label="Forecast Start"   value={permit.forecast_start}  variant="forecast" />
+                  <DateCard label="Forecast Finish"  value={permit.forecast_finish} variant="forecast" />
+                  <DateCard label="Actual Start"     value={permit.actual_start}    variant="actual" />
+                  <DateCard label="Actual Finish"    value={permit.actual_finish}   variant="actual" />
+                </div>
+              )}
             </section>
 
             <div className="border-t border-gray-100 dark:border-gray-800" />
@@ -530,23 +601,25 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
                     </div>
                   )
                 })}
-                <div className="pt-1 space-y-2">
-                  <textarea
-                    value={newRemark}
-                    onChange={e => setNewRemark(e.target.value)}
-                    rows={3}
-                    placeholder="Add a remark..."
-                    className={`${INPUT_CLS} resize-none`}
-                    onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addRemark() }}
-                  />
-                  <button
-                    onClick={addRemark}
-                    disabled={addingRemark || !newRemark.trim()}
-                    className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] active:scale-[0.97] disabled:opacity-50 [transition:background-color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)]"
-                  >
-                    {addingRemark ? 'Adding...' : 'Add Remark'}
-                  </button>
-                </div>
+                {!isViewer && (
+                  <div className="pt-1 space-y-2">
+                    <textarea
+                      value={newRemark}
+                      onChange={e => setNewRemark(e.target.value)}
+                      rows={3}
+                      placeholder="Add a remark..."
+                      className={`${INPUT_CLS} resize-none`}
+                      onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addRemark() }}
+                    />
+                    <button
+                      onClick={addRemark}
+                      disabled={addingRemark || !newRemark.trim()}
+                      className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] active:scale-[0.97] disabled:opacity-50 [transition:background-color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)]"
+                    >
+                      {addingRemark ? 'Adding...' : 'Add Remark'}
+                    </button>
+                  </div>
+                )}
               </div>
             </section>
 
@@ -618,7 +691,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, c
               <SectionHeader
                 title={`Issues${openIssues > 0 ? ` · ${openIssues} open` : ''}`}
                 icon={ICON_WARNING}
-                action={!showRaiseForm && (
+                action={!isViewer && !showRaiseForm && (
                   <button onClick={() => setShowRaiseForm(true)} className={BTN_GHOST}>+ Raise Issue</button>
                 )}
               />

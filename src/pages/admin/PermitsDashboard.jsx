@@ -432,6 +432,8 @@ export default function PermitsDashboard() {
           permit={selected}
           isAdmin={isAdmin}
           isHead={profile?.role === 'head'}
+          isReporter={profile?.role === 'reporter'}
+          isViewer={profile?.role === 'viewer'}
           currentUserId={profile?.id}
           onClose={() => setSelected(null)}
           onUpdated={fetchAll}
