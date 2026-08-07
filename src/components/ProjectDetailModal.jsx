@@ -4439,14 +4439,21 @@ function CompletionTab({ project, isAdmin, showToast }) {
 export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, asPage = false }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
-  const [tab, setTab] = useState(startEditing ? 'Project Info' : startTab)
-  const switchTab = (t) => { setTab(t); onTabChange?.(t) }
+
+  // null = home (Project Info), string = active section name
+  const [activeSection, setActiveSection] = useState(
+    startEditing ? null : (startTab === 'Project Info' ? null : startTab)
+  )
+  const navigate = (section) => {
+    setActiveSection(section)
+    onTabChange?.(section ?? 'Project Info')
+  }
+
   const [toast, setToast] = useState(null)
   const [toastIn, setToastIn] = useState(false)
   const toastTimerRef = useRef(null)
   const [tabCounts, setTabCounts] = useState({ permits: null, issues: null })
   const [showReportBuilder, setShowReportBuilder] = useState(false)
-  const [showTabSheet, setShowTabSheet] = useState(false)
 
   useEffect(() => {
     if (asPage) return
@@ -4469,7 +4476,6 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   }, [project.id])
 
   const phase = PHASE_MAP[project.phase]
-  const tabs = BASE_TABS
 
   useEffect(() => {
     if (!toast) return
@@ -4492,6 +4498,39 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
     setProject(updated)
     onProjectUpdated?.(updated)
   }
+
+  const SECTIONS = [
+    {
+      key: 'Planned M4/M5', label: 'Planned M4/M5', color: '#6366f1',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color: '#6366f1' }}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>,
+    },
+    {
+      key: 'Completion (M4/M5)', label: 'Completion', color: '#22c55e',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color: '#22c55e' }}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
+    },
+    {
+      key: 'Work Program', label: 'Work Program', color: '#f59e0b',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color: '#f59e0b' }}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg>,
+    },
+    {
+      key: 'S-Curve', label: 'S-Curve', color: '#ed6055',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color: '#ed6055' }}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>,
+    },
+    {
+      key: 'Permits', label: 'Permits', color: '#3b82f6',
+      badge: tabCounts.permits, alert: false,
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color: '#3b82f6' }}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>,
+    },
+    {
+      key: 'Issues & Concerns', label: 'Issues', color: '#f97316',
+      badge: tabCounts.issues, alert: tabCounts.issues > 0,
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color: '#f97316' }}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>,
+    },
+    {
+      key: 'Photos', label: 'Photos', color: '#8b5cf6',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75} style={{ color: '#8b5cf6' }}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>,
+    },
+  ]
 
   return (
     <div className={asPage ? 'w-full h-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50'}>
@@ -4516,11 +4555,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           from { opacity: 0; transform: scale(0.95); }
           to   { opacity: 1; transform: scale(1); }
         }
-        @keyframes sheet-up {
-          from { transform: translateY(100%); }
-          to   { transform: translateY(0); }
+        @keyframes section-slide-in {
+          from { opacity: 0; transform: translateY(10px); }
+          to   { opacity: 1; transform: translateY(0); }
         }
-        .tab-sheet { animation: sheet-up 220ms cubic-bezier(0.23, 1, 0.32, 1) both; }
         @keyframes cover-reveal {
           from { opacity: 0; transform: scale(1.06); filter: blur(8px); }
           to   { opacity: 1; transform: scale(1);    filter: blur(0px); }
@@ -4535,187 +4573,127 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         .cover-fade {
           animation: cover-fade 400ms cubic-bezier(0.23, 1, 0.32, 1) both;
         }
+        .section-slide-in {
+          animation: section-slide-in 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+        }
+        .card-stagger { animation: section-slide-in 200ms cubic-bezier(0.23, 1, 0.32, 1) both; }
         @media (prefers-reduced-motion: reduce) {
-          .cover-reveal, .cover-fade {
-            animation: cover-fade 200ms ease both;
+          .cover-reveal, .cover-fade, .section-slide-in, .card-stagger {
+            animation: none;
           }
         }
       `}</style>
       <div className="bg-white rounded-none shadow-2xl w-full h-full flex flex-col overflow-hidden">
 
-        {/* Tab bar + actions */}
-        <div className="flex-shrink-0 border-b border-black/20 flex items-stretch"
+        {/* Header */}
+        <div className="flex-shrink-0 border-b border-black/20 flex items-center h-11 px-2 gap-1.5"
           style={{ background: 'rgba(63,63,63,1)' }}>
 
-          {/* Project name (page mode only) */}
-          {asPage && (
-            <div className="flex items-center px-4 border-r border-white/10 flex-shrink-0">
-              <span className="text-sm font-semibold text-white/90 max-w-[200px] truncate">{project.name}</span>
-            </div>
-          )}
-
-          {/* Tabs — desktop: horizontal scroll row */}
-          <div
-            role="tablist"
-            className="hidden sm:flex overflow-x-auto flex-1"
-            style={{
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              WebkitMaskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
-              maskImage: 'linear-gradient(to right, black 85%, transparent 100%)',
-            }}
-          >
-            {tabs.map(t => {
-              const count =
-                t === 'Permits'           ? tabCounts.permits    :
-                t === 'Issues & Concerns' ? tabCounts.issues     :
-                null
-              const isAlert = t === 'Issues & Concerns' && tabCounts.issues > 0
-              const isActive = tab === t
-              return (
-                <button
-                  key={t}
-                  role="tab"
-                  aria-selected={isActive}
-                  onClick={() => switchTab(t)}
-                  className="flex items-center gap-1.5 px-5 py-2 text-sm whitespace-nowrap border-b-[3px] -mb-px active:scale-[0.97] hover:bg-white/5"
-                  style={{
-                    color:             isActive ? 'white' : 'rgba(255,255,255,0.52)',
-                    fontWeight:        isActive ? 600 : 400,
-                    borderBottomColor: isActive ? '#ed6055' : 'transparent',
-                    background:        isActive ? 'rgba(255,255,255,0.08)' : undefined,
-                    borderRadius:      isActive ? '6px 6px 0 0' : '0',
-                    transition: 'color 150ms ease, border-color 150ms ease, background 150ms ease, transform 100ms ease-out',
-                  }}
-                >
-                  {t}
-                  {count != null && (
-                    <span
-                      className="text-[9px] font-bold px-1.5 py-0.5 rounded-full"
-                      style={isAlert
-                        ? { background: 'rgba(237,96,85,0.35)', color: '#fca5a5' }
-                        : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)' }
-                      }
-                    >
-                      {count}
-                    </span>
-                  )}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* Tabs — mobile: picker button */}
-          <button
-            className="sm:hidden flex items-center gap-2 px-4 flex-1 min-w-0 active:bg-white/10 transition-colors duration-150"
-            onClick={() => setShowTabSheet(true)}
-            aria-haspopup="listbox"
-            aria-expanded={showTabSheet}
-          >
-            <span className="text-sm font-semibold text-white truncate flex-1 text-left">{tab}</span>
-            {(() => {
-              const count = tab === 'Permits' ? tabCounts.permits : tab === 'Issues & Concerns' ? tabCounts.issues : null
-              const isAlert = tab === 'Issues & Concerns' && tabCounts.issues > 0
-              return count != null ? (
-                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full flex-shrink-0"
-                  style={isAlert ? { background: 'rgba(237,96,85,0.35)', color: '#fca5a5' } : { background: 'rgba(255,255,255,0.12)', color: 'rgba(255,255,255,0.6)' }}>
-                  {count}
-                </span>
-              ) : null
-            })()}
-            <svg className="w-4 h-4 text-white/60 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-
-          {/* Mobile tab bottom sheet */}
-          {showTabSheet && (
-            <div className="sm:hidden fixed inset-0 z-[200] flex flex-col justify-end">
-              <div className="absolute inset-0 bg-black/50" onClick={() => setShowTabSheet(false)} />
-              <div className="tab-sheet relative bg-white rounded-t-2xl shadow-2xl pb-safe overflow-hidden">
-                <div className="flex justify-center pt-3 pb-1">
-                  <div className="w-10 h-1 rounded-full bg-gray-300" />
-                </div>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-5 py-2">Switch tab</p>
-                <div className="px-3 pb-4 space-y-0.5">
-                  {tabs.map(t => {
-                    const count = t === 'Permits' ? tabCounts.permits : t === 'Issues & Concerns' ? tabCounts.issues : null
-                    const isAlert = t === 'Issues & Concerns' && tabCounts.issues > 0
-                    const isActive = tab === t
-                    return (
-                      <button
-                        key={t}
-                        onClick={() => { switchTab(t); setShowTabSheet(false) }}
-                        className="w-full flex items-center justify-between gap-3 px-4 py-3.5 rounded-xl text-sm transition-colors duration-100 active:scale-[0.98]"
-                        style={{
-                          background: isActive ? 'rgba(237,96,85,0.08)' : 'transparent',
-                          color:      isActive ? '#ed6055' : '#374151',
-                          fontWeight: isActive ? 600 : 400,
-                        }}
-                      >
-                        <span>{t}</span>
-                        <span className="flex items-center gap-2">
-                          {count != null && (
-                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full"
-                              style={isAlert ? { background: '#fee2e2', color: '#ef4444' } : { background: '#f3f4f6', color: '#9ca3af' }}>
-                              {count}
-                            </span>
-                          )}
-                          {isActive && (
-                            <svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          )}
-                        </span>
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
+          {activeSection !== null ? (
+            /* Section view: back arrow + section name */
+            <>
+              <button
+                onClick={() => navigate(null)}
+                className="flex items-center justify-center w-8 h-8 rounded-lg text-white/70 hover:text-white hover:bg-white/10 active:scale-[0.95] flex-shrink-0"
+                style={{ transition: 'background 120ms ease, transform 100ms ease-out' }}
+                aria-label="Back to project home"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+              <span className="flex-1 text-sm font-semibold text-white/90 truncate">{activeSection}</span>
+            </>
+          ) : (
+            /* Home view: project name */
+            <span className="flex-1 text-sm font-semibold text-white/90 truncate px-2">{project.name}</span>
           )}
 
           {/* Action buttons */}
-          <div className="flex items-center gap-1.5 px-3 flex-shrink-0 border-l border-white/10">
+          <button
+            onClick={() => setShowReportBuilder(true)}
+            className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-white/85 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] flex-shrink-0"
+            style={{ transition: 'background 150ms ease, transform 100ms ease-out' }}
+            title="Generate report"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+            </svg>
+            Report
+          </button>
+          {!asPage && (
             <button
-              onClick={() => setShowReportBuilder(true)}
-              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold text-white/85 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] transition-all duration-150"
-              title="Generate report"
+              onClick={onClose}
+              className="flex items-center justify-center w-8 h-8 rounded-lg text-white/70 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] flex-shrink-0"
+              style={{ transition: 'background 150ms ease, transform 100ms ease-out' }}
+              aria-label="Close"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
-              </svg>
-              Report
+              <XIcon />
             </button>
-            {!asPage && (
-              <button
-                onClick={onClose}
-                className="flex items-center justify-center w-8 h-8 rounded-lg text-white/70 bg-white/10 border border-white/[0.15] hover:bg-white/20 active:scale-[0.97] transition-all duration-150"
-                aria-label="Close"
-              >
-                <XIcon />
-              </button>
-            )}
-          </div>
+          )}
         </div>
 
-        {/* Tab content */}
-        {tab === 'Work Program' ? (
-          <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Content */}
+        {activeSection === null ? (
+          /* Home: Project Info + section navigation cards */
+          <div key="home" className="flex-1 overflow-hidden flex flex-col" style={{ animation: 'fade-in 180ms ease-out both' }}>
+            {/* Project Info fills available space */}
+            <div className="flex-1 overflow-hidden">
+              <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} />
+            </div>
+
+            {/* Section cards — always visible at bottom */}
+            <div className="flex-shrink-0 border-t border-gray-200 bg-[#f8f9fb] px-3 py-3">
+              <div
+                className="flex gap-2 overflow-x-auto sm:grid sm:grid-cols-7"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitScrollbar: 'none' }}
+              >
+                {SECTIONS.map((s, i) => (
+                  <button
+                    key={s.key}
+                    onClick={() => navigate(s.key)}
+                    className="card-stagger flex-shrink-0 w-[72px] sm:w-auto flex flex-col items-center gap-1.5 py-2.5 px-1 rounded-2xl bg-white border border-gray-200 hover:border-gray-300 hover:shadow-sm active:scale-[0.95]"
+                    style={{
+                      animationDelay: `${i * 35}ms`,
+                      transition: 'border-color 150ms ease, box-shadow 150ms ease, transform 100ms ease-out',
+                      touchAction: 'manipulation',
+                    }}
+                  >
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center relative" style={{ background: s.color + '15' }}>
+                      {s.icon}
+                      {s.badge != null && s.badge > 0 && (
+                        <span
+                          className="absolute -top-1 -right-1 min-w-[16px] h-4 px-1 rounded-full text-[9px] font-bold flex items-center justify-center"
+                          style={s.alert
+                            ? { background: '#ed6055', color: 'white' }
+                            : { background: '#e5e7eb', color: '#6b7280' }
+                          }
+                        >
+                          {s.badge}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-[10px] font-medium text-gray-500 text-center leading-tight w-full">{s.label}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        ) : activeSection === 'Work Program' ? (
+          <div key="Work Program" className="flex-1 overflow-hidden flex flex-col section-slide-in">
             <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} />
           </div>
-        ) : tab === 'Project Info' ? (
-          <div key="Project Info" className="flex-1 overflow-hidden" style={{ animation: 'fade-in-up 180ms ease-out forwards' }}>
-            <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} />
-          </div>
         ) : (
-          <div key={tab} className={`flex-1 ${tab === 'S-Curve' ? 'overflow-hidden' : 'overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'} ${tab === 'Permits' || tab === 'S-Curve' ? 'bg-[#e4e7ec] dark:bg-gray-900' : ''}`} style={{ animation: 'fade-in-up 180ms ease-out forwards' }}>
-            {tab === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
-            {tab === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} />}
-            {tab === 'Permits'            && <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} />}
-            {tab === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
-            {tab === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
-            {tab === 'Photos'             && <PhotosTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
+          <div
+            key={activeSection}
+            className={`section-slide-in flex-1 ${activeSection === 'S-Curve' ? 'overflow-hidden' : 'overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'} ${activeSection === 'Permits' || activeSection === 'S-Curve' ? 'bg-[#e4e7ec]' : ''}`}
+          >
+            {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} />}
+            {activeSection === 'Permits'            && <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} />}
+            {activeSection === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {activeSection === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {activeSection === 'Photos'             && <PhotosTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
           </div>
         )}
       </div>
