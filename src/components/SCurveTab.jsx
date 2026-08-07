@@ -1397,29 +1397,29 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           { label: 'Variance',    value: summaryVariance, accent: varColor,    sublabel: 'vs planned at current period', semantic: true },
         ]
         return (
-          <div className="flex-shrink-0 flex flex-col gap-3 w-32">
+          <div className="flex-shrink-0 flex flex-col gap-1.5 w-32">
             {cards.map(card => (
               <div key={card.label}
-                className="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm px-2.5 py-2 flex flex-col gap-0.5 overflow-hidden"
+                className="bg-white rounded-lg border border-gray-200 shadow-sm px-2.5 py-1.5 flex flex-col gap-0.5 overflow-hidden"
                 style={{ borderLeft: `3px solid ${card.accent}` }}
               >
-                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 leading-none">{card.label}</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-none">{card.label}</span>
                 <div className="flex items-baseline gap-1">
                   {card.semantic && card.value != null && (
-                    <svg viewBox="0 0 10 10" className="w-2 h-2 flex-shrink-0 mb-0.5"
+                    <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
                       style={{ color: card.accent }} fill="currentColor">
                       {card.value >= 0
                         ? <polygon points="5,1 9,9 1,9" />
                         : <polygon points="5,9 9,1 1,1" />}
                     </svg>
                   )}
-                  <span className="text-base font-bold tabular-nums leading-tight"
+                  <span className="text-xl font-bold tabular-nums leading-tight"
                     style={{ color: card.semantic ? card.accent : '#111827' }}>
                     {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '—'}
                   </span>
                 </div>
                 {card.sublabel && (
-                  <span className="text-[9px] text-gray-400 truncate leading-tight">{card.sublabel}</span>
+                  <span className="text-[10px] text-gray-400 truncate leading-tight">{card.sublabel}</span>
                 )}
               </div>
             ))}
