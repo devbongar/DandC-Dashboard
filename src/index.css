@@ -67,6 +67,9 @@ html, body {
   to   { opacity: 1; transform: translateY(0)    scale(1);    }
 }
 
+/* ── S-curve chart scroll area: hide scrollbar ──────────────── */
+.scurve-scroll::-webkit-scrollbar { display: none; }
+
 /* ── Settings panel slide-down ──────────────────────────────── */
 @keyframes ph1-panel-down {
   from { opacity: 0; transform: translateY(-4px) scale(0.99); }

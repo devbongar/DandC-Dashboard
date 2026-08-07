@@ -709,7 +709,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   if (editing) return (
-    <div className="h-full flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden">
+    <div className="h-full flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Cover photo: top on mobile, left half on desktop */}
       <div className="w-full h-52 flex-shrink-0 overflow-hidden sm:h-full sm:w-1/2">
         <CoverPhotoPanel
@@ -732,7 +732,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
       </div>
 
       {/* Form */}
-      <div className="flex-1 min-w-0 px-6 sm:px-8 pt-5 pb-4 space-y-3 sm:overflow-y-auto">
+      <div className="flex-1 min-w-0 px-6 sm:px-8 pt-5 pb-4 space-y-3 sm:overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="flex justify-end gap-2">
           <button onClick={cancelEdit} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors duration-200 active:scale-[0.97]">Cancel</button>
           <button onClick={save} disabled={saving || !form.name?.trim()} className="px-4 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-40 transition-colors duration-200 active:scale-[0.97]">
@@ -818,14 +818,14 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 
   return (
-    <div className="h-full flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden">
+    <div className="h-full flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Cover photo: top on mobile, left half on desktop */}
       <div className="w-full h-52 flex-shrink-0 overflow-hidden bg-gray-100 sm:h-full sm:w-1/2">
         <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} />
       </div>
 
       {/* Content panel: natural height on mobile, fill+scroll on desktop */}
-      <div className="flex-1 min-w-0 flex flex-col sm:overflow-y-auto bg-white relative z-10" style={{ boxShadow: '-16px 0 48px rgba(0,0,0,0.14)' }}>
+      <div className="flex-1 min-w-0 flex flex-col sm:overflow-y-auto bg-white relative z-10 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ boxShadow: '-16px 0 48px rgba(0,0,0,0.14)' }}>
 
         {/* Hero: phase badge + project name + subtitle */}
         <div className="px-8 pt-8 pb-6 border-b border-gray-100" style={{ animation: 'fade-in-up 220ms ease-out both' }}>
@@ -4709,7 +4709,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} />
           </div>
         ) : (
-          <div key={tab} className={`flex-1 overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5 ${tab === 'Permits' ? 'bg-[#e4e7ec] dark:bg-gray-900' : ''}`} style={{ animation: 'fade-in-up 180ms ease-out forwards' }}>
+          <div key={tab} className={`flex-1 ${tab === 'S-Curve' ? 'overflow-hidden' : 'overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'} ${tab === 'Permits' || tab === 'S-Curve' ? 'bg-[#e4e7ec] dark:bg-gray-900' : ''}`} style={{ animation: 'fade-in-up 180ms ease-out forwards' }}>
             {tab === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
             {tab === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} />}
             {tab === 'Permits'            && <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} />}

@@ -441,7 +441,7 @@ function ActivityRefLabel({ viewBox, name, yOffset = 0 }) {
 function makeSeriesLabel(color, yOffsets) {
   return function SeriesLabel({ x, y, value, index }) {
     if (value == null) return null
-    const yOff = yOffsets?.[index] ?? -12
+    const yOff = yOffsets?.[index] ?? -30
     return (
       <text x={x} y={y + yOff} fill={color} fontWeight={700}
         textAnchor="middle" dominantBaseline="middle" style={{ pointerEvents: 'none', fontSize: 11 }}>
@@ -481,11 +481,23 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   const [selectedActivityIds,  setSelectedActivityIds]  = useState([])
   const [buildings,            setBuildings]            = useState([])
   const [selectedBuildingId,   setSelectedBuildingId]   = useState(_sv.selectedBuildingId ?? null)
+  const [colWidth,             setColWidth]             = useState(_sv.colWidth ?? COL_W)
+  const [showTable,            setShowTable]            = useState(_sv.showTable ?? true)
+  const [forecastColor,        setForecastColor]        = useState(_sv.forecastColor ?? '#fde047')
+  const [actualColor,          setActualColor]          = useState(_sv.actualColor   ?? '#86efac')
+  const [baselineColors,       setBaselineColors]       = useState(_sv.baselineColors ?? {})
+  const [showLabelBaselines,   setShowLabelBaselines]   = useState(_sv.showLabelBaselines ?? true)
+  const [showLabelActual,      setShowLabelActual]      = useState(_sv.showLabelActual    ?? true)
+  const [showLabelForecast,    setShowLabelForecast]    = useState(_sv.showLabelForecast  ?? true)
+  const [chartSlotH,           setChartSlotH]           = useState(400)
   const [scopeOpen,            setScopeOpen]            = useState(false)
   const [settingsOpen,         setSettingsOpen]         = useState(false)
-  const scopeRef = useRef(null)
+  const scopeRef      = useRef(null)
+  const chartSlotRef  = useRef(null)
   const existingImportRef = useRef(null)
   const actualImportRef = useRef(null)
+
+  const blColor = (id, i) => baselineColors[id] ?? BASELINE_COLORS[i % BASELINE_COLORS.length]
 
   const dateRangeKey = `scurve_dateRange_${project.id}`
   const [fromMonth, setFromMonthRaw] = useState(() => {
@@ -635,6 +647,14 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         showForecast,
         viewMode,
         selectedBuildingId,
+        colWidth,
+        showTable,
+        forecastColor,
+        actualColor,
+        baselineColors,
+        showLabelBaselines,
+        showLabelActual,
+        showLabelForecast,
       }))
       showToast('View saved')
     } catch {
@@ -863,7 +883,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     setBaselineDataMap(prev => ({ ...prev, [primaryBaselineId]: data ?? [] }))
   }
 
-  const totalW = LABEL_W + COL_W * filteredPeriods.length
+  const totalW = LABEL_W + colWidth * filteredPeriods.length
 
   const containerRef   = useRef(null)
   const [containerWidth, setContainerWidth] = useState(0)
@@ -873,6 +893,15 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
     ro.observe(containerRef.current)
     return () => ro.disconnect()
   }, [])
+
+  useEffect(() => {
+    if (!chartSlotRef.current) return
+    const ro = new ResizeObserver(entries => setChartSlotH(entries[0].contentRect.height))
+    ro.observe(chartSlotRef.current)
+    return () => ro.disconnect()
+  // re-attach when data arrives (ref may be null before chart slot mounts)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allPeriods.length > 0, showTable])
 
   const effectiveWidth = Math.max(totalW, containerWidth)
 
@@ -888,7 +917,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
   const effectiveColW = displayColCount > 0
     ? (effectiveWidth - LABEL_W) / displayColCount
-    : COL_W
+    : colWidth
 
 
 
@@ -900,30 +929,30 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
       label:      baselines.find(b => b.id === id)?.name ?? 'Baseline',
       type:       'baseline',
       baselineId: id,
-      color:      BASELINE_COLORS[i % BASELINE_COLORS.length],
+      color:      blColor(id, i),
       bg:         '#ffffff',
       adminOnly:  true,
     })),
-    ...(showActual   ? [{ label: 'Actual',   type: 'actual',   baselineId: null, color: '#86efac', bg: '#fafbfc', adminOnly: false }] : []),
-    ...(showForecast ? [{ label: 'Forecast', type: 'forecast', baselineId: null, color: '#fde047', bg: '#ffffff', adminOnly: false }] : []),
+    ...(showActual   ? [{ label: 'Actual',   type: 'actual',   baselineId: null, color: actualColor,   bg: '#fafbfc', adminOnly: false }] : []),
+    ...(showForecast ? [{ label: 'Forecast', type: 'forecast', baselineId: null, color: forecastColor, bg: '#ffffff', adminOnly: false }] : []),
   ]
 
   const CUMULATIVE_ROWS = [
     ...selectedBaselineIds.map((id, i) => ({
       label: baselines.find(b => b.id === id)?.name ?? 'Baseline',
       key:   `bl_${id}`,
-      color: BASELINE_COLORS[i % BASELINE_COLORS.length],
+      color: blColor(id, i),
       bg:    '#ffffff',
     })),
-    ...(showActual   ? [{ label: 'Actual',   key: 'actual',   color: '#86efac', bg: '#fafbfc' }] : []),
-    ...(showForecast ? [{ label: 'Forecast', key: 'forecast', color: '#fde047', bg: '#ffffff' }] : []),
+    ...(showActual   ? [{ label: 'Actual',   key: 'actual',   color: actualColor,   bg: '#fafbfc' }] : []),
+    ...(showForecast ? [{ label: 'Forecast', key: 'forecast', color: forecastColor, bg: '#ffffff' }] : []),
   ]
 
   return (
-    <div ref={containerRef} className="py-4 sm:py-5 space-y-3">
+    <div ref={containerRef} className="h-full flex flex-col overflow-hidden px-3 sm:px-6 py-3 sm:py-4 gap-3">
 
       {/* Toolbar: scope + baseline + settings */}
-      <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex-shrink-0 flex items-center gap-3 flex-wrap">
         {buildings.length > 0 && (() => {
           const scopeLabel = selectedBuildingId
             ? (buildings.find(b => b.id === selectedBuildingId)?.name ?? 'Tower')
@@ -976,10 +1005,10 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           baselines={baselines}
           selectedIds={selectedBaselineIds}
           onChange={setSelectedBaselineIds}
-          colors={BASELINE_COLORS}
+          colors={baselines.map((b, i) => blColor(b.id, i))}
           extras={[
-            { label: 'Actual',   color: '#86efac', checked: showActual,   onToggle: () => setShowActual(v => !v)   },
-            { label: 'Forecast', color: '#fde047', checked: showForecast, onToggle: () => setShowForecast(v => !v) },
+            { label: 'Actual',   color: actualColor,   checked: showActual,   onToggle: () => setShowActual(v => !v)   },
+            { label: 'Forecast', color: forecastColor, checked: showForecast, onToggle: () => setShowForecast(v => !v) },
           ]}
         />
         <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
@@ -1016,7 +1045,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
       {/* Settings panel */}
       {settingsOpen && (
-        <div className="settings-panel-enter rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
+        <div className="flex-shrink-0 settings-panel-enter rounded-xl border border-gray-200 bg-gray-50 p-4 space-y-3">
           {/* View controls row */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Display</span>
@@ -1037,6 +1066,31 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                 onChange={setSelectedActivityIds}
               />
             )}
+            {/* Column width stepper */}
+            <div className="flex items-center gap-1.5 ml-2">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Col&nbsp;W</span>
+              <button
+                aria-label="Decrease column width"
+                onClick={() => setColWidth(w => Math.max(5, w - 5))}
+                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97] text-sm font-bold"
+              >−</button>
+              <span className="text-xs font-semibold text-gray-600 tabular-nums w-8 text-center">{colWidth}px</span>
+              <button
+                aria-label="Increase column width"
+                onClick={() => setColWidth(w => Math.min(200, w + 10))}
+                className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97] text-sm font-bold"
+              >+</button>
+            </div>
+            {/* Show/hide table toggle */}
+            <button
+              onClick={() => setShowTable(v => !v)}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${showTable ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 10h18M3 14h18M10 4v16M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z" />
+              </svg>
+              Table
+            </button>
             <div className="flex items-center gap-2 flex-wrap ml-auto">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">From</span>
               <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
@@ -1049,6 +1103,53 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                 </button>
               )}
             </div>
+          </div>
+          {/* Colors row */}
+          <div className="flex items-center gap-3 flex-wrap border-t border-gray-200 pt-3">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Colors</span>
+            {selectedBaselineIds.map((id, i) => {
+              const bl = baselines.find(b => b.id === id)
+              const c  = blColor(id, i)
+              return (
+                <label key={id} className="flex items-center gap-1.5 cursor-pointer">
+                  <span className="w-5 h-5 rounded-full border border-white shadow-sm flex-shrink-0 focus-within:ring-2 focus-within:ring-[#ed6055] focus-within:ring-offset-1" style={{ backgroundColor: c }}>
+                    <input type="color" className="sr-only" value={c}
+                      onChange={e => setBaselineColors(prev => ({ ...prev, [id]: e.target.value }))} />
+                  </span>
+                  <span className="text-[10px] text-gray-500 truncate max-w-[80px]" title={bl?.name ?? 'Baseline'}>{bl?.name ?? 'Baseline'}</span>
+                </label>
+              )
+            })}
+            {showActual && (
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <span className="w-5 h-5 rounded-full border border-white shadow-sm flex-shrink-0 focus-within:ring-2 focus-within:ring-[#ed6055] focus-within:ring-offset-1" style={{ backgroundColor: actualColor }}>
+                  <input type="color" className="sr-only" value={actualColor} onChange={e => setActualColor(e.target.value)} />
+                </span>
+                <span className="text-[10px] text-gray-500">Actual</span>
+              </label>
+            )}
+            {showForecast && (
+              <label className="flex items-center gap-1.5 cursor-pointer">
+                <span className="w-5 h-5 rounded-full border border-white shadow-sm flex-shrink-0 focus-within:ring-2 focus-within:ring-[#ed6055] focus-within:ring-offset-1" style={{ backgroundColor: forecastColor }}>
+                  <input type="color" className="sr-only" value={forecastColor} onChange={e => setForecastColor(e.target.value)} />
+                </span>
+                <span className="text-[10px] text-gray-500">Forecast</span>
+              </label>
+            )}
+          </div>
+          {/* Labels row */}
+          <div className="flex items-center gap-2 flex-wrap border-t border-gray-200 pt-3">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Labels</span>
+            {[
+              { key: 'baselines', label: 'Baselines', active: showLabelBaselines, toggle: () => setShowLabelBaselines(v => !v), show: selectedBaselineIds.length > 0 },
+              { key: 'actual',    label: 'Actual',    active: showLabelActual,    toggle: () => setShowLabelActual(v => !v),    show: showActual   },
+              { key: 'forecast',  label: 'Forecast',  active: showLabelForecast,  toggle: () => setShowLabelForecast(v => !v),  show: showForecast },
+            ].filter(s => s.show).map(s => (
+              <button key={s.key} onClick={s.toggle}
+                className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${s.active ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055]'}`}>
+                {s.label}
+              </button>
+            ))}
           </div>
           {/* Data actions row (admin) */}
           {(isAdmin || baselines.length > 0) && (
@@ -1138,6 +1239,13 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                   )}
                 </div>
               )}
+              {isAdmin && primaryBaselineId && (
+                <button onClick={handleAddMonth}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]">
+                  + Add Month
+                  {selectedBaselineIds.length > 1 && <span className="text-[10px] opacity-60">· {primaryBaseline?.name}</span>}
+                </button>
+              )}
               {primaryBaseline?.cutoff_date && (
                 <span className="text-[10px] text-gray-400 bg-white border border-gray-200 px-2 py-1 rounded-full">
                   Re-baseline · cutoff {primaryBaseline.cutoff_date.slice(0, 7)}
@@ -1150,7 +1258,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
             <div className="flex flex-col gap-1.5 border-t border-gray-200 pt-3">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Baselines</span>
               {baselines.map((b, i) => {
-                const color = BASELINE_COLORS[i % BASELINE_COLORS.length]
+                const color = blColor(b.id, i)
                 const isRenaming = renamingId === b.id
                 return (
                   <div key={b.id} className="flex items-center gap-2">
@@ -1206,16 +1314,18 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
       {/* New baseline form */}
       {showNewBaseline && isAdmin && (
-        <NewBaselineForm
-          actuals={actuals}
-          onSave={handleCreateBaseline}
-          onCancel={() => setShowNewBaseline(false)}
-        />
+        <div className="flex-shrink-0">
+          <NewBaselineForm
+            actuals={actuals}
+            onSave={handleCreateBaseline}
+            onCancel={() => setShowNewBaseline(false)}
+          />
+        </div>
       )}
 
       {/* Conflict resolution panel */}
       {importConflict && (
-        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
+        <div className="flex-shrink-0 rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
           <p className="text-xs font-bold text-amber-800">
             Import conflicts — {importConflict.conflicts.length} period{importConflict.conflicts.length !== 1 ? 's' : ''} already have data
           </p>
@@ -1281,7 +1391,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
           const year = dObj.getFullYear()
           const qk   = `${year}-Q${q}`
           if (!quarterMap.has(qk)) {
-            const pt = { period: `Q${q} '${String(year).slice(2)}`, _date: d._date, actual: null, forecast: null }
+            const Q_END = ['Mar','Jun','Sep','Dec']
+            const pt = { period: `${Q_END[q - 1]} '${String(year).slice(2)}`, _date: d._date, actual: null, forecast: null }
             for (const id of selectedBaselineIds) pt[`bl_${id}`] = null
             quarterMap.set(qk, pt)
           }
@@ -1298,10 +1409,10 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         const endLabelMap = (() => {
           const seriesDef = [
             ...selectedBaselineIds.map((id, i) => ({
-              key: `bl_${id}`, color: BASELINE_COLORS[i % BASELINE_COLORS.length],
+              key: `bl_${id}`, color: blColor(id, i),
             })),
-            ...(showActual   ? [{ key: 'actual',   color: '#86efac' }] : []),
-            ...(showForecast ? [{ key: 'forecast', color: '#fde047' }] : []),
+            ...(showActual   ? [{ key: 'actual',   color: actualColor   }] : []),
+            ...(showForecast ? [{ key: 'forecast', color: forecastColor }] : []),
           ]
           const yOffsets = {} // key → number[] (one offset per displayData index)
           for (let i = 0; i < displayData.length; i++) {
@@ -1311,9 +1422,9 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
             present.sort((a, b) => b.val - a.val)
             let prevYOff = null, prevVal = null
             for (const s of present) {
-              let yOff = -12
+              let yOff = -30
               if (prevYOff !== null && prevVal - s.val < 8) yOff = prevYOff + 16
-              if (!yOffsets[s.key]) yOffsets[s.key] = new Array(displayData.length).fill(-12)
+              if (!yOffsets[s.key]) yOffsets[s.key] = new Array(displayData.length).fill(-30)
               yOffsets[s.key][i] = yOff
               prevYOff = yOff; prevVal = s.val
             }
@@ -1344,7 +1455,8 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                 const d    = new Date(m.baseline_start)
                 const q    = Math.floor(d.getMonth() / 3) + 1
                 const year = d.getFullYear()
-                const lbl  = `Q${q} '${String(year).slice(2)}`
+                const Q_END = ['Mar','Jun','Sep','Dec']
+                const lbl  = `${Q_END[q - 1]} '${String(year).slice(2)}`
                 if (displayData.some(pt => pt.period === lbl)) periodLabel = lbl
               } else {
                 const monthStr = m.baseline_start.slice(0, 7) + '-01'
@@ -1359,12 +1471,12 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
         })()
 
         return (
-          <div className="bg-white rounded-xl border border-gray-200">
+          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-md">
             {/* Legend */}
-            <div className="flex items-center gap-4 px-4 pt-3 pb-2 text-xs text-gray-500 flex-wrap border-b border-gray-100">
+            <div className="flex-shrink-0 flex items-center gap-4 px-4 pt-3 pb-2 text-xs text-gray-500 flex-wrap border-b border-gray-100">
               {selectedBaselineIds.map((id, i) => {
                 const bl    = baselines.find(b => b.id === id)
-                const color = BASELINE_COLORS[i % BASELINE_COLORS.length]
+                const color = blColor(id, i)
                 return (
                   <span key={id} className="flex items-center gap-1.5">
                     <span className="w-6 h-0.5 rounded inline-block" style={{ backgroundColor: color }} />
@@ -1375,34 +1487,65 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
               })}
               {showActual && (
                 <span className="flex items-center gap-1.5">
-                  <span className="w-6 h-0.5 rounded bg-green-400 inline-block" />
+                  <span className="w-6 h-0.5 rounded inline-block" style={{ backgroundColor: actualColor }} />
                   Actual
                 </span>
               )}
               {showForecast && (
                 <span className="flex items-center gap-1.5">
-                  <span style={{ background: 'repeating-linear-gradient(90deg,#fde047 0,#fde047 5px,transparent 5px,transparent 8px)', height: 2, width: 24, display: 'inline-block', borderRadius: 2 }} />
+                  <span style={{ background: `repeating-linear-gradient(90deg,${forecastColor} 0,${forecastColor} 5px,transparent 5px,transparent 8px)`, height: 2, width: 24, display: 'inline-block', borderRadius: 2 }} />
                   Forecast
                 </span>
               )}
             </div>
-            <div className="overflow-x-auto" style={{ scrollbarWidth: 'thin' }}>
-              <div style={{ width: effectiveWidth, minWidth: totalW }}>
+            <div className="scurve-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+              <div className="h-full flex flex-col" style={{ width: effectiveWidth, minWidth: totalW }}>
 
+                {/* Chart slot: fills remaining vertical space */}
+                <div ref={chartSlotRef} className="flex-1 min-h-0 overflow-hidden">
                 {/* Chart */}
-                {hasChartData && (
-                  <ComposedChart width={effectiveWidth} height={500} data={displayData}
+                {hasChartData && (() => {
+                  const xHoriz = effectiveColW >= 56
+                  const labelInterval = xHoriz
+                    ? Math.max(0, Math.ceil(52 / effectiveColW) - 1)
+                    : Math.max(0, Math.ceil(12 / effectiveColW) - 1)
+                  return (
+                  <ComposedChart width={effectiveWidth} height={Math.max(chartSlotH, 200)} data={displayData}
                     margin={{ top: 50, right: 52, bottom: 0, left: 0 }}>
+                    <defs>
+                      <filter id="line-glow" x="-10%" y="-30%" width="120%" height="160%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feMerge>
+                          <feMergeNode in="blur" />
+                          <feMergeNode in="SourceGraphic" />
+                        </feMerge>
+                      </filter>
+                    </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis dataKey="period" tick={false} tickLine={false}
+                    <XAxis dataKey="period" tickLine={false}
                       axisLine={{ stroke: '#e5e7eb' }}
-                      padding={{ left: effectiveColW / 2, right: effectiveColW / 2 }} height={8} />
-                    <YAxis width={LABEL_W} domain={[0, 100]} tickFormatter={v => v + '%'}
+                      padding={{ left: effectiveColW / 2, right: effectiveColW / 2 }}
+                      height={xHoriz ? 36 : 64}
+                      interval={labelInterval}
+                      tick={({ x, y, payload }) => (
+                        <g transform={`translate(${x},${y})`}>
+                          <text
+                            x={0} y={0}
+                            dy={xHoriz ? 16 : 4}
+                            dx={xHoriz ? 0 : -4}
+                            textAnchor={xHoriz ? 'middle' : 'end'}
+                            transform={xHoriz ? undefined : 'rotate(-90)'}
+                            fontSize={10}
+                            fill="#9ca3af"
+                          >{payload.value}</text>
+                        </g>
+                      )} />
+                    <YAxis width={LABEL_W} domain={[0, 110]} tickFormatter={v => v + '%'}
                       tickLine={false} axisLine={false} fontSize={11}
                       label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: 10, style: { fontSize: 10, fill: '#9ca3af' } }} />
                     <Tooltip formatter={val => val != null ? val.toFixed(2) + '%' : '—'} />
                     {selectedBaselineIds.map((id, i) => {
-                      const color = BASELINE_COLORS[i % BASELINE_COLORS.length]
+                      const color = blColor(id, i)
                       const el    = endLabelMap[`bl_${id}`]
                       return (
                         <Area key={id}
@@ -1410,22 +1553,25 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                           dataKey={`bl_${id}`}
                           name={baselines.find(b => b.id === id)?.name ?? 'Baseline'}
                           stroke={color}
-                          fill={color}
-                          fillOpacity={0.12}
+                          fill="none"
+                          fillOpacity={0}
                           strokeWidth={2}
                           dot={false}
                           connectNulls
-                          label={el ? { content: makeSeriesLabel(color, el.yOffsets) } : undefined}
+                          filter="url(#line-glow)"
+                          label={el && showLabelBaselines ? { content: makeSeriesLabel(color, el.yOffsets) } : undefined}
                         />
                       )
                     })}
                     {showForecast && (
-                      <Line type="monotone" dataKey="forecast" name="Forecast" stroke="#fde047" strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls
-                        label={endLabelMap['forecast'] ? { content: makeSeriesLabel('#fde047', endLabelMap['forecast'].yOffsets) } : undefined} />
+                      <Line type="monotone" dataKey="forecast" name="Forecast" stroke={forecastColor} strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls
+                        filter="url(#line-glow)"
+                        label={endLabelMap['forecast'] && showLabelForecast ? { content: makeSeriesLabel(forecastColor, endLabelMap['forecast'].yOffsets) } : undefined} />
                     )}
                     {showActual && (
-                      <Line type="monotone" dataKey="actual" name="Actual" stroke="#86efac" strokeWidth={2.5} dot={{ r: 3, fill: '#86efac', strokeWidth: 0 }} connectNulls
-                        label={endLabelMap['actual'] ? { content: makeSeriesLabel('#86efac', endLabelMap['actual'].yOffsets) } : undefined} />
+                      <Line type="monotone" dataKey="actual" name="Actual" stroke={actualColor} strokeWidth={2.5} dot={{ r: 3, fill: actualColor, strokeWidth: 0 }} connectNulls
+                        filter="url(#line-glow)"
+                        label={endLabelMap['actual'] && showLabelActual ? { content: makeSeriesLabel(actualColor, endLabelMap['actual'].yOffsets) } : undefined} />
                     )}
                     {activityMarkers.map(({ id, name, periodLabel, yOffset }) => (
                       <ReferenceLine key={id} x={periodLabel}
@@ -1434,10 +1580,12 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                       />
                     ))}
                   </ComposedChart>
-                )}
+                  )
+                })()}
+                </div>
 
                 {/* Cumulative % table */}
-                {hasChartData && (
+                {hasChartData && showTable && (
                   <table className="text-xs border-t border-gray-100" style={{ width: effectiveWidth, tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
@@ -1474,7 +1622,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                 )}
 
                 {/* Periodic input table */}
-                <table className="text-xs border-t-2 border-gray-300" style={{ width: effectiveWidth, tableLayout: 'fixed' }}>
+                {showTable && <table className="text-xs border-t-2 border-gray-300" style={{ width: effectiveWidth, tableLayout: 'fixed' }}>
                     <thead>
                       <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
                         <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
@@ -1569,7 +1717,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
                         )
                       })}
                     </tbody>
-                  </table>
+                  </table>}
 
               </div>
             </div>
@@ -1579,7 +1727,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
       {/* Loading state */}
       {loading && allPeriods.length === 0 && (
-        <div className="bg-white rounded-xl border border-gray-200 flex items-center justify-center" style={{ height: 220 }}>
+        <div className="flex-1 bg-white rounded-xl border border-gray-200 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3 text-gray-400">
             <svg className="w-7 h-7 animate-spin" fill="none" viewBox="0 0 24 24">
               <circle className="opacity-20" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" />
@@ -1592,21 +1740,23 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
 
       {/* Empty state */}
       {allPeriods.length === 0 && !loading && (
-        <div className="py-10 text-center">
-          <p className="text-sm text-gray-400">
-            {baselines.length === 0 ? 'No baselines yet' : 'No data yet'}
-          </p>
-          {isAdmin && baselines.length === 0 && (
-            <p className="text-xs text-gray-400 mt-1">Create a baseline to get started</p>
-          )}
-          {baselines.length > 0 && !selectedBaselineIds.length && (
-            <p className="text-xs text-gray-400 mt-1">Select a baseline to view data</p>
-          )}
+        <div className="flex-1 flex items-center justify-center py-10 text-center">
+          <div>
+            <p className="text-sm text-gray-400">
+              {baselines.length === 0 ? 'No baselines yet' : 'No data yet'}
+            </p>
+            {isAdmin && baselines.length === 0 && (
+              <p className="text-xs text-gray-400 mt-1">Create a baseline to get started</p>
+            )}
+            {baselines.length > 0 && !selectedBaselineIds.length && (
+              <p className="text-xs text-gray-400 mt-1">Select a baseline to view data</p>
+            )}
+          </div>
         </div>
       )}
 
-      {/* Add month (admin only, requires primary baseline) */}
-      {isAdmin && primaryBaselineId && (
+      {/* (Add Month moved to Settings → Data section) */}
+      {isAdmin && primaryBaselineId && false && (
         <div className="flex items-center gap-2">
           <button onClick={handleAddMonth}
             className="text-xs font-semibold px-4 py-2 rounded-xl border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition">
