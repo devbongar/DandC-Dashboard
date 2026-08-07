@@ -222,7 +222,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
   }
 
   async function toggleRequirement(req) {
-    if (!isAdmin && !isHead) return
+    if (!canManage) return
     const now = new Date().toISOString()
     const patch = req.is_complete
       ? { is_complete: false, completed_at: null, completed_by: null }
