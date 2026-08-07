@@ -260,6 +260,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
           isReporter={isReporter}
           isViewer={isViewer}
           currentUserId={currentUserId}
+          projectName={project?.name}
           onClose={() => setSelected(null)}
           onUpdated={load}
         />

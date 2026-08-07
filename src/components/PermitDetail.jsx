@@ -61,7 +61,7 @@ function CloseIcon() {
 
 const INPUT_CLS = 'w-full px-3 py-2 text-base sm:text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition-shadow'
 
-export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, isReporter, isViewer, currentUserId, onClose, onUpdated }) {
+export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, isReporter, isViewer, currentUserId, projectName, onClose, onUpdated }) {
   const [permit,         setPermit]         = useState(initialPermit)
   const [requirements,   setRequirements]   = useState([])
   const [issues,         setIssues]         = useState([])
@@ -450,6 +450,9 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
         <div className="flex-shrink-0 px-6 pt-5 pb-4 border-b border-gray-100 dark:border-gray-800">
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
+              {projectName && (
+                <p className="text-xs font-semibold text-[#ed6055] uppercase tracking-wide mb-1 truncate">{projectName}</p>
+              )}
               <div className="flex items-center gap-2 mb-1">
                 <span className="font-mono text-[11px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{permit.id}</span>
                 <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>

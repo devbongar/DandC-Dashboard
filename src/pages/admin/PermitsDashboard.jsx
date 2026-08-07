@@ -435,6 +435,7 @@ export default function PermitsDashboard() {
           isReporter={profile?.role === 'reporter'}
           isViewer={profile?.role === 'viewer'}
           currentUserId={profile?.id}
+          projectName={selected?.projects?.name}
           onClose={() => setSelected(null)}
           onUpdated={fetchAll}
         />
