@@ -10,7 +10,7 @@ import ReportBuilderModal from './ReportBuilderModal'
 import SearchDropdown from './SearchDropdown'
 import PermitsTab from './PermitsTab'
 
-// ── Speed-dial FAB nav items ──────────────────────────────────────────────────
+// â”€â”€ Speed-dial FAB nav items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 const FAB_NAV = [
   { key: 'Planned M4/M5',     label: 'Planned M4/M5', icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg> },
   { key: 'Completion (M4/M5)',label: 'Completion',     icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
@@ -21,7 +21,7 @@ const FAB_NAV = [
   { key: 'Photos',            label: 'Photos',        icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg> },
 ]
 
-// ── Constants ─────────────────────────────────────────────────────────────────
+// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation',            color: '#94a3b8', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -50,7 +50,7 @@ const PERMIT_STATUSES = [
 const PERMIT_STATUS_MAP = Object.fromEntries(PERMIT_STATUSES.map(s => [s.key, s]))
 
 
-const fmt       = d => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
+const fmt       = d => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'â€”'
 const getFileName = url => url ? decodeURIComponent(url.split('/').pop().split('?')[0]) : null
 const noNeg = (...vals) => vals.filter(v => v !== null && v !== undefined).some(v => v < 0)
 
@@ -66,10 +66,10 @@ const ISSUE_STATUS_CONFIG = {
 const ISSUE_GROUPS = ['Commercial', 'Design', 'Construction', 'Compliance']
 const MANAGEMENT_LEVELS = ['ESA', 'Management Committee']
 const issueAgingDays = (d) => d ? Math.max(0, Math.floor((new Date() - new Date(d)) / 86400000)) : null
-const fmtIssueDate = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '—'
+const fmtIssueDate = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'â€”'
 const ISSUE_EMPTY = { issue_group: '', management_level: '', status: 'open', date_presented: '', date_bad: false, details: '', caused_by: '', action_steps: '' }
 
-// ── Combobox ──────────────────────────────────────────────────────────────────
+// â”€â”€ Combobox â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function HighlightMatch({ text, query }) {
   if (!query) return <>{text}</>
@@ -142,7 +142,7 @@ function Combobox({ options = [], value, onChange, placeholder, disabled = false
         value={open ? query : display}
         onFocus={handleFocus}
         onChange={handleInput}
-        placeholder={disabled ? '— select province first —' : placeholder}
+        placeholder={disabled ? 'â€” select province first â€”' : placeholder}
         disabled={disabled}
         className={`${inputCls_} ${value && !disabled ? 'pr-8' : ''}`}
         autoComplete="off"
@@ -204,7 +204,7 @@ function Combobox({ options = [], value, onChange, placeholder, disabled = false
   )
 }
 
-function SelectDropdown({ options = [], value, onChange, placeholder = '— Select —' }) {
+function SelectDropdown({ options = [], value, onChange, placeholder = 'â€” Select â€”' }) {
   const [open, setOpen]   = useState(false)
   const [dropUp, setDropUp] = useState(false)
   const containerRef      = useRef(null)
@@ -261,7 +261,7 @@ function SelectDropdown({ options = [], value, onChange, placeholder = '— Sele
   )
 }
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function Field({ label, children }) {
   return (
@@ -273,7 +273,7 @@ function Field({ label, children }) {
 }
 
 function ReadValue({ value, accent }) {
-  return <p className="text-sm font-semibold" style={{ color: accent ?? '#111' }}>{value || '—'}</p>
+  return <p className="text-sm font-semibold" style={{ color: accent ?? '#111' }}>{value || 'â€”'}</p>
 }
 
 function SectionHeader({ title, action, sticky = false, accent = '#ed6055' }) {
@@ -340,14 +340,14 @@ function ImportErrorPanel({ errors, onDismiss }) {
     <div className="rounded-xl border border-red-200 bg-red-50 p-4 mb-2">
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="text-sm font-bold text-red-700">
-          Import blocked — {errors.length} error{errors.length !== 1 ? 's' : ''} found. Fix the file and try again.
+          Import blocked â€” {errors.length} error{errors.length !== 1 ? 's' : ''} found. Fix the file and try again.
         </p>
         <button onClick={onDismiss} className="text-red-400 hover:text-red-600 transition text-xs font-medium flex-shrink-0">Dismiss</button>
       </div>
       <ul className="space-y-1">
         {errors.map((e, i) => (
           <li key={i} className="text-xs text-red-600 flex items-start gap-1.5">
-            <span className="flex-shrink-0 mt-0.5">•</span><span>{e}</span>
+            <span className="flex-shrink-0 mt-0.5">â€¢</span><span>{e}</span>
           </li>
         ))}
       </ul>
@@ -357,7 +357,7 @@ function ImportErrorPanel({ errors, onDismiss }) {
 
 function ConfirmDeleteModal({ onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" style={{ animation: 'fade-in 200ms ease-out forwards' }} onClick={onCancel}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" style={{ animation: 'fade-in 200ms ease-out forwards' }} onClick={onCancel}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" style={{ animation: 'modal-in 200ms ease-out forwards' }} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-bold text-black mb-1">Delete this entry?</h3>
         <p className="text-sm text-gray-500 mb-5">This action cannot be undone.</p>
@@ -373,7 +373,7 @@ function ConfirmDeleteModal({ onConfirm, onCancel }) {
 function FloorLayoutModal({ url, onClose }) {
   const isPdf = /\.pdf(\?|$)/i.test(url)
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col overflow-hidden mx-4" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 flex-shrink-0">
           <p className="text-sm font-semibold text-black">Floor Layout</p>
@@ -412,9 +412,9 @@ function FloorUploadCell({ value, onChange, showToast }) {
     <div className="flex items-center gap-1.5">
       <input ref={ref} type="file" accept="image/*,.pdf" className="hidden" onChange={upload} />
       {uploading
-        ? <span className="text-[10px] text-gray-400 italic">Uploading…</span>
+        ? <span className="text-[10px] text-gray-400 italic">Uploadingâ€¦</span>
         : <button type="button" onClick={() => ref.current?.click()} className="text-[10px] px-2 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition whitespace-nowrap">
-            {value ? '✓ Change' : '↑ Upload'}
+            {value ? 'âœ“ Change' : 'â†‘ Upload'}
           </button>
       }
     </div>
@@ -445,7 +445,7 @@ function InlineInput({ value, onChange, type = 'text', placeholder = '', min, ma
   )
 }
 
-// ── Cover Photo Panel ────────────────────────────────────────────────────────
+// â”€â”€ Cover Photo Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = false, onPendingRemove = null, onPendingUpload = null }) {
   const [uploading, setUploading] = useState(false)
@@ -515,7 +515,7 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
               />
             </button>
 
-            {/* Admin: change photo — pill button bottom-left on hover (edit mode only) */}
+            {/* Admin: change photo â€” pill button bottom-left on hover (edit mode only) */}
             {isAdmin && editing && (
               <button
                 onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }}
@@ -539,7 +539,7 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
               </button>
             )}
 
-            {/* Admin: remove photo — icon button top-right on hover (edit mode only) */}
+            {/* Admin: remove photo â€” icon button top-right on hover (edit mode only) */}
             {isAdmin && editing && (
               <button
                 onClick={handleRemove}
@@ -611,7 +611,7 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
   )
 }
 
-// ── iOS 26 Card ──────────────────────────────────────────────────────────────
+// â”€â”€ iOS 26 Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function IosCard({ icon, title, children }) {
   return (
@@ -627,7 +627,7 @@ function IosCard({ icon, title, children }) {
   )
 }
 
-// ── Overview Detail Item (editorial style) ───────────────────────────────────
+// â”€â”€ Overview Detail Item (editorial style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 function OverviewDetailItem({ label, value, icon }) {
   return (
     <div className="pl-3 border-l-2 border-transparent hover:border-[#ed6055]/50 transition-all duration-200">
@@ -635,12 +635,12 @@ function OverviewDetailItem({ label, value, icon }) {
         {icon && <span className="text-gray-400 flex-shrink-0">{icon}</span>}
         <p className="text-[10px] tracking-[0.12em] uppercase font-semibold text-gray-400">{label}</p>
       </div>
-      <p className="text-sm text-gray-800">{value || <span className="text-gray-300">—</span>}</p>
+      <p className="text-sm text-gray-800">{value || <span className="text-gray-300">â€”</span>}</p>
     </div>
   )
 }
 
-// ── Overview Tab ─────────────────────────────────────────────────────────────
+// â”€â”€ Overview Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false }) {
   const buildForm = () => ({
@@ -747,7 +747,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         <div className="flex justify-end gap-2">
           <button onClick={cancelEdit} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors duration-200 active:scale-[0.97]">Cancel</button>
           <button onClick={save} disabled={saving || !form.name?.trim()} className="px-4 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-40 transition-colors duration-200 active:scale-[0.97]">
-            {saving ? 'Saving…' : 'Save Changes'}
+            {saving ? 'Savingâ€¦' : 'Save Changes'}
           </button>
         </div>
 
@@ -756,7 +756,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
             value={f('project_brief')}
             onChange={e => set('project_brief', e.target.value)}
             rows={4}
-            placeholder="Write a summary of the project — scope, objectives, key details, stakeholders…"
+            placeholder="Write a summary of the project â€” scope, objectives, key details, stakeholdersâ€¦"
             className={`${inputCls} resize-y rounded-xl`}
           />
         </IosCard>
@@ -773,7 +773,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
               <SelectDropdown
                 value={f('business_unit')}
                 onChange={v => set('business_unit', v)}
-                placeholder="— Select —"
+                placeholder="â€” Select â€”"
                 options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))}
               />
             </Field>
@@ -781,7 +781,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
               <SelectDropdown
                 value={f('development_type')}
                 onChange={v => set('development_type', v)}
-                placeholder="— Select —"
+                placeholder="â€” Select â€”"
                 options={[{ value: 'housing', label: 'Housing' }, { value: 'condominium', label: 'Condominium' }]}
               />
             </Field>
@@ -795,7 +795,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
               <SelectDropdown
                 value={f('phase')}
                 onChange={v => set('phase', v)}
-                placeholder="— Select —"
+                placeholder="â€” Select â€”"
                 options={PHASES.map(p => ({ value: p.key, label: p.label }))}
               />
             </Field>
@@ -804,7 +804,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
                 options={PH_PROVINCES}
                 value={f('province')}
                 onChange={v => { set('province', v); set('city', '') }}
-                placeholder="Type to search province…"
+                placeholder="Type to search provinceâ€¦"
               />
             </Field>
             <Field label="City / Municipality">
@@ -812,7 +812,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
                 options={PH_CITIES[f('province')] ?? []}
                 value={f('city')}
                 onChange={v => set('city', v)}
-                placeholder="Type to search city…"
+                placeholder="Type to search cityâ€¦"
                 disabled={!f('province')}
               />
             </Field>
@@ -850,7 +850,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           </h2>
           {(project.project_code || project.business_unit) && (
             <p className="mt-2 text-[11px] tracking-[0.14em] uppercase font-medium text-gray-400">
-              {[project.project_code, formatBU(project.business_unit)].filter(Boolean).join(' · ')}
+              {[project.project_code, formatBU(project.business_unit)].filter(Boolean).join(' Â· ')}
             </p>
           )}
         </div>
@@ -910,7 +910,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 }
 
-// ── Development Tab ───────────────────────────────────────────────────────────
+// â”€â”€ Development Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function UnitTypesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
   const [rows, setRows] = useState([])
@@ -978,10 +978,10 @@ function UnitTypesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
             ) : (
               <tr key={row.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-black">{row.unit_type}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.quantity ?? '—'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? '—'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.saleable_area_sqm ?? '—'}</td>
-                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">—</span>}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.quantity ?? 'â€”'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? 'â€”'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.saleable_area_sqm ?? 'â€”'}</td>
+                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">â€”</span>}</td>
                 {isAdmin && <td className="px-4 py-2.5"><div className="flex gap-1">
                   <button onClick={() => { setForm({ unit_type: row.unit_type, quantity: row.quantity ?? '', cfa_sqm: row.cfa_sqm ?? '', saleable_area_sqm: row.saleable_area_sqm ?? '', floor_layout_url: row.floor_layout_url ?? '' }); setEditId(row.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
                   <button onClick={() => setDeleteId(row.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
@@ -1055,10 +1055,10 @@ function ParkingSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
             ) : (
               <tr key={row.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-black">{row.parking_type}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.quantity ?? '—'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? '—'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.saleable_area_sqm ?? '—'}</td>
-                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">—</span>}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.quantity ?? 'â€”'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? 'â€”'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.saleable_area_sqm ?? 'â€”'}</td>
+                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">â€”</span>}</td>
                 {isAdmin && <td className="px-4 py-2.5"><div className="flex gap-1">
                   <button onClick={() => { setForm({ parking_type: row.parking_type, quantity: row.quantity ?? '', cfa_sqm: row.cfa_sqm ?? '', saleable_area_sqm: row.saleable_area_sqm ?? '', floor_layout_url: row.floor_layout_url ?? '' }); setEditId(row.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
                   <button onClick={() => setDeleteId(row.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
@@ -1130,9 +1130,9 @@ function AmenitiesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
             ) : (
               <tr key={row.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-black">{row.amenity_name}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? '—'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.floor_area_sqm ?? '—'}</td>
-                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">—</span>}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? 'â€”'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.floor_area_sqm ?? 'â€”'}</td>
+                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">â€”</span>}</td>
                 {isAdmin && <td className="px-4 py-2.5"><div className="flex gap-1">
                   <button onClick={() => { setForm({ amenity_name: row.amenity_name, cfa_sqm: row.cfa_sqm ?? '', floor_area_sqm: row.floor_area_sqm ?? '', floor_layout_url: row.floor_layout_url ?? '' }); setEditId(row.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
                   <button onClick={() => setDeleteId(row.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
@@ -1159,7 +1159,7 @@ function AmenitiesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
 }
 
 
-// ── Building Selector ─────────────────────────────────────────────────────────
+// â”€â”€ Building Selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function BulkAddTowersModal({ projectId, existingNames, onDone, onCancel }) {
   const [rows, setRows]     = useState(['', '', ''])
@@ -1187,7 +1187,7 @@ function BulkAddTowersModal({ projectId, existingNames, onDone, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/10 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Bulk Add Towers / Locations</h3>
         <div className="space-y-2">
@@ -1219,7 +1219,7 @@ function BulkAddTowersModal({ projectId, existingNames, onDone, onCancel }) {
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Adding…' : 'Add Towers'}
+            {saving ? 'Addingâ€¦' : 'Add Towers'}
           </button>
         </div>
       </div>
@@ -1254,7 +1254,7 @@ function BulkDeleteTowersModal({ buildings, projectId, onDone, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/10 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-1">Bulk Delete Towers / Locations</h3>
         <p className="text-xs text-gray-500 mb-4">Select towers to permanently delete, including all their floor data.</p>
@@ -1279,7 +1279,7 @@ function BulkDeleteTowersModal({ buildings, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Deleting…' : `Delete${selected.size > 0 ? ` (${selected.size})` : ''}`}
+            {saving ? 'Deletingâ€¦' : `Delete${selected.size > 0 ? ` (${selected.size})` : ''}`}
           </button>
         </div>
       </div>
@@ -1336,7 +1336,7 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/10 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-1">Copy Configuration</h3>
         <p className="text-xs text-gray-500 mb-4">Copy floor schedule from <span className="font-semibold text-gray-700">{sourceName}</span> to one or more towers.</p>
@@ -1373,7 +1373,7 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Copying…' : 'Copy'}
+            {saving ? 'Copyingâ€¦' : 'Copy'}
           </button>
         </div>
       </div>
@@ -1618,11 +1618,11 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
     if (!rangeValid) return ''
     const labels = Array.from({ length: count }, (_, i) => prefix ? `${prefix}${f + i}` : String(f + i))
     if (labels.length <= 4) return labels.join(', ')
-    return `${labels[0]}, ${labels[1]} … ${labels[labels.length - 1]}`
+    return `${labels[0]}, ${labels[1]} â€¦ ${labels[labels.length - 1]}`
   }
 
   const handle = () => {
-    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be ≤ To.' : 'Maximum 100 floors at a time.'); return }
+    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be â‰¤ To.' : 'Maximum 100 floors at a time.'); return }
     setErr('')
     const floors = []
     for (let i = f; i <= t; i++) {
@@ -1640,7 +1640,7 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
   }
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/40 backdrop-blur-sm">
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/10 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-4">Bulk Add Floors</h3>
         <div className="space-y-3">
@@ -1670,7 +1670,7 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
               Will generate <span className="font-semibold text-gray-700">{count}</span> floor{count !== 1 ? 's' : ''}:{' '}
               <span className="font-medium text-gray-600">{previewLabels()}</span>
               {numUnits !== '' && parseInt(numUnits) > 0 && (
-                <> — <span className="font-semibold text-gray-700">{numUnits}</span> {unitLabel.toLowerCase()} each</>
+                <> â€” <span className="font-semibold text-gray-700">{numUnits}</span> {unitLabel.toLowerCase()} each</>
               )}
             </p>
           )}
@@ -1817,8 +1817,8 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
               ) : (
                 <tr key={row.id} className="hover:bg-gray-50/50">
                   <td className="px-3 py-2 font-semibold text-black">{row.physical_level}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || '—'}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || 'â€”'}</td>
+                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? 'â€”'}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_start)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_end)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_start)}</td>
@@ -1989,8 +1989,8 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
               ) : (
                 <tr key={row.id} className="hover:bg-gray-50/50">
                   <td className="px-3 py-2 font-semibold text-black">{row.physical_level}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || '—'}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? '—'}</td>
+                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || 'â€”'}</td>
+                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? 'â€”'}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_start)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_end)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_start)}</td>
@@ -2071,7 +2071,7 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
       const sheets  = await parseWorkbook(file)
       const pid     = project.id
 
-      // ── 1. Build raw floor rows (building_id resolved after upsert) ──────────
+      // â”€â”€ 1. Build raw floor rows (building_id resolved after upsert) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const mapFloor = r => ({
         project_id: pid,
         building_name: String(r['Building'] ?? '').trim(),
@@ -2086,7 +2086,7 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
       const flRows = (sheets['Floor Schedule'] ?? []).map(mapFloor).filter(r => r.physical_level)
       const pfRows = (sheets['Parking Floor Schedule'] ?? []).map(mapFloor).filter(r => r.physical_level)
 
-      // ── 2. Validate ───────────────────────────────────────────────────────────
+      // â”€â”€ 2. Validate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const errors = []
       const validateFloorSheet = (rawSheet, rows, sheetLabel) => {
         rawSheet.forEach((raw, i) => {
@@ -2119,7 +2119,7 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
       validateFloorSheet(sheets['Parking Floor Schedule'] ?? [], pfRows, 'Parking Floor Schedule')
       if (errors.length > 0) { setImportErrors(errors); return }
 
-      // ── 3. Upsert buildings, build name→id map ────────────────────────────────
+      // â”€â”€ 3. Upsert buildings, build nameâ†’id map â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       const allNames = [...new Set([...flRows, ...pfRows].map(r => r.building_name).filter(Boolean))]
       const { data: existingBuildings } = await supabase.from('project_buildings').select('id, name').eq('project_id', pid)
       const existingByName = Object.fromEntries((existingBuildings ?? []).map(b => [b.name.trim().toLowerCase(), b.id]))
@@ -2132,7 +2132,7 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
       }
       const resolveBuildingId = name => existingByName[name.trim().toLowerCase()] ?? null
 
-      // ── 4. Commit ─────────────────────────────────────────────────────────────
+      // â”€â”€ 4. Commit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
       await Promise.all([
         supabase.from('project_floors').delete().eq('project_id', pid),
         supabase.from('project_parking_floors').delete().eq('project_id', pid),
@@ -2186,17 +2186,17 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-100 text-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
             <span className="text-gray-500">Residential</span>
-            <span className="text-gray-300">·</span>
+            <span className="text-gray-300">Â·</span>
             <span className="font-semibold text-gray-800">{resSummary.floors} floor{resSummary.floors !== 1 ? 's' : ''}</span>
-            <span className="text-gray-300">·</span>
+            <span className="text-gray-300">Â·</span>
             <span className="font-semibold text-gray-800">{resSummary.units} unit{resSummary.units !== 1 ? 's' : ''}</span>
           </div>
           <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-xs">
             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
             <span className="text-gray-500">Parking</span>
-            <span className="text-gray-300">·</span>
+            <span className="text-gray-300">Â·</span>
             <span className="font-semibold text-gray-800">{parkSummary.floors} floor{parkSummary.floors !== 1 ? 's' : ''}</span>
-            <span className="text-gray-300">·</span>
+            <span className="text-gray-300">Â·</span>
             <span className="font-semibold text-gray-800">{parkSummary.units} space{parkSummary.units !== 1 ? 's' : ''}</span>
           </div>
         </div>
@@ -2208,12 +2208,12 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
   )
 }
 
-// ── Compliance Tab ────────────────────────────────────────────────────────────
+// â”€â”€ Compliance Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const COMPLIANCE_STATUS_MAP_IN = { 'Done': 'done', 'Ongoing': 'ongoing', 'Not Yet Started': 'not_yet_started' }
 const COMPLIANCE_STATUS_MAP_OUT = { done: 'Done', ongoing: 'Ongoing', not_yet_started: 'Not Yet Started' }
 
-// Free-form combobox for permit names — allows custom values while suggesting
+// Free-form combobox for permit names â€” allows custom values while suggesting
 // all existing permit names (no duplicates) across every project.
 function PermitCombobox({ value, onChange, options = [], placeholder = '' }) {
   const [open, setOpen]     = useState(false)
@@ -2333,7 +2333,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
     fetchAllPermitNames()
     loadStandards()
 
-    // Always re-check the DB directly — don't trust cached state
+    // Always re-check the DB directly â€” don't trust cached state
     const { count } = await supabase
       .from('project_permits')
       .select('id', { count: 'exact', head: true })
@@ -2346,7 +2346,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
       return
     }
 
-    // No permits yet — auto-populate from standard_permits
+    // No permits yet â€” auto-populate from standard_permits
     const { data: stdList } = await supabase
       .from('standard_permits')
       .select('*')
@@ -2515,7 +2515,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
   const COLS = isAdmin ? 4 : 3
 
   if (loading) {
-    return <TriangleLoader label={populating ? 'Setting up permits from standard list…' : 'Loading permits…'} />
+    return <TriangleLoader label={populating ? 'Setting up permits from standard listâ€¦' : 'Loading permitsâ€¦'} />
   }
 
   return (
@@ -2603,7 +2603,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
 
               return (
                 <Fragment key={l1.id}>
-                  {/* ── L1 row ── */}
+                  {/* â”€â”€ L1 row â”€â”€ */}
                   {editId === l1.id ? (
                     <tr className="bg-[#ed6055]/[0.03] border-t border-gray-100">
                       <td className="px-4 py-2">
@@ -2647,7 +2647,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                           {stCfg.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">{l1.remarks || '—'}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{l1.remarks || 'â€”'}</td>
                       {isAdmin && (
                         <td className="px-4 py-3">
                           <div className="permit-actions flex items-center gap-1">
@@ -2666,7 +2666,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                     </tr>
                   )}
 
-                  {/* ── L2 rows ── */}
+                  {/* â”€â”€ L2 rows â”€â”€ */}
                   {!isCollapsed && children.map((child, idx) => (
                     editId === child.id ? (
                       <tr key={child.id} className="border-t border-gray-100 bg-gray-50/60">
@@ -2698,7 +2698,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                             {PERMIT_STATUS_MAP[child.status]?.label ?? child.status}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-xs text-gray-400">{child.remarks || '—'}</td>
+                        <td className="px-4 py-2.5 text-xs text-gray-400">{child.remarks || 'â€”'}</td>
                         {isAdmin && (
                           <td className="px-4 py-2.5">
                             <div className="permit-actions flex items-center gap-1">
@@ -2719,9 +2719,9 @@ function ComplianceTab({ project, isAdmin, showToast }) {
         </table>
       </div>
 
-      {/* ── Add Permit Modal ── */}
+      {/* â”€â”€ Add Permit Modal â”€â”€ */}
       {showAddModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={() => setShowAddModal(false)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm p-4" onClick={() => setShowAddModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
@@ -2763,7 +2763,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                       }}
                       className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black"
                     >
-                      <option value="">— Choose a Level 1 permit —</option>
+                      <option value="">â€” Choose a Level 1 permit â€”</option>
                       {availableL1s.map(s => (
                         <option key={s.id} value={s.permit_name}>{s.permit_name}</option>
                       ))}
@@ -2790,7 +2790,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                         }}
                         className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black"
                       >
-                        <option value="">— None (add as Level 1) —</option>
+                        <option value="">â€” None (add as Level 1) â€”</option>
                         {availableL2s.map(s => (
                           <option key={s.id} value={s.permit_name}>{s.permit_name}</option>
                         ))}
@@ -2824,7 +2824,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                     <textarea
                       value={form.remarks ?? ''}
                       onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
-                      placeholder="Add any notes…"
+                      placeholder="Add any notesâ€¦"
                       rows={3}
                       className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black placeholder-gray-400 resize-y"
                     />
@@ -2868,7 +2868,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
 }
 
 
-// ── Issues & Concerns Tab ─────────────────────────────────────────────────────
+// â”€â”€ Issues & Concerns Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const ISSUE_STATUS_MAP_OUT = { open: 'Open', close: 'Close', hold: 'Hold' }
 const ISSUE_STATUS_MAP_IN  = { Open: 'open', Close: 'close', Hold: 'hold' }
@@ -3049,7 +3049,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
             onChange={setFilterStatus}
             emptyValue="all"
             emptyLabel="All Statuses"
-            placeholder="Search status…"
+            placeholder="Search statusâ€¦"
             minWidth={120}
           />
           <SearchDropdown
@@ -3058,7 +3058,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
             onChange={setFilterGroup}
             emptyValue="all"
             emptyLabel="All Groups"
-            placeholder="Search group…"
+            placeholder="Search groupâ€¦"
             minWidth={110}
           />
           <SearchDropdown
@@ -3067,7 +3067,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
             onChange={setFilterMgmtLevel}
             emptyValue="all"
             emptyLabel="All Mgmt Levels"
-            placeholder="Search level…"
+            placeholder="Search levelâ€¦"
             minWidth={130}
           />
           {hasFilter && (
@@ -3079,7 +3079,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
       )}
 
       {loading ? (
-        <TriangleLoader label="Loading issues…" />
+        <TriangleLoader label="Loading issuesâ€¦" />
       ) : rows.length === 0 ? (
         <div className="text-center py-12 text-sm text-gray-400 italic">No issues recorded for this project.</div>
       ) : filtered.length === 0 ? (
@@ -3101,14 +3101,14 @@ function IssuesTab({ project, isAdmin, showToast }) {
                 return (
                   <tr key={row.id} onClick={() => openView(row)} className="hover:bg-gray-50/60 cursor-pointer" style={{ boxShadow: 'inset 3px 0 0 #ed6055' }}>
                     <td className="px-4 py-2.5 text-black max-w-[260px]"><p className="line-clamp-2">{row.details}</p></td>
-                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{row.issue_group || '—'}</td>
-                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{row.management_level || '—'}</td>
+                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{row.issue_group || 'â€”'}</td>
+                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{row.management_level || 'â€”'}</td>
                     <td className="px-4 py-2.5 whitespace-nowrap">
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
                     </td>
                     <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{fmtIssueDate(row.date_presented)}</td>
                     <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">
-                      {aging !== null ? `${aging}d` : '—'}
+                      {aging !== null ? `${aging}d` : 'â€”'}
                     </td>
                     {isAdmin && (
                       <td className="px-4 py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
@@ -3137,7 +3137,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
         const sc    = ISSUE_STATUS_CONFIG[active.status] ?? ISSUE_STATUS_CONFIG.open
         const aging = issueAgingDays(active.date_presented)
         return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4" onClick={close}>
+          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm p-4" onClick={close}>
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]"
               style={{ borderTop: '4px solid #ed6055' }} onClick={e => e.stopPropagation()}>
               <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
@@ -3145,7 +3145,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
                 <button onClick={close} className="p-1.5 text-gray-400 hover:text-black transition"><XIcon /></button>
               </div>
               <div className="flex flex-1 overflow-hidden">
-                {/* Left — red panel */}
+                {/* Left â€” red panel */}
                 <div className="w-44 flex-shrink-0 bg-[#ed6055] px-4 py-5 space-y-4 overflow-y-auto">
                   {[
                     { label: 'Status',            value: sc.label },
@@ -3157,12 +3157,12 @@ function IssuesTab({ project, isAdmin, showToast }) {
                     <div key={label}>
                       <p className="text-xs font-semibold text-white/70 mb-1">{label}</p>
                       <div className="bg-white rounded-lg px-3 py-2 text-sm font-medium text-black">
-                        {value || <span className="text-gray-400 italic font-normal">—</span>}
+                        {value || <span className="text-gray-400 italic font-normal">â€”</span>}
                       </div>
                     </div>
                   ))}
                 </div>
-                {/* Right — content */}
+                {/* Right â€” content */}
                 <div className="flex-1 px-5 py-5 space-y-4 overflow-y-auto">
                   {[
                     { label: 'Issue',             value: active.details },
@@ -3174,7 +3174,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
                         <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">{label}</p>
                       </div>
                       <div className="border border-gray-100 border-t-0 rounded-b-lg px-4 py-3 min-h-[60px] text-sm text-black leading-relaxed whitespace-pre-wrap">
-                        {value || <span className="text-gray-300 italic">—</span>}
+                        {value || <span className="text-gray-300 italic">â€”</span>}
                       </div>
                     </div>
                   ))}
@@ -3190,7 +3190,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
 
       {/* Add / Edit modal */}
       {isForm && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 p-4">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm p-4">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh] overflow-hidden"
             style={{ borderTop: '4px solid #ed6055' }}>
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
@@ -3201,19 +3201,19 @@ function IssuesTab({ project, isAdmin, showToast }) {
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Group</label>
                 <SelectDropdown
-                  options={[{ value: '', label: '— Select Group —' }, ...ISSUE_GROUPS.map(g => ({ value: g, label: g }))]}
+                  options={[{ value: '', label: 'â€” Select Group â€”' }, ...ISSUE_GROUPS.map(g => ({ value: g, label: g }))]}
                   value={form.issue_group}
                   onChange={v => setForm(f => ({ ...f, issue_group: v }))}
-                  placeholder="— Select Group —"
+                  placeholder="â€” Select Group â€”"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Management Level</label>
                 <SelectDropdown
-                  options={[{ value: '', label: '— Select Level —' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))]}
+                  options={[{ value: '', label: 'â€” Select Level â€”' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))]}
                   value={form.management_level}
                   onChange={v => setForm(f => ({ ...f, management_level: v }))}
-                  placeholder="— Select Level —"
+                  placeholder="â€” Select Level â€”"
                 />
               </div>
               <div>
@@ -3222,7 +3222,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
                   options={Object.entries(ISSUE_STATUS_CONFIG).map(([val, cfg]) => ({ value: val, label: cfg.label }))}
                   value={form.status}
                   onChange={v => setForm(f => ({ ...f, status: v }))}
-                  placeholder="— Select Status —"
+                  placeholder="â€” Select Status â€”"
                 />
               </div>
               <div>
@@ -3232,22 +3232,22 @@ function IssuesTab({ project, isAdmin, showToast }) {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Issue <span className="text-[#ed6055]">*</span></label>
-                <textarea rows={3} value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issue…" className={iCls + ' resize-none'} />
+                <textarea rows={3} value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issueâ€¦" className={iCls + ' resize-none'} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Caused By</label>
-                <textarea rows={3} value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root cause…" className={iCls + ' resize-none'} />
+                <textarea rows={3} value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root causeâ€¦" className={iCls + ' resize-none'} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Action Steps</label>
-                <textarea rows={3} value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or planned…" className={iCls + ' resize-none'} />
+                <textarea rows={3} value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or plannedâ€¦" className={iCls + ' resize-none'} />
               </div>
             </div>
             <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
               <button onClick={close} className="px-4 py-2 text-sm text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={save} disabled={saving || !form.details.trim()}
                 className="px-5 py-2 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 disabled:cursor-not-allowed transition">
-                {saving ? 'Saving…' : modal === 'add' ? 'Add Issue' : 'Save Changes'}
+                {saving ? 'Savingâ€¦' : modal === 'add' ? 'Add Issue' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -3265,7 +3265,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
   )
 }
 
-// ── Completion Tab ────────────────────────────────────────────────────────────
+// â”€â”€ Completion Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const isValidDate = (str) => {
   if (!str) return true
@@ -3352,7 +3352,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
                   <td key={i} className="px-1 py-1">
                     <button
                       onClick={isAdmin ? (multiSelectMode ? () => onToggleCell(type, floor, unitNum) : () => onOpenCell(type, floor, unitNum)) : undefined}
-                      title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} — ${cfg.label}`}
+                      title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} â€” ${cfg.label}`}
                       aria-label={`${type === 'parking' ? 'Parking' : 'Unit'} ${floor.physical_level}-${String(unitNum).padStart(2, '0')}: ${cfg.label}`}
                       className={`w-11 h-11 rounded border text-[9px] font-bold transition ${cfg.cell} ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'ring-2 ring-[#ed6055] ring-offset-1' : (isAdmin && !multiSelectMode ? 'hover:opacity-75 hover:shadow-md' : '')}`}
                     >
@@ -3369,7 +3369,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
   )
 }
 
-// ── PhotosTab ─────────────────────────────────────────────────────────────────
+// â”€â”€ PhotosTab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PHOTO_TAGS = ['Foundation', 'Structural', 'MEP', 'Finishing', 'Facade', 'Landscaping', 'Issues', 'Progress', 'Inspection']
 
@@ -3409,7 +3409,7 @@ const fmtPhotoDate = (dateStr) => {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 }
 
-// ── Upload Screen ─────────────────────────────────────────────────────────────
+// â”€â”€ Upload Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function UploadScreen({ project, showToast, onBack, onUploaded }) {
   const [files, setFiles]           = useState([])
@@ -3542,7 +3542,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
       <div className="mt-6 flex items-center gap-3">
         <button onClick={doUpload} disabled={!files.length || uploading}
           className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 transition">
-          {uploading ? 'Uploading…' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
+          {uploading ? 'Uploadingâ€¦' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
         </button>
         <button onClick={onBack} className="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 transition">Cancel</button>
       </div>
@@ -3550,7 +3550,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
   )
 }
 
-// ── Photos Gallery ────────────────────────────────────────────────────────────
+// â”€â”€ Photos Gallery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function PhotosTab({ project, isAdmin, showToast }) {
   const [photos, setPhotos]               = useState([])
@@ -3637,7 +3637,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
     load()
   }
 
-  if (loading) return <TriangleLoader label="Loading photos…" />
+  if (loading) return <TriangleLoader label="Loading photosâ€¦" />
 
   if (showUploadScreen) return (
     <UploadScreen project={project} showToast={showToast}
@@ -3860,11 +3860,11 @@ function PhotosTab({ project, isAdmin, showToast }) {
             )}
             <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm">
               <span className="text-xs text-white/70 max-w-[200px] truncate">{filteredPhotos[lightbox].file_name}</span>
-              <span className="text-xs text-white/40">·</span>
+              <span className="text-xs text-white/40">Â·</span>
               <span className="text-xs text-white/50">{lightbox + 1} / {filteredPhotos.length}</span>
               {isAdmin && (
                 <>
-                  <span className="text-xs text-white/40">·</span>
+                  <span className="text-xs text-white/40">Â·</span>
                   <button onClick={e => handleDelete(filteredPhotos[lightbox], e)}
                     className="text-xs text-red-400 hover:text-red-300 transition font-medium">Delete</button>
                 </>
@@ -4097,7 +4097,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
       const unitNum  = parseInt(unitNumStr)
       const cMap     = type === 'parking' ? parkingCompletionMap : completionMap
       const existing = cMap[`${floorId}-${unitNum}`] ?? null
-      // M5 can only be applied to units already tagged as M4 — skip others
+      // M5 can only be applied to units already tagged as M4 â€” skip others
       if (bulkForm.status === 'm5' && existing?.status !== 'm4') { skipped++; return }
       const table = type === 'parking' ? 'project_parking_unit_completion' : 'project_unit_completion'
       const payload = {
@@ -4136,14 +4136,14 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 
   if (loading) {
-    return <TriangleLoader label="Loading milestones…" />
+    return <TriangleLoader label="Loading milestonesâ€¦" />
   }
 
   return (
     <div>
       <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} />
 
-      {/* Legend + multi-select toolbar — sticky within the scrollable tab panel */}
+      {/* Legend + multi-select toolbar â€” sticky within the scrollable tab panel */}
       <div className="sticky top-0 z-20 bg-white py-3 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100">
         <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
           {Object.entries(UNIT_STATUS_CONFIG).map(([key, cfg]) => (
@@ -4199,7 +4199,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
       {/* Floor status modal */}
       {floorModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40" onClick={() => setFloorModal(null)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setFloorModal(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-1">
               <h3 className="text-base font-bold text-black">
@@ -4281,7 +4281,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setFloorModal(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveFloorModal} disabled={floorModalSaving || floorModalStatus === 'none'} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {floorModalSaving ? 'Saving…' : 'Apply'}
+                {floorModalSaving ? 'Savingâ€¦' : 'Apply'}
               </button>
             </div>
           </div>
@@ -4290,7 +4290,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
       {/* Bulk status modal */}
       {bulkModal && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40" onClick={() => setBulkModal(false)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setBulkModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-0.5">
               <h3 className="text-base font-bold text-black">Set Status</h3>
@@ -4349,7 +4349,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setBulkModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveBulk} disabled={bulkSaving} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {bulkSaving ? 'Saving…' : `Apply to ${selectedCells.size}`}
+                {bulkSaving ? 'Savingâ€¦' : `Apply to ${selectedCells.size}`}
               </button>
             </div>
           </div>
@@ -4358,7 +4358,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
       {/* Shared cell edit modal */}
       {selected && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40" onClick={() => setSelected(null)}>
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setSelected(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-0.5">
               <h3 className="text-base font-bold text-black">
@@ -4435,7 +4435,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setSelected(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveCell} disabled={saving} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? 'Savingâ€¦' : 'Save'}
               </button>
             </div>
           </div>
@@ -4445,7 +4445,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
   )
 }
 
-// ── Main Modal ────────────────────────────────────────────────────────────────
+// â”€â”€ Main Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false }) {
   const { profile } = useProfile()
@@ -4549,7 +4549,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   ]
 
   return (
-    <div className={asPage ? 'w-full h-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/50'}>
+    <div className={asPage ? 'w-full h-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-sm'}>
       <style>{`
         @keyframes menu-in {
           from { opacity: 0; transform: scale(0.95) translateY(-4px); }
@@ -4600,7 +4600,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         }
       `}</style>
 
-      {/* No modal header bar — navigation lives in DashboardLayout topbar (asPage) or via onClose */}
+      {/* No modal header bar â€” navigation lives in DashboardLayout topbar (asPage) or via onClose */}
       <div className="bg-white rounded-none shadow-2xl w-full h-full flex flex-col overflow-hidden">
 
         {/* Non-page mode: floating close button */}
@@ -4623,7 +4623,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
               <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} />
             </div>
 
-            {/* Section cards — always visible at bottom */}
+            {/* Section cards â€” always visible at bottom */}
             <div className="flex-shrink-0 border-t border-gray-200 bg-[#f8f9fb] px-3 py-2">
               <div
                 className="flex gap-2 overflow-x-auto sm:grid sm:grid-cols-7"
@@ -4667,7 +4667,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         ) : (
           <div
             key={activeSection}
-            className={`section-slide-in flex-1 ${activeSection === 'S-Curve' ? 'overflow-hidden' : 'overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'} ${activeSection === 'Permits' || activeSection === 'S-Curve' ? 'bg-[#e4e7ec]' : ''}`}
+            className={`section-slide-in flex-1 bg-[#e4e7ec] ${activeSection === 'S-Curve' ? 'overflow-hidden' : 'overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'}`}
           >
             {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} showToast={showToast} />}
@@ -4764,7 +4764,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   )
 }
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
+// â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 const PlusIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -4788,7 +4788,7 @@ function ExcelButtons({ onExport, onImport, importing = false }) {
         title="Import from Excel"
         className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
       >
-        <UploadIcon /> {importing ? 'Importing…' : 'Import'}
+        <UploadIcon /> {importing ? 'Importingâ€¦' : 'Import'}
       </button>
       <input
         ref={ref}

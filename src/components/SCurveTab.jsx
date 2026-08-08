@@ -1059,7 +1059,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
 
       {/* Settings floating modal */}
       {settingsOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center" onClick={() => setSettingsOpen(false)}>
+        <div className="fixed inset-0 z-[200] flex items-center justify-center backdrop-blur-sm bg-black/10" onClick={() => setSettingsOpen(false)}>
         <div className="settings-panel-enter rounded-xl border border-gray-200 bg-white shadow-2xl p-4 space-y-3 w-[min(92vw,780px)] max-h-[85vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
           <div className="flex items-center justify-between pb-2 border-b border-gray-200">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-widest">Chart Settings</span>

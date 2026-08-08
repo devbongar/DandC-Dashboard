@@ -23,22 +23,22 @@ const PHASE_COLORS = {
   closeout:             '#22c55e',
 }
 
-const TASK_ROW_H  = 52   // px — matches min-h-[52px] on MilestoneRow date cells
-const PHASE_ROW_H = 36   // px — collapsible phase group header height
-const AXIS_H      = 56   // px — sticky month/year axis header height
+const TASK_ROW_H  = 52   // px â€” matches min-h-[52px] on MilestoneRow date cells
+const PHASE_ROW_H = 36   // px â€” collapsible phase group header height
+const AXIS_H      = 56   // px â€” sticky month/year axis header height
 
 const PAD     = 7 * 86400000
 const LABEL_W = 320
 const ROW_NUM_W  = 36   // # column (sequential row number)
 const PRED_COL_W = 96   // Predecessors editable column
 const DEFAULT_COL_PX = { day: 20, week: 20, month: 20 }
-const DUR_COL_W = 72   // Duration column — visible in Auto mode only
+const DUR_COL_W = 72   // Duration column â€” visible in Auto mode only
 
 const DATE_COL_W   = 100  // width of each individual date cell (px)
 const DATE_GROUP_W = DATE_COL_W * 2  // two cols per group (start + end)
 const DATE_COLS_W  = DATE_GROUP_W * 3  // three groups: planned, actual, projected
 
-const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
+const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'â€”'
 
 const isValidDate = (str) => {
   if (!str) return true
@@ -101,7 +101,7 @@ function GInlineInput({ value, onChange, type = 'text', placeholder = '', min, m
 
 function GConfirmDeleteModal({ onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={onCancel}>
+    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={onCancel}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-bold text-black mb-1">Delete this milestone?</h3>
         <p className="text-sm text-gray-500 mb-5">This action cannot be undone.</p>
@@ -120,14 +120,14 @@ function GImportErrorPanel({ errors, onDismiss }) {
     <div className="rounded-xl border border-red-200 bg-red-50 p-3 mb-2 mx-6">
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="text-sm font-bold text-red-700">
-          Import blocked — {errors.length} error{errors.length !== 1 ? 's' : ''} found. Fix the file and try again.
+          Import blocked â€” {errors.length} error{errors.length !== 1 ? 's' : ''} found. Fix the file and try again.
         </p>
         <button onClick={onDismiss} className="text-red-400 hover:text-red-600 text-xs font-medium flex-shrink-0">Dismiss</button>
       </div>
       <ul className="space-y-1">
         {errors.map((e, i) => (
           <li key={i} className="text-xs text-red-600 flex items-start gap-1.5">
-            <span className="flex-shrink-0 mt-0.5">•</span><span>{e}</span>
+            <span className="flex-shrink-0 mt-0.5">â€¢</span><span>{e}</span>
           </li>
         ))}
       </ul>
@@ -145,7 +145,7 @@ function GExcelButtons({ onExport, onImport, importing = false }) {
       </button>
       <button onClick={() => ref.current?.click()} disabled={importing} className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50">
         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" /></svg>
-        {importing ? 'Importing…' : 'Import'}
+        {importing ? 'Importingâ€¦' : 'Import'}
       </button>
       <input ref={ref} type="file" accept=".xlsx,.xls" className="hidden"
         onChange={e => { const f = e.target.files[0]; if (f) onImport(f); e.target.value = '' }} />
@@ -230,12 +230,12 @@ function InlineAddRow({ depth = 0, name, onChange, onSave, onCancel, adding, tot
             if (e.key === 'Enter') { e.preventDefault(); onSave() }
             if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; onCancel() }
           }}
-          placeholder="Activity name…"
+          placeholder="Activity nameâ€¦"
           disabled={adding}
           className="px-2 py-1 text-xs rounded border border-[#ed6055]/50 focus:outline-none focus:ring-1 focus:ring-[#ed6055] bg-white disabled:opacity-60"
           style={{ minWidth: 200 }}
         />
-        {adding && <span className="text-[11px] text-gray-400">Saving…</span>}
+        {adding && <span className="text-[11px] text-gray-400">Savingâ€¦</span>}
       </div>
     </div>
   )
@@ -249,7 +249,7 @@ function GanttBar({ start, end, color, toPx }) {
   const w    = toPx(e) - left
   const borderColor = BAR_BORDER[color] ?? color
   if (w <= 0) {
-    // Same-day milestone → diamond (rotated square), centred on the date
+    // Same-day milestone â†’ diamond (rotated square), centred on the date
     const size = 11
     return (
       <div
@@ -273,7 +273,7 @@ function GanttBar({ start, end, color, toPx }) {
     <div
       className="absolute rounded"
       style={{ left, width: Math.max(w, 2), backgroundColor: color, boxShadow: `inset 0 0 0 1.5px ${borderColor}`, top: '50%', transform: 'translateY(-50%)', height: 20 }}
-      title={`${start} → ${end}`}
+      title={`${start} â†’ ${end}`}
     />
   )
 }
@@ -337,7 +337,7 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
   if (!isAdmin) {
     return (
       <div className="text-xs text-gray-700 px-2 flex items-center min-h-[24px]">
-        {predText || <span className="text-gray-500">—</span>}
+        {predText || <span className="text-gray-500">â€”</span>}
       </div>
     )
   }
@@ -349,7 +349,7 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
         className="text-xs text-gray-700 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-blue-50 hover:text-blue-600 transition"
         title="Click to edit predecessors (e.g. 3FS, 2SS+5)"
       >
-        {predText || <span className="text-gray-500 select-none">—</span>}
+        {predText || <span className="text-gray-500 select-none">â€”</span>}
       </div>
     )
   }
@@ -384,13 +384,13 @@ function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
   }, [duration, editing])
 
   if (hasChildren) {
-    return <div className="text-xs text-gray-300 px-2 flex items-center min-h-[24px]">—</div>
+    return <div className="text-xs text-gray-300 px-2 flex items-center min-h-[24px]">â€”</div>
   }
 
   if (!isAdmin) {
     return (
       <div className="text-xs text-gray-400 px-2 flex items-center min-h-[24px]">
-        {duration != null ? duration : <span className="text-gray-200">—</span>}
+        {duration != null ? duration : <span className="text-gray-200">â€”</span>}
       </div>
     )
   }
@@ -402,7 +402,7 @@ function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
         className="text-xs text-gray-400 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-yellow-50 hover:text-yellow-700 transition"
         title="Click to edit duration (calendar days)"
       >
-        {duration != null ? duration : <span className="text-gray-400 select-none">—</span>}
+        {duration != null ? duration : <span className="text-gray-400 select-none">â€”</span>}
       </div>
     )
   }
@@ -446,7 +446,7 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
   }, [value, editing])
 
   if (!isAdmin) {
-    return <span className={`whitespace-nowrap text-[11px] ${value ? 'text-gray-700' : 'text-gray-500'}`}>{value ? fmtDate(value) : '—'}</span>
+    return <span className={`whitespace-nowrap text-[11px] ${value ? 'text-gray-700' : 'text-gray-500'}`}>{value ? fmtDate(value) : 'â€”'}</span>
   }
 
   if (!editing) {
@@ -598,7 +598,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
           </div>
         )}
 
-        {/* Date columns — each individually toggled */}
+        {/* Date columns â€” each individually toggled */}
         {(showPlanned || showActual || showProjected) && (
           <div className="flex self-stretch">
             {showPlanned && dateCell(isAutoMode || hasActual || isBLConfirmed
@@ -866,7 +866,7 @@ function GToolbarSelect({ options = [], value, onChange, fullWidth = false }) {
         onClick={handleToggle}
         className={`flex items-center justify-between gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/30 transition-colors cursor-pointer active:scale-[0.97] ${fullWidth ? 'w-full' : ''}`}
       >
-        <span>{selected?.label ?? '—'}</span>
+        <span>{selected?.label ?? 'â€”'}</span>
         <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d={open ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
         </svg>
@@ -1037,7 +1037,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
               presets={[{ label: 'Narrow', v: 200 }, { label: 'Default', v: 320 }, { label: 'Wide', v: 440 }]}
               onSelect={setLabelW} />
           </div>
-          {/* Duration — always its own column */}
+          {/* Duration â€” always its own column */}
           {showDuration && (
             <div style={{ width: durColW, minWidth: durColW }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
               <span className="text-xs font-bold text-gray-600">Dur.</span>
@@ -1046,12 +1046,12 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                 onSelect={setDurColW} />
             </div>
           )}
-          {/* Predecessors — always its own column */}
+          {/* Predecessors â€” always its own column */}
           {showPredecessor && (
             <div style={{ width: predColW, minWidth: predColW }} className="flex items-center gap-1 px-2 self-stretch border-r border-gray-300 flex-shrink-0">
               <span className="text-xs font-bold text-gray-600">Pred.</span>
               <svg className="w-3 h-3 text-gray-400 flex-shrink-0 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-                title={"Format: <row>FS|SS|FF|SF[+/-days]\nExamples: 3FS (row 3 finish→start), 2SS+5 (row 2 start→start +5 days)\nSeparate multiple predecessors with commas."}>
+                title={"Format: <row>FS|SS|FF|SF[+/-days]\nExamples: 3FS (row 3 finishâ†’start), 2SS+5 (row 2 startâ†’start +5 days)\nSeparate multiple predecessors with commas."}>
                 <circle cx="12" cy="12" r="10" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" />
               </svg>
@@ -1200,7 +1200,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     const isCollapsed = collapsedPhases.has(key)
     const rows = []
 
-    // Phase group header — leaf-task completion counts
+    // Phase group header â€” leaf-task completion counts
     const parentIdsInPhase = new Set(phaseMils.filter(m => m.parent_id != null).map(m => m.parent_id))
     const leafMils         = phaseMils.filter(m => !parentIdsInPhase.has(m.id))
     const taskCount        = leafMils.length
@@ -1280,7 +1280,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
 
   // Compute y-center of each milestone row for SVG arrow anchoring.
   // Walk the same order that milestoneRows renders: phase header, then flatNodes, then add rows.
-  // AXIS_H is NOT included here — the SVG is positioned with top=AXIS_H, so y=0 in SVG = top of first row.
+  // AXIS_H is NOT included here â€” the SVG is positioned with top=AXIS_H, so y=0 in SVG = top of first row.
   const yCenterById = {}
   let yAcc = 0
   PHASES.forEach(({ key }) => {
@@ -1302,13 +1302,13 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     <div className="flex-1 min-h-0 overflow-auto">
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div style={{ width: totalW, minWidth: totalW, position: 'relative' }}>
-          {/* Sticky axis header — only when there are dates to show */}
+          {/* Sticky axis header â€” only when there are dates to show */}
           {allDates.length > 0 && (
             <div className="sticky top-0 z-40" style={{ backgroundColor: '#f3f4f6' }}>
               {axisHeader}
             </div>
           )}
-          {/* Rows — phase headers and sortable milestone rows (single SortableContext spans all phases for correct cross-phase collision detection) */}
+          {/* Rows â€” phase headers and sortable milestone rows (single SortableContext spans all phases for correct cross-phase collision detection) */}
           <SortableContext items={allSortableIds} strategy={verticalListSortingStrategy}>
             {milestoneRows}
           </SortableContext>
@@ -1375,7 +1375,7 @@ function BaselineStartDateField({ startDate, isAutoMode, onSave }) {
     if (!editing) setValue(startDate ?? '')
   }, [startDate, editing])
 
-  // Start date is useful in both modes — shown always
+  // Start date is useful in both modes â€” shown always
 
   if (!editing) {
     return (
@@ -2085,7 +2085,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const rowNumToId = computeRowNumToId()
     const parsed = parsePredecessors(text, rowNumToId)
     if (parsed === null) {
-      showToast('Invalid format — use row numbers and types, e.g. 3FS or 2SS+5', 'error')
+      showToast('Invalid format â€” use row numbers and types, e.g. 3FS or 2SS+5', 'error')
       return
     }
     if (parsed.some(p => p.fromId === milestoneId)) {
@@ -2101,7 +2101,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     if (isAutoMode && blStartDate) {
       await runScheduler()
     } else if (!isBLConfirmed) {
-      // Manual mode, unconfirmed BL — cascade planned dates just like a duration change
+      // Manual mode, unconfirmed BL â€” cascade planned dates just like a duration change
       const schedStart = blStartDate
         || milestones.map(m => m.planned_start).filter(Boolean).sort()[0]
         || null
@@ -2180,7 +2180,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       const result = scheduleMilestones(ms ?? [], deps, startDate)
 
       if (result?.error === 'circular') {
-        showToast('Circular dependency detected — schedule not updated.', 'error')
+        showToast('Circular dependency detected â€” schedule not updated.', 'error')
         return false
       }
 
@@ -2252,10 +2252,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       {/* Toolbar */}
       <div className="bg-white border-b border-gray-100 flex-shrink-0">
 
-        {/* ── Mobile layout (< sm) ── */}
+        {/* â”€â”€ Mobile layout (< sm) â”€â”€ */}
         <div className="flex flex-col gap-2 px-3 py-2.5 sm:hidden">
 
-          {/* Time scale toggle — full width */}
+          {/* Time scale toggle â€” full width */}
           <div
             className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
             style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
@@ -2275,7 +2275,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             ))}
           </div>
 
-          {/* Baseline selector — full width (if present) */}
+          {/* Baseline selector â€” full width (if present) */}
           {baselines.length > 0 && (
             <GToolbarSelect
               fullWidth
@@ -2285,7 +2285,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             />
           )}
 
-          {/* Start date — always visible (used by scheduler in both Auto and Manual mode) */}
+          {/* Start date â€” always visible (used by scheduler in both Auto and Manual mode) */}
           {activeBL && (
             <div className="flex items-center gap-2">
               <BaselineStartDateField
@@ -2304,7 +2304,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             />
           )}
 
-          {/* Date range — From / To on one row */}
+          {/* Date range â€” From / To on one row */}
           <div className="flex items-center gap-2">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">From</label>
             <div className="flex-1 min-w-0">
@@ -2325,7 +2325,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           </div>
         </div>
 
-        {/* ── Desktop layout (sm+) — settings button + status ── */}
+        {/* â”€â”€ Desktop layout (sm+) â€” settings button + status â”€â”€ */}
         <div className="hidden sm:flex items-center justify-between px-6 py-2 relative" ref={settingsWrapRef}>
 
           {/* Left: active baseline status pill */}
@@ -2360,7 +2360,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             Settings
           </button>
 
-          {/* ── Settings panel ── */}
+          {/* â”€â”€ Settings panel â”€â”€ */}
           {showSettings && (
             <div
               className="absolute right-4 top-full mt-2 z-50 bg-white rounded-2xl border border-gray-100 overflow-hidden"
@@ -2371,7 +2371,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 transformOrigin: 'top right',
               }}
             >
-              {/* ── Baseline ── */}
+              {/* â”€â”€ Baseline â”€â”€ */}
               <div className="px-4 pt-4 pb-3 border-b border-gray-100">
                 <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">Baseline</p>
                 {baselines.length > 0 ? (
@@ -2386,7 +2386,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 )}
               </div>
 
-              {/* ── Scheduling (only if baseline active) ── */}
+              {/* â”€â”€ Scheduling (only if baseline active) â”€â”€ */}
               {activeBL && (
                 <div className="px-4 py-3 border-b border-gray-100">
                   <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Scheduling</p>
@@ -2412,7 +2412,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 </div>
               )}
 
-              {/* ── Display ── */}
+              {/* â”€â”€ Display â”€â”€ */}
               <div className="px-4 py-3 border-b border-gray-100">
                 <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Display</p>
 
@@ -2441,7 +2441,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                   <span className="text-xs text-gray-500 w-16 flex-shrink-0">Date range</span>
                   <div className="flex items-center gap-1.5 flex-1 min-w-0">
                     <div className="flex-1 min-w-0"><MonthYearPicker fluid value={fromMonth} onChange={setFromMonth} max={toMonth} /></div>
-                    <span className="text-[10px] text-gray-300 flex-shrink-0">→</span>
+                    <span className="text-[10px] text-gray-300 flex-shrink-0">â†’</span>
                     <div className="flex-1 min-w-0"><MonthYearPicker fluid value={toMonth} onChange={setToMonth} min={fromMonth} /></div>
                     {hasFilter && (
                       <button
@@ -2463,7 +2463,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                         onClick={() => setColPx(v => Math.max(10, v - 5))}
                         className="px-2.5 py-1 text-sm font-bold text-gray-500 hover:bg-gray-50 hover:text-black transition leading-none"
                         aria-label="Decrease column width"
-                      >−</button>
+                      >âˆ’</button>
                       <span className="px-2 text-[11px] font-semibold text-gray-700 tabular-nums border-x border-gray-200 min-w-[42px] text-center">{colPx}px</span>
                       <button
                         onClick={() => setColPx(v => Math.min(120, v + 5))}
@@ -2483,7 +2483,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 </div>
               </div>
 
-              {/* ── Column visibility ── */}
+              {/* â”€â”€ Column visibility â”€â”€ */}
               <div className="px-4 py-3 border-b border-gray-100">
                 <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">Columns</p>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
@@ -2509,7 +2509,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 </div>
               </div>
 
-              {/* ── Bar visibility + colors ── */}
+              {/* â”€â”€ Bar visibility + colors â”€â”€ */}
               <div className="px-4 py-3 border-b border-gray-100">
                 <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">Bars</p>
                 <div className="flex flex-col gap-1.5">
@@ -2540,7 +2540,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 </div>
               </div>
 
-              {/* ── Baseline actions (admin only) ── */}
+              {/* â”€â”€ Baseline actions (admin only) â”€â”€ */}
               {isAdmin && (
                 <div className="px-4 py-3">
                   <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2.5">Baseline actions</p>
@@ -2587,7 +2587,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       </div>
 
 
-      {/* Save strip — unsaved name edits */}
+      {/* Save strip â€” unsaved name edits */}
       {Object.keys(drafts).length > 0 && (
         <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-[#ed6055]/20 border-l-4 border-l-[#ed6055] flex-shrink-0" style={{ background: 'rgba(237,96,85,0.06)' }}>
           <svg className="w-3.5 h-3.5 text-[#ed6055] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2614,7 +2614,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         </div>
       )}
 
-      {/* Save strip — unsaved row order */}
+      {/* Save strip â€” unsaved row order */}
       {orderDirty && (
         <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-blue-200 border-l-4 border-l-blue-400 flex-shrink-0" style={{ background: 'rgba(59,130,246,0.05)' }}>
           <svg className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -2629,7 +2629,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
-            {savingOrder ? 'Saving…' : 'Save order'}
+            {savingOrder ? 'Savingâ€¦' : 'Save order'}
           </button>
           <button
             onClick={handleDiscardOrder}
@@ -2644,7 +2644,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       {/* Body */}
       <div className="flex-1 min-h-0 flex flex-col px-0 sm:px-6">
         {loading ? (
-          <TriangleLoader label="Loading milestones…" />
+          <TriangleLoader label="Loading milestonesâ€¦" />
         ) : activeBL === null ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-4 text-center px-4">
             <div className="w-14 h-14 rounded-full bg-gray-100 flex items-center justify-center">
@@ -2715,7 +2715,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         />
       )}
       {showNewBLModal && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setShowNewBLModal(false)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setShowNewBLModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-black mb-1">
               {baselines.length > 0 ? 'Update Baseline' : 'New Baseline'}
@@ -2734,7 +2734,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
               placeholder={baselines.length > 0 ? 'e.g. BL1' : 'e.g. BL0'}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] mb-4"
             />
-            {/* Template option — only when creating the very first baseline */}
+            {/* Template option â€” only when creating the very first baseline */}
             {baselines.length === 0 && templateCount > 0 && (
               <div className="mb-5">
                 <p className="text-xs font-semibold text-gray-700 mb-2">Load standard work program?</p>
@@ -2744,19 +2744,19 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                     onClick={() => setLoadTemplate(true)}
                     className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition ${loadTemplate ? 'border-[#ed6055] bg-red-50 text-[#ed6055]' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}
                   >
-                    Yes — Pre-fill with template
+                    Yes â€” Pre-fill with template
                   </button>
                   <button
                     type="button"
                     onClick={() => setLoadTemplate(false)}
                     className={`flex-1 py-2 rounded-xl border text-xs font-semibold transition ${!loadTemplate ? 'border-gray-400 bg-gray-100 text-gray-700' : 'border-gray-200 text-gray-400 hover:bg-gray-50'}`}
                   >
-                    No — Start blank
+                    No â€” Start blank
                   </button>
                 </div>
               </div>
             )}
-            {/* Reminder note — updating an existing baseline */}
+            {/* Reminder note â€” updating an existing baseline */}
             {baselines.length > 0 && (
               <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3 text-xs text-amber-800 leading-relaxed">
                 Only update the baseline when there are actual schedule revisions. If the current baseline still reflects the approved plan, a new baseline is not needed.
@@ -2768,14 +2768,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                 disabled={!newBLName.trim() || creatingBL}
                 onClick={handleCreateBaseline}
                 className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >{creatingBL ? 'Creating…' : 'Create'}</button>
+              >{creatingBL ? 'Creatingâ€¦' : 'Create'}</button>
             </div>
           </div>
         </div>
       )}
-      {/* Pending import — name the baseline */}
+      {/* Pending import â€” name the baseline */}
       {pendingImportFile && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setPendingImportFile(null)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setPendingImportFile(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-black mb-1">Name this baseline</h3>
             <p className="text-sm text-gray-500 mb-4">Give a name to identify this baseline (e.g. BL0, Initial, Revised).</p>
@@ -2806,7 +2806,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       )}
       {/* Delete baseline confirm */}
       {deleteBLId !== null && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40" onClick={() => setDeleteBLId(null)}>
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setDeleteBLId(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-black mb-1">Delete baseline?</h3>
             <p className="text-sm text-gray-500 mb-1">
@@ -2836,7 +2836,7 @@ export default function GanttModal({ project, onClose, isAdmin = false, showToas
   const phaseColor = PHASE_COLORS[project.phase] ?? '#ed6055'
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center" onClick={onClose}>
+    <div className="fixed inset-0 z-50 bg-black/10 backdrop-blur-sm flex items-center justify-center" onClick={onClose}>
       <div
         className="relative bg-white flex flex-col overflow-hidden w-full h-full rounded-none sm:rounded-xl sm:w-3/4 sm:h-[90vh] shadow-2xl"
         style={{ borderTop: `4px solid ${phaseColor}` }}
