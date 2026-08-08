@@ -4573,7 +4573,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         }
         @keyframes section-slide-in {
           from { opacity: 0; transform: translateY(10px); }
-          to   { opacity: 1; transform: translateY(0); }
+          to   { opacity: 1; }
         }
         @keyframes cover-reveal {
           from { opacity: 0; transform: scale(1.06); filter: blur(8px); }
@@ -4670,7 +4670,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             className={`section-slide-in flex-1 ${activeSection === 'S-Curve' ? 'overflow-hidden' : 'overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'} ${activeSection === 'Permits' || activeSection === 'S-Curve' ? 'bg-[#e4e7ec]' : ''}`}
           >
             {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
-            {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} />}
+            {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} showToast={showToast} />}
             {activeSection === 'Permits'            && <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} />}
             {activeSection === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
@@ -4682,7 +4682,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       {activeSection !== null && (
         <>
           <div
-            className="fixed inset-0 z-[55] backdrop-blur-sm bg-black/20"
+            className={`fixed inset-0 z-[55] bg-black/20 ${fabOpen ? 'backdrop-blur-sm' : ''}`}
             style={{ opacity: fabOpen ? 1 : 0, pointerEvents: fabOpen ? 'auto' : 'none', transition: 'opacity 200ms ease' }}
             onClick={() => setFabOpen(false)}
           />

@@ -452,7 +452,7 @@ function makeSeriesLabel(color, yOffsets) {
   }
 }
 
-export default function SCurveTab({ project, isAdmin, canEdit }) {
+export default function SCurveTab({ project, isAdmin, canEdit, showToast: showToastProp }) {
   const viewKey = `scurve_view_${project.id}`
   const _sv = (() => { try { return JSON.parse(localStorage.getItem(viewKey)) ?? {} } catch { return {} } })()
 
@@ -515,6 +515,7 @@ export default function SCurveTab({ project, isAdmin, canEdit }) {
   }
 
   const showToast = (message, type = 'success') => {
+    if (showToastProp) { showToastProp(message, type); return }
     setToast({ message, type })
     setTimeout(() => setToast(null), 3000)
   }
