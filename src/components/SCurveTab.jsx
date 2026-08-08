@@ -1415,14 +1415,14 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         const cards = [
           { label: 'Actual POC',  value: summaryActual,   accent: actualColor, sublabel: null },
           { label: 'Planned POC', value: summaryPlanned,  accent: blColor(refBaseline?.id, 0), sublabel: refBaseline?.name },
-          { label: 'Variance',    value: summaryVariance, accent: varColor,    sublabel: 'vs planned at current period', semantic: true },
+          { label: 'Variance',    value: summaryVariance, accent: varColor,    sublabel: 'vs planned today', semantic: true },
         ]
         return (
           <div className="flex-shrink-0 flex flex-col gap-2 w-32 self-start">
             <div className="flex flex-col gap-2 h-[400px]">
             {cards.map(card => (
               <div key={card.label}
-                className="flex-1 bg-white rounded-lg border border-gray-200 shadow-sm px-2.5 py-2 flex flex-col gap-0.5 overflow-hidden"
+                className="flex-1 bg-white rounded-xl border border-gray-200 px-2.5 py-2 flex flex-col gap-1.5 overflow-hidden"
                 style={{ borderLeft: `3px solid ${card.accent}` }}
               >
                 <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-none">{card.label}</span>
@@ -1435,13 +1435,13 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                         : <polygon points="5,9 9,1 1,1" />}
                     </svg>
                   )}
-                  <span className="text-xl font-bold tabular-nums leading-tight"
+                  <span className="text-2xl font-bold tabular-nums leading-tight"
                     style={{ color: card.semantic ? card.accent : '#111827' }}>
                     {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '—'}
                   </span>
                 </div>
                 {card.sublabel && (
-                  <span className="text-[10px] text-gray-400 truncate leading-tight">{card.sublabel}</span>
+                  <span className="text-[10px] text-gray-500 leading-tight">{card.sublabel}</span>
                 )}
               </div>
             ))}
@@ -1599,37 +1599,53 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
 
         return (
           <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden pb-2">
+            {/* Chart title */}
+            <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-3 pb-2.5 border-b border-gray-100">
+              <span className="text-sm font-bold text-gray-900 truncate">{project.name}</span>
+              {selectedBuildingId && (
+                <span className="text-xs text-gray-400 font-medium truncate">
+                  · {buildings.find(b => b.id === selectedBuildingId)?.name}
+                </span>
+              )}
+              <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-gray-300">S-Curve</span>
+            </div>
             {/* Legend */}
-            <div className="flex-shrink-0 flex items-center gap-4 px-4 pt-3 pb-2 text-xs text-gray-500 flex-wrap border-b border-gray-100">
+            <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-2.5 pb-2.5 flex-wrap border-b border-gray-100">
               {selectedBaselineIds.map((id, i) => {
                 const bl    = baselines.find(b => b.id === id)
                 const color = blColor(id, i)
                 return (
-                  <span key={id} className="flex items-center gap-1.5">
-                    <span className="w-6 h-0.5 rounded inline-block" style={{ backgroundColor: color }} />
-                    <span className="w-2.5 h-2.5 rounded-sm inline-block opacity-30 -ml-4 mr-1" style={{ backgroundColor: color }} />
-                    {bl?.name ?? 'Baseline'}
+                  <span key={id} className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1">
+                    <svg width="18" height="10" style={{ display: 'block', flexShrink: 0 }}>
+                      <rect x="0" y="4" width="18" height="6" rx="1" fill={color} fillOpacity={0.18} />
+                      <line x1="0" y1="5" x2="18" y2="5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                    <span className="text-[11px] font-medium text-gray-600 leading-none">{bl?.name ?? 'Baseline'}</span>
                   </span>
                 )
               })}
               {showActual && (
-                <span className="flex items-center gap-1.5">
-                  <span className="w-6 h-0.5 rounded inline-block" style={{ backgroundColor: actualColor }} />
-                  Actual
+                <span className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1">
+                  <svg width="18" height="10" style={{ display: 'block', flexShrink: 0 }}>
+                    <line x1="0" y1="5" x2="18" y2="5" stroke={actualColor} strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  <span className="text-[11px] font-medium text-gray-600 leading-none">Actual</span>
                 </span>
               )}
               {showForecast && (
-                <span className="flex items-center gap-1.5">
-                  <span style={{ background: `repeating-linear-gradient(90deg,${forecastColor} 0,${forecastColor} 5px,transparent 5px,transparent 8px)`, height: 2, width: 24, display: 'inline-block', borderRadius: 2 }} />
-                  Forecast
+                <span className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1">
+                  <svg width="18" height="10" style={{ display: 'block', flexShrink: 0 }}>
+                    <line x1="0" y1="5" x2="18" y2="5" stroke={forecastColor} strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4 3" />
+                  </svg>
+                  <span className="text-[11px] font-medium text-gray-600 leading-none">Forecast</span>
                 </span>
               )}
             </div>
             {/* flex row: sticky Y-axis panel (outside scroll) + scrollable chart+table area */}
             <div className="flex-1 min-h-0 flex overflow-hidden">
             {hasChartData && chartSlotHeight > 0 && (() => {
-              const plotTop = 50
-              const plotBottom = chartSlotHeight - 12 - (xHoriz ? 24 : 52)
+              const plotTop = 12
+              const plotBottom = chartSlotHeight - 20 - (xHoriz ? 24 : 52)
               const plotH = plotBottom - plotTop
               return (
                 <div style={{ flexShrink: 0, width: yAxisPanelW, overflow: 'hidden', background: 'white' }}>
@@ -1640,7 +1656,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                       const y = plotTop + plotH * (1 - v / 110)
                       return (
                         <text key={v} x={yAxisPanelW - 6} y={y} textAnchor="end"
-                          dominantBaseline="middle" fontSize={11} fill="#6b7280">{v}%</text>
+                          dominantBaseline="middle" fontSize={11} fontWeight="600" fill="#4b5563">{v}%</text>
                       )
                     })}
                   </svg>
@@ -1657,7 +1673,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                   return (
                   <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={displayData}
-                    margin={{ top: 50, right: 52, bottom: 12, left: showTable ? LABEL_W : 0 }}>
+                    margin={{ top: 12, right: 52, bottom: 20, left: showTable ? LABEL_W : 0 }}>
                     <defs>
                       <filter id="line-glow" x="-10%" y="-30%" width="120%" height="160%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -1683,7 +1699,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                             textAnchor={xHoriz ? 'middle' : 'end'}
                             transform={xHoriz ? undefined : 'rotate(-90)'}
                             fontSize={10}
-                            fill="#9ca3af"
+                            fontWeight="600"
+                            fill="#4b5563"
                           >{payload.value}</text>
                         </g>
                       )} />
