@@ -1917,8 +1917,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }
                     aria-label={item.label}
                     className={`w-11 h-11 rounded-full shadow-md border flex items-center justify-center flex-shrink-0 ${
                       item.isCurrent
-                        ? 'bg-[#ed6055]/10 border-[#ed6055]/30 text-[#ed6055] cursor-default'
-                        : 'bg-white border-gray-200 text-gray-400 hover:bg-[#ed6055]/[0.08] hover:text-[#ed6055] hover:border-[#ed6055]/30 active:scale-[0.92]'
+                        ? 'bg-[#fde8e7] border-[#ed6055]/40 text-[#ed6055] cursor-default'
+                        : 'bg-white border-gray-200 text-gray-400 hover:bg-[#fde8e7] hover:text-[#ed6055] hover:border-[#ed6055]/40 active:scale-[0.92]'
                     }`}
                     style={{ transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 100ms ease-out' }}
                   >
