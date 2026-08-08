@@ -1080,7 +1080,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               <span className="text-xs font-semibold text-gray-600 tabular-nums w-8 text-center">{colWidth}px</span>
               <button
                 aria-label="Increase column width"
-                onClick={() => setColWidth(w => Math.min(200, w + 10))}
+                onClick={() => setColWidth(w => Math.min(200, w + 5))}
                 className="w-8 h-8 flex items-center justify-center rounded-md border border-gray-200 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97] text-sm font-bold"
               >+</button>
             </div>
