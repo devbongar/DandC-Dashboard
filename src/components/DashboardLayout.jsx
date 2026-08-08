@@ -13,7 +13,7 @@ const ROLE_LABELS = {
 }
 
 
-export default function DashboardLayout({ profile, children, navOverride, actions }) {
+export default function DashboardLayout({ profile, children, navOverride, actions, title }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [menuOpen,    setMenuOpen]    = useState(false)
   const menuRef = useRef(null)
@@ -69,7 +69,7 @@ export default function DashboardLayout({ profile, children, navOverride, action
         {/* Title */}
         <div className="px-2 sm:px-4 flex items-center min-w-0 flex-shrink">
           <span className="text-white text-sm sm:text-base font-bold truncate tracking-wide">
-            Design &amp; Construction Dashboard
+            {title ?? 'Design & Construction Dashboard'}
           </span>
         </div>
 

@@ -1591,16 +1591,6 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
 
         return (
           <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden pb-2">
-            {/* Chart title */}
-            <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-3 pb-2.5 border-b border-gray-100">
-              <span className="text-sm font-bold text-gray-900 truncate">{project.name}</span>
-              {selectedBuildingId && (
-                <span className="text-xs text-gray-400 font-medium truncate">
-                  · {buildings.find(b => b.id === selectedBuildingId)?.name}
-                </span>
-              )}
-              <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-gray-300">S-Curve</span>
-            </div>
             {/* Legend */}
             <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-2.5 pb-2.5 flex-wrap border-b border-gray-100">
               {selectedBaselineIds.map((id, i) => {
