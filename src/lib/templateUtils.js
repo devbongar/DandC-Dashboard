@@ -18,75 +18,63 @@ export function assignSeqNumbers(tasks) {
  * @returns {Promise<{error: string|null}>}
  */
 export async function copyTemplateToBaseline(baselineId, projectId, supabase) {
-  const { data: existing } = await supabase
-    .from('workprogram_tasks')
-    .select('id')
-    .eq('project_id', projectId)
-    .limit(1)
+  const { data: templateTasks, error: tErr } = await supabase
+    .from('work_program_template_tasks')
+    .select('*')
+    .order('sort_order')
+  if (tErr) return { error: tErr.message }
+  if (!templateTasks?.length) return { error: null }
 
-  if (!existing?.length) {
-    const { data: templateTasks, error: tErr } = await supabase
-      .from('work_program_template_tasks')
-      .select('*')
-      .order('sort_order')
-    if (tErr) return { error: tErr.message }
-    if (!templateTasks?.length) return { error: null }
+  // Map template uuid → new rawTaskId, then build composite activity id
+  const oldToRawId = new Map()
 
-    const seqKey = new Map(templateTasks.map((t, i) => [t.id, i + 1]))
-    const oldToNewId = new Map()
+  const parents  = templateTasks.filter(t => !t.parent_id)
+  const children = templateTasks.filter(t =>  t.parent_id)
 
-    const parents  = templateTasks.filter(t => !t.parent_id)
-    const children = templateTasks.filter(t =>  t.parent_id)
-
-    const { data: insertedParents, error: pErr } = await supabase
-      .from('workprogram_tasks')
-      .insert(parents.map(t => ({
-        project_id:        projectId,
-        sort_order:        seqKey.get(t.id),
-        milestone_name:    t.task_name,
-        phase:             t.phase,
-        baseline_duration: t.duration,
-        dependencies:      '[]',
-      })))
-      .select('id, sort_order')
-    if (pErr) return { error: pErr.message }
-
-    const parentSortToId = new Map((insertedParents ?? []).map(r => [Number(r.sort_order), r.id]))
-    for (const t of parents) {
-      const newId = parentSortToId.get(seqKey.get(t.id))
-      if (newId) oldToNewId.set(t.id, newId)
+  const parentRows = parents.map((t, i) => {
+    const rawId = crypto.randomUUID()
+    oldToRawId.set(t.id, rawId)
+    return {
+      id:             `${rawId}_${baselineId}`,
+      task_id:        rawId,
+      baseline_id:    baselineId,
+      project_id:     projectId,
+      sort_order:     i + 1,
+      milestone_name: t.task_name,
+      phase:          t.phase,
+      duration:       t.duration ?? null,
     }
+  })
 
-    if (children.length) {
-      const childPayloads = children.map(t => {
-        const newParentId = oldToNewId.get(t.parent_id)
-        if (!newParentId) return null
-        return {
-          project_id:        projectId,
-          sort_order:        seqKey.get(t.id),
-          milestone_name:    t.task_name,
-          phase:             t.phase,
-          parent_id:         newParentId,
-          baseline_duration: t.duration,
-          dependencies:      '[]',
-        }
-      }).filter(Boolean)
+  const { error: pErr } = await supabase.from('workprogram_activities').insert(parentRows)
+  if (pErr) return { error: pErr.message }
 
-      const { data: insertedChildren, error: cErr } = await supabase
-        .from('workprogram_tasks')
-        .insert(childPayloads)
-        .select('id, sort_order')
-      if (cErr) return { error: cErr.message }
-
-      const childSortToId = new Map((insertedChildren ?? []).map(r => [Number(r.sort_order), r.id]))
-      for (const t of children) {
-        const newId = childSortToId.get(seqKey.get(t.id))
-        if (newId) oldToNewId.set(t.id, newId)
+  if (children.length) {
+    const childRows = children.map((t, i) => {
+      const rawId       = crypto.randomUUID()
+      const parentRawId = oldToRawId.get(t.parent_id)
+      if (!parentRawId) return null
+      oldToRawId.set(t.id, rawId)
+      return {
+        id:             `${rawId}_${baselineId}`,
+        task_id:        rawId,
+        baseline_id:    baselineId,
+        project_id:     projectId,
+        sort_order:     parents.length + i + 1,
+        milestone_name: t.task_name,
+        phase:          t.phase,
+        duration:       t.duration ?? null,
+        parent_id:      `${parentRawId}_${baselineId}`,
       }
+    }).filter(Boolean)
+
+    if (childRows.length) {
+      const { error: cErr } = await supabase.from('workprogram_activities').insert(childRows)
+      if (cErr) return { error: cErr.message }
     }
   }
 
-  return snapshotTasksToBaseline(baselineId, projectId, supabase)
+  return { error: null }
 }
 
 /**
