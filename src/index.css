@@ -2,7 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Permit table row actions — visible on row hover only */
+/* Permit table row actions -- visible on row hover only */
 .permit-row .permit-actions { opacity: 0; transition: opacity 150ms; }
 .permit-row:hover .permit-actions { opacity: 1; }
 
@@ -11,7 +11,7 @@ html, body {
   background-color: #111111;
 }
 
-/* ── Floating triangle variants ─────────────────────────── */
+/* -- Floating triangle variants --------------------------- */
 @keyframes ph1-tri-a {
   0%        { transform: translate(0px,    0px)  rotate(0deg);   }
   25%       { transform: translate(22px,  -40px) rotate(14deg);  }
@@ -33,13 +33,13 @@ html, body {
   100%      { transform: translate(0px,   0px)   rotate(0deg);   }
 }
 
-/* ── Background blob breathe ────────────────────────────── */
+/* -- Background blob breathe ------------------------------ */
 @keyframes ph1-blob {
   0%,  100% { opacity: 0.08; }
   50%        { opacity: 0.16; }
 }
 
-/* ── Entrance animations ────────────────────────────────── */
+/* -- Entrance animations ---------------------------------- */
 @keyframes ph1-fade-up {
   from { opacity: 0; transform: translateY(22px); }
   to   { opacity: 1; transform: translateY(0);    }
@@ -49,25 +49,25 @@ html, body {
   to   { opacity: 1; }
 }
 
-/* ── Loading screen triangle pulse ──────────────────────────── */
+/* -- Loading screen triangle pulse ---------------------------- */
 @keyframes ph1-loader-tri {
   0%, 100% { opacity: 0.18; transform: scale(0.72) translateX(-2px); }
   50%       { opacity: 1;    transform: scale(1.12) translateX(3px);  }
 }
 
-/* ── Loading screen fade-in ─────────────────────────────────── */
+/* -- Loading screen fade-in ----------------------------------- */
 @keyframes ph1-screen-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
 
-/* ── Dropdown slide-in ──────────────────────────────────────── */
+/* -- Dropdown slide-in ---------------------------------------- */
 @keyframes ph1-dropdown {
   from { opacity: 0; transform: translateY(-6px) scale(0.97); }
   to   { opacity: 1; }
 }
 
-/* ── S-curve chart scroll area ──────────────────────────────── */
+/* -- S-curve chart scroll area -------------------------------- */
 .scurve-scroll::-webkit-scrollbar { height: 8px; }
 .scurve-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
 .scurve-scroll::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 4px; }
@@ -75,7 +75,7 @@ html, body {
 /* force pan-x on Recharts SVG so touch scroll is not blocked */
 .scurve-scroll svg { touch-action: pan-x; }
 
-/* ── Settings panel slide-down ──────────────────────────────── */
+/* -- Settings panel slide-down -------------------------------- */
 @keyframes ph1-panel-down {
   from { opacity: 0; transform: translateY(-4px) scale(0.99); }
   to   { opacity: 1; }
@@ -84,7 +84,7 @@ html, body {
   animation: ph1-panel-down 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
 }
 
-/* ── Reduced motion: disable all custom animations ─────────── */
+/* -- Reduced motion: disable all custom animations ----------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

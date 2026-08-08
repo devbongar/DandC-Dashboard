@@ -3,7 +3,7 @@ import { supabase } from '../lib/supabaseClient'
 import SearchDropdown from './SearchDropdown'
 import TriangleLoader from './TriangleLoader'
 
-// ── Multi-select searchable dropdown ─────────────────────────────────────────
+// -- Multi-select searchable dropdown -----------------------------------------
 
 function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholder, icon, minWidth = 130, fluid = false }) {
   const [open, setOpen]   = useState(false)
@@ -177,7 +177,7 @@ function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholde
   )
 }
 
-// ── Status cells ──────────────────────────────────────────────────────────────
+// -- Status cells --------------------------------------------------------------
 
 const DoneCell = () => (
   <div className="flex items-center justify-center">
@@ -210,11 +210,11 @@ const NotStartedCell = () => (
 )
 
 const NACell = () => (
-  <span className="text-xs text-gray-300 font-medium select-none">—</span>
+  <span className="text-xs text-gray-300 font-medium select-none">--</span>
 )
 
 
-// ── Main component ────────────────────────────────────────────────────────────
+// -- Main component ------------------------------------------------------------
 
 export default function ComplianceTable({ id }) {
   const [permits, setPermits]     = useState([])
@@ -320,9 +320,9 @@ export default function ComplianceTable({ id }) {
       {!loading && !isEmpty && (
         <div className="flex flex-col gap-2 mb-4">
 
-          {/* ── Mobile layout (< sm) ── */}
+          {/* -- Mobile layout (< sm) -- */}
           <div className="flex flex-col gap-2 sm:hidden">
-            {/* Type toggle — full width */}
+            {/* Type toggle -- full width */}
             <div
               className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
               style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
@@ -364,7 +364,7 @@ export default function ComplianceTable({ id }) {
             </div>
           </div>
 
-          {/* ── Desktop layout (sm+) ── */}
+          {/* -- Desktop layout (sm+) -- */}
           <div className="hidden sm:flex items-center gap-2 flex-wrap">
             <div
               className="flex items-center gap-0.5 flex-shrink-0 p-0.5 rounded-lg"
@@ -433,7 +433,7 @@ export default function ComplianceTable({ id }) {
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
-              <span className="text-xs text-gray-300 font-medium">—</span>
+              <span className="text-xs text-gray-300 font-medium">--</span>
             </span>
             <span className="text-xs text-gray-500 font-medium">Not Applicable</span>
           </div>
@@ -476,7 +476,7 @@ export default function ComplianceTable({ id }) {
                     </div>
                   </th>
 
-                  {/* Permit column headers — rotated */}
+                  {/* Permit column headers -- rotated */}
                   {permitNames.map(name => {
                     const hl = highlightedNames.has(name)
                     return (

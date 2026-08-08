@@ -20,14 +20,14 @@ const daysAging = (dateStr) => {
 
 const fmt = (dateStr) => dateStr
   ? new Date(dateStr).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
-  : '—'
+  : '--'
 
 
 function LabelBox({ label, value }) {
   return (
     <div>
-      <p className="text-xs sm:text-base font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
-      <p className="text-sm sm:text-xl font-medium text-gray-900">{value || <span className="text-gray-300 italic font-normal">—</span>}</p>
+      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">{label}</p>
+      <p className="text-sm sm:text-base font-medium text-gray-900">{value || <span className="text-gray-300 italic font-normal">--</span>}</p>
     </div>
   )
 }
@@ -35,9 +35,9 @@ function LabelBox({ label, value }) {
 function SectionBlock({ label, value }) {
   return (
     <div>
-      <p className="text-xs sm:text-base font-bold text-gray-400 uppercase tracking-wider mb-2">{label}</p>
-      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 sm:px-5 py-3 sm:py-4 min-h-[60px] sm:min-h-[80px] text-sm sm:text-xl text-gray-800 leading-relaxed whitespace-pre-wrap">
-        {value || <span className="text-gray-300 italic">—</span>}
+      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{label}</p>
+      <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 sm:px-5 py-3 sm:py-4 min-h-[60px] sm:min-h-[80px] text-sm sm:text-base text-gray-800 leading-relaxed whitespace-pre-wrap">
+        {value || <span className="text-gray-300 italic">--</span>}
       </div>
     </div>
   )
@@ -88,7 +88,7 @@ export default function IssuesTable({ id }) {
     setLoading(false)
   }
 
-  const projectName = (id) => projects.find(p => p.id === id)?.name ?? '—'
+  const projectName = (id) => projects.find(p => p.id === id)?.name ?? '--'
 
   const openView   = (issue) => { setActive(issue); setModal('view') }
   const closeModal = () => { setModal(null); setActive(null) }
@@ -122,7 +122,7 @@ export default function IssuesTable({ id }) {
   }, [issues, projects, type4ph])
 
   return (
-    <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col" style={{ height: 600 }}>
+    <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col min-h-[400px] flex-1">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
@@ -139,9 +139,9 @@ export default function IssuesTable({ id }) {
       {!loading && issues.length > 0 && (
         <div className="flex flex-col gap-2 mb-4">
 
-          {/* ── Mobile layout (< sm) ── */}
+          {/* -- Mobile layout (< sm) -- */}
           <div className="flex flex-col gap-2 sm:hidden">
-            {/* Type toggle — full width */}
+            {/* Type toggle -- full width */}
             <div
               className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
               style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
@@ -202,7 +202,7 @@ export default function IssuesTable({ id }) {
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
                         <div className="flex flex-wrap gap-1">
                           {[{ value: 'all', label: 'All' }, ...Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))].map(o => (
-                            <button key={o.value} onClick={() => setFilterStatus(o.value)} className="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all"
+                            <button key={o.value} onClick={() => setFilterStatus(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
                               style={filterStatus === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
                           ))}
                         </div>
@@ -211,7 +211,7 @@ export default function IssuesTable({ id }) {
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
                         <div className="flex flex-wrap gap-1">
                           {[{ value: 'all', label: 'All' }, ...GROUPS.map(g => ({ value: g, label: g }))].map(o => (
-                            <button key={o.value} onClick={() => setFilterGroup(o.value)} className="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all"
+                            <button key={o.value} onClick={() => setFilterGroup(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
                               style={filterGroup === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
                           ))}
                         </div>
@@ -220,7 +220,7 @@ export default function IssuesTable({ id }) {
                         <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
                         <div className="flex flex-wrap gap-1">
                           {[{ value: 'all', label: 'All' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))].map(o => (
-                            <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)} className="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all"
+                            <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
                               style={filterMgmtLevel === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
                           ))}
                         </div>
@@ -238,7 +238,7 @@ export default function IssuesTable({ id }) {
             )}
           </div>
 
-          {/* ── Desktop layout (sm+) ── */}
+          {/* -- Desktop layout (sm+) -- */}
           <div className="hidden sm:flex items-center gap-2 flex-wrap">
             <div
               className="flex items-center gap-0.5 flex-shrink-0 p-0.5 rounded-lg"
@@ -293,7 +293,7 @@ export default function IssuesTable({ id }) {
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
                       <div className="flex flex-wrap gap-1">
                         {[{ value: 'all', label: 'All' }, ...Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))].map(o => (
-                          <button key={o.value} onClick={() => setFilterStatus(o.value)} className="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all"
+                          <button key={o.value} onClick={() => setFilterStatus(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
                             style={filterStatus === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
                         ))}
                       </div>
@@ -302,7 +302,7 @@ export default function IssuesTable({ id }) {
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
                       <div className="flex flex-wrap gap-1">
                         {[{ value: 'all', label: 'All' }, ...GROUPS.map(g => ({ value: g, label: g }))].map(o => (
-                          <button key={o.value} onClick={() => setFilterGroup(o.value)} className="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all"
+                          <button key={o.value} onClick={() => setFilterGroup(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
                             style={filterGroup === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
                         ))}
                       </div>
@@ -311,7 +311,7 @@ export default function IssuesTable({ id }) {
                       <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
                       <div className="flex flex-wrap gap-1">
                         {[{ value: 'all', label: 'All' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))].map(o => (
-                          <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)} className="px-2.5 py-1 rounded-md text-xs font-semibold border transition-all"
+                          <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
                             style={filterMgmtLevel === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
                         ))}
                       </div>
@@ -395,17 +395,17 @@ export default function IssuesTable({ id }) {
                             <tr
                               key={issue.id}
                               onClick={() => openView(issue)}
-                              className="hover:bg-[#ed6055]/[0.03] transition cursor-pointer"
+                              className="hover:bg-[#ed6055]/[0.03] active:scale-[0.99] active:bg-[#ed6055]/[0.06] transition cursor-pointer"
                               style={{ borderTop: idx === 0 ? 'none' : '1px solid #f9fafb' }}
                             >
                               <td className="px-4 py-3 w-[45%]">
-                                <p className="line-clamp-3 text-xs text-gray-700 leading-relaxed">{issue.details || <span className="italic text-gray-300">—</span>}</p>
+                                <p className="line-clamp-3 text-xs text-gray-700 leading-relaxed">{issue.details || <span className="italic text-gray-300">--</span>}</p>
                               </td>
                               <td className="px-4 py-3 w-[45%]">
-                                <p className="line-clamp-3 text-xs text-gray-500 leading-relaxed">{issue.action_steps || <span className="italic text-gray-300">—</span>}</p>
+                                <p className="line-clamp-3 text-xs text-gray-500 leading-relaxed">{issue.action_steps || <span className="italic text-gray-300">--</span>}</p>
                               </td>
                               <td className="px-4 py-3 w-20 whitespace-nowrap">
-                                <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-md ${sc.className}`}>{sc.label}</span>
+                                <span className={`inline-block text-xs font-bold px-2.5 py-0.5 rounded-full ${sc.className}`}>{sc.label}</span>
                               </td>
                             </tr>
                           )
@@ -419,12 +419,12 @@ export default function IssuesTable({ id }) {
         )}
       </div>
 
-      {/* ── View Modal ── */}
+      {/* -- View Modal -- */}
       {modal === 'view' && active && (() => {
         const aging = daysAging(active.date_presented)
         const sc = STATUS_CONFIG[active.status] ?? STATUS_CONFIG.open
         return (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 sm:p-4" onClick={closeModal}>
+          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/10 backdrop-blur-sm sm:p-4" onClick={closeModal}>
             <div
               className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-7xl overflow-hidden flex flex-col"
               style={{ maxHeight: '88dvh' }}
@@ -433,13 +433,12 @@ export default function IssuesTable({ id }) {
               {/* Modal header */}
               <div className="px-4 sm:px-8 py-4 sm:py-5 border-b border-gray-100 flex items-start justify-between gap-4 flex-shrink-0">
                 <div>
-                  <p className="text-base font-semibold text-gray-400 uppercase tracking-wider mb-1">Issues &amp; Concerns</p>
                   <h3 className="text-xl sm:text-3xl font-bold text-black leading-snug">
-                    {projectName(active.project_id) !== '—' ? projectName(active.project_id) : 'No project linked'}
+                    {projectName(active.project_id) !== '--' ? projectName(active.project_id) : 'No project linked'}
                   </h3>
                 </div>
                 <div className="flex items-center gap-3 flex-shrink-0 mt-1">
-                  <span className={`text-sm font-semibold px-3 py-1 rounded-lg ${sc.className}`}>{sc.label}</span>
+                  <span className={`text-sm font-semibold px-3 py-1 rounded-full ${sc.className}`}>{sc.label}</span>
                   <button onClick={closeModal} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"><XIcon /></button>
                 </div>
               </div>
@@ -449,12 +448,26 @@ export default function IssuesTable({ id }) {
                 <LabelBox label="Group"            value={active.issue_group} />
                 <LabelBox label="Management Level" value={active.management_level} />
                 <LabelBox label="Date Presented"   value={fmt(active.date_presented)} />
-                <LabelBox label="Days Aging"       value={aging !== null ? `${aging} day${aging !== 1 ? 's' : ''}` : null} />
+                <div>
+                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Days Aging</p>
+                  {aging !== null ? (
+                    <span className={`inline-block text-sm sm:text-base font-semibold px-2.5 py-0.5 rounded-full ${
+                      aging >= 30 ? 'bg-red-50 text-red-600 border border-red-100' :
+                      aging >= 15 ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                      'text-gray-900'
+                    }`}>
+                      {aging} day{aging !== 1 ? 's' : ''}
+                    </span>
+                  ) : (
+                    <span className="text-gray-300 italic font-normal text-sm">--</span>
+                  )}
+                </div>
               </div>
 
               {/* Body */}
               <div className="flex-1 px-4 sm:px-8 py-5 sm:py-6 space-y-5 overflow-y-auto">
                 <SectionBlock label="Issue"        value={active.details} />
+                {active.caused_by && <SectionBlock label="Caused By"   value={active.caused_by} />}
                 <SectionBlock label="Action Steps" value={active.action_steps} />
               </div>
 

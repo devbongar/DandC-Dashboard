@@ -20,7 +20,7 @@ function DateCard({ label, value, variant = 'planned' }) {
   return (
     <div className={`${DATE_CARD_BG[variant]} rounded-lg px-3 py-2.5`}>
       <p className={`text-[10px] font-semibold ${DATE_LABEL_COLOR[variant]} uppercase tracking-wider mb-0.5`}>{label}</p>
-      <p className="text-sm font-medium text-gray-900 dark:text-white tabular-nums">{value ?? '—'}</p>
+      <p className="text-sm font-medium text-gray-900 dark:text-white tabular-nums">{value ?? '--'}</p>
     </div>
   )
 }
@@ -749,7 +749,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
           </div>
         </div>
 
-        {/* Sticky footer — Mark Acquired */}
+        {/* Sticky footer -- Mark Acquired */}
         {canManage && (
           <div className="flex-shrink-0 px-6 pt-4 border-t border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-[0_-4px_16px_rgba(0,0,0,0.06)]" style={{ paddingBottom: 'max(1rem, env(safe-area-inset-bottom))' }}>
             {status === 'acquired' ? (

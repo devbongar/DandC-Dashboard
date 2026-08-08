@@ -161,7 +161,7 @@ export default function PermitsDashboard() {
             })}
           </div>
 
-          {/* Left gradient-button — mobile only, full height tap target */}
+          {/* Left gradient-button -- mobile only, full height tap target */}
           <button
             onClick={() => scrollCards(-1)}
             aria-label="Scroll left"
@@ -172,7 +172,7 @@ export default function PermitsDashboard() {
             </svg>
           </button>
 
-          {/* Right gradient-button — mobile only */}
+          {/* Right gradient-button -- mobile only */}
           <button
             onClick={() => scrollCards(1)}
             aria-label="Scroll right"
@@ -400,7 +400,7 @@ export default function PermitsDashboard() {
                             </td>
                             <td className="px-4 py-3 whitespace-nowrap tabular-nums">
                               {reqTotal === 0
-                                ? <span className="text-xs text-gray-400">—</span>
+                                ? <span className="text-xs text-gray-400">--</span>
                                 : <span className={`text-xs font-medium ${reqDone === reqTotal ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300'}`}>
                                     {reqDone}/{reqTotal}
                                   </span>
@@ -409,12 +409,12 @@ export default function PermitsDashboard() {
                             <td className="px-4 py-3 whitespace-nowrap tabular-nums">
                               {delayed > 0
                                 ? <span className="text-xs font-semibold text-red-600 dark:text-red-400">{delayed}d</span>
-                                : <span className="text-xs text-gray-400">—</span>
+                                : <span className="text-xs text-gray-400">--</span>
                               }
                             </td>
-                            <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap tabular-nums">{permit.planned_finish ?? '—'}</td>
-                            <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap tabular-nums">{permit.forecast_finish ?? '—'}</td>
-                            <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">{permit.responsible_person ?? '—'}</td>
+                            <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap tabular-nums">{permit.planned_finish ?? '--'}</td>
+                            <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400 whitespace-nowrap tabular-nums">{permit.forecast_finish ?? '--'}</td>
+                            <td className="px-4 py-3 text-xs text-gray-600 dark:text-gray-400">{permit.responsible_person ?? '--'}</td>
                           </tr>
                         )
                       })}

@@ -64,7 +64,7 @@ export default function SignUp() {
   return (
     <div className="min-h-screen flex">
 
-      {/* ── Left panel ── */}
+      {/* -- Left panel -- */}
       <div className="hidden lg:flex lg:w-1/2 bg-black flex-col items-center justify-center px-12 relative overflow-hidden">
 
         {/* Animated background blobs */}
@@ -96,7 +96,7 @@ export default function SignUp() {
           />
         ))}
 
-        {/* Logo + tagline — entrance */}
+        {/* Logo + tagline -- entrance */}
         <div style={{ animation: 'ph1-fade-up 0.7s ease-out 0.1s both' }}>
           <Logo size="lg" variant="light" />
           <p className="mt-6 text-white/50 text-sm text-center max-w-xs leading-relaxed">
@@ -105,7 +105,7 @@ export default function SignUp() {
         </div>
       </div>
 
-      {/* ── Right panel ── */}
+      {/* -- Right panel -- */}
       <div className="w-full lg:w-1/2 flex items-center justify-center bg-white px-6 py-12">
         <div className="w-full max-w-md">
 

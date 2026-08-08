@@ -44,7 +44,7 @@ export default function ProjectDetailPage() {
 
   useEffect(() => {
     if (!project) return
-    document.title = `${project.name} — D&C Dashboard`
+    document.title = `${project.name} -- D&C Dashboard`
     return () => { document.title = 'D&C Dashboard' }
   }, [project?.name])
 
@@ -84,7 +84,7 @@ export default function ProjectDetailPage() {
   )
 
   return (
-    <DashboardLayout profile={profile} navOverride={navOverride} actions={actions} title={project.name}>
+    <DashboardLayout profile={profile} navOverride={navOverride} actions={actions} title={section ? `${project.name} -- ${section}` : project.name}>
       <div
         className="fixed inset-x-0 bottom-0 overflow-hidden"
         style={{ top: 'calc(4rem + env(safe-area-inset-top, 0px))' }}

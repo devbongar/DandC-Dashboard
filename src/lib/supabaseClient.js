@@ -5,7 +5,7 @@ const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-// Fetches all rows by paginating in chunks — avoids the 1000-row default cap.
+// Fetches all rows by paginating in chunks -- avoids the 1000-row default cap.
 export async function fetchAll(buildQuery, pageSize = 1000) {
   let all = []
   let from = 0

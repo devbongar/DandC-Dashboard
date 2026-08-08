@@ -4,7 +4,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 import useProfile from '../../hooks/useProfile'
 import TriangleLoader from '../../components/TriangleLoader'
 
-// ── Icons ─────────────────────────────────────────────────────────────────────
+// -- Icons ---------------------------------------------------------------------
 
 const EditIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -36,7 +36,7 @@ const StarIcon = ({ filled }) => (
   </svg>
 )
 
-// ── PermitCombobox ────────────────────────────────────────────────────────────
+// -- PermitCombobox ------------------------------------------------------------
 
 function PermitCombobox({ value, onChange, options = [], placeholder = '' }) {
   const [open, setOpen]     = useState(false)
@@ -95,7 +95,7 @@ function PermitCombobox({ value, onChange, options = [], placeholder = '' }) {
   )
 }
 
-// ── Add/Edit Modal ────────────────────────────────────────────────────────────
+// -- Add/Edit Modal ------------------------------------------------------------
 
 function PermitModal({ l1s, allNames, editRow, initialParent, onSave, onClose }) {
   const isEdit = !!editRow
@@ -127,7 +127,7 @@ function PermitModal({ l1s, allNames, editRow, initialParent, onSave, onClose })
               onChange={e => setForm(p => ({ ...p, parent_id: e.target.value || null }))}
               className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black"
             >
-              <option value="">— None (Level 1) —</option>
+              <option value="">-- None (Level 1) --</option>
               {l1s.filter(l => !editRow || l.id !== editRow.id).map(l => (
                 <option key={l.id} value={l.id}>{l.permit_name}</option>
               ))}
@@ -165,11 +165,11 @@ function PermitModal({ l1s, allNames, editRow, initialParent, onSave, onClose })
   )
 }
 
-// ── Row layout ────────────────────────────────────────────────────────────────
+// -- Row layout ----------------------------------------------------------------
 
 const ROW_GRID = 'grid grid-cols-[40px_1fr_120px]'
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// -- Main page -----------------------------------------------------------------
 
 export default function StandardPermits() {
   const { profile } = useProfile()
@@ -207,7 +207,7 @@ export default function StandardPermits() {
 
   const allNames = useMemo(() => [...new Set(rows.map(r => r.permit_name).filter(Boolean))].sort(), [rows])
 
-  // ── Persist ─────────────────────────────────────────────────────────────────
+  // -- Persist -----------------------------------------------------------------
   const persistOrder = async (newRows) => {
     setSaving(true)
     await Promise.all(
@@ -218,7 +218,7 @@ export default function StandardPermits() {
     setSaving(false)
   }
 
-  // ── Move helpers ─────────────────────────────────────────────────────────────
+  // -- Move helpers -------------------------------------------------------------
 
   const moveL1 = async (l1Id, dir) => {
     const list  = rows.filter(r => !r.parent_id)
@@ -272,7 +272,7 @@ export default function StandardPermits() {
     showToast('Promoted to L1.')
   }
 
-  // ── Save / Delete ────────────────────────────────────────────────────────────
+  // -- Save / Delete ------------------------------------------------------------
 
   const save = async ({ permit_name, parent_id }, editRow) => {
     const payload = {
@@ -307,7 +307,7 @@ export default function StandardPermits() {
     return next
   })
 
-  // ── Render ───────────────────────────────────────────────────────────────────
+  // -- Render -------------------------------------------------------------------
 
   const totalL2 = rows.filter(r => r.parent_id).length
 

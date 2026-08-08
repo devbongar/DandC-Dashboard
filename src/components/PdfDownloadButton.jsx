@@ -107,7 +107,7 @@ export default function PdfDownloadButton() {
         onclone: (_clonedDoc) => fixCloneForCapture(_clonedDoc),
       }
 
-      // Page 1 — viewport snapshot (no expansion)
+      // Page 1 -- viewport snapshot (no expansion)
       const dashContent = document.getElementById('dashboard-content')
       if (dashContent) {
         const canvas1 = await html2canvas(dashContent, captureOpts)
@@ -115,7 +115,7 @@ export default function PdfDownloadButton() {
         pdf.addImage(canvas1.toDataURL('image/jpeg', 0.85), 'JPEG', 0, 0, pageW, imgH1)
       }
 
-      // Pages 2–5 — one per panel, fully expanded
+      // Pages 2–5 -- one per panel, fully expanded
       for (const panelId of PANEL_IDS) {
         const panelEl = document.getElementById(panelId)
         if (!panelEl) continue

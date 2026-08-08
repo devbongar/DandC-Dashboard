@@ -1,6 +1,6 @@
 import { supabase, fetchAll } from './supabaseClient'
 
-// ── Fetch all data needed for reports ─────────────────────────────────────────
+// -- Fetch all data needed for reports -----------------------------------------
 
 export async function fetchProjectsBasic() {
   const { data } = await supabase
@@ -38,12 +38,12 @@ export async function fetchReportData(projectIds) {
       .order('sort_order')
       .then(r => r.data ?? []),
 
-    // Use fetchAll — projects can have thousands of floors (e.g. 2958 floors for large developments)
+    // Use fetchAll -- projects can have thousands of floors (e.g. 2958 floors for large developments)
     fetchAll(() => supabase.from('project_floors')
       .select('id, project_id, building_id, physical_level, marketing_level, num_units')
       .in('project_id', ids)),
 
-    // Only fetch records where m4_date is set (non-null) — avoids scanning millions of blank rows.
+    // Only fetch records where m4_date is set (non-null) -- avoids scanning millions of blank rows.
     // Using gte('1900-01-01') instead of .not('is',null) to avoid PostgREST null-filter edge cases.
     fetchAll(() => supabase.from('project_unit_completion')
       .select('project_id, floor_id, unit_number, m4_date, m5_date')
@@ -76,7 +76,7 @@ export async function fetchReportData(projectIds) {
   return { projects, issues, milestones, permits, floors, completions, poc, buildings, photos }
 }
 
-// ── Derived metrics per project ───────────────────────────────────────────────
+// -- Derived metrics per project -----------------------------------------------
 
 const DONE_PERMIT_STATUSES = ['done', 'obtained', 'approved']
 

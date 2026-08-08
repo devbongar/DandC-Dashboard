@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabaseClient'
 import Logo from './Logo'
 import { ROLE_LABELS, ROLE_BADGE, navKeyForProfile } from '../lib/roles'
 
-// ── Nav items per role ──────────────────────────────────────────────────────
+// -- Nav items per role ------------------------------------------------------
 const NAV = {
   admin: [
     { label: 'Dashboard',             path: '/admin/dashboard',              Icon: HomeIcon },
@@ -32,7 +32,7 @@ const NAV = {
   ],
 }
 
-// ── Component ───────────────────────────────────────────────────────────────
+// -- Component ---------------------------------------------------------------
 export default function Sidebar({ profile, open, onClose }) {
   const navigate = useNavigate()
   const items = NAV[navKeyForProfile(profile)] ?? []
@@ -68,10 +68,10 @@ export default function Sidebar({ profile, open, onClose }) {
           open ? 'translate-x-0' : '-translate-x-full',
         ].join(' ')}
       >
-        {/* Safe-area spacer — clears iOS status bar on PWA */}
+        {/* Safe-area spacer -- clears iOS status bar on PWA */}
         <div style={{ height: 'env(safe-area-inset-top, 0px)', flexShrink: 0 }} />
 
-        {/* ── Header: Logo + Close ── */}
+        {/* -- Header: Logo + Close -- */}
         <div className="flex items-center justify-between h-16 px-4 border-b border-white/5 flex-shrink-0">
           <Logo size="md" variant="white" />
           <button
@@ -83,7 +83,7 @@ export default function Sidebar({ profile, open, onClose }) {
           </button>
         </div>
 
-        {/* ── Navigation ── */}
+        {/* -- Navigation -- */}
         <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden">
           <p className="px-4 mb-1.5 text-[10px] font-semibold text-white/20 uppercase tracking-widest select-none">
             Menu
@@ -114,7 +114,7 @@ export default function Sidebar({ profile, open, onClose }) {
             })}
           </ul>
 
-          {/* ── Admin Users section (admin only) ── */}
+          {/* -- Admin Users section (admin only) -- */}
           {profile?.role === 'admin' && (
             <div className="mt-6 px-4">
               <p className="mb-2 text-[10px] font-semibold text-white/20 uppercase tracking-widest select-none">
@@ -139,7 +139,7 @@ export default function Sidebar({ profile, open, onClose }) {
             </div>
           )}
 
-          {/* ── Permits Monitoring section (HO users only) ── */}
+          {/* -- Permits Monitoring section (HO users only) -- */}
           {profile?.team === 'ho' && (
             <div className="mt-6 px-4">
               <p className="mb-2 text-[10px] font-semibold text-white/20 uppercase tracking-widest select-none">
@@ -165,9 +165,9 @@ export default function Sidebar({ profile, open, onClose }) {
           )}
         </nav>
 
-        {/* ── Footer ── */}
+        {/* -- Footer -- */}
         <div className="border-t border-white/5 flex-shrink-0 px-2 pt-3 pb-3 space-y-0.5">
-          {/* User info — links to profile page */}
+          {/* User info -- links to profile page */}
           <NavLink
             to="/profile"
             onClick={onClose}
@@ -208,7 +208,7 @@ export default function Sidebar({ profile, open, onClose }) {
   )
 }
 
-// ── Icons ───────────────────────────────────────────────────────────────────
+// -- Icons -------------------------------------------------------------------
 function XIcon() {
   return (
     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

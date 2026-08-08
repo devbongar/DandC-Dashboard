@@ -65,7 +65,7 @@ function AuthenticatedRoute({ children, roles }) {
   )
 }
 
-// roles: string[] — allowed roles. Omit to allow any authenticated user.
+// roles: string[] -- allowed roles. Omit to allow any authenticated user.
 export default function ProtectedRoute({ children, roles }) {
   return <AuthenticatedRoute roles={roles}>{children}</AuthenticatedRoute>
 }

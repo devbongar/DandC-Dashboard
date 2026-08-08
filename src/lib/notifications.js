@@ -1,4 +1,4 @@
-// ── Email via Resend ──────────────────────────────────────────────────────────
+// -- Email via Resend ----------------------------------------------------------
 
 export async function sendIssueNotification(issue, permit, assignedUser) {
   const apiKey = import.meta.env.VITE_RESEND_API_KEY
@@ -7,10 +7,10 @@ export async function sendIssueNotification(issue, permit, assignedUser) {
   const body = {
     from: 'DandC Dashboard <noreply@dandcdashboard.com>',
     to:   [assignedUser.email],
-    subject: `Issue raised on permit ${permit.id} — ${permit.name}`,
+    subject: `Issue raised on permit ${permit.id} -- ${permit.name}`,
     html: `
       <p>Hi ${assignedUser.full_name ?? assignedUser.email},</p>
-      <p>A new issue has been raised on permit <strong>${permit.id} — ${permit.name}</strong>.</p>
+      <p>A new issue has been raised on permit <strong>${permit.id} -- ${permit.name}</strong>.</p>
       <p><strong>Issue:</strong> ${issue.issue}</p>
       ${issue.description ? `<p><strong>Details:</strong> ${issue.description}</p>` : ''}
       <p>Please log in to the dashboard to review and resolve.</p>
@@ -29,7 +29,7 @@ export async function sendIssueNotification(issue, permit, assignedUser) {
   }
 }
 
-// ── MS Teams via Power Automate ───────────────────────────────────────────────
+// -- MS Teams via Power Automate -----------------------------------------------
 
 async function postToTeams(webhookUrl, payload) {
   if (!webhookUrl) return { ok: false, error: 'No Teams webhook URL configured' }
@@ -55,12 +55,12 @@ export function sendTeamsIssueNotification(issue, permit, assignedUser, webhookU
     title:         '⚠ Issue Raised',
     issueTitle:    issue.issue,
     issueDetails:  issue.description ?? '',
-    projectName:   permit.projects?.name ?? '—',
+    projectName:   permit.projects?.name ?? '--',
     permitId:      permit.id,
     permitName:    permit.name,
-    assignedTo:         assignedUser?.full_name ?? '—',
+    assignedTo:         assignedUser?.full_name ?? '--',
     assignedEmail:      assignedUser?.email ?? '',
-    responsiblePerson:  permit.responsible_person ?? '—',
+    responsiblePerson:  permit.responsible_person ?? '--',
     raisedAt:           new Date().toISOString(),
   })
 }
@@ -70,10 +70,10 @@ export function sendTeamsPermitAcquired(permit, acquiredBy, acquiredByEmail, web
     event:         'permit_acquired',
     title:         '✅ Permit Acquired',
     text:          permit.name,
-    projectName:   permit.projects?.name ?? '—',
+    projectName:   permit.projects?.name ?? '--',
     permitId:      permit.id,
     permitName:    permit.name,
-    assignedTo:    acquiredBy ?? '—',
+    assignedTo:    acquiredBy ?? '--',
     assignedEmail: acquiredByEmail ?? '',
   })
 }
@@ -81,10 +81,10 @@ export function sendTeamsPermitAcquired(permit, acquiredBy, acquiredByEmail, web
 export function sendTeamsTestNotification(webhookUrl) {
   return postToTeams(webhookUrl, {
     event:      'test',
-    title:      '✅ DandC Dashboard — Teams Integration',
+    title:      '✅ DandC Dashboard -- Teams Integration',
     text:       'Webhook configured correctly. Notifications will appear here.',
-    permitId:   '—',
-    permitName: '—',
-    assignedTo: '—',
+    permitId:   '--',
+    permitName: '--',
+    assignedTo: '--',
   })
 }

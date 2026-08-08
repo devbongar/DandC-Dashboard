@@ -14,7 +14,7 @@ describe('buildChildAddForm', () => {
     expect(result).toEqual({ phase: 'Construction', milestone_name: '', parentId: 'xyz', depth: 3 })
   })
 
-  it('returns null for a node at max depth (3) — cannot go deeper', () => {
+  it('returns null for a node at max depth (3) -- cannot go deeper', () => {
     const node = { id: 'deep', phase: 'Design', depth: 3 }
     expect(buildChildAddForm(node)).toBeNull()
   })

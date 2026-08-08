@@ -115,7 +115,7 @@ function AvatarSection({ profile, showToast }) {
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={uploadAvatar} />
         </div>
         <div>
-          <p className="text-base font-bold text-black leading-tight">{profile?.full_name ?? '—'}</p>
+          <p className="text-base font-bold text-black leading-tight">{profile?.full_name ?? '--'}</p>
           <p className="text-sm text-gray-400 mt-0.5">{profile?.email}</p>
           <span className={`inline-block mt-1.5 text-[10px] font-bold px-2 py-0.5 rounded-full ${ROLE_BADGE[profile?.role] ?? 'bg-gray-500 text-white'}`}>
             {ROLE_LABELS[profile?.role] ?? profile?.role}
@@ -145,7 +145,7 @@ function AvatarSection({ profile, showToast }) {
           </div>
         ) : (
           <div className="flex items-center gap-2">
-            <p className="text-sm text-black font-medium">{profile?.full_name ?? '—'}</p>
+            <p className="text-sm text-black font-medium">{profile?.full_name ?? '--'}</p>
             <button onClick={() => setEditingName(true)} className="text-[11px] text-[#ed6055] hover:text-[#d94f45] font-semibold transition">
               Edit
             </button>
@@ -382,7 +382,7 @@ function SecurityQuestionsSection({ profile, showToast }) {
                 onChange={e => setForm(f => ({ ...f, [qKey]: e.target.value }))}
                 className={selectCls}
               >
-                <option value="">— Select a question —</option>
+                <option value="">-- Select a question --</option>
                 {SECURITY_QUESTIONS.map(q => (
                   <option key={q} value={q} disabled={usedQuestions(qKey).includes(q)}>{q}</option>
                 ))}

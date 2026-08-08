@@ -1,11 +1,11 @@
 import { useEffect } from 'react'
 import { projectMetrics } from '../lib/reportData'
 
-// ── Helpers ───────────────────────────────────────────────────────────────────
+// -- Helpers -------------------------------------------------------------------
 
-const fmtDate  = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
+const fmtDate  = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '--'
 const fmtDateShort = (d) => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { month: 'short', year: '2-digit' }) : ''
-const fmtArea  = (v) => v ? `${Number(v).toLocaleString()} sqm` : '—'
+const fmtArea  = (v) => v ? `${Number(v).toLocaleString()} sqm` : '--'
 
 const phaseLbl = { initiation: 'Initiation', planning: 'Planning', execution_monitoring: 'Execution & Monitoring', turnover: 'Turnover', completed: 'Completed', closeout: 'Close-Out' }
 const buLbl    = { FPI: 'Famtech Properties Inc.', MDRI: 'Megawide Dreamrise Residences Inc.', PCI: 'Plushomes Inc.', PH1VEL: 'PH1VEL Properties Inc.', PH1: 'PH1 World Developers Inc.', PH1L: 'PH1 World Landscapes Inc.' }
@@ -18,7 +18,7 @@ const MIL_LABEL    = { not_started: 'Not Started', in_progress: 'In Progress', c
 
 const s = (obj) => Object.entries(obj).map(([k, v]) => `${k}:${v}`).join(';')  // inline style shorthand
 
-// ── Shared UI atoms ───────────────────────────────────────────────────────────
+// -- Shared UI atoms -----------------------------------------------------------
 
 function SectionTitle({ children }) {
   return (
@@ -52,7 +52,7 @@ function ProgressBar({ pct, color = '#ed6055', label }) {
   )
 }
 
-// ── S-Curve SVG Chart ─────────────────────────────────────────────────────────
+// -- S-Curve SVG Chart ---------------------------------------------------------
 
 function SCurveChart({ pocData }) {
   if (!pocData || pocData.length === 0) {
@@ -150,7 +150,7 @@ function SCurveChart({ pocData }) {
           </g>
         ))}
         <line x1={PAD.left} y1={PAD.top} x2={PAD.left} y2={PAD.top + CH} stroke="#e2e8f0" strokeWidth="0.8" />
-        {/* Lines — draw Projected under Actual under Planned */}
+        {/* Lines -- draw Projected under Actual under Planned */}
         {makePath('projected') && <path d={makePath('projected')} fill="none" stroke="#fde047" strokeWidth="2"   strokeDasharray="5,3" />}
         {makePath('actual')    && <path d={makePath('actual')}    fill="none" stroke="#86efac" strokeWidth="2.5" />}
         {makePath('target')    && <path d={makePath('target')}    fill="none" stroke="#9ca3af" strokeWidth="2" />}
@@ -162,7 +162,7 @@ function SCurveChart({ pocData }) {
         ))}
       </svg>
 
-      {/* Data table — same series as chart */}
+      {/* Data table -- same series as chart */}
       <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 8.5, marginTop: 4, tableLayout: 'auto' }}>
         <thead>
           <tr style={{ borderBottom: '1px solid #e5e7eb', background: '#f9fafb' }}>
@@ -187,7 +187,7 @@ function SCurveChart({ pocData }) {
               </td>
               {data.map((d, i) => i % labelStep === 0 && (
                 <td key={i} style={{ textAlign: 'center', padding: '4px 3px', color: '#374151', tabularNums: true }}>
-                  {d[key] != null ? `${d[key].toFixed(2)}%` : <span style={{ color: '#d1d5db' }}>—</span>}
+                  {d[key] != null ? `${d[key].toFixed(2)}%` : <span style={{ color: '#d1d5db' }}>--</span>}
                 </td>
               ))}
             </tr>
@@ -198,21 +198,21 @@ function SCurveChart({ pocData }) {
   )
 }
 
-// ── 1. Project Info ───────────────────────────────────────────────────────────
+// -- 1. Project Info -----------------------------------------------------------
 
 function ProjectInfoSection({ project }) {
   const infoRows = [
-    ['Business Unit',     buLbl[project.business_unit] ?? project.business_unit ?? '—'],
-    ['Development Type',  devType[project.development_type] ?? project.development_type ?? '—'],
-    ['Phase',             phaseLbl[project.phase] ?? project.phase ?? '—'],
-    ['Province',          project.province ?? '—'],
-    ['City / Municipality', project.city ?? '—'],
+    ['Business Unit',     buLbl[project.business_unit] ?? project.business_unit ?? '--'],
+    ['Development Type',  devType[project.development_type] ?? project.development_type ?? '--'],
+    ['Phase',             phaseLbl[project.phase] ?? project.phase ?? '--'],
+    ['Province',          project.province ?? '--'],
+    ['City / Municipality', project.city ?? '--'],
     ['Lot Area',          fmtArea(project.lot_area)],
     ['Developable Area',  fmtArea(project.developable_area)],
-    ['No. of Floors',     project.num_floors ?? '—'],
-    ['No. of Units',      project.num_units ?? '—'],
+    ['No. of Floors',     project.num_floors ?? '--'],
+    ['No. of Units',      project.num_units ?? '--'],
     ['Is 4PH Project',    project.is_4ph_project ? 'Yes' : 'No'],
-  ].filter(([, v]) => v && v !== '—')
+  ].filter(([, v]) => v && v !== '--')
 
   return (
     <div style={{ breakInside: 'avoid' }}>
@@ -234,7 +234,7 @@ function ProjectInfoSection({ project }) {
   )
 }
 
-// ── 2. M4 / M5 Dashboard ─────────────────────────────────────────────────────
+// -- 2. M4 / M5 Dashboard -----------------------------------------------------
 
 function M4M5Section({ project, data }) {
   const { floors, completions, buildings } = data
@@ -266,7 +266,7 @@ function M4M5Section({ project, data }) {
       <div style={{ display: 'flex', gap: 10, marginBottom: 14 }}>
         <KPICard label="M4 Completion"  value={`${m.m4Pct}%`}  sub={`${m.m4Units} / ${m.totalUnits} units`} color="#ed6055" />
         <KPICard label="M5 Completion"  value={`${m.m5Pct}%`}  sub={`${m.m5Units} / ${m.totalUnits} units`} color="#ed6055" />
-        <KPICard label="Permit Compliance" value={m.permitPct !== null ? `${m.permitPct}%` : '—'} sub={`${m.donePermits} / ${m.leafPermits} permits`} color="#1e293b" />
+        <KPICard label="Permit Compliance" value={m.permitPct !== null ? `${m.permitPct}%` : '--'} sub={`${m.donePermits} / ${m.leafPermits} permits`} color="#1e293b" />
         <KPICard label="Open Issues"   value={m.openIssues} sub="requires action" color={m.openIssues > 0 ? '#ef4444' : '#22c55e'} />
       </div>
 
@@ -303,7 +303,7 @@ function M4M5Section({ project, data }) {
   )
 }
 
-// ── 3. S-Curve ────────────────────────────────────────────────────────────────
+// -- 3. S-Curve ----------------------------------------------------------------
 
 function SCurveSection({ project, data }) {
   const pocData = data.poc.filter(d => d.project_id === project.id)
@@ -315,7 +315,7 @@ function SCurveSection({ project, data }) {
   )
 }
 
-// ── 4. Permits ────────────────────────────────────────────────────────────────
+// -- 4. Permits ----------------------------------------------------------------
 
 function PermitSection({ project, data }) {
   const { permits } = data
@@ -372,7 +372,7 @@ function PermitSection({ project, data }) {
   )
 }
 
-// ── 5. Issues & Concerns ──────────────────────────────────────────────────────
+// -- 5. Issues & Concerns ------------------------------------------------------
 
 function IssuesSection({ project, data }) {
   const projIssues = data.issues.filter(i => i.project_id === project.id)
@@ -416,7 +416,7 @@ function IssuesSection({ project, data }) {
   )
 }
 
-// ── 6. Photos ─────────────────────────────────────────────────────────────────
+// -- 6. Photos -----------------------------------------------------------------
 
 function PhotosSection({ project, data }) {
   const projPhotos = data.photos
@@ -459,7 +459,7 @@ function PhotosSection({ project, data }) {
   )
 }
 
-// ── Per-project page ──────────────────────────────────────────────────────────
+// -- Per-project page ----------------------------------------------------------
 
 function ProjectPage({ project, data, isFirst }) {
   const phase = phaseLbl[project.phase] ?? project.phase
@@ -497,7 +497,7 @@ function ProjectPage({ project, data, isFirst }) {
   )
 }
 
-// ── Root component ────────────────────────────────────────────────────────────
+// -- Root component ------------------------------------------------------------
 
 export default function ManagementReportView({ data, onClose }) {
   const { projects } = data

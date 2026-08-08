@@ -154,7 +154,7 @@ export default function Settings() {
                   {webhookStatus === 'saved'     && '✓ Saved'}
                   {webhookStatus === 'test-ok'   && '✓ Test message sent'}
                   {webhookStatus === 'error'     && '✗ Failed to save'}
-                  {webhookStatus === 'test-fail' && '✗ Test failed — check webhook URL'}
+                  {webhookStatus === 'test-fail' && '✗ Test failed -- check webhook URL'}
                 </span>
               )}
             </div>
@@ -174,7 +174,7 @@ export default function Settings() {
                       </svg>
                     </span>
                     <span className="text-xs text-gray-700 dark:text-gray-300">
-                      <strong>{n.event}</strong> — {n.desc}
+                      <strong>{n.event}</strong> -- {n.desc}
                     </span>
                   </li>
                 ))}
@@ -238,7 +238,7 @@ export default function Settings() {
                   {gcWebhookStatus === 'saved'     && '✓ Saved'}
                   {gcWebhookStatus === 'test-ok'   && '✓ Test message sent'}
                   {gcWebhookStatus === 'error'     && '✗ Failed to save'}
-                  {gcWebhookStatus === 'test-fail' && '✗ Test failed — check webhook URL'}
+                  {gcWebhookStatus === 'test-fail' && '✗ Test failed -- check webhook URL'}
                 </span>
               )}
             </div>

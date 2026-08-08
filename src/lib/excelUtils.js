@@ -7,7 +7,7 @@ export async function downloadWorkbook(sheets, filename) {
   for (const { sheetName, rows, columns, protectSheet, lockedCells } of sheets) {
     const ws = wb.addWorksheet(sheetName)
 
-    // Column widths — when sheet is protected, default column style unlocks new cells
+    // Column widths -- when sheet is protected, default column style unlocks new cells
     ws.columns = columns.map(c => ({
       header: c.header,
       key:    c.key,
@@ -113,11 +113,11 @@ export function toInt(val) {
 export async function downloadActualTemplate(filename = 'actual-import-template.xlsx') {
   const wb = new ExcelJS.Workbook()
 
-  // ── Instructions sheet ───────────────────────────────────────────────────
+  // -- Instructions sheet ---------------------------------------------------
   const ins = wb.addWorksheet('Instructions')
   ins.columns = [{ width: 22 }, { width: 68 }]
 
-  const title = ins.addRow(['Actual Import Template — Instructions'])
+  const title = ins.addRow(['Actual Import Template -- Instructions'])
   ins.mergeCells('A1:B1')
   title.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }
   title.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFED6055' } }
@@ -135,11 +135,11 @@ export async function downloadActualTemplate(filename = 'actual-import-template.
     r.height = 32
   }
 
-  addRow('Period column',   'Use m/d/yyyy format — e.g. 1/1/2026 · 12/31/2026. Other accepted: 2026-01-01 · Jan \'26 · January 2026')
+  addRow('Period column',   'Use m/d/yyyy format -- e.g. 1/1/2026 · 12/31/2026. Other accepted: 2026-01-01 · Jan \'26 · January 2026')
   addRow('Actual % column', 'Enter the CUMULATIVE % at the end of each period (0–100). The system converts to increments automatically.')
-  addRow('Column headers',  'Do not rename "Period" or "Actual %" — these exact names are required for import to work.')
-  addRow('Sheet name',      'Any sheet name works — the first sheet in the file is used.')
-  addRow('Example',         'If Jan=5%, Feb=13%, Mar=23% cumulative — enter 5, 13, 23 (not 5, 8, 10).')
+  addRow('Column headers',  'Do not rename "Period" or "Actual %" -- these exact names are required for import to work.')
+  addRow('Sheet name',      'Any sheet name works -- the first sheet in the file is used.')
+  addRow('Example',         'If Jan=5%, Feb=13%, Mar=23% cumulative -- enter 5, 13, 23 (not 5, 8, 10).')
 
   ins.addRow([])
 
@@ -157,7 +157,7 @@ export async function downloadActualTemplate(filename = 'actual-import-template.
     r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } } })
   })
 
-  // ── Actual Data sheet (fill in here) ────────────────────────────────────
+  // -- Actual Data sheet (fill in here) ------------------------------------
   const ws = wb.addWorksheet('Actual Data')
   ws.columns = [
     { header: 'Period',   key: 'period', width: 18 },
@@ -192,11 +192,11 @@ export async function downloadActualTemplate(filename = 'actual-import-template.
 export async function downloadBaselineTemplate(filename = 'baseline-import-template.xlsx') {
   const wb = new ExcelJS.Workbook()
 
-  // ── Instructions sheet ───────────────────────────────────────────────────
+  // -- Instructions sheet ---------------------------------------------------
   const ins = wb.addWorksheet('Instructions')
   ins.columns = [{ width: 22 }, { width: 68 }]
 
-  const title = ins.addRow(['Baseline Import Template — Instructions'])
+  const title = ins.addRow(['Baseline Import Template -- Instructions'])
   ins.mergeCells('A1:B1')
   title.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }
   title.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFED6055' } }
@@ -214,11 +214,11 @@ export async function downloadBaselineTemplate(filename = 'baseline-import-templ
     r.height = 32
   }
 
-  addRow('Period column',    'Use m/d/yyyy format — e.g. 1/1/2026 · 12/31/2026. Other accepted: 2026-01-01 · Jan \'26 · January 2026')
+  addRow('Period column',    'Use m/d/yyyy format -- e.g. 1/1/2026 · 12/31/2026. Other accepted: 2026-01-01 · Jan \'26 · January 2026')
   addRow('Planned % column', 'Enter the CUMULATIVE % at the end of each period (0–100). The system converts to increments automatically.')
-  addRow('Column headers',   'Do not rename "Period" or "Planned %" — these exact names are required for import to work.')
+  addRow('Column headers',   'Do not rename "Period" or "Planned %" -- these exact names are required for import to work.')
   addRow('Sheet name',       'Keep this sheet named "Baseline Data". If renamed, the first sheet in the file will be used instead.')
-  addRow('Example',          'If Jan=5%, Feb=13%, Mar=23% cumulative — enter 5, 13, 23 (not 5, 8, 10).')
+  addRow('Example',          'If Jan=5%, Feb=13%, Mar=23% cumulative -- enter 5, 13, 23 (not 5, 8, 10).')
 
   ins.addRow([])
 
@@ -236,7 +236,7 @@ export async function downloadBaselineTemplate(filename = 'baseline-import-templ
     r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } } })
   })
 
-  // ── Baseline Data sheet (fill in here) ───────────────────────────────────
+  // -- Baseline Data sheet (fill in here) -----------------------------------
   const ws = wb.addWorksheet('Baseline Data')
   ws.columns = [
     { header: 'Period',    key: 'period',  width: 18 },

@@ -82,7 +82,7 @@ export async function generateOpsReport(data, scopeLabel) {
 
   const filename = `DandC-Ops-Report-${new Date().toISOString().slice(0, 10)}.xlsx`
 
-  // ── Sheet 1: Projects Summary ──────────────────────────────────────────────
+  // -- Sheet 1: Projects Summary ----------------------------------------------
   const summaryRows = projects.map(p => {
     const m = projectMetrics(p.id, data)
     return {
@@ -105,7 +105,7 @@ export async function generateOpsReport(data, scopeLabel) {
     }
   })
 
-  // ── Sheet 2: Issues & Concerns ─────────────────────────────────────────────
+  // -- Sheet 2: Issues & Concerns ---------------------------------------------
   const issueRows = issues.map(i => {
     const proj = projects.find(p => p.id === i.project_id)
     return {
@@ -121,7 +121,7 @@ export async function generateOpsReport(data, scopeLabel) {
     }
   })
 
-  // ── Sheet 3: Milestones ────────────────────────────────────────────────────
+  // -- Sheet 3: Milestones ----------------------------------------------------
   const milestoneRows = milestones.map(m => {
     const proj = projects.find(p => p.id === m.project_id)
     return {
@@ -134,7 +134,7 @@ export async function generateOpsReport(data, scopeLabel) {
     }
   })
 
-  // ── Sheet 4: Permits / Compliance ──────────────────────────────────────────
+  // -- Sheet 4: Permits / Compliance ------------------------------------------
   const permitRows = permits.map(p => {
     const proj  = projects.find(pr => pr.id === p.project_id)
     const isL1  = !p.parent_id
@@ -150,7 +150,7 @@ export async function generateOpsReport(data, scopeLabel) {
     }
   })
 
-  // ── Sheet 5: M4/M5 Completion (floor-level) ────────────────────────────────
+  // -- Sheet 5: M4/M5 Completion (floor-level) --------------------------------
   const completionRows = (() => {
     const rows = []
     for (const proj of projects) {

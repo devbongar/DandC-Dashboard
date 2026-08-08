@@ -86,7 +86,7 @@ function parseBaselineExcel(wb) {
     .filter(Boolean)
     .sort((a, b) => a.period_date.localeCompare(b.period_date))
 
-  // Input is cumulative — convert to periodic increments for storage
+  // Input is cumulative -- convert to periodic increments for storage
   let prevCum = 0
   return parsed.map(r => {
     const cum      = r.planned_pct ?? 0
@@ -107,7 +107,7 @@ function parseActualExcel(wb) {
     .filter(Boolean)
     .sort((a, b) => a.period_date.localeCompare(b.period_date))
 
-  // Input is cumulative — convert to periodic increments for storage
+  // Input is cumulative -- convert to periodic increments for storage
   let prevCum = 0
   return parsed.map(r => {
     const cum      = r.actual_pct ?? 0
@@ -964,7 +964,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   ]
 
   // Summary card metrics
-  // baselines is already ordered created_at ASC from DB — .at(-1) = newest among selected
+  // baselines is already ordered created_at ASC from DB -- .at(-1) = newest among selected
   const refBaseline = selectedBaselineIds.length
     ? baselines.filter(b => selectedBaselineIds.includes(b.id)).at(-1) ?? null
     : null
@@ -978,7 +978,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     return rows.length ? rows[0].actual : null
   })()
 
-  // Latest period covered by any data (actual or forecast) — used as planned reference
+  // Latest period covered by any data (actual or forecast) -- used as planned reference
   const latestDataDate = chartData
     .filter(d => d.actual != null || d.forecast != null)
     .sort((a, b) => a._date < b._date ? 1 : -1)[0]?._date ?? null
@@ -1356,7 +1356,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
       {importConflict && (
         <div className="flex-shrink-0 rounded-xl border border-amber-200 bg-amber-50 p-4 space-y-3">
           <p className="text-xs font-bold text-amber-800">
-            Import conflicts — {importConflict.conflicts.length} period{importConflict.conflicts.length !== 1 ? 's' : ''} already have data
+            Import conflicts -- {importConflict.conflicts.length} period{importConflict.conflicts.length !== 1 ? 's' : ''} already have data
           </p>
           <div className="max-h-48 overflow-y-auto space-y-1">
             {importConflict.conflicts.map(c => (
@@ -1401,7 +1401,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
       {/* Main content: cards left + chart right */}
       <div className="flex-1 min-h-0 flex flex-row gap-3">
 
-      {/* Summary cards — stacked left column */}
+      {/* Summary cards -- stacked left column */}
       {(summaryActual != null || summaryPlanned != null) && (() => {
         const varColor = summaryVariance == null ? '#9ca3af' : summaryVariance >= 0 ? '#16a34a' : '#dc2626'
         const cards = [
@@ -1429,7 +1429,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                   )}
                   <span className="text-2xl font-bold tabular-nums leading-tight"
                     style={{ color: card.semantic ? card.accent : '#111827' }}>
-                    {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '—'}
+                    {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '--'}
                   </span>
                 </div>
                 {card.sublabel && (
@@ -1439,7 +1439,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
             ))}
             </div>
 
-            {/* Line selection + settings — below cards */}
+            {/* Line selection + settings -- below cards */}
             <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
               <BaselineMultiSelect
                 baselines={baselines}
@@ -1506,7 +1506,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
             for (const id of selectedBaselineIds) pt[`bl_${id}`] = null
             quarterMap.set(qk, pt)
           }
-          // Skip months after the last actual within the current quarter — keeps comparison fair
+          // Skip months after the last actual within the current quarter -- keeps comparison fair
           if (latestActualDate && d._date > latestActualDate && qk === latestActualQk) return
           const pt = quarterMap.get(qk)
           pt._lastDate = d._date  // track last month that contributed to this quarter
@@ -1523,7 +1523,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         }
         const displayData = viewMode === 'quarterly' ? [...quarterMap.values()] : combinedData
 
-        // Per-point label y-offsets — collision avoidance at each index
+        // Per-point label y-offsets -- collision avoidance at each index
         const endLabelMap = (() => {
           const seriesDef = [
             ...selectedBaselineIds.map((id, i) => ({
@@ -1686,7 +1686,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                           >{payload.value}</text>
                         </g>
                       )} />
-                    <Tooltip formatter={val => val != null ? val.toFixed(2) + '%' : '—'} />
+                    <Tooltip formatter={val => val != null ? val.toFixed(2) + '%' : '--'} />
                     {selectedBaselineIds.map((id, i) => {
                       const color = blColor(id, i)
                       const el    = endLabelMap[`bl_${id}`]
@@ -1756,7 +1756,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                           </td>
                           {displayData.map(d => (
                             <td key={d._date} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums text-gray-700">
-                              {d[key] != null ? `${d[key].toFixed(2)}%` : <span className="text-gray-300">—</span>}
+                              {d[key] != null ? `${d[key].toFixed(2)}%` : <span className="text-gray-300">--</span>}
                             </td>
                           ))}
                         </tr>
@@ -1805,7 +1805,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                                     <td key={qKey} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums text-gray-700">
                                       {sum > 0
                                         ? <span className="font-medium">{sum % 1 === 0 ? sum + '%' : sum.toFixed(2) + '%'}</span>
-                                        : <span className="text-gray-300">—</span>}
+                                        : <span className="text-gray-300">--</span>}
                                     </td>
                                   )
                                 })
@@ -1841,7 +1841,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                                             className="text-gray-400 hover:text-gray-600 font-bold text-sm leading-none">✕</button>
                                         </div>
                                       ) : notEditable ? (
-                                        <span className="text-gray-400">{displayVal != null ? displayVal + '%' : '—'}</span>
+                                        <span className="text-gray-400">{displayVal != null ? displayVal + '%' : '--'}</span>
                                       ) : (
                                         <button
                                           onClick={() => {
@@ -1851,7 +1851,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                                           }}
                                           className={`transition-colors ${canEditRow ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} ${displayVal != null ? 'text-gray-700 font-medium' : canEditRow ? 'text-gray-400 hover:text-[#ed6055]' : 'text-gray-200'}`}
                                         >
-                                          {displayVal != null ? displayVal + '%' : (canEditRow ? '+ add' : '—')}
+                                          {displayVal != null ? displayVal + '%' : (canEditRow ? '+ add' : '--')}
                                         </button>
                                       )}
                                     </td>

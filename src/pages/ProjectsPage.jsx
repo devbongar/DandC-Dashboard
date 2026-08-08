@@ -47,7 +47,7 @@ const normaliseBU = val => {
 
 const EMPTY_FORM = { name: '', project_code: '', is_4ph_project: false, business_unit: '', province: '', city: '', lot_area: '', developable_area: '', development_type: '', num_floors: '', num_units: '', phase: '', project_brief: '' }
 
-const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'
+const fmt = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '--'
 
 const EXPORT_COLS = [
   { key: 'name',             header: 'Project Name' },
@@ -140,7 +140,7 @@ export default function ProjectsPage() {
     setLoading(false)
   }
 
-  // ── Filtering ──────────────────────────────────────────────────────────────
+  // -- Filtering --------------------------------------------------------------
   const filtered = projects.filter(p => {
     const matchSearch  = !search ||
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
@@ -155,7 +155,7 @@ export default function ProjectsPage() {
     return sortOrder === 'asc' ? cmp : -cmp
   })
 
-  // ── CRUD ──────────────────────────────────────────────────────────────────
+  // -- CRUD ------------------------------------------------------------------
   const openAdd = () => {
     setForm(EMPTY_FORM)
     setShowForm(true)
@@ -473,7 +473,7 @@ export default function ProjectsPage() {
           </div>
         ) : (
           <>
-            {/* ── Mobile cards (hidden sm+) ── */}
+            {/* -- Mobile cards (hidden sm+) -- */}
             <div className="sm:hidden space-y-3 p-3">
               {filtered.map((project, idx) => {
                 const ph = PHASE_MAP[project.phase]
@@ -539,7 +539,7 @@ export default function ProjectsPage() {
               })}
             </div>
 
-            {/* ── Desktop table (hidden below sm) ── */}
+            {/* -- Desktop table (hidden below sm) -- */}
             <div className="hidden sm:block overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -598,21 +598,21 @@ export default function ProjectsPage() {
                         <td className="px-5 py-4">
                           <p className="font-semibold text-black">{project.name}</p>
                         </td>
-                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">{project.business_unit || <span className="text-gray-300 italic">—</span>}</td>
+                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">{project.business_unit || <span className="text-gray-300 italic">--</span>}</td>
                         <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap capitalize">
                           {project.development_type
                             ? project.development_type === 'housing' ? 'Housing' : 'Condominium'
-                            : <span className="text-gray-300 italic">—</span>}
+                            : <span className="text-gray-300 italic">--</span>}
                         </td>
                         <td className="px-5 py-4 text-xs whitespace-nowrap">
                           {project.is_4ph_project
                             ? <span className="font-semibold px-2.5 py-1 rounded-full bg-[#ed6055]/10 text-[#ed6055]">4PH</span>
-                            : <span className="text-gray-300 italic">—</span>}
+                            : <span className="text-gray-300 italic">--</span>}
                         </td>
                         <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
                           {project.city && project.province
                             ? `${project.city}, ${project.province}`
-                            : project.city || project.province || <span className="text-gray-300 italic">—</span>}
+                            : project.city || project.province || <span className="text-gray-300 italic">--</span>}
                         </td>
                         <td className="px-5 py-4 text-xs whitespace-nowrap">
                           {project.phase
@@ -624,7 +624,7 @@ export default function ProjectsPage() {
                                   </span>
                                 )
                               })()
-                            : <span className="text-gray-300 italic">—</span>}
+                            : <span className="text-gray-300 italic">--</span>}
                         </td>
                         {isAdmin && (
                           <td className="px-5 py-4">
@@ -650,7 +650,7 @@ export default function ProjectsPage() {
       <p className="text-xs text-gray-500 mt-2 text-right">{filtered.length} of {projects.length} shown</p>
       </div>
 
-      {/* ── Report Builder ── */}
+      {/* -- Report Builder -- */}
       {showReportBuilder && (
         <ReportBuilderModal
           onClose={() => setShowReportBuilder(false)}
@@ -658,7 +658,7 @@ export default function ProjectsPage() {
         />
       )}
 
-      {/* ── Add / Edit Modal ── */}
+      {/* -- Add / Edit Modal -- */}
       {showForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setShowForm(false)} />
@@ -684,7 +684,7 @@ export default function ProjectsPage() {
                   value={form.project_brief}
                   onChange={e => setForm(f => ({ ...f, project_brief: e.target.value }))}
                   rows={4}
-                  placeholder="Write a summary of the project — scope, objectives, key details, stakeholders…"
+                  placeholder="Write a summary of the project -- scope, objectives, key details, stakeholders…"
                   className={`${inputCls} resize-y`}
                 />
               </div>
@@ -713,26 +713,26 @@ export default function ProjectsPage() {
                   </FormField>
                   <FormField label="Business Unit">
                     <select value={form.business_unit} onChange={e => setForm(f => ({ ...f, business_unit: e.target.value }))} className={inputCls}>
-                      <option value="">— Select —</option>
+                      <option value="">-- Select --</option>
                       {BUSINESS_UNITS.map(u => <option key={u.code} value={u.code}>{u.code}</option>)}
                     </select>
                   </FormField>
                   <FormField label="Development Type">
                     <select value={form.development_type} onChange={e => setForm(f => ({ ...f, development_type: e.target.value, num_floors: '', num_units: '' }))} className={inputCls}>
-                      <option value="">— Select —</option>
+                      <option value="">-- Select --</option>
                       <option value="housing">Housing</option>
                       <option value="condominium">Condominium</option>
                     </select>
                   </FormField>
                   <FormField label="Province">
                     <select value={form.province} onChange={e => setForm(f => ({ ...f, province: e.target.value, city: '' }))} className={inputCls}>
-                      <option value="">— Select —</option>
+                      <option value="">-- Select --</option>
                       {PH_PROVINCES.map(p => <option key={p} value={p}>{p}</option>)}
                     </select>
                   </FormField>
                   <FormField label="City / Municipality">
                     <select value={form.city} onChange={e => setForm(f => ({ ...f, city: e.target.value }))} disabled={!form.province} className={`${inputCls} ${!form.province ? 'opacity-50 cursor-not-allowed' : ''}`}>
-                      <option value="">— Select —</option>
+                      <option value="">-- Select --</option>
                       {(PH_CITIES[form.province] ?? []).map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                   </FormField>
@@ -744,7 +744,7 @@ export default function ProjectsPage() {
                   </FormField>
                   <FormField label="Phase">
                     <select value={form.phase} onChange={e => setForm(f => ({ ...f, phase: e.target.value }))} className={inputCls}>
-                      <option value="">— Select —</option>
+                      <option value="">-- Select --</option>
                       {PHASES.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
                     </select>
                   </FormField>
@@ -766,7 +766,7 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* ── Delete Confirm ── */}
+      {/* -- Delete Confirm -- */}
       {deleteTarget && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setDeleteTarget(null)} />
@@ -785,7 +785,7 @@ export default function ProjectsPage() {
         </div>
       )}
 
-      {/* ── Import Results Modal ── */}
+      {/* -- Import Results Modal -- */}
       {importResults && (
         <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
           <div className="absolute inset-0 bg-black/40" onClick={() => setImportResults(null)} />
@@ -812,7 +812,7 @@ export default function ProjectsPage() {
             )}
             {importResults.skipped.length > 0 && (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 max-h-32 overflow-y-auto mb-3 space-y-1">
-                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">Skipped — already exists</p>
+                <p className="text-[10px] font-bold text-amber-600 uppercase tracking-wider mb-1">Skipped -- already exists</p>
                 {importResults.skipped.map((name, i) => (
                   <p key={i} className="text-xs text-amber-700">{name}</p>
                 ))}
@@ -824,7 +824,7 @@ export default function ProjectsPage() {
                 {importResults.errors.map((e, i) => (
                   <div key={i} className="text-xs">
                     <span className="font-semibold text-black">{e.name}</span>
-                    <span className="text-gray-400 ml-1">— {e.reason}</span>
+                    <span className="text-gray-400 ml-1">-- {e.reason}</span>
                   </div>
                 ))}
               </div>

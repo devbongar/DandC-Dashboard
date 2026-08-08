@@ -10,7 +10,7 @@ import ReportBuilderModal from './ReportBuilderModal'
 import SearchDropdown from './SearchDropdown'
 import PermitsTab from './PermitsTab'
 
-// â”€â”€ Speed-dial FAB nav items â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Speed-dial FAB nav items --------------------------------------------------
 const FAB_NAV = [
   { key: 'Planned M4/M5',     label: 'Planned M4/M5', icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg> },
   { key: 'Completion (M4/M5)',label: 'Completion',     icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
@@ -21,7 +21,7 @@ const FAB_NAV = [
   { key: 'Photos',            label: 'Photos',        icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg> },
 ]
 
-// â”€â”€ Constants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Constants -----------------------------------------------------------------
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation',            color: '#94a3b8', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -50,7 +50,7 @@ const PERMIT_STATUSES = [
 const PERMIT_STATUS_MAP = Object.fromEntries(PERMIT_STATUSES.map(s => [s.key, s]))
 
 
-const fmt       = d => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : 'â€”'
+const fmt       = d => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '--'
 const getFileName = url => url ? decodeURIComponent(url.split('/').pop().split('?')[0]) : null
 const noNeg = (...vals) => vals.filter(v => v !== null && v !== undefined).some(v => v < 0)
 
@@ -66,10 +66,10 @@ const ISSUE_STATUS_CONFIG = {
 const ISSUE_GROUPS = ['Commercial', 'Design', 'Construction', 'Compliance']
 const MANAGEMENT_LEVELS = ['ESA', 'Management Committee']
 const issueAgingDays = (d) => d ? Math.max(0, Math.floor((new Date() - new Date(d)) / 86400000)) : null
-const fmtIssueDate = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : 'â€”'
+const fmtIssueDate = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '--'
 const ISSUE_EMPTY = { issue_group: '', management_level: '', status: 'open', date_presented: '', date_bad: false, details: '', caused_by: '', action_steps: '' }
 
-// â”€â”€ Combobox â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Combobox ------------------------------------------------------------------
 
 function HighlightMatch({ text, query }) {
   if (!query) return <>{text}</>
@@ -142,7 +142,7 @@ function Combobox({ options = [], value, onChange, placeholder, disabled = false
         value={open ? query : display}
         onFocus={handleFocus}
         onChange={handleInput}
-        placeholder={disabled ? 'â€” select province first â€”' : placeholder}
+        placeholder={disabled ? '-- select province first --' : placeholder}
         disabled={disabled}
         className={`${inputCls_} ${value && !disabled ? 'pr-8' : ''}`}
         autoComplete="off"
@@ -204,7 +204,7 @@ function Combobox({ options = [], value, onChange, placeholder, disabled = false
   )
 }
 
-function SelectDropdown({ options = [], value, onChange, placeholder = 'â€” Select â€”' }) {
+function SelectDropdown({ options = [], value, onChange, placeholder = '-- Select --' }) {
   const [open, setOpen]   = useState(false)
   const [dropUp, setDropUp] = useState(false)
   const containerRef      = useRef(null)
@@ -261,7 +261,7 @@ function SelectDropdown({ options = [], value, onChange, placeholder = 'â€”
   )
 }
 
-// â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Helpers -------------------------------------------------------------------
 
 function Field({ label, children }) {
   return (
@@ -273,7 +273,7 @@ function Field({ label, children }) {
 }
 
 function ReadValue({ value, accent }) {
-  return <p className="text-sm font-semibold" style={{ color: accent ?? '#111' }}>{value || 'â€”'}</p>
+  return <p className="text-sm font-semibold" style={{ color: accent ?? '#111' }}>{value || '--'}</p>
 }
 
 function SectionHeader({ title, action, sticky = false, accent = '#ed6055' }) {
@@ -340,14 +340,14 @@ function ImportErrorPanel({ errors, onDismiss }) {
     <div className="rounded-xl border border-red-200 bg-red-50 p-4 mb-2">
       <div className="flex items-start justify-between gap-2 mb-2">
         <p className="text-sm font-bold text-red-700">
-          Import blocked â€” {errors.length} error{errors.length !== 1 ? 's' : ''} found. Fix the file and try again.
+          Import blocked -- {errors.length} error{errors.length !== 1 ? 's' : ''} found. Fix the file and try again.
         </p>
         <button onClick={onDismiss} className="text-red-400 hover:text-red-600 transition text-xs font-medium flex-shrink-0">Dismiss</button>
       </div>
       <ul className="space-y-1">
         {errors.map((e, i) => (
           <li key={i} className="text-xs text-red-600 flex items-start gap-1.5">
-            <span className="flex-shrink-0 mt-0.5">â€¢</span><span>{e}</span>
+            <span className="flex-shrink-0 mt-0.5">•</span><span>{e}</span>
           </li>
         ))}
       </ul>
@@ -412,9 +412,9 @@ function FloorUploadCell({ value, onChange, showToast }) {
     <div className="flex items-center gap-1.5">
       <input ref={ref} type="file" accept="image/*,.pdf" className="hidden" onChange={upload} />
       {uploading
-        ? <span className="text-[10px] text-gray-400 italic">Uploadingâ€¦</span>
+        ? <span className="text-[10px] text-gray-400 italic">Uploading…</span>
         : <button type="button" onClick={() => ref.current?.click()} className="text-[10px] px-2 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition whitespace-nowrap">
-            {value ? 'âœ“ Change' : 'â†‘ Upload'}
+            {value ? '✓ Change' : '↑ Upload'}
           </button>
       }
     </div>
@@ -445,7 +445,7 @@ function InlineInput({ value, onChange, type = 'text', placeholder = '', min, ma
   )
 }
 
-// â”€â”€ Cover Photo Panel â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Cover Photo Panel --------------------------------------------------------
 
 function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = false, onPendingRemove = null, onPendingUpload = null }) {
   const [uploading, setUploading] = useState(false)
@@ -515,7 +515,7 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
               />
             </button>
 
-            {/* Admin: change photo â€” pill button bottom-left on hover (edit mode only) */}
+            {/* Admin: change photo -- pill button bottom-left on hover (edit mode only) */}
             {isAdmin && editing && (
               <button
                 onClick={(e) => { e.stopPropagation(); inputRef.current?.click() }}
@@ -539,7 +539,7 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
               </button>
             )}
 
-            {/* Admin: remove photo â€” icon button top-right on hover (edit mode only) */}
+            {/* Admin: remove photo -- icon button top-right on hover (edit mode only) */}
             {isAdmin && editing && (
               <button
                 onClick={handleRemove}
@@ -611,7 +611,7 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
   )
 }
 
-// â”€â”€ iOS 26 Card â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- iOS 26 Card --------------------------------------------------------------
 
 function IosCard({ icon, title, children }) {
   return (
@@ -627,7 +627,7 @@ function IosCard({ icon, title, children }) {
   )
 }
 
-// â”€â”€ Overview Detail Item (editorial style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Overview Detail Item (editorial style) -----------------------------------
 function OverviewDetailItem({ label, value, icon }) {
   return (
     <div className="pl-3 border-l-2 border-transparent hover:border-[#ed6055]/50 transition-all duration-200">
@@ -635,12 +635,12 @@ function OverviewDetailItem({ label, value, icon }) {
         {icon && <span className="text-gray-400 flex-shrink-0">{icon}</span>}
         <p className="text-[10px] tracking-[0.12em] uppercase font-semibold text-gray-400">{label}</p>
       </div>
-      <p className="text-sm text-gray-800">{value || <span className="text-gray-300">â€”</span>}</p>
+      <p className="text-sm text-gray-800">{value || <span className="text-gray-300">--</span>}</p>
     </div>
   )
 }
 
-// â”€â”€ Overview Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Overview Tab -------------------------------------------------------------
 
 function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false }) {
   const buildForm = () => ({
@@ -747,7 +747,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         <div className="flex justify-end gap-2">
           <button onClick={cancelEdit} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors duration-200 active:scale-[0.97]">Cancel</button>
           <button onClick={save} disabled={saving || !form.name?.trim()} className="px-4 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-40 transition-colors duration-200 active:scale-[0.97]">
-            {saving ? 'Savingâ€¦' : 'Save Changes'}
+            {saving ? 'Saving…' : 'Save Changes'}
           </button>
         </div>
 
@@ -756,7 +756,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
             value={f('project_brief')}
             onChange={e => set('project_brief', e.target.value)}
             rows={4}
-            placeholder="Write a summary of the project â€” scope, objectives, key details, stakeholdersâ€¦"
+            placeholder="Write a summary of the project -- scope, objectives, key details, stakeholders…"
             className={`${inputCls} resize-y rounded-xl`}
           />
         </IosCard>
@@ -773,7 +773,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
               <SelectDropdown
                 value={f('business_unit')}
                 onChange={v => set('business_unit', v)}
-                placeholder="â€” Select â€”"
+                placeholder="-- Select --"
                 options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))}
               />
             </Field>
@@ -781,7 +781,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
               <SelectDropdown
                 value={f('development_type')}
                 onChange={v => set('development_type', v)}
-                placeholder="â€” Select â€”"
+                placeholder="-- Select --"
                 options={[{ value: 'housing', label: 'Housing' }, { value: 'condominium', label: 'Condominium' }]}
               />
             </Field>
@@ -795,7 +795,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
               <SelectDropdown
                 value={f('phase')}
                 onChange={v => set('phase', v)}
-                placeholder="â€” Select â€”"
+                placeholder="-- Select --"
                 options={PHASES.map(p => ({ value: p.key, label: p.label }))}
               />
             </Field>
@@ -804,7 +804,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
                 options={PH_PROVINCES}
                 value={f('province')}
                 onChange={v => { set('province', v); set('city', '') }}
-                placeholder="Type to search provinceâ€¦"
+                placeholder="Type to search province…"
               />
             </Field>
             <Field label="City / Municipality">
@@ -812,7 +812,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
                 options={PH_CITIES[f('province')] ?? []}
                 value={f('city')}
                 onChange={v => set('city', v)}
-                placeholder="Type to search cityâ€¦"
+                placeholder="Type to search city…"
                 disabled={!f('province')}
               />
             </Field>
@@ -910,7 +910,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 }
 
-// â”€â”€ Development Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Development Tab -----------------------------------------------------------
 
 function UnitTypesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
   const [rows, setRows] = useState([])
@@ -978,10 +978,10 @@ function UnitTypesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
             ) : (
               <tr key={row.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-black">{row.unit_type}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.quantity ?? 'â€”'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? 'â€”'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.saleable_area_sqm ?? 'â€”'}</td>
-                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">â€”</span>}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.quantity ?? '--'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? '--'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.saleable_area_sqm ?? '--'}</td>
+                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">--</span>}</td>
                 {isAdmin && <td className="px-4 py-2.5"><div className="flex gap-1">
                   <button onClick={() => { setForm({ unit_type: row.unit_type, quantity: row.quantity ?? '', cfa_sqm: row.cfa_sqm ?? '', saleable_area_sqm: row.saleable_area_sqm ?? '', floor_layout_url: row.floor_layout_url ?? '' }); setEditId(row.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
                   <button onClick={() => setDeleteId(row.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
@@ -1055,10 +1055,10 @@ function ParkingSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
             ) : (
               <tr key={row.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-black">{row.parking_type}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.quantity ?? 'â€”'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? 'â€”'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.saleable_area_sqm ?? 'â€”'}</td>
-                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">â€”</span>}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.quantity ?? '--'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? '--'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.saleable_area_sqm ?? '--'}</td>
+                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">--</span>}</td>
                 {isAdmin && <td className="px-4 py-2.5"><div className="flex gap-1">
                   <button onClick={() => { setForm({ parking_type: row.parking_type, quantity: row.quantity ?? '', cfa_sqm: row.cfa_sqm ?? '', saleable_area_sqm: row.saleable_area_sqm ?? '', floor_layout_url: row.floor_layout_url ?? '' }); setEditId(row.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
                   <button onClick={() => setDeleteId(row.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
@@ -1130,9 +1130,9 @@ function AmenitiesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
             ) : (
               <tr key={row.id} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-black">{row.amenity_name}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? 'â€”'}</td>
-                <td className="px-4 py-2.5 text-gray-600">{row.floor_area_sqm ?? 'â€”'}</td>
-                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">â€”</span>}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? '--'}</td>
+                <td className="px-4 py-2.5 text-gray-600">{row.floor_area_sqm ?? '--'}</td>
+                <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">--</span>}</td>
                 {isAdmin && <td className="px-4 py-2.5"><div className="flex gap-1">
                   <button onClick={() => { setForm({ amenity_name: row.amenity_name, cfa_sqm: row.cfa_sqm ?? '', floor_area_sqm: row.floor_area_sqm ?? '', floor_layout_url: row.floor_layout_url ?? '' }); setEditId(row.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
                   <button onClick={() => setDeleteId(row.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
@@ -1159,7 +1159,7 @@ function AmenitiesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
 }
 
 
-// â”€â”€ Building Selector â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Building Selector ---------------------------------------------------------
 
 function BulkAddTowersModal({ projectId, existingNames, onDone, onCancel }) {
   const [rows, setRows]     = useState(['', '', ''])
@@ -1219,7 +1219,7 @@ function BulkAddTowersModal({ projectId, existingNames, onDone, onCancel }) {
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Addingâ€¦' : 'Add Towers'}
+            {saving ? 'Adding…' : 'Add Towers'}
           </button>
         </div>
       </div>
@@ -1279,7 +1279,7 @@ function BulkDeleteTowersModal({ buildings, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Deletingâ€¦' : `Delete${selected.size > 0 ? ` (${selected.size})` : ''}`}
+            {saving ? 'Deleting…' : `Delete${selected.size > 0 ? ` (${selected.size})` : ''}`}
           </button>
         </div>
       </div>
@@ -1373,7 +1373,7 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Copyingâ€¦' : 'Copy'}
+            {saving ? 'Copying…' : 'Copy'}
           </button>
         </div>
       </div>
@@ -1618,11 +1618,11 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
     if (!rangeValid) return ''
     const labels = Array.from({ length: count }, (_, i) => prefix ? `${prefix}${f + i}` : String(f + i))
     if (labels.length <= 4) return labels.join(', ')
-    return `${labels[0]}, ${labels[1]} â€¦ ${labels[labels.length - 1]}`
+    return `${labels[0]}, ${labels[1]} … ${labels[labels.length - 1]}`
   }
 
   const handle = () => {
-    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be â‰¤ To.' : 'Maximum 100 floors at a time.'); return }
+    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be ≤ To.' : 'Maximum 100 floors at a time.'); return }
     setErr('')
     const floors = []
     for (let i = f; i <= t; i++) {
@@ -1670,7 +1670,7 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
               Will generate <span className="font-semibold text-gray-700">{count}</span> floor{count !== 1 ? 's' : ''}:{' '}
               <span className="font-medium text-gray-600">{previewLabels()}</span>
               {numUnits !== '' && parseInt(numUnits) > 0 && (
-                <> â€” <span className="font-semibold text-gray-700">{numUnits}</span> {unitLabel.toLowerCase()} each</>
+                <> -- <span className="font-semibold text-gray-700">{numUnits}</span> {unitLabel.toLowerCase()} each</>
               )}
             </p>
           )}
@@ -1817,8 +1817,8 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
               ) : (
                 <tr key={row.id} className="hover:bg-gray-50/50">
                   <td className="px-3 py-2 font-semibold text-black">{row.physical_level}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || 'â€”'}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? 'â€”'}</td>
+                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || '--'}</td>
+                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? '--'}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_start)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_end)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_start)}</td>
@@ -1989,8 +1989,8 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
               ) : (
                 <tr key={row.id} className="hover:bg-gray-50/50">
                   <td className="px-3 py-2 font-semibold text-black">{row.physical_level}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || 'â€”'}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? 'â€”'}</td>
+                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || '--'}</td>
+                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? '--'}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_start)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_end)}</td>
                   <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_start)}</td>
@@ -2071,7 +2071,7 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
       const sheets  = await parseWorkbook(file)
       const pid     = project.id
 
-      // â”€â”€ 1. Build raw floor rows (building_id resolved after upsert) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // -- 1. Build raw floor rows (building_id resolved after upsert) ----------
       const mapFloor = r => ({
         project_id: pid,
         building_name: String(r['Building'] ?? '').trim(),
@@ -2086,7 +2086,7 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
       const flRows = (sheets['Floor Schedule'] ?? []).map(mapFloor).filter(r => r.physical_level)
       const pfRows = (sheets['Parking Floor Schedule'] ?? []).map(mapFloor).filter(r => r.physical_level)
 
-      // â”€â”€ 2. Validate â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // -- 2. Validate -----------------------------------------------------------
       const errors = []
       const validateFloorSheet = (rawSheet, rows, sheetLabel) => {
         rawSheet.forEach((raw, i) => {
@@ -2119,7 +2119,7 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
       validateFloorSheet(sheets['Parking Floor Schedule'] ?? [], pfRows, 'Parking Floor Schedule')
       if (errors.length > 0) { setImportErrors(errors); return }
 
-      // â”€â”€ 3. Upsert buildings, build nameâ†’id map â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // -- 3. Upsert buildings, build name→id map --------------------------------
       const allNames = [...new Set([...flRows, ...pfRows].map(r => r.building_name).filter(Boolean))]
       const { data: existingBuildings } = await supabase.from('project_buildings').select('id, name').eq('project_id', pid)
       const existingByName = Object.fromEntries((existingBuildings ?? []).map(b => [b.name.trim().toLowerCase(), b.id]))
@@ -2132,7 +2132,7 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
       }
       const resolveBuildingId = name => existingByName[name.trim().toLowerCase()] ?? null
 
-      // â”€â”€ 4. Commit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+      // -- 4. Commit -------------------------------------------------------------
       await Promise.all([
         supabase.from('project_floors').delete().eq('project_id', pid),
         supabase.from('project_parking_floors').delete().eq('project_id', pid),
@@ -2208,12 +2208,12 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
   )
 }
 
-// â”€â”€ Compliance Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Compliance Tab ------------------------------------------------------------
 
 const COMPLIANCE_STATUS_MAP_IN = { 'Done': 'done', 'Ongoing': 'ongoing', 'Not Yet Started': 'not_yet_started' }
 const COMPLIANCE_STATUS_MAP_OUT = { done: 'Done', ongoing: 'Ongoing', not_yet_started: 'Not Yet Started' }
 
-// Free-form combobox for permit names â€” allows custom values while suggesting
+// Free-form combobox for permit names -- allows custom values while suggesting
 // all existing permit names (no duplicates) across every project.
 function PermitCombobox({ value, onChange, options = [], placeholder = '' }) {
   const [open, setOpen]     = useState(false)
@@ -2333,7 +2333,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
     fetchAllPermitNames()
     loadStandards()
 
-    // Always re-check the DB directly â€” don't trust cached state
+    // Always re-check the DB directly -- don't trust cached state
     const { count } = await supabase
       .from('project_permits')
       .select('id', { count: 'exact', head: true })
@@ -2346,7 +2346,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
       return
     }
 
-    // No permits yet â€” auto-populate from standard_permits
+    // No permits yet -- auto-populate from standard_permits
     const { data: stdList } = await supabase
       .from('standard_permits')
       .select('*')
@@ -2515,7 +2515,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
   const COLS = isAdmin ? 4 : 3
 
   if (loading) {
-    return <TriangleLoader label={populating ? 'Setting up permits from standard listâ€¦' : 'Loading permitsâ€¦'} />
+    return <TriangleLoader label={populating ? 'Setting up permits from standard list…' : 'Loading permits…'} />
   }
 
   return (
@@ -2603,7 +2603,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
 
               return (
                 <Fragment key={l1.id}>
-                  {/* â”€â”€ L1 row â”€â”€ */}
+                  {/* -- L1 row -- */}
                   {editId === l1.id ? (
                     <tr className="bg-[#ed6055]/[0.03] border-t border-gray-100">
                       <td className="px-4 py-2">
@@ -2647,7 +2647,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                           {stCfg.label}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-xs text-gray-500">{l1.remarks || 'â€”'}</td>
+                      <td className="px-4 py-3 text-xs text-gray-500">{l1.remarks || '--'}</td>
                       {isAdmin && (
                         <td className="px-4 py-3">
                           <div className="permit-actions flex items-center gap-1">
@@ -2666,7 +2666,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                     </tr>
                   )}
 
-                  {/* â”€â”€ L2 rows â”€â”€ */}
+                  {/* -- L2 rows -- */}
                   {!isCollapsed && children.map((child, idx) => (
                     editId === child.id ? (
                       <tr key={child.id} className="border-t border-gray-100 bg-gray-50/60">
@@ -2698,7 +2698,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                             {PERMIT_STATUS_MAP[child.status]?.label ?? child.status}
                           </span>
                         </td>
-                        <td className="px-4 py-2.5 text-xs text-gray-400">{child.remarks || 'â€”'}</td>
+                        <td className="px-4 py-2.5 text-xs text-gray-400">{child.remarks || '--'}</td>
                         {isAdmin && (
                           <td className="px-4 py-2.5">
                             <div className="permit-actions flex items-center gap-1">
@@ -2719,7 +2719,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
         </table>
       </div>
 
-      {/* â”€â”€ Add Permit Modal â”€â”€ */}
+      {/* -- Add Permit Modal -- */}
       {showAddModal && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm p-4" onClick={() => setShowAddModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
@@ -2763,7 +2763,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                       }}
                       className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black"
                     >
-                      <option value="">â€” Choose a Level 1 permit â€”</option>
+                      <option value="">-- Choose a Level 1 permit --</option>
                       {availableL1s.map(s => (
                         <option key={s.id} value={s.permit_name}>{s.permit_name}</option>
                       ))}
@@ -2790,7 +2790,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                         }}
                         className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black"
                       >
-                        <option value="">â€” None (add as Level 1) â€”</option>
+                        <option value="">-- None (add as Level 1) --</option>
                         {availableL2s.map(s => (
                           <option key={s.id} value={s.permit_name}>{s.permit_name}</option>
                         ))}
@@ -2824,7 +2824,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                     <textarea
                       value={form.remarks ?? ''}
                       onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
-                      placeholder="Add any notesâ€¦"
+                      placeholder="Add any notes…"
                       rows={3}
                       className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black placeholder-gray-400 resize-y"
                     />
@@ -2868,7 +2868,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
 }
 
 
-// â”€â”€ Issues & Concerns Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Issues & Concerns Tab -----------------------------------------------------
 
 const ISSUE_STATUS_MAP_OUT = { open: 'Open', close: 'Close', hold: 'Hold' }
 const ISSUE_STATUS_MAP_IN  = { Open: 'open', Close: 'close', Hold: 'hold' }
@@ -2884,6 +2884,11 @@ function IssuesTab({ project, isAdmin, showToast }) {
   const [filterStatus, setFilterStatus]       = useState('all')
   const [filterGroup, setFilterGroup]         = useState('all')
   const [filterMgmtLevel, setFilterMgmtLevel] = useState('all')
+  const [search, setSearch]                   = useState('')
+  const [filtersOpen, setFiltersOpen]         = useState(false)
+  const [actionsOpen, setActionsOpen]         = useState(false)
+  const filtersRef                            = useRef(null)
+  const actionsRef                            = useRef(null)
   const [importing, setImporting]             = useState(false)
   const [importErrors, setImportErrors]       = useState([])
 
@@ -3012,14 +3017,26 @@ function IssuesTab({ project, isAdmin, showToast }) {
     setDeleteId(null); load()
   }
 
+  useEffect(() => {
+    const handler = (e) => {
+      if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false)
+      if (actionsRef.current && !actionsRef.current.contains(e.target)) setActionsOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
+
   const filtered = rows.filter(r => {
     const matchStatus    = filterStatus    === 'all' || r.status           === filterStatus
     const matchGroup     = filterGroup     === 'all' || r.issue_group      === filterGroup
     const matchMgmtLevel = filterMgmtLevel === 'all' || r.management_level === filterMgmtLevel
-    return matchStatus && matchGroup && matchMgmtLevel
+    const q = search.toLowerCase()
+    const matchSearch = !q || (r.details ?? '').toLowerCase().includes(q) || (r.caused_by ?? '').toLowerCase().includes(q) || (r.action_steps ?? '').toLowerCase().includes(q)
+    return matchStatus && matchGroup && matchMgmtLevel && matchSearch
   })
-  const hasFilter = filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all'
-  const clearFilters = () => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel('all') }
+  const activeFilterCount = [filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel !== 'all'].filter(Boolean).length
+  const hasFilter = activeFilterCount > 0 || search !== ''
+  const clearFilters = () => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel('all'); setSearch('') }
 
   const iCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-black bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent'
   const fCls = 'flex-1 min-w-[110px] px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055]'
@@ -3027,59 +3044,168 @@ function IssuesTab({ project, isAdmin, showToast }) {
 
   return (
     <div>
-      <div className="sticky top-0 z-30 bg-white">
-        <ImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
-        <SectionHeader sticky title="Issues & Concerns" action={
-          <div className="flex items-center gap-2">
-            <ExcelButtons onExport={handleExport} onImport={handleImport} importing={importing} />
-            {isAdmin && (
-              <button onClick={openAdd} className="text-xs font-semibold px-3 py-1.5 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition flex items-center gap-1">
-                <PlusIcon /> Add Issue
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 max-w-7xl mx-auto">
+        <div className="sticky top-0 z-30 bg-white rounded-t-xl border-b border-gray-100 px-4 pt-3 pb-0">
+          <ImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
+          <SectionHeader title="Issues & Concerns" />
+        </div>
+
+        <div className="px-4 pt-3 pb-4">
+
+      {!loading && (
+        <div className="flex items-center gap-2 mb-3">
+          {/* Search bar */}
+          <div className="relative flex-1 min-w-0">
+            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Search issues…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="w-full pl-8 pr-8 py-2 text-xs rounded-lg border border-gray-200 bg-white text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 focus:border-[#ed6055]/60 transition-shadow"
+            />
+            {search && (
+              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
+                <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
               </button>
             )}
           </div>
-        } />
-      </div>
 
-      {!loading && rows.length > 0 && (
-        <div className="flex flex-wrap gap-2 mb-3">
-          <SearchDropdown
-            options={Object.entries(ISSUE_STATUS_CONFIG).map(([val, cfg]) => ({ value: val, label: cfg.label }))}
-            value={filterStatus}
-            onChange={setFilterStatus}
-            emptyValue="all"
-            emptyLabel="All Statuses"
-            placeholder="Search statusâ€¦"
-            minWidth={120}
-          />
-          <SearchDropdown
-            options={ISSUE_GROUPS.map(g => ({ value: g, label: g }))}
-            value={filterGroup}
-            onChange={setFilterGroup}
-            emptyValue="all"
-            emptyLabel="All Groups"
-            placeholder="Search groupâ€¦"
-            minWidth={110}
-          />
-          <SearchDropdown
-            options={MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))}
-            value={filterMgmtLevel}
-            onChange={setFilterMgmtLevel}
-            emptyValue="all"
-            emptyLabel="All Mgmt Levels"
-            placeholder="Search levelâ€¦"
-            minWidth={130}
-          />
-          {hasFilter && (
-            <button onClick={clearFilters} className="px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-gray-600 hover:bg-gray-50 bg-white transition whitespace-nowrap">
-              Clear
+          {/* Filter button */}
+          <div ref={filtersRef} className="relative flex-shrink-0">
+            <button
+              onClick={() => setFiltersOpen(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
+              style={{
+                background: filtersOpen || activeFilterCount > 0 ? '#fff' : '#fafafa',
+                borderColor: activeFilterCount > 0 ? '#ed6055' : filtersOpen ? '#ed6055' : '#e5e7eb',
+                color: activeFilterCount > 0 ? '#ed6055' : '#6b7280',
+                boxShadow: filtersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+                  {activeFilterCount}
+                </span>
+              )}
             </button>
-          )}
+
+            {filtersOpen && (
+              <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden settings-panel-enter"
+                style={{ width: 220, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}
+              >
+                <div className="p-3 space-y-3">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[{ value: 'all', label: 'All' }, ...Object.entries(ISSUE_STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))].map(o => (
+                        <button key={o.value} onClick={() => setFilterStatus(o.value)}
+                          className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                          style={filterStatus === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[{ value: 'all', label: 'All' }, ...ISSUE_GROUPS.map(g => ({ value: g, label: g }))].map(o => (
+                        <button key={o.value} onClick={() => setFilterGroup(o.value)}
+                          className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                          style={filterGroup === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[{ value: 'all', label: 'All' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))].map(o => (
+                        <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)}
+                          className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                          style={filterMgmtLevel === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
+                          {o.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  {activeFilterCount > 0 && (
+                    <button onClick={() => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel('all') }}
+                      className="w-full py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition">
+                      Clear filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Actions button */}
+          <div ref={actionsRef} className="relative flex-shrink-0">
+            <button
+              onClick={() => setActionsOpen(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
+              style={{
+                background: actionsOpen ? '#fff' : '#fafafa',
+                borderColor: actionsOpen ? '#ed6055' : '#e5e7eb',
+                color: '#6b7280',
+                boxShadow: actionsOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+              </svg>
+              Actions
+            </button>
+
+            {actionsOpen && (
+              <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden settings-panel-enter"
+                style={{ width: 180, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}
+              >
+                <div className="p-1.5 space-y-0.5">
+                  <button onClick={() => { handleExport(); setActionsOpen(false) }}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition text-left">
+                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                    </svg>
+                    Export to Excel
+                  </button>
+                  <label className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition cursor-pointer">
+                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                    </svg>
+                    {importing ? 'Importing…' : 'Import from Excel'}
+                    <input type="file" accept=".xlsx,.xls" className="hidden" onChange={e => { if (e.target.files?.[0]) { handleImport(e.target.files[0]); setActionsOpen(false); e.target.value = '' } }} />
+                  </label>
+                  {isAdmin && (
+                    <>
+                      <div className="h-px bg-gray-100 mx-2 my-1" />
+                      <button onClick={() => { openAdd(); setActionsOpen(false) }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-[#ed6055] hover:bg-[#ed6055]/5 transition text-left">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                        </svg>
+                        Add Issue
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
       {loading ? (
-        <TriangleLoader label="Loading issuesâ€¦" />
+        <TriangleLoader label="Loading issues…" />
       ) : rows.length === 0 ? (
         <div className="text-center py-12 text-sm text-gray-400 italic">No issues recorded for this project.</div>
       ) : filtered.length === 0 ? (
@@ -3088,27 +3214,30 @@ function IssuesTab({ project, isAdmin, showToast }) {
         <div className="overflow-x-auto">
           <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
             <thead>
-              <tr className="bg-gray-50 border-b border-gray-200">
-                {['Issue', 'Group', 'Management Level', 'Status', 'Date Presented', 'Days Aging', ...(isAdmin ? [''] : [])].map(h => (
-                  <th key={h} className="text-left px-4 py-2.5 font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+              <tr className="sticky top-0 z-10 bg-gray-700 border-b border-gray-700">
+                {['No.', 'Issue', 'Group', 'Management Level', 'Status', 'Date Presented', 'Days Aging', ...(isAdmin ? [''] : [])].map(h => (
+                  <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-200 uppercase tracking-wider ${h === 'Management Level' || h === 'Group' || h === 'Days Aging' ? 'whitespace-normal text-center' : h === 'Issue' ? 'text-left w-full' : 'text-left whitespace-nowrap'}`}>
+                    {h === 'Days Aging' ? <><span>Days</span><br /><span>Aging</span></> : h}
+                  </th>
                 ))}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filtered.map(row => {
+              {filtered.map((row, idx) => {
                 const sc    = ISSUE_STATUS_CONFIG[row.status] ?? ISSUE_STATUS_CONFIG.open
                 const aging = issueAgingDays(row.date_presented)
                 return (
-                  <tr key={row.id} onClick={() => openView(row)} className="hover:bg-gray-50/60 cursor-pointer" style={{ boxShadow: 'inset 3px 0 0 #ed6055' }}>
-                    <td className="px-4 py-2.5 text-black max-w-[260px]"><p className="line-clamp-2">{row.details}</p></td>
-                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{row.issue_group || 'â€”'}</td>
-                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{row.management_level || 'â€”'}</td>
-                    <td className="px-4 py-2.5 whitespace-nowrap">
+                  <tr key={row.id} onClick={() => openView(row)} className="hover:bg-gray-50/60 cursor-pointer">
+                    <td className="px-4 py-4 text-gray-400 whitespace-nowrap tabular-nums">{idx + 1}</td>
+                    <td className="px-4 py-4 text-black w-full"><p className="line-clamp-2">{row.details}</p></td>
+                    <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center">{row.issue_group || '--'}</td>
+                    <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center">{row.management_level || '--'}</td>
+                    <td className="px-4 py-4 whitespace-nowrap">
                       <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
                     </td>
-                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">{fmtIssueDate(row.date_presented)}</td>
-                    <td className="px-4 py-2.5 text-gray-500 whitespace-nowrap">
-                      {aging !== null ? `${aging}d` : 'â€”'}
+                    <td className="px-4 py-4 text-gray-500 whitespace-nowrap">{fmtIssueDate(row.date_presented)}</td>
+                    <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center tabular-nums">
+                      {aging !== null ? `${aging}d` : '--'}
                     </td>
                     {isAdmin && (
                       <td className="px-4 py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
@@ -3132,6 +3261,9 @@ function IssuesTab({ project, isAdmin, showToast }) {
         </p>
       )}
 
+        </div>{/* end px-4 pb-4 */}
+      </div>{/* end white card */}
+
       {/* View modal */}
       {modal === 'view' && active && (() => {
         const sc    = ISSUE_STATUS_CONFIG[active.status] ?? ISSUE_STATUS_CONFIG.open
@@ -3145,7 +3277,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
                 <button onClick={close} className="p-1.5 text-gray-400 hover:text-black transition"><XIcon /></button>
               </div>
               <div className="flex flex-1 overflow-hidden">
-                {/* Left â€” red panel */}
+                {/* Left -- red panel */}
                 <div className="w-44 flex-shrink-0 bg-[#ed6055] px-4 py-5 space-y-4 overflow-y-auto">
                   {[
                     { label: 'Status',            value: sc.label },
@@ -3157,12 +3289,12 @@ function IssuesTab({ project, isAdmin, showToast }) {
                     <div key={label}>
                       <p className="text-xs font-semibold text-white/70 mb-1">{label}</p>
                       <div className="bg-white rounded-lg px-3 py-2 text-sm font-medium text-black">
-                        {value || <span className="text-gray-400 italic font-normal">â€”</span>}
+                        {value || <span className="text-gray-400 italic font-normal">--</span>}
                       </div>
                     </div>
                   ))}
                 </div>
-                {/* Right â€” content */}
+                {/* Right -- content */}
                 <div className="flex-1 px-5 py-5 space-y-4 overflow-y-auto">
                   {[
                     { label: 'Issue',             value: active.details },
@@ -3174,7 +3306,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
                         <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">{label}</p>
                       </div>
                       <div className="border border-gray-100 border-t-0 rounded-b-lg px-4 py-3 min-h-[60px] text-sm text-black leading-relaxed whitespace-pre-wrap">
-                        {value || <span className="text-gray-300 italic">â€”</span>}
+                        {value || <span className="text-gray-300 italic">--</span>}
                       </div>
                     </div>
                   ))}
@@ -3201,19 +3333,19 @@ function IssuesTab({ project, isAdmin, showToast }) {
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Group</label>
                 <SelectDropdown
-                  options={[{ value: '', label: 'â€” Select Group â€”' }, ...ISSUE_GROUPS.map(g => ({ value: g, label: g }))]}
+                  options={[{ value: '', label: '-- Select Group --' }, ...ISSUE_GROUPS.map(g => ({ value: g, label: g }))]}
                   value={form.issue_group}
                   onChange={v => setForm(f => ({ ...f, issue_group: v }))}
-                  placeholder="â€” Select Group â€”"
+                  placeholder="-- Select Group --"
                 />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Management Level</label>
                 <SelectDropdown
-                  options={[{ value: '', label: 'â€” Select Level â€”' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))]}
+                  options={[{ value: '', label: '-- Select Level --' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))]}
                   value={form.management_level}
                   onChange={v => setForm(f => ({ ...f, management_level: v }))}
-                  placeholder="â€” Select Level â€”"
+                  placeholder="-- Select Level --"
                 />
               </div>
               <div>
@@ -3222,7 +3354,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
                   options={Object.entries(ISSUE_STATUS_CONFIG).map(([val, cfg]) => ({ value: val, label: cfg.label }))}
                   value={form.status}
                   onChange={v => setForm(f => ({ ...f, status: v }))}
-                  placeholder="â€” Select Status â€”"
+                  placeholder="-- Select Status --"
                 />
               </div>
               <div>
@@ -3232,22 +3364,22 @@ function IssuesTab({ project, isAdmin, showToast }) {
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Issue <span className="text-[#ed6055]">*</span></label>
-                <textarea rows={3} value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issueâ€¦" className={iCls + ' resize-none'} />
+                <textarea rows={3} value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issue…" className={iCls + ' resize-none'} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Caused By</label>
-                <textarea rows={3} value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root causeâ€¦" className={iCls + ' resize-none'} />
+                <textarea rows={3} value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root cause…" className={iCls + ' resize-none'} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Action Steps</label>
-                <textarea rows={3} value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or plannedâ€¦" className={iCls + ' resize-none'} />
+                <textarea rows={3} value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or planned…" className={iCls + ' resize-none'} />
               </div>
             </div>
             <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
               <button onClick={close} className="px-4 py-2 text-sm text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={save} disabled={saving || !form.details.trim()}
                 className="px-5 py-2 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 disabled:cursor-not-allowed transition">
-                {saving ? 'Savingâ€¦' : modal === 'add' ? 'Add Issue' : 'Save Changes'}
+                {saving ? 'Saving…' : modal === 'add' ? 'Add Issue' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -3265,7 +3397,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
   )
 }
 
-// â”€â”€ Completion Tab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Completion Tab ------------------------------------------------------------
 
 const isValidDate = (str) => {
   if (!str) return true
@@ -3352,7 +3484,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
                   <td key={i} className="px-1 py-1">
                     <button
                       onClick={isAdmin ? (multiSelectMode ? () => onToggleCell(type, floor, unitNum) : () => onOpenCell(type, floor, unitNum)) : undefined}
-                      title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} â€” ${cfg.label}`}
+                      title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} -- ${cfg.label}`}
                       aria-label={`${type === 'parking' ? 'Parking' : 'Unit'} ${floor.physical_level}-${String(unitNum).padStart(2, '0')}: ${cfg.label}`}
                       className={`w-11 h-11 rounded border text-[9px] font-bold transition ${cfg.cell} ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'ring-2 ring-[#ed6055] ring-offset-1' : (isAdmin && !multiSelectMode ? 'hover:opacity-75 hover:shadow-md' : '')}`}
                     >
@@ -3369,7 +3501,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
   )
 }
 
-// â”€â”€ PhotosTab â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- PhotosTab -----------------------------------------------------------------
 
 const PHOTO_TAGS = ['Foundation', 'Structural', 'MEP', 'Finishing', 'Facade', 'Landscaping', 'Issues', 'Progress', 'Inspection']
 
@@ -3409,7 +3541,7 @@ const fmtPhotoDate = (dateStr) => {
   return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })
 }
 
-// â”€â”€ Upload Screen â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Upload Screen -------------------------------------------------------------
 
 function UploadScreen({ project, showToast, onBack, onUploaded }) {
   const [files, setFiles]           = useState([])
@@ -3542,7 +3674,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
       <div className="mt-6 flex items-center gap-3">
         <button onClick={doUpload} disabled={!files.length || uploading}
           className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 transition">
-          {uploading ? 'Uploadingâ€¦' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
+          {uploading ? 'Uploading…' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
         </button>
         <button onClick={onBack} className="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 transition">Cancel</button>
       </div>
@@ -3550,7 +3682,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
   )
 }
 
-// â”€â”€ Photos Gallery â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Photos Gallery ------------------------------------------------------------
 
 function PhotosTab({ project, isAdmin, showToast }) {
   const [photos, setPhotos]               = useState([])
@@ -3637,7 +3769,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
     load()
   }
 
-  if (loading) return <TriangleLoader label="Loading photosâ€¦" />
+  if (loading) return <TriangleLoader label="Loading photos…" />
 
   if (showUploadScreen) return (
     <UploadScreen project={project} showToast={showToast}
@@ -4097,7 +4229,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
       const unitNum  = parseInt(unitNumStr)
       const cMap     = type === 'parking' ? parkingCompletionMap : completionMap
       const existing = cMap[`${floorId}-${unitNum}`] ?? null
-      // M5 can only be applied to units already tagged as M4 â€” skip others
+      // M5 can only be applied to units already tagged as M4 -- skip others
       if (bulkForm.status === 'm5' && existing?.status !== 'm4') { skipped++; return }
       const table = type === 'parking' ? 'project_parking_unit_completion' : 'project_unit_completion'
       const payload = {
@@ -4136,14 +4268,14 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 
   if (loading) {
-    return <TriangleLoader label="Loading milestonesâ€¦" />
+    return <TriangleLoader label="Loading milestones…" />
   }
 
   return (
     <div>
       <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} />
 
-      {/* Legend + multi-select toolbar â€” sticky within the scrollable tab panel */}
+      {/* Legend + multi-select toolbar -- sticky within the scrollable tab panel */}
       <div className="sticky top-0 z-20 bg-white py-3 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100">
         <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
           {Object.entries(UNIT_STATUS_CONFIG).map(([key, cfg]) => (
@@ -4281,7 +4413,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setFloorModal(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveFloorModal} disabled={floorModalSaving || floorModalStatus === 'none'} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {floorModalSaving ? 'Savingâ€¦' : 'Apply'}
+                {floorModalSaving ? 'Saving…' : 'Apply'}
               </button>
             </div>
           </div>
@@ -4349,7 +4481,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setBulkModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveBulk} disabled={bulkSaving} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {bulkSaving ? 'Savingâ€¦' : `Apply to ${selectedCells.size}`}
+                {bulkSaving ? 'Saving…' : `Apply to ${selectedCells.size}`}
               </button>
             </div>
           </div>
@@ -4435,7 +4567,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setSelected(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveCell} disabled={saving} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {saving ? 'Savingâ€¦' : 'Save'}
+                {saving ? 'Saving…' : 'Save'}
               </button>
             </div>
           </div>
@@ -4445,7 +4577,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
   )
 }
 
-// â”€â”€ Main Modal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Main Modal ----------------------------------------------------------------
 
 export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false }) {
   const { profile } = useProfile()
@@ -4600,7 +4732,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         }
       `}</style>
 
-      {/* No modal header bar â€” navigation lives in DashboardLayout topbar (asPage) or via onClose */}
+      {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
       <div className="bg-white rounded-none shadow-2xl w-full h-full flex flex-col overflow-hidden">
 
         {/* Non-page mode: floating close button */}
@@ -4623,7 +4755,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
               <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} />
             </div>
 
-            {/* Section cards â€” always visible at bottom */}
+            {/* Section cards -- always visible at bottom */}
             <div className="flex-shrink-0 border-t border-gray-200 bg-[#f8f9fb] px-3 py-2">
               <div
                 className="flex gap-2 overflow-x-auto sm:grid sm:grid-cols-7"
@@ -4764,7 +4896,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   )
 }
 
-// â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// -- Icons ---------------------------------------------------------------------
 
 const PlusIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
@@ -4788,7 +4920,7 @@ function ExcelButtons({ onExport, onImport, importing = false }) {
         title="Import from Excel"
         className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
       >
-        <UploadIcon /> {importing ? 'Importingâ€¦' : 'Import'}
+        <UploadIcon /> {importing ? 'Importing…' : 'Import'}
       </button>
       <input
         ref={ref}

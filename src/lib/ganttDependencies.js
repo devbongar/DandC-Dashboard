@@ -1,9 +1,9 @@
 // Dependency type options for UI dropdowns
 export const DEP_TYPES = [
-  { value: 'FS', label: 'FS — Finish to Start',  desc: 'B starts after A finishes' },
-  { value: 'SS', label: 'SS — Start to Start',   desc: 'B starts after A starts'  },
-  { value: 'FF', label: 'FF — Finish to Finish', desc: 'B finishes after A finishes' },
-  { value: 'SF', label: 'SF — Start to Finish',  desc: 'B finishes after A starts' },
+  { value: 'FS', label: 'FS -- Finish to Start',  desc: 'B starts after A finishes' },
+  { value: 'SS', label: 'SS -- Start to Start',   desc: 'B starts after A starts'  },
+  { value: 'FF', label: 'FF -- Finish to Finish', desc: 'B finishes after A finishes' },
+  { value: 'SF', label: 'SF -- Start to Finish',  desc: 'B finishes after A starts' },
 ]
 
 // Converts JSONB dependencies on each task into flat dep rows for visualization.
@@ -162,7 +162,7 @@ export function formatPredecessors(deps, idToRowNum) {
 // Computes planned_start / planned_end for all schedulable leaf tasks using CPM forward pass.
 // milestones: workprogram_tasks rows (must include .duration, .parent_id, .id)
 // dependencies: flat dep rows from expandDependencies(tasks)
-// startDate: ISO date string (YYYY-MM-DD) — the project start anchor
+// startDate: ISO date string (YYYY-MM-DD) -- the project start anchor
 // Returns { [milestoneId]: { planned_start, planned_end } } on success, or { error: 'circular' } on cycle.
 export function scheduleMilestones(milestones, dependencies, startDate) {
   if (!startDate || !milestones?.length) return {}
@@ -248,7 +248,7 @@ export function scheduleMilestones(milestones, dependencies, startDate) {
 // Calculates projected_start / projected_end for all leaf tasks.
 // Rows with actual dates are treated as fixed anchors (projected = actual).
 // Rows without actual dates cascade forward from predecessor projected dates + duration.
-// Parent tasks are supported as predecessors — their projected dates are rolled up from children.
+// Parent tasks are supported as predecessors -- their projected dates are rolled up from children.
 // Returns { [milestoneId]: { projected_start, projected_end } } or { error: 'circular' }.
 export function scheduleProjected(milestones, dependencies) {
   const safeDeps = dependencies ?? []

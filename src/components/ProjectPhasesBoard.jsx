@@ -49,7 +49,7 @@ export default function ProjectPhasesBoard({ id }) {
   return (
     <section id={id} className="mb-0 h-full flex flex-col bg-white rounded-xl border border-gray-200 shadow p-4">
 
-      {/* ── Section header ── */}
+      {/* -- Section header -- */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />
@@ -60,7 +60,7 @@ export default function ProjectPhasesBoard({ id }) {
         )}
       </div>
 
-      {/* ── Filters ── */}
+      {/* -- Filters -- */}
       {!loading && (
         <div className="flex items-center gap-2 mb-3 flex-wrap">
           {/* Type toggle */}

@@ -161,7 +161,7 @@ export default function RoleAssignment() {
                       style={{ boxShadow: `inset 3px 0 0 ${disabled ? '#d1d5db' : (ROLE_ACCENT[user.role] ?? '#e5e7eb')}` }}
                     >
                       <td className="px-6 py-4">
-                        <p className={`font-medium ${disabled ? 'text-gray-400' : 'text-black'}`}>{user.full_name || '—'}</p>
+                        <p className={`font-medium ${disabled ? 'text-gray-400' : 'text-black'}`}>{user.full_name || '--'}</p>
                         <p className="text-gray-400 text-xs mt-0.5">{user.email}</p>
                       </td>
                       <td className="px-6 py-4">
@@ -207,7 +207,7 @@ export default function RoleAssignment() {
                       <td className="px-6 py-4 text-gray-400 text-xs">
                         {user.created_at
                           ? new Date(user.created_at).toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' })
-                          : '—'}
+                          : '--'}
                       </td>
                       <td className="px-6 py-4">
                         {!isSelf && (

@@ -107,7 +107,7 @@ export default function ReportBuilderModal({ onClose, defaultProject = null, def
         if (selectedIds.size === 0) { setError('Select at least one project.'); setGenerating(false); return }
         ids = [...selectedIds]
       } else {
-        // all_projects — load full list if not yet loaded
+        // all_projects -- load full list if not yet loaded
         const ps = allProjects.length > 0 ? allProjects : await fetchProjectsBasic()
         ids = ps.map(p => p.id)
       }

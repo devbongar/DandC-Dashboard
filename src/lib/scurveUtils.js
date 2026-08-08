@@ -1,7 +1,7 @@
 export function parsePeriodDate(val) {
   if (!val) return null
 
-  // JS Date object — from Excel with cellDates:true
+  // JS Date object -- from Excel with cellDates:true
   if (val instanceof Date && !isNaN(val)) {
     const y = val.getFullYear()
     const m = val.getMonth() + 1
@@ -17,7 +17,7 @@ export function parsePeriodDate(val) {
   // YYYY-MM
   if (/^\d{4}-\d{2}$/.test(s)) return s + '-01'
 
-  // "Jan '26" — short month + apostrophe + 2-digit year
+  // "Jan '26" -- short month + apostrophe + 2-digit year
   const shortMatch = s.match(/^([A-Za-z]{3})\s+'(\d{2})$/)
   if (shortMatch) {
     const fullYear = 2000 + parseInt(shortMatch[2], 10)
@@ -28,7 +28,7 @@ export function parsePeriodDate(val) {
     return null
   }
 
-  // "January 2026" — full or short month + 4-digit year
+  // "January 2026" -- full or short month + 4-digit year
   const longMatch = s.match(/^([A-Za-z]+)\s+(\d{4})$/)
   if (longMatch) {
     const d = new Date(`${longMatch[1]} 1 ${longMatch[2]}`)
@@ -73,7 +73,7 @@ export const formatPeriod = (dateStr) => {
   return `${mon} '${yr}`
 }
 
-// Returns { building_id: uuid | null } — spread into inserts, use for query filters.
+// Returns { building_id: uuid | null } -- spread into inserts, use for query filters.
 // All three scurve tables share this shape: NULL = project scope, UUID = tower scope.
 export function getScopeFilter(buildingId) {
   return { building_id: buildingId ?? null }

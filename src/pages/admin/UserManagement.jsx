@@ -100,7 +100,7 @@ export default function UserManagement() {
     toastTimer.current = setTimeout(() => setToast(null), 3000)
   }
 
-  // ── Filtering ──────────────────────────────────────────────────────────────
+  // -- Filtering --------------------------------------------------------------
   const filtered = users.filter(u => {
     const q = search.toLowerCase()
     const matchSearch =
@@ -113,21 +113,21 @@ export default function UserManagement() {
     return matchSearch && matchTab
   })
 
-  // ── Project membership helpers ────────────────────────────────────────────
+  // -- Project membership helpers --------------------------------------------
   const userMemberships = (userId) => members.filter(m => m.user_id === userId)
   const memberCount     = (userId) => userMemberships(userId).length
   const projectName     = (pid)    => projects.find(p => p.id === pid)?.name ?? pid
   const assignedProjectIds = (userId) => userMemberships(userId).map(m => m.project_id)
   const availableProjects  = (userId) => projects.filter(p => !assignedProjectIds(userId).includes(p.id))
 
-  // ── Select user ──────────────────────────────────────────────────────────
+  // -- Select user ----------------------------------------------------------
   const selectUser = (user) => {
     setSelectedUser(user)
     setPositionDraft(user.position ?? '')
     setAddProjectId('')
   }
 
-  // ── Save position ─────────────────────────────────────────────────────────
+  // -- Save position ---------------------------------------------------------
   const savePosition = async () => {
     if (!selectedUser) return
     setSavingPosition(true)
@@ -141,7 +141,7 @@ export default function UserManagement() {
     showToast('Position updated.', 'success')
   }
 
-  // ── Update team ───────────────────────────────────────────────────────────
+  // -- Update team -----------------------------------------------------------
   const updateTeam = async (newTeam) => {
     if (!selectedUser) return
     const { error } = await supabase
@@ -153,7 +153,7 @@ export default function UserManagement() {
     showToast('Team updated.', 'success')
   }
 
-  // ── Update global role ────────────────────────────────────────────────────
+  // -- Update global role ----------------------------------------------------
   const updateRole = async (newRole) => {
     if (!selectedUser) return
     setSavingRole(true)
@@ -167,7 +167,7 @@ export default function UserManagement() {
     showToast('Role updated.', 'success')
   }
 
-  // ── Add project member ────────────────────────────────────────────────────
+  // -- Add project member ----------------------------------------------------
   const addMember = async () => {
     if (!selectedUser || !addProjectId) return
     setAddingMember(true)
@@ -183,7 +183,7 @@ export default function UserManagement() {
     showToast('Project assignment added.', 'success')
   }
 
-  // ── Remove project member ─────────────────────────────────────────────────
+  // -- Remove project member -------------------------------------------------
   const removeMember = async (memberId) => {
     setRemovingMemberId(memberId)
     const { error } = await supabase
@@ -196,7 +196,7 @@ export default function UserManagement() {
     showToast('Assignment removed.', 'success')
   }
 
-  // ── Disable / Enable (with confirm) ──────────────────────────────────────
+  // -- Disable / Enable (with confirm) --------------------------------------
   const toggleActive = async () => {
     if (!confirmTarget) return
     setTogglingId(confirmTarget.id)
@@ -232,7 +232,7 @@ export default function UserManagement() {
       {/* Two-panel layout */}
       <div className="flex flex-col lg:flex-row gap-4">
 
-        {/* ── Left panel: user list ─────────────────────────────────────────── */}
+        {/* -- Left panel: user list ------------------------------------------- */}
         <div className="lg:w-[40%] flex-shrink-0">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
             {/* Search */}
@@ -297,7 +297,7 @@ export default function UserManagement() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
                           <span className={`text-sm font-semibold truncate ${disabled ? 'text-gray-400' : 'text-black'}`}>
-                            {user.full_name || '—'}
+                            {user.full_name || '--'}
                           </span>
                           {!user.is_active && (
                             <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-400">
@@ -333,7 +333,7 @@ export default function UserManagement() {
           </div>
         </div>
 
-        {/* ── Right panel: user detail ──────────────────────────────────────── */}
+        {/* -- Right panel: user detail ---------------------------------------- */}
         <div className="flex-1 min-w-0">
           {!selectedUser ? (
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 flex items-center justify-center h-64 lg:h-full min-h-[260px]">
@@ -354,7 +354,7 @@ export default function UserManagement() {
                 <AvatarCircle name={selectedUser.full_name} email={selectedUser.email} size="lg" />
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 flex-wrap">
-                    <h2 className="text-lg font-bold text-black truncate">{selectedUser.full_name || '—'}</h2>
+                    <h2 className="text-lg font-bold text-black truncate">{selectedUser.full_name || '--'}</h2>
                     {/* Active toggle */}
                     <button
                       onClick={() => setConfirmTarget(selectedUser)}
@@ -558,7 +558,7 @@ export default function UserManagement() {
         </div>
       </div>
 
-      {/* ── Confirm modal ─────────────────────────────────────────────────────── */}
+      {/* -- Confirm modal ------------------------------------------------------- */}
       {confirmTarget && (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
@@ -611,7 +611,7 @@ export default function UserManagement() {
         </div>
       )}
 
-      {/* ── Toast ─────────────────────────────────────────────────────────────── */}
+      {/* -- Toast --------------------------------------------------------------- */}
       {toast && (
         <div className={`fixed bottom-6 right-6 px-5 py-3 rounded-xl text-sm font-medium shadow-lg z-50 ${
           toast.type === 'success' ? 'bg-black text-white' : 'bg-[#ed6055] text-white'

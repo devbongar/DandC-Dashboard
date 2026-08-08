@@ -69,7 +69,7 @@ export default function SignIn() {
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: '#f8fafc' }}>
 
-      {/* ── Left panel ── */}
+      {/* -- Left panel -- */}
       <div className="hidden lg:flex lg:w-1/2 bg-black flex-col items-center justify-center px-12 relative overflow-hidden">
 
         {/* Animated background blobs */}
@@ -113,7 +113,7 @@ export default function SignIn() {
         </div>
       </div>
 
-      {/* ── Right panel ── */}
+      {/* -- Right panel -- */}
       <div className="w-full lg:w-1/2 flex items-center justify-center px-6 py-12" style={{ background: '#f8fafc' }}>
         <div className="w-full max-w-md">
 

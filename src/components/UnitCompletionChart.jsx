@@ -7,7 +7,7 @@ import {
 } from 'recharts'
 import SearchDropdown from './SearchDropdown'
 
-// ── Colors ───────────────────────────────────────────────────────────────────
+// -- Colors -------------------------------------------------------------------
 const M4_EXP = '#d1d5db'  // gray-300    (expected = gray)
 const M4_ACT = '#16a34a'  // green-600   (actual   = green)
 const M5_EXP = '#d1d5db'  // gray-300    (expected = gray)
@@ -15,7 +15,7 @@ const M5_ACT = '#16a34a'  // green-600   (actual   = green)
 
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
-// ── Time helpers ─────────────────────────────────────────────────────────────
+// -- Time helpers -------------------------------------------------------------
 const TIME_MODES = [
   { key: 'monthly',   label: 'Monthly' },
   { key: 'quarterly', label: 'Quarterly' },
@@ -32,7 +32,7 @@ function toPeriodKey(dateStr, mode) {
   return `${y}-${String(m).padStart(2, '0')}`
 }
 
-// ── Data computation ──────────────────────────────────────────────────────────
+// -- Data computation ----------------------------------------------------------
 function buildChartData(floors, completions, mode, availableYears) {
   const years = availableYears.length ? availableYears : [new Date().getFullYear()]
 
@@ -100,10 +100,10 @@ function extractYears(floors, completions) {
 }
 
 
-// ── Styles ────────────────────────────────────────────────────────────────────
+// -- Styles --------------------------------------------------------------------
 const selectCls = 'px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent'
 
-// ── Custom X Tick ─────────────────────────────────────────────────────────────
+// -- Custom X Tick -------------------------------------------------------------
 function CustomXTick({ x, y, payload }) {
   const label = payload?.value ?? ''
   const apos  = label.indexOf("'")
@@ -120,7 +120,7 @@ function CustomXTick({ x, y, payload }) {
   )
 }
 
-// ── Custom Tooltip ────────────────────────────────────────────────────────────
+// -- Custom Tooltip ------------------------------------------------------------
 function CustomTooltip({ active, payload, label }) {
   if (!active || !payload?.length) return null
   return (
@@ -135,7 +135,7 @@ function CustomTooltip({ active, payload, label }) {
   )
 }
 
-// ── Main Component ────────────────────────────────────────────────────────────
+// -- Main Component ------------------------------------------------------------
 export default function UnitCompletionChart({ id }) {
   const [allProjects, setAllProjects]   = useState(null)
   const [floors, setFloors]             = useState([])
@@ -289,9 +289,9 @@ const chartData = useMemo(
       {/* Filter bar */}
       <div className="flex flex-col gap-2 mb-4">
 
-        {/* ── Mobile layout (< sm) ── */}
+        {/* -- Mobile layout (< sm) -- */}
         <div className="flex flex-col gap-2 sm:hidden">
-          {/* Type toggle — full width */}
+          {/* Type toggle -- full width */}
           <div
             className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
             style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
@@ -310,7 +310,7 @@ const chartData = useMemo(
               </button>
             ))}
           </div>
-          {/* Project — full width */}
+          {/* Project -- full width */}
           <SearchDropdown
             fluid
             options={(allProjects ?? []).filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)).sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
@@ -318,7 +318,7 @@ const chartData = useMemo(
             placeholder="Search projects…"
             icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
           />
-          {/* Province + City — equal columns */}
+          {/* Province + City -- equal columns */}
           <div className="grid grid-cols-2 gap-2">
             <SearchDropdown
               fluid
@@ -336,7 +336,7 @@ const chartData = useMemo(
               disabled={!province || availableCities.length === 0}
             />
           </div>
-          {/* Time toggle — full width */}
+          {/* Time toggle -- full width */}
           <div className="flex rounded-lg border border-gray-200 overflow-hidden">
             {TIME_MODES.map(m => (
               <button key={m.key} onClick={() => setTimeMode(m.key)}
@@ -346,7 +346,7 @@ const chartData = useMemo(
           </div>
         </div>
 
-        {/* ── Desktop layout (sm+) ── */}
+        {/* -- Desktop layout (sm+) -- */}
         <div className="hidden sm:flex items-center gap-2">
           {/* Filter button + popover */}
           <div className="relative" ref={filterRef}>
@@ -483,8 +483,8 @@ const chartData = useMemo(
       {!loading && allProjects !== null && (floors.length > 0 || completions.length > 0) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
           {[
-            { label: 'M4 — Unit Completion',    actual: totals.m4Actual, planned: totals.m4PlannedToday, total: totals.m4Total, rate: totals.m4Rate, status: totals.m4Status },
-            { label: 'M5 — Handover to PMO', actual: totals.m5Actual, planned: totals.m5PlannedToday, total: totals.m5Total, rate: totals.m5Rate, status: totals.m5Status },
+            { label: 'M4 -- Unit Completion',    actual: totals.m4Actual, planned: totals.m4PlannedToday, total: totals.m4Total, rate: totals.m4Rate, status: totals.m4Status },
+            { label: 'M5 -- Handover to PMO', actual: totals.m5Actual, planned: totals.m5PlannedToday, total: totals.m5Total, rate: totals.m5Rate, status: totals.m5Status },
           ].map(({ label, actual, planned, total, rate, status }) => (
             <div key={label} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
               {/* Header row */}

@@ -103,7 +103,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
               </div>
             ))}
           </div>
-          {/* Left gradient arrow — mobile only */}
+          {/* Left gradient arrow -- mobile only */}
           <button
             onClick={() => scrollCards(-1)}
             aria-label="Scroll left"
@@ -113,7 +113,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
               <path fillRule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clipRule="evenodd" />
             </svg>
           </button>
-          {/* Right gradient arrow — mobile only */}
+          {/* Right gradient arrow -- mobile only */}
           <button
             onClick={() => scrollCards(1)}
             aria-label="Scroll right"
@@ -184,7 +184,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
         </div>
       )}
 
-      {/* Permit cards — div not button to avoid nested button (delete) */}
+      {/* Permit cards -- div not button to avoid nested button (delete) */}
       <div className="space-y-3">
         {permits.map(permit => {
           const status   = computePermitStatus(permit)
@@ -236,7 +236,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                 )}
               </div>
 
-              {/* Admin delete — separated from card click area */}
+              {/* Admin delete -- separated from card click area */}
               {isAdmin && (
                 <div className="mt-2 pt-2 border-t border-gray-100 dark:border-gray-700 flex justify-end">
                   <button

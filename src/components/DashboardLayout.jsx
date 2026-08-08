@@ -39,12 +39,12 @@ export default function DashboardLayout({ profile, children, navOverride, action
   return (
     <div className="min-h-screen bg-[#e4e7ec]" style={{ minHeight: '100lvh', backgroundColor: '#e4e7ec' }}>
 
-      {/* ── Topbar ── */}
+      {/* -- Topbar -- */}
       <div
         className="fixed top-0 left-0 right-0 z-40 flex flex-col"
         style={{ background: 'rgba(63,63,63,1)', borderBottom: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 1px 0 rgba(0,0,0,0.18)' }}
       >
-        {/* Safe-area spacer — pushes content below the status bar on iOS PWA */}
+        {/* Safe-area spacer -- pushes content below the status bar on iOS PWA */}
         <div style={{ height: 'env(safe-area-inset-top, 0px)' }} />
         <div className="flex items-center h-16">
         {/* Hamburger / nav override */}
@@ -58,12 +58,12 @@ export default function DashboardLayout({ profile, children, navOverride, action
           </button>
         )}
 
-        {/* Logo — desktop only; on mobile it lives inside the sidebar drawer */}
+        {/* Logo -- desktop only; on mobile it lives inside the sidebar drawer */}
         <div className="px-2 sm:px-3 hidden sm:flex items-center flex-shrink-0">
           <Logo size="md" variant="white" />
         </div>
 
-        {/* Divider — desktop only */}
+        {/* Divider -- desktop only */}
         <div className="w-px h-8 flex-shrink-0 hidden sm:block" style={{ background: 'rgba(255,255,255,0.15)' }} />
 
         {/* Title */}
@@ -171,7 +171,7 @@ export default function DashboardLayout({ profile, children, navOverride, action
       {/* Sidebar */}
       <Sidebar profile={profile} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
-      {/* Main content — offset = topbar (4rem) + safe-area-inset-top */}
+      {/* Main content -- offset = topbar (4rem) + safe-area-inset-top */}
       <div style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))' }}>
         <div className="px-3 sm:px-4 pt-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           {children}

@@ -14,7 +14,7 @@ const PHASES = [
   { key: 'closeout',             label: 'Close-Out' },
 ]
 
-// ── Inline row (add or edit) ───────────────────────────────────────────────────
+// -- Inline row (add or edit) ---------------------------------------------------
 
 function InlineRow({ initial = {}, seq, isChild, onSave, onCancel }) {
   const [name,     setName]     = useState(initial.name     ?? '')
@@ -83,7 +83,7 @@ function InlineRow({ initial = {}, seq, isChild, onSave, onCancel }) {
   )
 }
 
-// ── Single task row ────────────────────────────────────────────────────────────
+// -- Single task row ------------------------------------------------------------
 
 function TaskRow({ task, seq, isChild, allTasks, editingId, addingAfterId, onEdit, onDelete, onAddBelow, onSaveEdit, showToast }) {
   const [hovered, setHovered] = useState(false)
@@ -127,12 +127,12 @@ function TaskRow({ task, seq, isChild, allTasks, editingId, addingAfterId, onEdi
         </td>
         <td className="px-3 py-2 text-center text-xs text-gray-700">
           {hasChildren
-            ? <span className="text-gray-400">—</span>
-            : (task.duration != null ? task.duration : <span className="text-gray-400">—</span>)
+            ? <span className="text-gray-400">--</span>
+            : (task.duration != null ? task.duration : <span className="text-gray-400">--</span>)
           }
         </td>
         <td className="px-3 py-2 text-xs text-gray-700">
-          {task.predecessor_text ?? <span className="text-gray-400">—</span>}
+          {task.predecessor_text ?? <span className="text-gray-400">--</span>}
         </td>
         <td className="px-3 py-2 text-right whitespace-nowrap">
           <span onClick={() => onEdit(task.id)}   className="text-gray-300 cursor-pointer mr-2 hover:text-gray-500">✎</span>
@@ -153,10 +153,10 @@ function TaskRow({ task, seq, isChild, allTasks, editingId, addingAfterId, onEdi
   )
 }
 
-// placeholder — actual InlineRow is rendered by TemplateTable using addingAfter state
+// placeholder -- actual InlineRow is rendered by TemplateTable using addingAfter state
 function InlineRowConsumer() { return null }
 
-// ── Phase section header ───────────────────────────────────────────────────────
+// -- Phase section header -------------------------------------------------------
 
 function PhaseHeader({ label }) {
   return (
@@ -168,7 +168,7 @@ function PhaseHeader({ label }) {
   )
 }
 
-// ── Predecessor-text helpers ───────────────────────────────────────────────────
+// -- Predecessor-text helpers ---------------------------------------------------
 
 // Returns a map of old_seq → new_seq for every task whose position changed
 function buildSeqChanges(oldSeqMap, newSeqMap) {
@@ -213,7 +213,7 @@ async function syncPredecessorTexts(oldSeqMap, newTasks, deletedSeqs = new Set()
   }
 }
 
-// ── Template table (all state for add/edit/delete lives here) ─────────────────
+// -- Template table (all state for add/edit/delete lives here) -----------------
 
 function TemplateTable({ tasks, seqMap, onReload, showToast }) {
   const [addingAfter,    setAddingAfter]    = useState(null)
@@ -364,7 +364,7 @@ function TemplateTable({ tasks, seqMap, onReload, showToast }) {
   )
 }
 
-// ── Renders one phase section (header + rows + add-top-level footer) ──────────
+// -- Renders one phase section (header + rows + add-top-level footer) ----------
 
 function PhaseRows({ phase, phaseTasks, parents, allTasks, seqMap, editingId, addingAfter, onEdit, onDelete, onAddBelow, onSaveEdit, onSaveNew, onCancelAdd, onAddTopLevel, showToast }) {
   const isTopLevelAdd = addingAfter?.triggerId === `phase-${phase.key}`
@@ -379,7 +379,7 @@ function PhaseRows({ phase, phaseTasks, parents, allTasks, seqMap, editingId, ad
 
       {parents.map(parent => {
         const children    = phaseTasks.filter(t => t.parent_id === parent.id)
-        const parentSeq   = seqMap.get(parent.id) ?? '—'
+        const parentSeq   = seqMap.get(parent.id) ?? '--'
         const isAddAfterParent = addingAfter?.triggerId === parent.id && addingAfter?.isChild
 
         return (
@@ -429,7 +429,7 @@ function PhaseRows({ phase, phaseTasks, parents, allTasks, seqMap, editingId, ad
   )
 }
 
-// ── One parent row + its children ─────────────────────────────────────────────
+// -- One parent row + its children ---------------------------------------------
 
 function ParentRows({ parent, parentSeq, children, allTasks, seqMap, editingId, addingAfter, isAddAfterParent, onEdit, onDelete, onAddBelow, onSaveEdit, onSaveNew, onCancelAdd }) {
   const [hovered, setHovered] = useState(false)
@@ -473,11 +473,11 @@ function ParentRows({ parent, parentSeq, children, allTasks, seqMap, editingId, 
         </td>
         <td className="px-3 py-2 text-center text-xs text-gray-700">
           {children.length > 0
-            ? <span className="text-gray-400">—</span>
-            : (parent.duration != null ? parent.duration : <span className="text-gray-400">—</span>)}
+            ? <span className="text-gray-400">--</span>
+            : (parent.duration != null ? parent.duration : <span className="text-gray-400">--</span>)}
         </td>
         <td className="px-3 py-2 text-xs text-gray-700">
-          {parent.predecessor_text ?? <span className="text-gray-400">—</span>}
+          {parent.predecessor_text ?? <span className="text-gray-400">--</span>}
         </td>
         <td className="px-3 py-2 text-right whitespace-nowrap">
           <span onClick={() => onEdit(parent.id)} className="text-gray-300 cursor-pointer mr-2 hover:text-gray-500">✎</span>
@@ -501,7 +501,7 @@ function ParentRows({ parent, parentSeq, children, allTasks, seqMap, editingId, 
 }
 
 function renderChild(child, seqMap, editingId, addingAfter, allTasks, onEdit, onDelete, onAddBelow, onSaveEdit, onSaveNew, onCancelAdd) {
-  const childSeq = seqMap.get(child.id) ?? '—'
+  const childSeq = seqMap.get(child.id) ?? '--'
   const isAddAfterThis = addingAfter?.triggerId === child.id
 
   if (editingId === child.id) {
@@ -559,10 +559,10 @@ function ChildRow({ child, seq, allTasks, onEdit, onDelete, onAddBelow, isAddAft
           </div>
         </td>
         <td className="px-3 py-2 text-center text-xs text-gray-700">
-          {child.duration != null ? child.duration : <span className="text-gray-400">—</span>}
+          {child.duration != null ? child.duration : <span className="text-gray-400">--</span>}
         </td>
         <td className="px-3 py-2 text-xs text-gray-700">
-          {child.predecessor_text ?? <span className="text-gray-400">—</span>}
+          {child.predecessor_text ?? <span className="text-gray-400">--</span>}
         </td>
         <td className="px-3 py-2 text-right whitespace-nowrap">
           <span onClick={() => onEdit(child.id)} className="text-gray-300 cursor-pointer mr-2 hover:text-gray-500">✎</span>
@@ -581,7 +581,7 @@ function ChildRow({ child, seq, allTasks, onEdit, onDelete, onAddBelow, isAddAft
   )
 }
 
-// ── Main page ─────────────────────────────────────────────────────────────────
+// -- Main page -----------------------------------------------------------------
 
 export default function WorkProgramTemplate() {
   const { profile, loading: profileLoading } = useProfile()
