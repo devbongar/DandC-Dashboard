@@ -1935,7 +1935,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }
               className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg ${
                 fabOpen
                   ? 'bg-gray-700 text-white shadow-xl'
-                  : 'bg-gray-600 text-white hover:bg-gray-700 hover:shadow-xl active:scale-[0.95]'
+                  : 'bg-gray-600/70 text-white hover:bg-gray-700 hover:shadow-xl active:scale-[0.95]'
               }`}
               style={{ transition: 'background-color 150ms ease, box-shadow 150ms ease, border-color 150ms ease' }}
             >
