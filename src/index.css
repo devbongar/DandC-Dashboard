@@ -61,6 +61,28 @@ html, body {
   to   { opacity: 1; }
 }
 
+/* -- Lightbox animations -------------------------------------- */
+@keyframes ph1-lb-backdrop {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes ph1-lb-img-open {
+  from { opacity: 0; transform: scale(0.93); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes ph1-lb-slide-next {
+  from { opacity: 0; transform: translateX(48px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(0)    scale(1); }
+}
+@keyframes ph1-lb-slide-prev {
+  from { opacity: 0; transform: translateX(-48px) scale(0.97); }
+  to   { opacity: 1; transform: translateX(0)     scale(1); }
+}
+.lb-img-open  { animation: ph1-lb-img-open  220ms cubic-bezier(0.23,1,0.32,1) both; }
+.lb-slide-next { animation: ph1-lb-slide-next 200ms cubic-bezier(0.23,1,0.32,1) both; }
+.lb-slide-prev { animation: ph1-lb-slide-prev 200ms cubic-bezier(0.23,1,0.32,1) both; }
+.lb-backdrop  { animation: ph1-lb-backdrop   180ms ease-out both; }
+
 /* -- Dropdown slide-in ---------------------------------------- */
 @keyframes ph1-dropdown {
   from { opacity: 0; transform: translateY(-6px) scale(0.97); }

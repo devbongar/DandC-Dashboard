@@ -3551,6 +3551,11 @@ function createThumbnail(file, maxSize = 400) {
   })
 }
 
+const fixEncoding = (str) => {
+  if (!str) return str
+  try { return decodeURIComponent(escape(str)) } catch { return str }
+}
+
 const fmtPhotoMonth = (ym) => {
   const d = new Date(ym + '-01T00:00:00')
   return d.toLocaleDateString('en-US', { month: 'short' }) + " '" + String(d.getFullYear()).slice(2)
@@ -3718,9 +3723,14 @@ function PhotosTab({ project, isAdmin, showToast }) {
   const [filterMonth, setFilterMonth]     = useState('')
   const [filterTags, setFilterTags]       = useState([])
   const [sortOrder, setSortOrder]         = useState('newest')
-  const [monthOpen, setMonthOpen]         = useState(false)
-  const [tagOpen, setTagOpen]             = useState(false)
   const [deletePhoto, setDeletePhoto]     = useState(null)
+  const [search, setSearch]               = useState('')
+  const [filtersOpen, setFiltersOpen]     = useState(false)
+  const [actionsOpen, setActionsOpen]     = useState(false)
+  const [slideDir, setSlideDir]           = useState('open')
+  const [imgKey, setImgKey]               = useState(0)
+  const filtersRef                        = useRef(null)
+  const actionsRef                        = useRef(null)
 
   const load = async () => {
     setLoading(true)
@@ -3734,6 +3744,15 @@ function PhotosTab({ project, isAdmin, showToast }) {
   }
 
   useEffect(() => { load() }, [project.id])
+
+  useEffect(() => {
+    const handler = e => {
+      if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false)
+      if (actionsRef.current && !actionsRef.current.contains(e.target)) setActionsOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   const getUrl = (path) =>
     supabase.storage.from('project-photos').getPublicUrl(path).data.publicUrl
@@ -3753,10 +3772,13 @@ function PhotosTab({ project, isAdmin, showToast }) {
     return PHOTO_TAGS.filter(t => seen.has(t))
   }, [photos])
 
+  const activeFilterCount = [!!filterMonth, filterTags.length > 0].filter(Boolean).length
   const filteredPhotos = useMemo(() => {
+    const q = search.toLowerCase()
     const result = photos.filter(p => {
       if (filterMonth && !(p.photo_date ?? p.created_at)?.startsWith(filterMonth)) return false
       if (filterTags.length && !filterTags.every(t => (p.tags ?? []).includes(t))) return false
+      if (q && !(p.file_name ?? '').toLowerCase().includes(q) && !(p.tags ?? []).some(t => t.toLowerCase().includes(q))) return false
       return true
     })
     result.sort((a, b) => {
@@ -3803,107 +3825,138 @@ function PhotosTab({ project, isAdmin, showToast }) {
       onUploaded={() => { setShowUpload(false); load() }} />
   )
 
-  const hasFilters = !!(filterMonth || filterTags.length)
+  const hasFilters = !!(filterMonth || filterTags.length || search)
 
   return (
-    <div className="py-4">
-      {/* Toolbar */}
-      <div className="mb-5 flex items-center gap-2 flex-wrap">
-        {isAdmin && (
-          <button onClick={() => setShowUpload(true)}
-            className="flex items-center gap-2 px-4 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition">
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-            </svg>
-            Upload Photos
-          </button>
-        )}
-        {photos.length > 0 && (
-          <>
-            {/* Month dropdown */}
-            {months.length > 0 && (
-              <div className="relative">
-                <button onClick={() => { setMonthOpen(o => !o); setTagOpen(false) }}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border transition ${filterMonth ? 'border-gray-700 bg-gray-700 text-white' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
-                  {filterMonth ? fmtPhotoMonth(filterMonth) : 'Month'}
-                  <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {monthOpen && (
-                  <>
-                    <div className="fixed inset-0 z-[9]" onClick={() => setMonthOpen(false)} />
-                    <div className="absolute top-full mt-1 z-10 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[140px] py-1">
-                      <button onClick={() => { setFilterMonth(''); setMonthOpen(false) }}
-                        className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${!filterMonth ? 'font-semibold text-[#ed6055]' : 'text-gray-600'}`}>
-                        All months
-                      </button>
-                      {months.map(m => (
-                        <button key={m} onClick={() => { setFilterMonth(m); setMonthOpen(false) }}
-                          className={`w-full px-3 py-1.5 text-left text-xs hover:bg-gray-50 ${filterMonth === m ? 'font-semibold text-[#ed6055]' : 'text-gray-600'}`}>
-                          {fmtPhotoMonth(m)}
-                        </button>
-                      ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            {/* Tag dropdown */}
-            {existingTags.length > 0 && (
-              <div className="relative">
-                <button onClick={() => { setTagOpen(o => !o); setMonthOpen(false) }}
-                  className={`flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border transition ${filterTags.length ? 'border-[#ed6055] bg-[#ed6055] text-white' : 'border-gray-200 text-gray-600 hover:border-gray-300'}`}>
-                  {filterTags.length ? `${filterTags.length} Tag${filterTags.length > 1 ? 's' : ''}` : 'Tag'}
-                  <svg className="w-3 h-3 opacity-60" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                  </svg>
-                </button>
-                {tagOpen && (
-                  <>
-                    <div className="fixed inset-0 z-[9]" onClick={() => setTagOpen(false)} />
-                    <div className="absolute top-full mt-1 z-10 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[160px] py-1">
-                      {existingTags.map(tag => (
-                        <button key={tag} onClick={() => toggleFilterTag(tag)}
-                          className="w-full px-3 py-2 text-left text-xs hover:bg-gray-50 flex items-center gap-2.5 text-gray-700">
-                          <span className={`w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center transition ${filterTags.includes(tag) ? 'bg-[#ed6055] border-[#ed6055]' : 'border-gray-300'}`}>
-                            {filterTags.includes(tag) && (
-                              <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                              </svg>
-                            )}
-                          </span>
-                          {tag}
-                        </button>
-                      ))}
-                      {filterTags.length > 0 && (
-                        <div className="border-t border-gray-100 mt-1 pt-1">
-                          <button onClick={() => { setFilterTags([]); setTagOpen(false) }}
-                            className="w-full px-3 py-1.5 text-left text-xs text-gray-400 hover:text-gray-600">Clear tags</button>
-                        </div>
-                      )}
-                    </div>
-                  </>
-                )}
-              </div>
-            )}
-            {/* Sort */}
-            <button onClick={() => setSortOrder(s => s === 'newest' ? 'oldest' : 'newest')}
-              className="flex items-center gap-1.5 px-3 py-2 text-xs rounded-lg border border-gray-200 text-gray-600 hover:border-gray-300 transition">
-              <svg className={`w-3.5 h-3.5 transition-transform ${sortOrder === 'oldest' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />
+    <div className="pt-4 px-3 sm:px-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="px-4 pt-3 pb-3 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-4 rounded-full bg-[#ed6055]" />
+            <h3 className="text-sm font-bold text-black">Photos</h3>
+          </div>
+          {/* Toolbar */}
+          <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
+            {/* Search */}
+            <div className="relative flex-1 min-w-[160px]">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z" />
               </svg>
-              {sortOrder === 'newest' ? 'Newest' : 'Oldest'}
-            </button>
-            {hasFilters && (
-              <button onClick={() => { setFilterMonth(''); setFilterTags([]) }}
-                className="text-xs text-gray-400 hover:text-gray-600 transition underline">Clear</button>
-            )}
-          </>
-        )}
-      </div>
+              <input type="text" placeholder="Search photos…" value={search} onChange={e => setSearch(e.target.value)}
+                className="w-full pl-8 pr-8 py-2 text-xs rounded-lg border border-gray-200 bg-white text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 focus:border-[#ed6055]/60 transition-shadow" />
+              {search && (
+                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
+                  <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
+                </button>
+              )}
+            </div>
 
-      {/* Grid */}
+            {/* Filters button */}
+            <div ref={filtersRef} className="relative flex-shrink-0">
+              <button onClick={() => setFiltersOpen(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
+                style={{
+                  background: filtersOpen || activeFilterCount > 0 ? '#fff' : '#fafafa',
+                  borderColor: activeFilterCount > 0 ? '#ed6055' : filtersOpen ? '#ed6055' : '#e5e7eb',
+                  color: activeFilterCount > 0 ? '#ed6055' : '#6b7280',
+                  boxShadow: filtersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                }}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                </svg>
+                Filters
+                {activeFilterCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">{activeFilterCount}</span>
+                )}
+              </button>
+              {filtersOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden settings-panel-enter"
+                  style={{ width: 220, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}>
+                  <div className="p-3 space-y-3">
+                    {months.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Month</p>
+                        <div className="flex flex-wrap gap-1">
+                          {[{ value: '', label: 'All' }, ...months.map(m => ({ value: m, label: fmtPhotoMonth(m) }))].map(o => (
+                            <button key={o.value} onClick={() => setFilterMonth(o.value)}
+                              className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                              style={filterMonth === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
+                              {o.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {existingTags.length > 0 && (
+                      <div>
+                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Tags</p>
+                        <div className="flex flex-wrap gap-1">
+                          {existingTags.map(tag => (
+                            <button key={tag} onClick={() => toggleFilterTag(tag)}
+                              className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                              style={filterTags.includes(tag) ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
+                              {tag}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {activeFilterCount > 0 && (
+                      <button onClick={() => { setFilterMonth(''); setFilterTags([]); setSearch('') }}
+                        className="w-full py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition">
+                        Clear filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Actions button */}
+            <div ref={actionsRef} className="relative flex-shrink-0">
+              <button onClick={() => setActionsOpen(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
+                style={{
+                  background: actionsOpen ? '#fff' : '#fafafa',
+                  borderColor: actionsOpen ? '#ed6055' : '#e5e7eb',
+                  color: '#6b7280',
+                  boxShadow: actionsOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                }}>
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+                </svg>
+                Actions
+              </button>
+              {actionsOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden settings-panel-enter"
+                  style={{ width: 180, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}>
+                  <div className="p-1.5 space-y-0.5">
+                    {isAdmin && (
+                      <button onClick={() => { setShowUpload(true); setActionsOpen(false) }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
+                        <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                        </svg>
+                        Upload Photos
+                      </button>
+                    )}
+                    <button onClick={() => { setSortOrder(s => s === 'newest' ? 'oldest' : 'newest'); setActionsOpen(false) }}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
+                      <svg className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${sortOrder === 'oldest' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />
+                      </svg>
+                      Sort: {sortOrder === 'newest' ? 'Newest first' : 'Oldest first'}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>{/* end toolbar */}
+        </div>{/* end header */}
+
+        {/* Grid */}
+      <div className="px-4 py-4">
       {filteredPhotos.length === 0 ? (
         <div className="py-16 text-center">
           <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
@@ -3914,7 +3967,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
           {hasFilters ? (
             <>
               <p className="text-sm text-gray-400">No photos match the current filters</p>
-              <button onClick={() => { setFilterMonth(''); setFilterTags([]) }} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
+              <button onClick={() => { setFilterMonth(''); setFilterTags([]); setSearch('') }} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
             </>
           ) : (
             <>
@@ -3935,12 +3988,15 @@ function PhotosTab({ project, isAdmin, showToast }) {
                 <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                   {items.map(photo => (
                     <div key={photo.id}
-                      className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer shadow-sm hover:shadow-md transition"
-                      onClick={() => setLightbox(photo._flatIdx)}>
+                      className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
+                      style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
+                      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'}
+                      onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)'}
+                      onClick={() => { setSlideDir('open'); setImgKey(k => k + 1); setLightbox(photo._flatIdx) }}>
                       <img
                         src={getThumbnailUrl(photo.storage_path)}
                         onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = getUrl(photo.storage_path) }}
-                        alt={photo.file_name}
+                        alt={fixEncoding(photo.file_name)}
                         loading="lazy"
                         className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
                       />
@@ -3955,7 +4011,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
                         </div>
                       )}
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end">
-                        <p className="px-2 pb-2 text-[10px] text-white font-medium opacity-0 group-hover:opacity-100 transition truncate w-full drop-shadow">{photo.file_name}</p>
+                        <p className="px-2 pb-2 text-[10px] text-white font-medium opacity-0 group-hover:opacity-100 transition truncate w-full drop-shadow">{fixEncoding(photo.file_name)}</p>
                       </div>
                       {isAdmin && (
                         <button onClick={e => handleDelete(photo, e)}
@@ -3977,7 +4033,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
 
       {/* Lightbox */}
       {lightbox !== null && filteredPhotos[lightbox] && (
-        <div className="fixed inset-0 z-[70] bg-black/90 flex items-center justify-center" onClick={() => setLightbox(null)}>
+        <div className="lb-backdrop fixed inset-0 z-[70] bg-black/90 flex items-center justify-center" onClick={() => setLightbox(null)}>
           <button
             className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
             onClick={() => setLightbox(null)}>
@@ -3988,7 +4044,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
           {lightbox > 0 && (
             <button
               className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
-              onClick={e => { e.stopPropagation(); setLightbox(l => l - 1) }}>
+              onClick={e => { e.stopPropagation(); setSlideDir('prev'); setImgKey(k => k + 1); setLightbox(l => l - 1) }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
@@ -3997,16 +4053,17 @@ function PhotosTab({ project, isAdmin, showToast }) {
           {lightbox < filteredPhotos.length - 1 && (
             <button
               className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
-              onClick={e => { e.stopPropagation(); setLightbox(l => l + 1) }}>
+              onClick={e => { e.stopPropagation(); setSlideDir('next'); setImgKey(k => k + 1); setLightbox(l => l + 1) }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
             </button>
           )}
           <img
+            key={imgKey}
             src={getUrl(filteredPhotos[lightbox].storage_path)}
-            alt={filteredPhotos[lightbox].file_name}
-            className="max-w-[88vw] max-h-[80vh] object-contain rounded-lg shadow-2xl"
+            alt={fixEncoding(filteredPhotos[lightbox].file_name)}
+            className={`max-w-[88vw] max-h-[80vh] object-contain rounded-lg shadow-2xl ${slideDir === 'next' ? 'lb-slide-next' : slideDir === 'prev' ? 'lb-slide-prev' : 'lb-img-open'}`}
             onClick={e => e.stopPropagation()} />
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
             {(filteredPhotos[lightbox].tags ?? []).length > 0 && (
@@ -4017,12 +4074,12 @@ function PhotosTab({ project, isAdmin, showToast }) {
               </div>
             )}
             <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm">
-              <span className="text-xs text-white/70 max-w-[200px] truncate">{filteredPhotos[lightbox].file_name}</span>
-              <span className="text-xs text-white/40">Â·</span>
+              <span className="text-xs text-white/70 max-w-[200px] truncate">{fixEncoding(filteredPhotos[lightbox].file_name)}</span>
+              <span className="text-xs text-white/40">·</span>
               <span className="text-xs text-white/50">{lightbox + 1} / {filteredPhotos.length}</span>
               {isAdmin && (
                 <>
-                  <span className="text-xs text-white/40">Â·</span>
+                  <span className="text-xs text-white/40">·</span>
                   <button onClick={e => handleDelete(filteredPhotos[lightbox], e)}
                     className="text-xs text-red-400 hover:text-red-300 transition font-medium">Delete</button>
                 </>
@@ -4032,12 +4089,14 @@ function PhotosTab({ project, isAdmin, showToast }) {
         </div>
       )}
 
+      </div>{/* end grid padding */}
       {deletePhoto && (
         <ConfirmDeleteModal
           onConfirm={confirmDeletePhoto}
           onCancel={() => setDeletePhoto(null)}
         />
       )}
+      </div>{/* end white card */}
     </div>
   )
 }
