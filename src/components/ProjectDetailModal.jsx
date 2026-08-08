@@ -3929,21 +3929,21 @@ function PhotosTab({ project, isAdmin, showToast }) {
                 Actions
               </button>
               {actionsOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden settings-panel-enter"
-                  style={{ width: 180, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}>
+                <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl settings-panel-enter overflow-visible"
+                  style={{ width: 180, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)', borderRadius: 12 }}>
                   <div className="p-1.5 space-y-0.5">
                     {isAdmin && (
                       <button onClick={() => { setShowUpload(true); setActionsOpen(false) }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
-                        <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        className="group w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
+                        <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-150 ease-out group-hover:scale-125" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                           <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
                         </svg>
                         Upload Photos
                       </button>
                     )}
                     <button onClick={() => { setSortOrder(s => s === 'newest' ? 'oldest' : 'newest'); setActionsOpen(false) }}
-                      className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
-                      <svg className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform ${sortOrder === 'oldest' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      className="group w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
+                      <svg className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-150 group-hover:scale-125 ${sortOrder === 'oldest' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />
                       </svg>
                       Sort: {sortOrder === 'newest' ? 'Newest first' : 'Oldest first'}
@@ -4850,14 +4850,14 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
                   <button
                     key={s.key}
                     onClick={() => navigate(s.key)}
-                    className="card-stagger group flex-shrink-0 w-[80px] sm:w-auto flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl bg-white border border-black/[0.08] shadow-sm hover:bg-[#ed6055]/[0.08] hover:shadow-lg hover:border-[#ed6055]/40 hover:-translate-y-1.5 active:scale-[0.95] active:shadow-sm active:translate-y-0 active:bg-[#ed6055]/[0.12]"
+                    className="card-stagger group flex-shrink-0 w-[80px] sm:w-auto flex flex-col items-center gap-1.5 py-3 px-2 rounded-xl bg-white border border-black/[0.08] shadow-sm hover:bg-[#ed6055]/[0.08] hover:shadow-lg hover:border-[#ed6055]/40 hover:-translate-y-0.5 active:scale-[0.95] active:shadow-sm active:translate-y-0 active:bg-[#ed6055]/[0.12]"
                     style={{
                       animationDelay: `${i * 35}ms`,
                       transition: 'background-color 120ms ease, border-color 120ms ease, box-shadow 200ms cubic-bezier(0.23, 1, 0.32, 1), transform 200ms cubic-bezier(0.23, 1, 0.32, 1)',
                       touchAction: 'manipulation',
                     }}
                   >
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center relative bg-gray-100 ring-1 ring-black/[0.06] text-gray-500 group-hover:bg-[#ed6055]/15 group-hover:text-[#ed6055] transition-colors duration-[120ms] ease-[ease]">
+                    <div className="w-10 h-10 rounded-xl flex items-center justify-center relative bg-gray-100 ring-1 ring-black/[0.06] text-gray-500 group-hover:bg-[#ed6055]/15 group-hover:text-[#ed6055] transition-[background-color,color] duration-150 ease-out">
                       {s.icon}
                       {s.badge != null && s.badge > 0 && (
                         <span
@@ -4923,7 +4923,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
                       className={`w-11 h-11 rounded-full shadow-md border flex items-center justify-center flex-shrink-0 ${
                         isCurrent
                           ? 'bg-[#fde8e7] border-[#ed6055]/40 text-[#ed6055] cursor-default'
-                          : 'bg-white border-gray-200 text-gray-400 hover:bg-[#fde8e7] hover:text-[#ed6055] hover:border-[#ed6055]/40 active:scale-[0.92]'
+                          : 'bg-white border-gray-200 text-gray-400 hover:bg-[#fde8e7] hover:text-[#ed6055] hover:border-[#ed6055]/40 hover:scale-[1.18] active:scale-[0.92]'
                       }`}
                       style={{ transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 100ms ease-out' }}
                     >
