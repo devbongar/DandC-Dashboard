@@ -4686,7 +4686,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             style={{ opacity: fabOpen ? 1 : 0, pointerEvents: fabOpen ? 'auto' : 'none', transition: 'opacity 200ms ease' }}
             onClick={() => setFabOpen(false)}
           />
-          <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-3">
+          <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-3" style={{ pointerEvents: 'none' }}>
             <div className="flex flex-col gap-3 items-end">
               {FAB_NAV.map((item, i) => {
                 const isCurrent = item.key === activeSection
@@ -4723,7 +4723,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
                   ? 'bg-gray-700 text-white shadow-xl'
                   : 'bg-gray-600/70 text-white hover:bg-gray-700 hover:shadow-xl active:scale-[0.95]'
               }`}
-              style={{ transition: 'background-color 150ms ease, box-shadow 150ms ease' }}
+              style={{ transition: 'background-color 150ms ease, box-shadow 150ms ease', pointerEvents: 'auto' }}
             >
               <svg className="w-5 h-5"
                 style={{ transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)', transition: 'transform 200ms cubic-bezier(0.23,1,0.32,1)' }}
