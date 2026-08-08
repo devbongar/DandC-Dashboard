@@ -462,16 +462,6 @@ const FAB_NAV = [
   { key: 'Photos',            label: 'Photos',        icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg> },
 ]
 
-const ARC_POS = [
-  { dx:   0, dy: -90 },
-  { dx: -23, dy: -87 },
-  { dx: -45, dy: -78 },
-  { dx: -64, dy: -64 },
-  { dx: -78, dy: -45 },
-  { dx: -87, dy: -23 },
-  { dx: -90, dy:   0 },
-]
-
 export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }) {
   const viewKey = `scurve_view_${project.id}`
   const _sv = (() => { try { return JSON.parse(localStorage.getItem(viewKey)) ?? {} } catch { return {} } })()
@@ -1899,49 +1889,50 @@ export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }
         </div>
       )}
 
-      {/* Radial FAB — quick nav to other sections */}
+      {/* Speed-dial FAB — quick nav to other sections */}
       {onSectionChange && (
         <>
           {fabOpen && <div className="fixed inset-0 z-[55]" onClick={() => setFabOpen(false)} />}
-          <div className="fixed bottom-6 right-6 z-[60]" style={{ width: 48, height: 48 }}>
-            {FAB_NAV.map((item, i) => {
-              const { dx, dy } = ARC_POS[i]
-              return (
+          <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-3">
+            {/* Child buttons — stacked above FAB */}
+            <div className="flex flex-col gap-3 items-end">
+              {FAB_NAV.map((item, i) => (
                 <div
                   key={item.key}
-                  className="group absolute"
+                  className="group flex items-center gap-3"
                   style={{
-                    top: '50%', left: '50%',
-                    transform: fabOpen
-                      ? `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px)) scale(1)`
-                      : `translate(-50%, -50%) scale(0.5)`,
+                    transform: fabOpen ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.85)',
                     opacity: fabOpen ? 1 : 0,
                     pointerEvents: fabOpen ? 'auto' : 'none',
-                    transition: `transform 200ms cubic-bezier(0.23, 1, 0.32, 1) ${fabOpen ? i * 35 : (FAB_NAV.length - 1 - i) * 20}ms, opacity 160ms ease ${fabOpen ? i * 35 : 0}ms`,
+                    transition: `transform 220ms cubic-bezier(0.23, 1, 0.32, 1) ${fabOpen ? i * 40 : (FAB_NAV.length - 1 - i) * 25}ms, opacity 180ms ease ${fabOpen ? i * 40 : 0}ms`,
                   }}
                 >
+                  {/* Label chip */}
+                  <span className="text-[11px] font-semibold text-white bg-gray-800/80 backdrop-blur-sm px-2.5 py-1 rounded-lg shadow-sm pointer-events-none select-none whitespace-nowrap">
+                    {item.label}
+                  </span>
+                  {/* Icon button */}
                   <button
                     onClick={() => { setFabOpen(false); if (!item.isCurrent) onSectionChange(item.key) }}
                     aria-label={item.label}
-                    className={`w-10 h-10 rounded-full shadow-md border flex items-center justify-center ${
+                    className={`w-11 h-11 rounded-full shadow-md border flex items-center justify-center flex-shrink-0 ${
                       item.isCurrent
                         ? 'bg-[#ed6055]/10 border-[#ed6055]/30 text-[#ed6055] cursor-default'
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-[#ed6055]/[0.08] hover:text-[#ed6055] hover:border-[#ed6055]/30 active:scale-[0.93]'
+                        : 'bg-white border-gray-200 text-gray-500 hover:bg-[#ed6055]/[0.08] hover:text-[#ed6055] hover:border-[#ed6055]/30 active:scale-[0.92]'
                     }`}
                     style={{ transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 100ms ease-out' }}
                   >
                     {item.icon}
                   </button>
-                  <span className="absolute right-full top-1/2 -translate-y-1/2 mr-2 whitespace-nowrap text-[11px] font-semibold bg-gray-900 text-white px-2 py-0.5 rounded-md pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity duration-150">
-                    {item.label}
-                  </span>
                 </div>
-              )
-            })}
+              ))}
+            </div>
+
+            {/* FAB */}
             <button
               onClick={() => setFabOpen(v => !v)}
               aria-label="Quick navigation"
-              className={`absolute inset-0 w-12 h-12 rounded-full flex items-center justify-center ${
+              className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
                 fabOpen
                   ? 'bg-white shadow-xl border border-gray-200 text-gray-600'
                   : 'bg-white/25 backdrop-blur-md border border-white/50 text-gray-600 hover:bg-white/50 hover:shadow-md'
