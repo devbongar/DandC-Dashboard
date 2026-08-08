@@ -3043,7 +3043,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
   const isForm = modal === 'add' || modal === 'edit'
 
   return (
-    <div>
+    <div className="pt-4 px-3 sm:px-6">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 max-w-7xl mx-auto">
         <div className="sticky top-0 z-30 bg-white rounded-t-xl border-b border-gray-100 px-4 pt-3 pb-0">
           <ImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
@@ -3215,7 +3215,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
           <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
             <thead>
               <tr className="sticky top-0 z-10 bg-gray-700 border-b border-gray-700">
-                {['No.', 'Issue', 'Group', 'Management Level', 'Status', 'Date Presented', 'Days Aging', ...(isAdmin ? [''] : [])].map(h => (
+                {['No.', 'Issue', 'Group', 'Management Level', 'Status', 'Date Presented', 'Days Aging'].map(h => (
                   <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-200 uppercase tracking-wider ${h === 'Management Level' || h === 'Group' || h === 'Days Aging' ? 'whitespace-normal text-center' : h === 'Issue' ? 'text-left w-full' : 'text-left whitespace-nowrap'}`}>
                     {h === 'Days Aging' ? <><span>Days</span><br /><span>Aging</span></> : h}
                   </th>
@@ -3239,14 +3239,6 @@ function IssuesTab({ project, isAdmin, showToast }) {
                     <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center tabular-nums">
                       {aging !== null ? `${aging}d` : '--'}
                     </td>
-                    {isAdmin && (
-                      <td className="px-4 py-2.5 whitespace-nowrap" onClick={e => e.stopPropagation()}>
-                        <div className="flex gap-1">
-                          <button onClick={() => openEdit(row)} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
-                          <button onClick={() => setDeleteId(row.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
-                        </div>
-                      </td>
-                    )}
                   </tr>
                 )
               })}
@@ -3269,51 +3261,83 @@ function IssuesTab({ project, isAdmin, showToast }) {
         const sc    = ISSUE_STATUS_CONFIG[active.status] ?? ISSUE_STATUS_CONFIG.open
         const aging = issueAgingDays(active.date_presented)
         return (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm p-4" onClick={close}>
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[85vh]"
-              style={{ borderTop: '4px solid #ed6055' }} onClick={e => e.stopPropagation()}>
-              <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
-                <p className="text-sm font-bold text-black">Issue Detail</p>
-                <button onClick={close} className="p-1.5 text-gray-400 hover:text-black transition"><XIcon /></button>
-              </div>
-              <div className="flex flex-1 overflow-hidden">
-                {/* Left -- red panel */}
-                <div className="w-44 flex-shrink-0 bg-[#ed6055] px-4 py-5 space-y-4 overflow-y-auto">
-                  {[
-                    { label: 'Status',            value: sc.label },
-                    { label: 'Group',             value: active.issue_group },
-                    { label: 'Management Level',  value: active.management_level },
-                    { label: 'Date Presented',    value: fmtIssueDate(active.date_presented) },
-                    { label: 'Days Aging',        value: aging !== null ? `${aging} day${aging !== 1 ? 's' : ''}` : null },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
-                      <p className="text-xs font-semibold text-white/70 mb-1">{label}</p>
-                      <div className="bg-white rounded-lg px-3 py-2 text-sm font-medium text-black">
-                        {value || <span className="text-gray-400 italic font-normal">--</span>}
-                      </div>
-                    </div>
-                  ))}
+          <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/10 backdrop-blur-sm sm:p-4" onClick={close}>
+            <div
+              className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl flex flex-col overflow-hidden"
+              style={{ maxHeight: '92dvh', borderTop: '4px solid #ed6055' }}
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between gap-4 flex-shrink-0">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-1 h-5 rounded-full bg-[#ed6055] flex-shrink-0" />
+                  <h3 className="text-base font-bold text-black truncate">Issue Detail</h3>
+                  <span className={`inline-block text-xs font-semibold px-2.5 py-0.5 rounded-full flex-shrink-0 ${sc.cls}`}>{sc.label}</span>
                 </div>
-                {/* Right -- content */}
-                <div className="flex-1 px-5 py-5 space-y-4 overflow-y-auto">
-                  {[
-                    { label: 'Issue',             value: active.details },
-                    { label: 'Caused By',         value: active.caused_by },
-                    { label: 'Action Steps', value: active.action_steps },
-                  ].map(({ label, value }) => (
-                    <div key={label}>
-                      <div className="bg-gray-100 px-4 py-1.5 rounded-t-lg">
-                        <p className="text-xs font-bold text-gray-600 uppercase tracking-wider">{label}</p>
-                      </div>
-                      <div className="border border-gray-100 border-t-0 rounded-b-lg px-4 py-3 min-h-[60px] text-sm text-black leading-relaxed whitespace-pre-wrap">
-                        {value || <span className="text-gray-300 italic">--</span>}
-                      </div>
-                    </div>
-                  ))}
+                <button onClick={close} className="p-1.5 rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 active:scale-[0.95] transition flex-shrink-0"><XIcon /></button>
+              </div>
+
+              {/* Meta strip */}
+              <div className="px-6 py-3 border-b border-gray-100 grid grid-cols-4 gap-4 bg-gray-50 flex-shrink-0">
+                {[
+                  { label: 'Group',            value: active.issue_group },
+                  { label: 'Management Level', value: active.management_level },
+                  { label: 'Date Presented',   value: fmtIssueDate(active.date_presented) },
+                ].map(({ label, value }) => (
+                  <div key={label}>
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">{label}</p>
+                    <p className="text-sm font-medium text-gray-800">{value || <span className="text-gray-300 italic font-normal">--</span>}</p>
+                  </div>
+                ))}
+                <div>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-0.5">Days Aging</p>
+                  {aging !== null ? (
+                    <span className={`inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${
+                      aging >= 30 ? 'bg-red-50 text-red-600 border border-red-100' :
+                      aging >= 15 ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                      'text-gray-800'
+                    }`}>{aging} day{aging !== 1 ? 's' : ''}</span>
+                  ) : <span className="text-sm text-gray-300 italic font-normal">--</span>}
                 </div>
               </div>
-              <div className="px-5 py-3 border-t border-gray-100 flex justify-end flex-shrink-0">
-                <button onClick={close} className="px-4 py-2 text-sm font-semibold bg-black text-white rounded-lg hover:bg-gray-800 transition">Close</button>
+
+              {/* Content */}
+              <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden px-6 py-5 space-y-6">
+                {[
+                  { label: 'Issue',        value: active.details },
+                  { label: 'Caused By',    value: active.caused_by },
+                  { label: 'Action Steps', value: active.action_steps },
+                ].filter(s => s.value).map(({ label, value }) => (
+                  <div key={label}>
+                    <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">{label}</p>
+                    <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap break-words">{value}</p>
+                  </div>
+                ))}
+                {!active.details && !active.caused_by && !active.action_steps && (
+                  <p className="text-sm text-gray-300 italic">No details recorded.</p>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
+                <div className="flex gap-2">
+                  {isAdmin && (
+                    <>
+                      <button onClick={() => { openEdit(active) }}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-[0.97] transition">
+                        <PencilIcon /> Edit
+                      </button>
+                      <button onClick={() => { setDeleteId(active.id); close() }}
+                        className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-red-100 text-red-500 hover:bg-red-50 active:scale-[0.97] transition">
+                        <TrashIcon /> Delete
+                      </button>
+                    </>
+                  )}
+                </div>
+                <button onClick={close}
+                  className="px-5 py-2 text-sm font-semibold bg-gray-900 text-white rounded-lg hover:bg-black active:scale-[0.97] transition">
+                  Close
+                </button>
               </div>
             </div>
           </div>

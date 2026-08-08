@@ -84,7 +84,7 @@ export default function ProjectDetailPage() {
   )
 
   return (
-    <DashboardLayout profile={profile} navOverride={navOverride} actions={actions} title={section ? `${project.name} -- ${section}` : project.name}>
+    <DashboardLayout profile={profile} navOverride={navOverride} actions={actions} title={project.name}>
       <div
         className="fixed inset-x-0 bottom-0 overflow-hidden"
         style={{ top: 'calc(4rem + env(safe-area-inset-top, 0px))' }}
