@@ -1605,7 +1605,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                 </span>
               )}
             </div>
-            <div className="scurve-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}>
+            <div className="scurve-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: 'pan-x', scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}>
               <div className="h-full flex flex-col" style={{ width: '100%', minWidth: totalW }}>
 
                 {/* Chart slot: fills remaining vertical space */}

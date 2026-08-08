@@ -67,8 +67,11 @@ html, body {
   to   { opacity: 1; }
 }
 
-/* ── S-curve chart scroll area: hide scrollbar ──────────────── */
-.scurve-scroll::-webkit-scrollbar { display: none; }
+/* ── S-curve chart scroll area: thin scrollbar ──────────────── */
+.scurve-scroll::-webkit-scrollbar { height: 4px; }
+.scurve-scroll::-webkit-scrollbar-track { background: transparent; }
+.scurve-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
+.scurve-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
 
 /* ── Settings panel slide-down ──────────────────────────────── */
 @keyframes ph1-panel-down {
