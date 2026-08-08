@@ -452,17 +452,7 @@ function makeSeriesLabel(color, yOffsets) {
   }
 }
 
-const FAB_NAV = [
-  { key: 'Planned M4/M5',     label: 'Planned M4/M5', icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg> },
-  { key: 'Completion (M4/M5)',label: 'Completion',     icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
-  { key: 'Work Program',      label: 'Work Program',  icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg> },
-  { key: 'S-Curve',           label: 'S-Curve',       icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>, isCurrent: true },
-  { key: 'Permits',           label: 'Permits',       icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg> },
-  { key: 'Issues & Concerns', label: 'Issues',        icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg> },
-  { key: 'Photos',            label: 'Photos',        icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg> },
-]
-
-export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }) {
+export default function SCurveTab({ project, isAdmin, canEdit }) {
   const viewKey = `scurve_view_${project.id}`
   const _sv = (() => { try { return JSON.parse(localStorage.getItem(viewKey)) ?? {} } catch { return {} } })()
 
@@ -477,7 +467,6 @@ export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }
   const [editValue,            setEditValue]            = useState('')
   const [saving,               setSaving]               = useState(false)
   const [toast,                setToast]                = useState(null)
-  const [fabOpen,              setFabOpen]              = useState(false)
   const [showNewBaseline,      setShowNewBaseline]      = useState(false)
   const [importConflict,       setImportConflict]       = useState(null)
   const [showDownloadPicker,   setShowDownloadPicker]   = useState(false)
@@ -1887,76 +1876,6 @@ export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }
             <span className="text-[10px] text-gray-400">to {primaryBaseline?.name}</span>
           )}
         </div>
-      )}
-
-      {/* Speed-dial FAB — quick nav to other sections */}
-      {onSectionChange && (
-        <>
-          <div
-            className="fixed inset-0 z-[55] backdrop-blur-sm bg-black/20"
-            style={{
-              opacity: fabOpen ? 1 : 0,
-              pointerEvents: fabOpen ? 'auto' : 'none',
-              transition: 'opacity 200ms ease',
-            }}
-            onClick={() => setFabOpen(false)}
-          />
-          <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-3">
-            {/* Child buttons — stacked above FAB */}
-            <div className="flex flex-col gap-3 items-end">
-              {FAB_NAV.map((item, i) => (
-                <div
-                  key={item.key}
-                  className="group flex items-center gap-3"
-                  style={{
-                    transform: fabOpen ? 'translateY(0) scale(1)' : 'translateY(12px) scale(0.85)',
-                    opacity: fabOpen ? 1 : 0,
-                    pointerEvents: fabOpen ? 'auto' : 'none',
-                    transition: `transform 220ms cubic-bezier(0.23, 1, 0.32, 1) ${fabOpen ? i * 40 : (FAB_NAV.length - 1 - i) * 25}ms, opacity 180ms ease ${fabOpen ? i * 40 : 0}ms`,
-                  }}
-                >
-                  {/* Label chip */}
-                  <span className="text-[11px] font-semibold text-white bg-gray-800/80 backdrop-blur-sm px-2.5 py-1 rounded-lg shadow-sm pointer-events-none select-none whitespace-nowrap">
-                    {item.label}
-                  </span>
-                  {/* Icon button */}
-                  <button
-                    onClick={() => { setFabOpen(false); if (!item.isCurrent) onSectionChange(item.key) }}
-                    aria-label={item.label}
-                    className={`w-11 h-11 rounded-full shadow-md border flex items-center justify-center flex-shrink-0 ${
-                      item.isCurrent
-                        ? 'bg-[#fde8e7] border-[#ed6055]/40 text-[#ed6055] cursor-default'
-                        : 'bg-white border-gray-200 text-gray-400 hover:bg-[#fde8e7] hover:text-[#ed6055] hover:border-[#ed6055]/40 active:scale-[0.92]'
-                    }`}
-                    style={{ transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 100ms ease-out' }}
-                  >
-                    {item.icon}
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* FAB */}
-            <button
-              onClick={() => setFabOpen(v => !v)}
-              aria-label="Quick navigation"
-              className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg ${
-                fabOpen
-                  ? 'bg-gray-700 text-white shadow-xl'
-                  : 'bg-gray-600/70 text-white hover:bg-gray-700 hover:shadow-xl active:scale-[0.95]'
-              }`}
-              style={{ transition: 'background-color 150ms ease, box-shadow 150ms ease, border-color 150ms ease' }}
-            >
-              <svg
-                className="w-5 h-5"
-                style={{ transform: fabOpen ? 'rotate(45deg)' : 'rotate(0deg)', transition: 'transform 200ms cubic-bezier(0.23, 1, 0.32, 1)' }}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-              </svg>
-            </button>
-          </div>
-        </>
       )}
 
       {toast && (
