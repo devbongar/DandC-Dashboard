@@ -1578,7 +1578,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         })()
 
         return (
-          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-md">
+          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden pb-2">
             {/* Legend */}
             <div className="flex-shrink-0 flex items-center gap-4 px-4 pt-3 pb-2 text-xs text-gray-500 flex-wrap border-b border-gray-100">
               {selectedBaselineIds.map((id, i) => {
@@ -1605,7 +1605,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                 </span>
               )}
             </div>
-            <div className="scurve-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: 'pan-x', scrollbarWidth: 'thin', scrollbarColor: '#d1d5db transparent' }}>
+            <div className="scurve-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: 'pan-x', scrollbarWidth: 'thin', scrollbarColor: '#9ca3af #f1f5f9', paddingRight: 16 }}>
               <div className="h-full flex flex-col" style={{ width: '100%', minWidth: totalW }}>
 
                 {/* Chart slot: fills remaining vertical space */}

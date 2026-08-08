@@ -67,11 +67,13 @@ html, body {
   to   { opacity: 1; }
 }
 
-/* ── S-curve chart scroll area: thin scrollbar ──────────────── */
-.scurve-scroll::-webkit-scrollbar { height: 4px; }
-.scurve-scroll::-webkit-scrollbar-track { background: transparent; }
-.scurve-scroll::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 2px; }
-.scurve-scroll::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+/* ── S-curve chart scroll area ──────────────────────────────── */
+.scurve-scroll::-webkit-scrollbar { height: 8px; }
+.scurve-scroll::-webkit-scrollbar-track { background: #f1f5f9; border-radius: 4px; }
+.scurve-scroll::-webkit-scrollbar-thumb { background: #9ca3af; border-radius: 4px; }
+.scurve-scroll::-webkit-scrollbar-thumb:hover { background: #6b7280; }
+/* force pan-x on Recharts SVG so touch scroll is not blocked */
+.scurve-scroll svg { touch-action: pan-x; }
 
 /* ── Settings panel slide-down ──────────────────────────────── */
 @keyframes ph1-panel-down {
