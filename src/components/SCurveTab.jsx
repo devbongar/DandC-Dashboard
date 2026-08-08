@@ -487,7 +487,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   const [forecastColor,        setForecastColor]        = useState(_sv.forecastColor ?? '#fde047')
   const [actualColor,          setActualColor]          = useState(_sv.actualColor   ?? '#86efac')
   const [baselineColors,       setBaselineColors]       = useState(_sv.baselineColors ?? {})
-  const [showLabelBaselines,   setShowLabelBaselines]   = useState(_sv.showLabelBaselines ?? true)
+  const [showLabelBaselinesMap, setShowLabelBaselinesMap] = useState(_sv.showLabelBaselinesMap ?? {})
   const [showLabelActual,      setShowLabelActual]      = useState(_sv.showLabelActual    ?? true)
   const [showLabelForecast,    setShowLabelForecast]    = useState(_sv.showLabelForecast  ?? true)
   const [scopeOpen,            setScopeOpen]            = useState(false)
@@ -652,7 +652,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         forecastColor,
         actualColor,
         baselineColors,
-        showLabelBaselines,
+        showLabelBaselinesMap,
         showLabelActual,
         showLabelForecast,
       }))
@@ -1114,18 +1114,6 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               </svg>
               Table
             </button>
-            <div className="flex items-center gap-2 flex-wrap ml-auto">
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">From</span>
-              <MonthYearPicker value={fromMonth} onChange={setFromMonth} max={toMonth} />
-              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">To</span>
-              <MonthYearPicker value={toMonth} onChange={setToMonth} min={fromMonth} />
-              {(fromMonth || toMonth) && (
-                <button onClick={() => { setFromMonth(''); setToMonth('') }}
-                  className="text-xs text-gray-400 hover:text-[#ed6055] transition font-medium">
-                  Clear
-                </button>
-              )}
-            </div>
           </div>
           {/* Colors row */}
           <div className="flex items-center gap-3 flex-wrap border-t border-gray-200 pt-3">
@@ -1164,9 +1152,13 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
           <div className="flex items-center gap-2 flex-wrap border-t border-gray-200 pt-3">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Labels</span>
             {[
-              { key: 'baselines', label: 'Baselines', active: showLabelBaselines, toggle: () => setShowLabelBaselines(v => !v), show: selectedBaselineIds.length > 0 },
-              { key: 'actual',    label: 'Actual',    active: showLabelActual,    toggle: () => setShowLabelActual(v => !v),    show: showActual   },
-              { key: 'forecast',  label: 'Forecast',  active: showLabelForecast,  toggle: () => setShowLabelForecast(v => !v),  show: showForecast },
+              ...selectedBaselineIds.map((id, i) => {
+                const bl = baselines.find(b => b.id === id)
+                const active = showLabelBaselinesMap[id] !== false
+                return { key: id, label: bl?.name ?? 'Baseline', active, toggle: () => setShowLabelBaselinesMap(m => ({ ...m, [id]: !active })), show: true }
+              }),
+              { key: 'actual',   label: 'Actual',   active: showLabelActual,   toggle: () => setShowLabelActual(v => !v),   show: showActual   },
+              { key: 'forecast', label: 'Forecast', active: showLabelForecast, toggle: () => setShowLabelForecast(v => !v), show: showForecast },
             ].filter(s => s.show).map(s => (
               <button key={s.key} onClick={s.toggle}
                 className={`px-3 py-1.5 rounded-lg border text-xs font-semibold transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${s.active ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055]'}`}>
@@ -1461,7 +1453,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                 className="w-full !min-w-0"
               />
               {(() => {
-                const hasActiveFilters = !!(fromMonth || toMonth || selectedActivityIds.length > 0)
+                const hasActiveFilters = selectedActivityIds.length > 0
                 return (
                   <button
                     onClick={() => setSettingsOpen(v => !v)}
@@ -1720,7 +1712,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                           dot={false}
                           connectNulls
                           filter="url(#line-glow)"
-                          label={el && showLabelBaselines ? { content: makeSeriesLabel(color, el.yOffsets) } : undefined}
+                          label={el && showLabelBaselinesMap[id] !== false ? { content: makeSeriesLabel(color, el.yOffsets) } : undefined}
                         />
                       )
                     })}
