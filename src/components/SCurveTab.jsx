@@ -1892,7 +1892,15 @@ export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }
       {/* Speed-dial FAB — quick nav to other sections */}
       {onSectionChange && (
         <>
-          {fabOpen && <div className="fixed inset-0 z-[55]" onClick={() => setFabOpen(false)} />}
+          <div
+            className="fixed inset-0 z-[55] backdrop-blur-sm bg-black/20"
+            style={{
+              opacity: fabOpen ? 1 : 0,
+              pointerEvents: fabOpen ? 'auto' : 'none',
+              transition: 'opacity 200ms ease',
+            }}
+            onClick={() => setFabOpen(false)}
+          />
           <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-end gap-3">
             {/* Child buttons — stacked above FAB */}
             <div className="flex flex-col gap-3 items-end">
