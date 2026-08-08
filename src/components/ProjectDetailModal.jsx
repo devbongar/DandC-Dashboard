@@ -3216,7 +3216,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
             <thead>
               <tr className="sticky top-0 z-10 bg-gray-700 border-b border-gray-700">
                 {['No.', 'Issue', 'Group', 'Management Level', 'Status', 'Date Presented', 'Days Aging'].map(h => (
-                  <th key={h} className={`px-4 py-3 text-xs font-semibold text-gray-200 uppercase tracking-wider ${h === 'Management Level' || h === 'Group' || h === 'Days Aging' ? 'whitespace-normal text-center' : h === 'Issue' ? 'text-left w-full' : 'text-left whitespace-nowrap'}`}>
+                  <th key={h} className={`px-4 py-3 text-xs font-bold text-gray-200 ${h === 'Management Level' || h === 'Group' || h === 'Days Aging' ? 'whitespace-normal text-center' : h === 'Issue' ? 'text-left w-full' : 'text-left whitespace-nowrap'}`}>
                     {h === 'Days Aging' ? <><span>Days</span><br /><span>Aging</span></> : h}
                   </th>
                 ))}
@@ -3347,7 +3347,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
       {/* Add / Edit modal */}
       {isForm && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[92vh] overflow-hidden"
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh] overflow-hidden"
             style={{ borderTop: '4px solid #ed6055' }}>
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <h3 className="text-sm font-bold text-black">{modal === 'add' ? 'Add Issue' : 'Edit Issue'}</h3>
@@ -3372,31 +3372,33 @@ function IssuesTab({ project, isAdmin, showToast }) {
                   placeholder="-- Select Level --"
                 />
               </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
-                <SelectDropdown
-                  options={Object.entries(ISSUE_STATUS_CONFIG).map(([val, cfg]) => ({ value: val, label: cfg.label }))}
-                  value={form.status}
-                  onChange={v => setForm(f => ({ ...f, status: v }))}
-                  placeholder="-- Select Status --"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Date Presented</label>
-                <input type="date" value={form.date_presented} onChange={e => setForm(f => ({ ...f, date_presented: e.target.value, date_bad: e.target.validity.badInput }))} className={`${iCls} ${(form.date_bad || (form.date_presented && !isValidDate(form.date_presented))) ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400 focus:border-transparent' : ''}`} />
-                {(form.date_bad || (form.date_presented && !isValidDate(form.date_presented))) && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Status</label>
+                  <SelectDropdown
+                    options={Object.entries(ISSUE_STATUS_CONFIG).map(([val, cfg]) => ({ value: val, label: cfg.label }))}
+                    value={form.status}
+                    onChange={v => setForm(f => ({ ...f, status: v }))}
+                    placeholder="-- Select Status --"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Date Presented</label>
+                  <input type="date" value={form.date_presented} onChange={e => setForm(f => ({ ...f, date_presented: e.target.value, date_bad: e.target.validity.badInput }))} className={`${iCls} ${(form.date_bad || (form.date_presented && !isValidDate(form.date_presented))) ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400 focus:border-transparent' : ''}`} />
+                  {(form.date_bad || (form.date_presented && !isValidDate(form.date_presented))) && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Issue <span className="text-[#ed6055]">*</span></label>
-                <textarea rows={3} value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issue…" className={iCls + ' resize-none'} />
+                <textarea value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issue…" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Caused By</label>
-                <textarea rows={3} value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root cause…" className={iCls + ' resize-none'} />
+                <textarea value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root cause…" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Action Steps</label>
-                <textarea rows={3} value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or planned…" className={iCls + ' resize-none'} />
+                <textarea value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or planned…" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
             </div>
             <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
