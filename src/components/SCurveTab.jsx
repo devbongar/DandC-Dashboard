@@ -1917,8 +1917,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }
                     aria-label={item.label}
                     className={`w-11 h-11 rounded-full shadow-md border flex items-center justify-center flex-shrink-0 ${
                       item.isCurrent
-                        ? 'bg-[#ed6055]/10 border-[#ed6055]/30 text-[#ed6055] cursor-default'
-                        : 'bg-white border-gray-200 text-gray-500 hover:bg-[#ed6055]/[0.08] hover:text-[#ed6055] hover:border-[#ed6055]/30 active:scale-[0.92]'
+                        ? 'bg-gray-100 border-gray-300 text-gray-700 cursor-default'
+                        : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-100 hover:text-gray-700 hover:border-gray-300 active:scale-[0.92]'
                     }`}
                     style={{ transition: 'background-color 120ms ease, border-color 120ms ease, color 120ms ease, transform 100ms ease-out' }}
                   >
@@ -1935,7 +1935,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }
               className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
                 fabOpen
                   ? 'bg-white shadow-xl border border-gray-200 text-gray-600'
-                  : 'bg-white/25 backdrop-blur-md border border-white/50 text-gray-600 hover:bg-white/50 hover:shadow-md'
+                  : 'bg-transparent border border-gray-400/30 text-gray-400 hover:bg-white/40 hover:border-gray-400/60 hover:text-gray-600 hover:shadow-md'
               }`}
               style={{ transition: 'background-color 150ms ease, box-shadow 150ms ease, border-color 150ms ease' }}
             >
