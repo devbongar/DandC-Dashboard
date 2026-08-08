@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeFilter } from '../lib/scurveUtils'
 import { downloadWorkbook, downloadBaselineTemplate, downloadActualTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
@@ -883,7 +883,12 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     setBaselineDataMap(prev => ({ ...prev, [primaryBaselineId]: data ?? [] }))
   }
 
-  const totalW = LABEL_W + colWidth * filteredPeriods.length
+  // Y-axis panel lives outside the scroll container so it never scrolls away.
+  // When showTable: panel = LABEL_W so it visually aligns with the sticky table label column.
+  // When table hidden: panel = Y_AXIS_W + left-margin so the axis has the same offset as before.
+  const yAxisPanelW = showTable ? LABEL_W : Y_AXIS_W + 20
+  // totalW is the width of the scrollable content area (inside scurve-scroll, excluding Y-axis panel)
+  const totalW = (showTable ? LABEL_W : 0) + colWidth * filteredPeriods.length
 
   const containerRef   = useRef(null)
   const [containerWidth, setContainerWidth] = useState(0)
@@ -894,10 +899,20 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     return () => ro.disconnect()
   }, [])
 
+  const [chartSlotHeight, setChartSlotHeight] = useState(0)
+  const _chartSlotRO = useRef(null)
+  const chartSlotRef = useCallback(node => {
+    if (_chartSlotRO.current) { _chartSlotRO.current.disconnect(); _chartSlotRO.current = null }
+    if (!node) return
+    const ro = new ResizeObserver(([e]) => setChartSlotHeight(e.contentRect.height))
+    ro.observe(node)
+    _chartSlotRO.current = ro
+  }, [])
+
 
   // Sidebar width (w-32 = 128px) + gap-3 (12px) when cards are visible
   const hasSidebar = chartData.some(d => d.actual != null)
-  const chartCardW = Math.max(0, containerWidth - (hasSidebar ? 128 + 12 : 0))
+  const chartCardW = Math.max(0, containerWidth - yAxisPanelW - (hasSidebar ? 128 + 12 : 0))
   const effectiveWidth = Math.max(totalW, chartCardW)
 
   // Chart + cumulative table: quarterly or monthly columns
@@ -911,8 +926,13 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   }, [viewMode, filteredPeriods])
 
   const effectiveColW = displayColCount > 0
-    ? (effectiveWidth - LABEL_W) / displayColCount
+    ? (effectiveWidth - (showTable ? LABEL_W : 0)) / displayColCount
     : colWidth
+
+  const xHoriz = effectiveColW >= 56
+  const labelInterval = xHoriz
+    ? Math.max(0, Math.ceil(52 / effectiveColW) - 1)
+    : Math.max(0, Math.ceil(12 / effectiveColW) - 1)
 
 
 
@@ -1605,21 +1625,39 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                 </span>
               )}
             </div>
+            {/* flex row: sticky Y-axis panel (outside scroll) + scrollable chart+table area */}
+            <div className="flex-1 min-h-0 flex overflow-hidden">
+            {hasChartData && chartSlotHeight > 0 && (() => {
+              const plotTop = 50
+              const plotBottom = chartSlotHeight - 12 - (xHoriz ? 24 : 52)
+              const plotH = plotBottom - plotTop
+              return (
+                <div style={{ flexShrink: 0, width: yAxisPanelW, overflow: 'hidden', background: 'white' }}>
+                  <svg width={yAxisPanelW} height={chartSlotHeight} style={{ display: 'block' }}>
+                    <text x={10} y={chartSlotHeight / 2} textAnchor="middle" fontSize={10} fill="#9ca3af"
+                      transform={`rotate(-90,10,${chartSlotHeight / 2})`}>% Complete</text>
+                    {[0, 20, 40, 60, 80, 100].map(v => {
+                      const y = plotTop + plotH * (1 - v / 110)
+                      return (
+                        <text key={v} x={yAxisPanelW - 6} y={y} textAnchor="end"
+                          dominantBaseline="middle" fontSize={11} fill="#6b7280">{v}%</text>
+                      )
+                    })}
+                  </svg>
+                </div>
+              )
+            })()}
             <div className="scurve-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: 'pan-x', scrollbarWidth: 'thin', scrollbarColor: '#9ca3af #f1f5f9', paddingRight: 16 }}>
               <div className="h-full flex flex-col" style={{ width: '100%', minWidth: totalW }}>
 
                 {/* Chart slot: fills remaining vertical space */}
-                <div className="flex-1 min-h-0 overflow-hidden">
+                <div ref={chartSlotRef} className="flex-1 min-h-0 overflow-hidden">
                 {/* Chart */}
                 {hasChartData && (() => {
-                  const xHoriz = effectiveColW >= 56
-                  const labelInterval = xHoriz
-                    ? Math.max(0, Math.ceil(52 / effectiveColW) - 1)
-                    : Math.max(0, Math.ceil(12 / effectiveColW) - 1)
                   return (
                   <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={displayData}
-                    margin={{ top: 50, right: 52, bottom: 12, left: showTable ? LABEL_W - Y_AXIS_W : 20 }}>
+                    margin={{ top: 50, right: 52, bottom: 12, left: showTable ? LABEL_W : 0 }}>
                     <defs>
                       <filter id="line-glow" x="-10%" y="-30%" width="120%" height="160%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -1629,6 +1667,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                         </feMerge>
                       </filter>
                     </defs>
+                    <YAxis domain={[0, 110]} hide width={0} />
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="period" tickLine={false}
                       axisLine={{ stroke: '#e5e7eb' }}
@@ -1648,9 +1687,6 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                           >{payload.value}</text>
                         </g>
                       )} />
-                    <YAxis width={Y_AXIS_W} domain={[0, 110]} tickFormatter={v => v + '%'}
-                      tickLine={false} axisLine={false} fontSize={11}
-                      label={{ value: '% Complete', angle: -90, position: 'insideLeft', offset: -4, style: { fontSize: 10, fill: '#9ca3af' } }} />
                     <Tooltip formatter={val => val != null ? val.toFixed(2) + '%' : '—'} />
                     {selectedBaselineIds.map((id, i) => {
                       const color = blColor(id, i)
@@ -1830,6 +1866,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
 
               </div>
             </div>
+            </div>{/* end flex row wrapper */}
           </div>
         )
       })()}
