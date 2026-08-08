@@ -1932,10 +1932,10 @@ export default function SCurveTab({ project, isAdmin, canEdit, onSectionChange }
             <button
               onClick={() => setFabOpen(v => !v)}
               aria-label="Quick navigation"
-              className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+              className={`w-12 h-12 rounded-full flex items-center justify-center flex-shrink-0 shadow-lg ${
                 fabOpen
-                  ? 'bg-white shadow-xl border border-gray-200 text-gray-600'
-                  : 'bg-transparent border border-gray-400/30 text-gray-400 hover:bg-white/40 hover:border-gray-400/60 hover:text-gray-600 hover:shadow-md'
+                  ? 'bg-gray-700 text-white shadow-xl'
+                  : 'bg-gray-600 text-white hover:bg-gray-700 hover:shadow-xl active:scale-[0.95]'
               }`}
               style={{ transition: 'background-color 150ms ease, box-shadow 150ms ease, border-color 150ms ease' }}
             >
