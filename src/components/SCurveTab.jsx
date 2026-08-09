@@ -1538,7 +1538,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               <div className="flex flex-col gap-2 h-[400px]">
               {cards.map(card => (
                 <div key={card.label}
-                  className="flex-1 bg-white rounded-xl border border-gray-200 px-2.5 py-2 flex flex-col gap-1.5 overflow-hidden"
+                  className="flex-1 bg-white rounded-xl border border-gray-200 px-2.5 py-2 flex flex-col justify-center gap-1.5 overflow-hidden"
                   style={{ borderLeft: `3px solid ${card.accent}` }}
                 >
                   <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-none">{card.label}</span>
