@@ -1445,8 +1445,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   useEffect(() => {
     const loadBaselines = async () => {
       const { data } = await supabase
-        .from('milestone_baselines')
-        .select('id, label, created_at, scheduling_mode, start_date, confirmed_at')
+        .from('workprogram_baselines')
+        .select('id, name, created_at, start_date, confirmed_at')
         .eq('project_id', project.id)
         .order('created_at', { ascending: true })
       const bls = data ?? []
@@ -1746,8 +1746,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     setCreatingBL(true)
     try {
       const { data, error: blErr } = await supabase
-        .from('milestone_baselines')
-        .insert({ project_id: project.id, label, scheduling_mode: 'manual' })
+        .from('workprogram_baselines')
+        .insert({ project_id: project.id, name: label })
         .select('id')
         .single()
       if (blErr || !data) { showToast(blErr?.message ?? 'Failed to create baseline', 'error'); return }
@@ -1781,7 +1781,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       }
 
       const { data: newBLs } = await supabase
-        .from('milestone_baselines')
+        .from('workprogram_baselines')
         .select('*')
         .eq('project_id', project.id)
         .order('created_at')
@@ -1820,7 +1820,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       }
     })
 
-    const blLabel = baselines.find(b => b.id === activeBL)?.label ?? ''
+    const blLabel = baselines.find(b => b.id === activeBL)?.name ?? ''
     downloadWorkbook([{
       rows: exportRows,
       columns: [
@@ -1900,8 +1900,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       if (errors.length > 0) { setImportErrors(errors); return }
 
       const { data: blData, error: blErr } = await supabase
-        .from('milestone_baselines')
-        .insert({ project_id: pid, label, scheduling_mode: 'manual' })
+        .from('workprogram_baselines')
+        .insert({ project_id: pid, name: label })
         .select('id').single()
       if (blErr) throw blErr
       const blId = blData.id
@@ -1941,7 +1941,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       if (cErr) throw cErr
 
       const { data: newBLs } = await supabase
-        .from('milestone_baselines')
+        .from('workprogram_baselines')
         .select('*')
         .eq('project_id', pid)
         .order('created_at', { ascending: true })
@@ -1955,7 +1955,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleDeleteBaseline = async (blId) => {
-    const { error } = await supabase.from('milestone_baselines').delete().eq('id', blId)
+    const { error } = await supabase.from('workprogram_baselines').delete().eq('id', blId)
     if (error) { showToast(error.message, 'error'); return }
     showToast('Baseline deleted.', 'success')
     const remaining = baselines.filter(b => b.id !== blId)
@@ -2034,14 +2034,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const activeBLObj    = baselines.find(b => b.id === activeBL) ?? null
-  const isAutoMode     = activeBLObj?.scheduling_mode === 'auto'
+  const isAutoMode     = false
   const blStartDate    = activeBLObj?.start_date ?? null
   const isBLConfirmed  = !!(activeBLObj?.confirmed_at)
 
   const handleSaveStartDate = async (isoDate) => {
     const val = isoDate || null
     const { error } = await supabase
-      .from('milestone_baselines')
+      .from('workprogram_baselines')
       .update({ start_date: val })
       .eq('id', activeBL)
     if (error) { showToast(error.message, 'error'); return }
@@ -2054,29 +2054,13 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const handleConfirmBaseline = async () => {
     const now = new Date().toISOString()
     const { error } = await supabase
-      .from('milestone_baselines')
+      .from('workprogram_baselines')
       .update({ confirmed_at: now })
       .eq('id', activeBL)
     if (error) { showToast(error.message, 'error'); return }
     setBaselines(prev => prev.map(b => b.id === activeBL ? { ...b, confirmed_at: now } : b))
-    const label = activeBLObj?.label ?? 'Baseline'
+    const label = activeBLObj?.name ?? 'Baseline'
     showToast(`"${label}" locked and finalised. Planning fields are now read-only.`, 'success')
-  }
-
-  const handleSaveMode = async (newMode) => {
-    const { error } = await supabase
-      .from('milestone_baselines')
-      .update({ scheduling_mode: newMode })
-      .eq('id', activeBL)
-    if (error) { showToast(error.message, 'error'); return }
-    setBaselines(prev => prev.map(b => b.id === activeBL ? { ...b, scheduling_mode: newMode } : b))
-    if (newMode === 'auto') {
-      if (!blStartDate) {
-        showToast('Set a start date to generate the schedule.', 'info')
-        return
-      }
-      await runScheduler(blStartDate)
-    }
   }
 
   const runScheduler = async (startDateOverride) => {
@@ -2204,7 +2188,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
               fullWidth
               value={activeBL ?? ''}
               onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
-              options={baselines.map(b => ({ value: b.id, label: b.label }))}
+              options={baselines.map(b => ({ value: b.id, label: b.name }))}
             />
           )}
 
@@ -2218,15 +2202,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
               />
             </div>
           )}
-          {activeBL && (
-            <GToolbarSelect
-              fullWidth
-              value={activeBLObj?.scheduling_mode ?? 'auto'}
-              onChange={v => handleSaveMode(v)}
-              options={[{ value: 'auto', label: 'Auto schedule' }, { value: 'manual', label: 'Manual dates' }]}
-            />
-          )}
-
           {/* Date range -- From / To on one row */}
           <div className="flex items-center gap-2">
             <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">From</label>
@@ -2254,7 +2229,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           {/* Left: active baseline status pill */}
           <div className="flex items-center gap-2 min-w-0">
             {activeBLObj ? (
-              <span className="text-xs font-semibold text-gray-700 truncate max-w-[240px]">{activeBLObj.label}</span>
+              <span className="text-xs font-semibold text-gray-700 truncate max-w-[240px]">{activeBLObj.name}</span>
             ) : (
               <span className="text-xs text-gray-400 italic">No baseline selected</span>
             )}
@@ -2315,7 +2290,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                     fullWidth
                     value={activeBL ?? ''}
                     onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
-                    options={baselines.map(b => ({ value: b.id, label: b.label }))}
+                    options={baselines.map(b => ({ value: b.id, label: b.name }))}
                   />
                 ) : (
                   <p className="text-xs text-gray-400 italic">No baselines yet</p>
@@ -2333,15 +2308,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                         startDate={blStartDate}
                         isAutoMode={isAutoMode}
                         onSave={handleSaveStartDate}
-                      />
-                    </div>
-                    <div className="flex items-center gap-3">
-                      <span className="text-xs text-gray-500 w-16 flex-shrink-0">Mode</span>
-                      <GToolbarSelect
-                        fullWidth
-                        value={activeBLObj?.scheduling_mode ?? 'auto'}
-                        onChange={v => handleSaveMode(v)}
-                        options={[{ value: 'auto', label: 'Auto schedule' }, { value: 'manual', label: 'Manual dates' }]}
                       />
                     </div>
                   </div>
@@ -2656,7 +2622,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             </h3>
             <p className="text-sm text-gray-500 mb-4">
               {baselines.length > 0
-                ? `Give the revised baseline a name. It will be a copy of "${baselines.find(b => b.id === activeBL)?.label ?? 'current baseline'}" that you can then edit.`
+                ? `Give the revised baseline a name. It will be a copy of "${baselines.find(b => b.id === activeBL)?.name ?? 'current baseline'}" that you can then edit.`
                 : 'Give a name to identify this baseline (e.g. BL0, Initial, Revised).'}
             </p>
             <input
@@ -2744,7 +2710,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-black mb-1">Delete baseline?</h3>
             <p className="text-sm text-gray-500 mb-1">
-              You are about to delete <span className="font-semibold text-gray-700">{baselines.find(b => b.id === deleteBLId)?.label}</span>.
+              You are about to delete <span className="font-semibold text-gray-700">{baselines.find(b => b.id === deleteBLId)?.name}</span>.
             </p>
             <p className="text-sm text-gray-500 mb-5">All milestones in this baseline will be permanently removed. This cannot be undone.</p>
             <div className="flex gap-3">
