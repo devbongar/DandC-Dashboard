@@ -518,9 +518,9 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   const [scopeOpen,            setScopeOpen]            = useState(false)
   const [settingsOpen,         setSettingsOpen]         = useState(false)
   const [wpBaselines,          setWpBaselines]          = useState([])
-  const [wpMarkerBaselineId,   setWpMarkerBaselineId]   = useState(null)
+  const [wpMarkerBaselineId,   setWpMarkerBaselineId]   = useState(_sv.wpMarkerBaselineId  ?? null)
   const [wpMarkerActivities,   setWpMarkerActivities]   = useState([])
-  const [wpMarkerSelectedIds,  setWpMarkerSelectedIds]  = useState([])
+  const [wpMarkerSelectedIds,  setWpMarkerSelectedIds]  = useState(_sv.wpMarkerSelectedIds ?? [])
   const scopeRef      = useRef(null)
   const existingImportRef = useRef(null)
   const actualImportRef = useRef(null)
@@ -626,10 +626,11 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     supabase.from('workprogram_activities')
       .select('id, milestone_name, planned_end')
       .eq('baseline_id', wpMarkerBaselineId)
+      .eq('project_id', project.id)
       .not('planned_end', 'is', null)
       .order('planned_end')
       .then(({ data }) => setWpMarkerActivities(data ?? []))
-  }, [wpMarkerBaselineId]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [wpMarkerBaselineId, project.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load baseline data whenever selection or scope changes
   useEffect(() => {
@@ -705,6 +706,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         showLabelActual,
         showLabelForecast,
         labelStep,
+        wpMarkerBaselineId,
+        wpMarkerSelectedIds,
       }))
       showToast('View saved')
     } catch {
@@ -1521,77 +1524,79 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
       {/* Main content: cards left + chart right */}
       <div className="flex-1 min-h-0 flex flex-row gap-3">
 
-      {/* Summary cards -- stacked left column */}
-      {(summaryActual != null || summaryPlanned != null) && (() => {
-        const varColor = summaryVariance == null ? '#9ca3af' : summaryVariance >= 0 ? '#16a34a' : '#dc2626'
-        const cards = [
-          { label: 'Actual POC',  value: summaryActual,   accent: actualColor, sublabel: null },
-          { label: 'Planned POC', value: summaryPlanned,  accent: blColor(refBaseline?.id, 0), sublabel: refBaseline?.name },
-          { label: 'Variance',    value: summaryVariance, accent: varColor,    sublabel: 'vs planned today', semantic: true },
-        ]
-        return (
-          <div className="flex-shrink-0 flex flex-col gap-2 w-32 self-start">
-            <div className="flex flex-col gap-2 h-[400px]">
-            {cards.map(card => (
-              <div key={card.label}
-                className="flex-1 bg-white rounded-xl border border-gray-200 px-2.5 py-2 flex flex-col gap-1.5 overflow-hidden"
-                style={{ borderLeft: `3px solid ${card.accent}` }}
-              >
-                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-none">{card.label}</span>
-                <div className="flex items-baseline gap-1">
-                  {card.semantic && card.value != null && (
-                    <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
-                      style={{ color: card.accent }} fill="currentColor">
-                      {card.value >= 0
-                        ? <polygon points="5,1 9,9 1,9" />
-                        : <polygon points="5,9 9,1 1,1" />}
-                    </svg>
+      {/* Left column: summary cards + settings -- always visible for admin or when data exists */}
+      {(summaryActual != null || summaryPlanned != null || isAdmin || baselines.length > 0) && (
+        <div className="flex-shrink-0 flex flex-col gap-2 w-32 self-start">
+          {(summaryActual != null || summaryPlanned != null) && (() => {
+            const varColor = summaryVariance == null ? '#9ca3af' : summaryVariance >= 0 ? '#16a34a' : '#dc2626'
+            const cards = [
+              { label: 'Actual POC',  value: summaryActual,   accent: actualColor, sublabel: null },
+              { label: 'Planned POC', value: summaryPlanned,  accent: blColor(refBaseline?.id, 0), sublabel: refBaseline?.name },
+              { label: 'Variance',    value: summaryVariance, accent: varColor,    sublabel: 'vs planned today', semantic: true },
+            ]
+            return (
+              <div className="flex flex-col gap-2 h-[400px]">
+              {cards.map(card => (
+                <div key={card.label}
+                  className="flex-1 bg-white rounded-xl border border-gray-200 px-2.5 py-2 flex flex-col gap-1.5 overflow-hidden"
+                  style={{ borderLeft: `3px solid ${card.accent}` }}
+                >
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-none">{card.label}</span>
+                  <div className="flex items-baseline gap-1">
+                    {card.semantic && card.value != null && (
+                      <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
+                        style={{ color: card.accent }} fill="currentColor">
+                        {card.value >= 0
+                          ? <polygon points="5,1 9,9 1,9" />
+                          : <polygon points="5,9 9,1 1,1" />}
+                      </svg>
+                    )}
+                    <span className="text-2xl font-bold tabular-nums leading-tight"
+                      style={{ color: card.semantic ? card.accent : '#111827' }}>
+                      {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '--'}
+                    </span>
+                  </div>
+                  {card.sublabel && (
+                    <span className="text-[10px] text-gray-500 leading-tight">{card.sublabel}</span>
                   )}
-                  <span className="text-2xl font-bold tabular-nums leading-tight"
-                    style={{ color: card.semantic ? card.accent : '#111827' }}>
-                    {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '--'}
-                  </span>
                 </div>
-                {card.sublabel && (
-                  <span className="text-[10px] text-gray-500 leading-tight">{card.sublabel}</span>
-                )}
+              ))}
               </div>
-            ))}
-            </div>
+            )
+          })()}
 
-            {/* Line selection + settings -- below cards */}
-            <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
-              <BaselineMultiSelect
-                baselines={baselines}
-                selectedIds={selectedBaselineIds}
-                onChange={setSelectedBaselineIds}
-                colors={baselines.map((b, i) => blColor(b.id, i))}
-                extras={[
-                  { label: 'Actual',   color: actualColor,   checked: showActual,   onToggle: () => setShowActual(v => !v)   },
-                  { label: 'Forecast', color: forecastColor, checked: showForecast, onToggle: () => setShowForecast(v => !v) },
-                ]}
-                className="w-full !min-w-0"
-              />
-              {(() => {
-                const hasActiveFilters = selectedActivityIds.length > 0 || wpMarkerSelectedIds.length > 0
-                return (
-                  <button
-                    onClick={() => setSettingsOpen(v => !v)}
-                    className={`w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Settings
-                    {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
-                  </button>
-                )
-              })()}
-            </div>
+          {/* Line selection + settings */}
+          <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
+            <BaselineMultiSelect
+              baselines={baselines}
+              selectedIds={selectedBaselineIds}
+              onChange={setSelectedBaselineIds}
+              colors={baselines.map((b, i) => blColor(b.id, i))}
+              extras={[
+                { label: 'Actual',   color: actualColor,   checked: showActual,   onToggle: () => setShowActual(v => !v)   },
+                { label: 'Forecast', color: forecastColor, checked: showForecast, onToggle: () => setShowForecast(v => !v) },
+              ]}
+              className="w-full !min-w-0"
+            />
+            {(() => {
+              const hasActiveFilters = selectedActivityIds.length > 0 || wpMarkerSelectedIds.length > 0
+              return (
+                <button
+                  onClick={() => setSettingsOpen(v => !v)}
+                  className={`w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  Settings
+                  {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                </button>
+              )
+            })()}
           </div>
-        )
-      })()}
+        </div>
+      )}
 
       {/* Chart + tables */}
       {allPeriods.length > 0 && (() => {
@@ -1875,7 +1880,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                     ))}
                     {wpMarkers.map(({ id, name, date, periodLabel, slotIndex }) => (
                       <ReferenceLine key={`wp_${id}`} x={periodLabel}
-                        stroke="#f59e0b" strokeDasharray="4 2" strokeWidth={1.5}
+                        stroke="#f59e0b" strokeDasharray="4 2" strokeWidth={1.5} strokeOpacity={0.25}
                         label={<WpMarkerLabel name={name} date={date} slotIndex={slotIndex} />}
                       />
                     ))}
@@ -2043,15 +2048,23 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
       {/* Empty state */}
       {allPeriods.length === 0 && !loading && (
         <div className="flex-1 flex items-center justify-center py-10 text-center">
-          <div>
+          <div className="flex flex-col items-center gap-3">
             <p className="text-sm text-gray-400">
               {baselines.length === 0 ? 'No baselines yet' : 'No data yet'}
             </p>
             {isAdmin && baselines.length === 0 && (
-              <p className="text-xs text-gray-400 mt-1">Create a baseline to get started</p>
+              <>
+                <p className="text-xs text-gray-400">Create a baseline to get started</p>
+                <button
+                  onClick={() => setShowNewBaseline(true)}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-lg border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]"
+                >
+                  + New Baseline
+                </button>
+              </>
             )}
             {baselines.length > 0 && !selectedBaselineIds.length && (
-              <p className="text-xs text-gray-400 mt-1">Select a baseline to view data</p>
+              <p className="text-xs text-gray-400">Select a baseline to view data</p>
             )}
           </div>
         </div>
