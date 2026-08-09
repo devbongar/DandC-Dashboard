@@ -439,6 +439,28 @@ function ActivityRefLabel({ viewBox, name, yOffset = 0 }) {
   )
 }
 
+function WpMarkerLabel({ viewBox, name, slotIndex = 0 }) {
+  const { x, y, height } = viewBox
+  const displayName = name.length > 24 ? name.slice(0, 22) + '…' : name
+  const tx = x + 3 + slotIndex * 11
+  const ty = y + height - 10
+  return (
+    <g>
+      <text
+        x={tx} y={ty}
+        fill="#b45309"
+        fontSize={9}
+        fontWeight="600"
+        textAnchor="start"
+        transform={`rotate(-90, ${tx}, ${ty})`}
+        style={{ userSelect: 'none', pointerEvents: 'none' }}
+      >
+        {displayName}
+      </text>
+    </g>
+  )
+}
+
 function makeSeriesLabel(color, yOffsets) {
   return function SeriesLabel({ x, y, value, index }) {
     if (value == null) return null
@@ -492,6 +514,10 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   const [showLabelForecast,    setShowLabelForecast]    = useState(_sv.showLabelForecast  ?? true)
   const [scopeOpen,            setScopeOpen]            = useState(false)
   const [settingsOpen,         setSettingsOpen]         = useState(false)
+  const [wpBaselines,          setWpBaselines]          = useState([])
+  const [wpMarkerBaselineId,   setWpMarkerBaselineId]   = useState(null)
+  const [wpMarkerActivities,   setWpMarkerActivities]   = useState([])
+  const [wpMarkerSelectedIds,  setWpMarkerSelectedIds]  = useState([])
   const scopeRef      = useRef(null)
   const existingImportRef = useRef(null)
   const actualImportRef = useRef(null)
@@ -581,6 +607,26 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     }
     fetchMilestones()
   }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch work program baselines list for marker selection
+  useEffect(() => {
+    supabase.from('workprogram_baselines')
+      .select('id, name, confirmed_at')
+      .eq('project_id', project.id)
+      .order('confirmed_at', { ascending: false })
+      .then(({ data }) => setWpBaselines(data ?? []))
+  }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Fetch activities when marker baseline changes
+  useEffect(() => {
+    if (!wpMarkerBaselineId) { setWpMarkerActivities([]); return }
+    supabase.from('workprogram_activities')
+      .select('id, milestone_name, planned_end')
+      .eq('baseline_id', wpMarkerBaselineId)
+      .not('planned_end', 'is', null)
+      .order('planned_end')
+      .then(({ data }) => setWpMarkerActivities(data ?? []))
+  }, [wpMarkerBaselineId]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load baseline data whenever selection or scope changes
   useEffect(() => {
@@ -1324,6 +1370,63 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               })}
             </div>
           )}
+          {/* Work Program Markers */}
+          {wpBaselines.length > 0 && (
+            <div className="flex flex-col gap-2 border-t border-gray-200 pt-3">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Work Program Markers</span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <select
+                  value={wpMarkerBaselineId ?? ''}
+                  onChange={e => {
+                    setWpMarkerBaselineId(e.target.value || null)
+                    setWpMarkerSelectedIds([])
+                  }}
+                  className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white cursor-pointer"
+                >
+                  <option value="">Select baseline…</option>
+                  {wpBaselines.map(b => (
+                    <option key={b.id} value={b.id}>{b.name}</option>
+                  ))}
+                </select>
+                {wpMarkerBaselineId && wpMarkerActivities.length === 0 && (
+                  <span className="text-[10px] text-gray-400">No activities with planned end dates</span>
+                )}
+              </div>
+              {wpMarkerBaselineId && wpMarkerActivities.length > 0 && (
+                <div className="flex flex-col gap-0.5 max-h-40 overflow-y-auto pr-1">
+                  {wpMarkerActivities.map(a => {
+                    const checked = wpMarkerSelectedIds.includes(a.id)
+                    return (
+                      <button key={a.id} type="button"
+                        onClick={() => setWpMarkerSelectedIds(prev =>
+                          checked ? prev.filter(x => x !== a.id) : [...prev, a.id]
+                        )}
+                        className="flex items-center gap-2 px-2 py-1.5 text-xs text-gray-700 hover:bg-amber-50 rounded-lg transition text-left"
+                      >
+                        <span className="w-3.5 h-3.5 rounded border flex-shrink-0 flex items-center justify-center"
+                          style={checked ? { backgroundColor: '#f59e0b', borderColor: '#f59e0b' } : { borderColor: '#d1d5db' }}>
+                          {checked && (
+                            <svg className="w-2 h-2 text-white" fill="currentColor" viewBox="0 0 20 20">
+                              <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd"/>
+                            </svg>
+                          )}
+                        </span>
+                        <span className="flex-1 truncate">{a.milestone_name}</span>
+                        <span className="text-gray-400 whitespace-nowrap font-mono text-[10px]">{a.planned_end?.slice(0, 7)}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
+              {wpMarkerSelectedIds.length > 0 && (
+                <button type="button"
+                  onClick={() => setWpMarkerSelectedIds([])}
+                  className="self-start text-[10px] text-gray-400 hover:text-amber-600 transition-colors">
+                  Clear markers
+                </button>
+              )}
+            </div>
+          )}
           {/* Save View */}
           <div className="border-t border-gray-200 pt-3 flex justify-end">
             <button
@@ -1453,7 +1556,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                 className="w-full !min-w-0"
               />
               {(() => {
-                const hasActiveFilters = selectedActivityIds.length > 0
+                const hasActiveFilters = selectedActivityIds.length > 0 || wpMarkerSelectedIds.length > 0
                 return (
                   <button
                     onClick={() => setSettingsOpen(v => !v)}
@@ -1585,6 +1688,32 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               const slot = slotsByPeriod.get(periodLabel) ?? 0
               slotsByPeriod.set(periodLabel, slot + 1)
               return { id: m.id, name: m.milestone_name, periodLabel, yOffset: slot * 38 }
+            })
+            .filter(Boolean)
+        })()
+
+        // Work program activity markers — planned_end mapped to chart period
+        const wpMarkers = (() => {
+          const slotsByPeriod = new Map()
+          return wpMarkerActivities
+            .filter(a => wpMarkerSelectedIds.includes(a.id) && a.planned_end)
+            .map(a => {
+              let periodLabel = null
+              if (viewMode === 'quarterly') {
+                const d    = new Date(a.planned_end)
+                const q    = Math.floor(d.getMonth() / 3) + 1
+                const year = d.getFullYear()
+                const Q_END = ['Mar','Jun','Sep','Dec']
+                const lbl  = `${Q_END[q - 1]} '${String(year).slice(2)}`
+                if (displayData.some(pt => pt.period === lbl)) periodLabel = lbl
+              } else {
+                const monthStr = a.planned_end.slice(0, 7) + '-01'
+                if (filteredPeriods.includes(monthStr)) periodLabel = formatPeriod(monthStr)
+              }
+              if (!periodLabel) return null
+              const slot = slotsByPeriod.get(periodLabel) ?? 0
+              slotsByPeriod.set(periodLabel, slot + 1)
+              return { id: a.id, name: a.milestone_name, periodLabel, slotIndex: slot }
             })
             .filter(Boolean)
         })()
@@ -1725,6 +1854,12 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                       <ReferenceLine key={id} x={periodLabel}
                         stroke="#6366f1" strokeDasharray="4 2" strokeWidth={1.5}
                         label={<ActivityRefLabel name={name} yOffset={yOffset} />}
+                      />
+                    ))}
+                    {wpMarkers.map(({ id, name, periodLabel, slotIndex }) => (
+                      <ReferenceLine key={`wp_${id}`} x={periodLabel}
+                        stroke="#f59e0b" strokeDasharray="4 2" strokeWidth={1.5}
+                        label={<WpMarkerLabel name={name} slotIndex={slotIndex} />}
                       />
                     ))}
                   </ComposedChart>
