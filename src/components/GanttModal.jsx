@@ -931,7 +931,7 @@ function ColResizeButton({ id, activeId, onToggle, value, presets, onSelect }) {
   )
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, collapsedPhases = new Set(), onTogglePhase = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {} }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {} }) {
   const [durColW,  setDurColW]  = useState(DUR_COL_W)
   const [predColW, setPredColW] = useState(PRED_COL_W)
   const [dateColWidths, setDateColWidths] = useState({ plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W })
@@ -1008,14 +1008,9 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const idToRowNum = new Map()
   {
     let n = 0
-    PHASES.forEach(({ key }) => {
-      if (!collapsedPhases.has(key)) {
-        const phaseMils = milestones.filter(m => m.phase === key)
-        buildTree(phaseMils, collapsedIds).forEach(node => {
-          n++
-          idToRowNum.set(node.id, n)
-        })
-      }
+    buildTree(milestones, collapsedIds).forEach(node => {
+      n++
+      idToRowNum.set(node.id, n)
     })
   }
 
@@ -1191,111 +1186,68 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     </>
   )
 
-  // Single flat ID list for the one SortableContext that spans all phases.
-  // Must be computed before milestoneRows so it's ready for the JSX below.
+  // Single flat ID list for the SortableContext spanning all tasks.
   const allSortableIds = []
+  const _flatNodes = buildTree(milestones, collapsedIds)
+  allSortableIds.push(..._flatNodes.map(n => n.id))
 
-  const milestoneRows = PHASES.flatMap(({ key, label }) => {
-    const phaseMils   = milestones.filter(m => m.phase === key)
-    const isCollapsed = collapsedPhases.has(key)
-    const rows = []
-
-    // Phase group header -- leaf-task completion counts
-    const parentIdsInPhase = new Set(phaseMils.filter(m => m.parent_id != null).map(m => m.parent_id))
-    const leafMils         = phaseMils.filter(m => !parentIdsInPhase.has(m.id))
-    const taskCount        = leafMils.length
-    const completedCount   = leafMils.filter(m => m.actual_end).length
-
-    rows.push(
-      <PhaseGroupHeader
-        key={`phase-${key}`}
-        label={label}
-        phaseColor={PHASE_COLORS[key] ?? '#94a3b8'}
-        isCollapsed={isCollapsed}
-        onToggle={() => onTogglePhase(key)}
-        totalW={totalW}
-        frozenW={frozenW}
-        chartPxWidth={showGantt ? chartPxWidth : 0}
-        isAutoMode={isAutoMode}
-        taskCount={taskCount}
-        completedCount={completedCount}
-        onAddTopLevel={isAdmin && activeBL ? () => onSetInlineAdd({ phase: key, parentId: null, depth: 0 }) : null}
-      />
-    )
-
-    if (!isCollapsed) {
-      const flatNodes = buildTree(phaseMils, collapsedIds)
-      allSortableIds.push(...flatNodes.map(n => n.id))
-
-      rows.push(
-        ...flatNodes.flatMap(node => {
-          const displayM = (node.hasChildren && node.children.length)
-            ? { ...node, ...computeParentDates(node.children) }
-            : node
-          const rowProps = {
-            m: displayM,
-            rowNum: idToRowNum.get(node.id) ?? 0,
-            predText: formatPredecessors(dependencies.filter(d => d.to_id === node.id), idToRowNum),
-            onSavePreds: (text) => onSavePreds(node.id, text),
-            depth: node.depth,
-            hasChildren: node.hasChildren,
-            isCollapsed: collapsedIds.has(node.id),
-            onToggleCollapse,
-            onAddChild: isAdmin ? (form) => onSetInlineAdd(form) : null,
-            toPx, chartPxWidth: showGantt ? chartPxWidth : 0, gridDates,
-            todayPx, showToday, todayStr,
-            isChild: node.depth > 0, isLastChild: false,
-            labelW, durColW, predColW, dateColWidths, showDuration, showPredecessor, showPlanned, showActual, showProjected,
-            showPlannedBar: barVisibility.planned, showActualBar: barVisibility.actual, showProjectedBar: barVisibility.projected,
-            draftName: drafts[node.id] ?? displayM.milestone_name,
-            onDraftChange: (v) => setDrafts(p => ({ ...p, [node.id]: v })),
-            onDelete,
-            isAdmin,
-            isAutoMode,
-            isBLConfirmed,
-            onSaveDuration: (dur) => onSaveDuration(node.id, dur),
-            onSaveDate: (field, value) => onSaveDate(node.id, field, value),
-            barColors,
-          }
-          const items = [<SortableMilestoneRow key={node.id} id={node.id} isAdmin={isAdmin} isSelected={selectedId === node.id} onSelect={onSelect} {...rowProps} />]
-          if (inlineAdd?.parentId === node.id) {
-            items.push(
-              <InlineAddRow key={`inline-${node.id}`} depth={node.depth + 1} name={inlineAddName}
-                onChange={onInlineNameChange} onSave={onInlineSave} onCancel={onInlineCancel}
-                adding={inlineAdding} totalW={totalW} />
-            )
-          }
-          return items
-        }),
-        inlineAdd?.parentId === null && inlineAdd?.phase === key
-          ? <InlineAddRow key={`inline-top-${key}`} depth={0} name={inlineAddName}
-              onChange={onInlineNameChange} onSave={onInlineSave} onCancel={onInlineCancel}
-              adding={inlineAdding} totalW={totalW} />
-          : null
-      )
-    }
-
-    return rows
-  })
+  const milestoneRows = [
+    ..._flatNodes.flatMap(node => {
+      const displayM = (node.hasChildren && node.children.length)
+        ? { ...node, ...computeParentDates(node.children) }
+        : node
+      const rowProps = {
+        m: displayM,
+        rowNum: idToRowNum.get(node.id) ?? 0,
+        predText: formatPredecessors(dependencies.filter(d => d.to_id === node.id), idToRowNum),
+        onSavePreds: (text) => onSavePreds(node.id, text),
+        depth: node.depth,
+        hasChildren: node.hasChildren,
+        isCollapsed: collapsedIds.has(node.id),
+        onToggleCollapse,
+        onAddChild: isAdmin ? (form) => onSetInlineAdd(form) : null,
+        toPx, chartPxWidth: showGantt ? chartPxWidth : 0, gridDates,
+        todayPx, showToday, todayStr,
+        isChild: node.depth > 0, isLastChild: false,
+        labelW, durColW, predColW, dateColWidths, showDuration, showPredecessor, showPlanned, showActual, showProjected,
+        showPlannedBar: barVisibility.planned, showActualBar: barVisibility.actual, showProjectedBar: barVisibility.projected,
+        draftName: drafts[node.id] ?? displayM.milestone_name,
+        onDraftChange: (v) => setDrafts(p => ({ ...p, [node.id]: v })),
+        onDelete,
+        isAdmin,
+        isAutoMode,
+        isBLConfirmed,
+        onSaveDuration: (dur) => onSaveDuration(node.id, dur),
+        onSaveDate: (field, value) => onSaveDate(node.id, field, value),
+        barColors,
+      }
+      const items = [<SortableMilestoneRow key={node.id} id={node.id} isAdmin={isAdmin} isSelected={selectedId === node.id} onSelect={onSelect} {...rowProps} />]
+      if (inlineAdd?.parentId === node.id) {
+        items.push(
+          <InlineAddRow key={`inline-${node.id}`} depth={node.depth + 1} name={inlineAddName}
+            onChange={onInlineNameChange} onSave={onInlineSave} onCancel={onInlineCancel}
+            adding={inlineAdding} totalW={totalW} />
+        )
+      }
+      return items
+    }),
+    ...(inlineAdd?.parentId === null
+      ? [<InlineAddRow key="inline-top" depth={0} name={inlineAddName}
+          onChange={onInlineNameChange} onSave={onInlineSave} onCancel={onInlineCancel}
+          adding={inlineAdding} totalW={totalW} />]
+      : []),
+  ]
 
   // Compute y-center of each milestone row for SVG arrow anchoring.
-  // Walk the same order that milestoneRows renders: phase header, then flatNodes, then add rows.
   // AXIS_H is NOT included here -- the SVG is positioned with top=AXIS_H, so y=0 in SVG = top of first row.
   const yCenterById = {}
   let yAcc = 0
-  PHASES.forEach(({ key }) => {
-    yAcc += PHASE_ROW_H  // phase group header
-    if (!collapsedPhases.has(key)) {
-      const phaseMils = milestones.filter(m => m.phase === key)
-      const flatNodes = buildTree(phaseMils, collapsedIds)
-      flatNodes.forEach(node => {
-        yCenterById[node.id] = yAcc + TASK_ROW_H / 2
-        yAcc += TASK_ROW_H
-        if (inlineAdd?.parentId === node.id) yAcc += 38
-      })
-      if (inlineAdd?.parentId === null && inlineAdd?.phase === key) yAcc += 38
-    }
+  _flatNodes.forEach(node => {
+    yCenterById[node.id] = yAcc + TASK_ROW_H / 2
+    yAcc += TASK_ROW_H
+    if (inlineAdd?.parentId === node.id) yAcc += 38
   })
+  if (inlineAdd?.parentId === null) yAcc += 38
   const svgH = yAcc
 
   return (
@@ -1421,8 +1373,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const [activeBL, setActiveBL]       = useState(null)
   const [milestones, setMilestones]   = useState([])
   const [loading, setLoading]         = useState(true)
-  const [collapsedPhases, setCollapsedPhases] = useState(new Set())
-  const [collapsedIds,     setCollapsedIds]     = useState(new Set())
+  const [collapsedIds, setCollapsedIds] = useState(new Set())
   const dateRangeKey = `gantt_dateRange_${project.id}`
   const [fromMonth, setFromMonthRaw] = useState(() => {
     try { return JSON.parse(localStorage.getItem(dateRangeKey))?.from ?? '' } catch { return '' }
@@ -1600,12 +1551,12 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   }
 
   const handleInlineSave = async () => {
-    if (!activeBL || !inlineAdd?.phase || !inlineAddName.trim()) {
+    if (!activeBL || !inlineAddName.trim()) {
       setInlineAdd(null); setInlineAddName(''); return
     }
     setInlineAdding(true)
     try {
-      const parentId = inlineAdd.parentId ?? null
+      const parentId = inlineAdd?.parentId ?? null
       let sort_order = 0
       if (parentId) {
         const { data: sibs } = await supabase
@@ -1616,7 +1567,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
       } else {
         const { data: sibs } = await supabase
           .from('workprogram_activities').select('sort_order')
-          .eq('project_id', project.id).eq('baseline_id', activeBL).eq('phase', inlineAdd.phase).is('parent_id', null)
+          .eq('project_id', project.id).eq('baseline_id', activeBL).is('parent_id', null)
           .order('sort_order', { ascending: false }).limit(1)
         sort_order = sibs?.length ? (sibs[0].sort_order ?? 0) + 1 : 0
       }
@@ -1626,7 +1577,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         task_id:        rawTaskId,
         baseline_id:    activeBL,
         project_id:     project.id,
-        phase:          inlineAdd.phase,
+        phase:          inlineAdd?.phase ?? 'execution_monitoring',
         parent_id:      parentId,
         milestone_name: inlineAddName.trim(),
         sort_order,
@@ -1658,25 +1609,23 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const overNode   = milestones.find(m => m.id === overId)
     if (!activeNode || !overNode || activeId === overId) return
 
-    const samePhase  = activeNode.phase === overNode.phase
     const sameParent = activeNode.parent_id === overNode.parent_id
     let newMs
 
-    if (samePhase && sameParent) {
-      // Same parent group: reorder siblings
+    if (sameParent) {
       const reordered = computeReorder(milestones, activeId, overId)
       if (!reordered) return
       const orderMap = new Map(reordered.map((m, i) => [m.id, i]))
       newMs = milestones.map(m => orderMap.has(m.id) ? { ...m, sort_order: orderMap.get(m.id) } : m)
 
-    } else if (samePhase && !sameParent) {
-      // Same phase, different parent: reparent active to over's parent
+    } else {
+      // Different parent: reparent active to overNode's parent
       const newParentId = overNode.parent_id
       const srcSiblings = milestones
-        .filter(m => m.phase === activeNode.phase && m.parent_id === activeNode.parent_id && m.id !== activeId)
+        .filter(m => m.parent_id === activeNode.parent_id && m.id !== activeId)
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       const destSiblings = milestones
-        .filter(m => m.phase === overNode.phase && m.parent_id === newParentId && m.id !== activeId)
+        .filter(m => m.parent_id === newParentId && m.id !== activeId)
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       const overIdx = destSiblings.findIndex(m => m.id === overId)
       const insertAt = overIdx === -1 ? destSiblings.length : overIdx
@@ -1692,39 +1641,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
         const upd = updateMap.get(m.id)
         return upd ? { ...m, ...upd } : m
       })
-
-    } else if (!samePhase && activeNode.parent_id === null) {
-      // Cross-phase: top-level rows only; cascade phase to all descendants
-      const getDescendants = (id) => {
-        const children = milestones.filter(m => m.parent_id === id)
-        return children.flatMap(c => [c, ...getDescendants(c.id)])
-      }
-      const descendants = getDescendants(activeId)
-      const destPhase   = overNode.phase
-      const destSiblings = milestones
-        .filter(m => m.phase === destPhase && m.parent_id === null && m.id !== activeId)
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      const overIdx  = destSiblings.findIndex(m => m.id === overId)
-      const insertAt = overIdx === -1 ? destSiblings.length : overIdx
-      const newDestOrder = [
-        ...destSiblings.slice(0, insertAt),
-        activeNode,
-        ...destSiblings.slice(insertAt),
-      ]
-      const srcSiblings = milestones
-        .filter(m => m.phase === activeNode.phase && m.parent_id === null && m.id !== activeId)
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      const updateMap = new Map()
-      newDestOrder.forEach((m, i) => updateMap.set(m.id, { sort_order: i, phase: destPhase, parent_id: null }))
-      srcSiblings.forEach((m, i)  => updateMap.set(m.id, { sort_order: i, phase: m.phase, parent_id: null }))
-      descendants.forEach(d       => updateMap.set(d.id, { sort_order: d.sort_order, phase: destPhase, parent_id: d.parent_id }))
-      newMs = milestones.map(m => {
-        const upd = updateMap.get(m.id)
-        return upd ? { ...m, ...upd } : m
-      })
-
-    } else {
-      return // child cross-phase: not supported
     }
 
     applyReorderState(newMs)
@@ -1734,18 +1650,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     const node = milestones.find(m => m.id === id)
     if (!node || !isAdmin || !activeBL) return
     // Build flat visible order to find the row immediately above
-    const flatNodes = PHASES.flatMap(({ key }) => {
-      if (collapsedPhases.has(key)) return []
-      return buildTree(milestones.filter(m => m.phase === key), collapsedIds)
-    })
+    const flatNodes = buildTree(milestones, collapsedIds)
     const idx = flatNodes.findIndex(n => n.id === id)
     if (idx <= 0) return
     const above = flatNodes[idx - 1]
-    if (above.phase !== node.phase) return   // don't indent across phases
     if (above.depth >= 3) return             // MAX_DEPTH
     const newParentId = above.id
     const oldSiblings = milestones
-      .filter(m => m.phase === node.phase && m.parent_id === node.parent_id && m.id !== id)
+      .filter(m => m.parent_id === node.parent_id && m.id !== id)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     const newSortOrder = milestones.filter(m => m.parent_id === newParentId).length
     const updateMap = new Map()
@@ -1790,7 +1702,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [selectedId, milestones, collapsedPhases, collapsedIds, isAdmin, activeBL])
+  }, [selectedId, milestones, collapsedIds, isAdmin, activeBL])
 
   const handleSaveOrder = async () => {
     setSavingOrder(true)
@@ -2058,14 +1970,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     return () => window.removeEventListener('resize', update)
   }, [])
 
-  const handleTogglePhase = (key) => {
-    setCollapsedPhases(prev => {
-      const next = new Set(prev)
-      next.has(key) ? next.delete(key) : next.add(key)
-      return next
-    })
-  }
-
   const handleToggleCollapse = (id) => {
     setCollapsedIds(prev => {
       const next = new Set(prev)
@@ -2077,14 +1981,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
   const computeRowNumToId = () => {
     const map = new Map()
     let n = 0
-    PHASES.forEach(({ key }) => {
-      if (!collapsedPhases.has(key)) {
-        const phaseMils = milestones.filter(m => m.phase === key)
-        buildTree(phaseMils, collapsedIds).forEach(node => {
-          n++
-          map.set(n, node.id)
-        })
-      }
+    buildTree(milestones, collapsedIds).forEach(node => {
+      n++
+      map.set(n, node.id)
     })
     return map
   }
@@ -2367,7 +2266,19 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             )}
           </div>
 
-          {/* Right: Settings button */}
+          {/* Right: Add activity + Settings buttons */}
+          <div className="flex items-center gap-2 flex-shrink-0">
+            {isAdmin && activeBL && !isBLConfirmed && (
+              <button
+                onClick={() => onSetInlineAdd({ phase: 'execution_monitoring', parentId: null, depth: 0 })}
+                className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-all duration-150 active:scale-[0.97]"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                </svg>
+                Add Activity
+              </button>
+            )}
           <button
             onClick={() => setShowSettings(v => !v)}
             className={`flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all duration-150 active:scale-[0.97] flex-shrink-0 ${
@@ -2383,6 +2294,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             </svg>
             Settings
           </button>
+          </div>
 
           {/* -- Settings panel -- */}
           {showSettings && (
@@ -2708,8 +2620,6 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
             onDelete={(id) => setDeleteId(id)}
             isAdmin={isAdmin}
             showToast={showToast}
-            collapsedPhases={collapsedPhases}
-            onTogglePhase={handleTogglePhase}
             inlineAdd={inlineAdd}
             inlineAddName={inlineAddName}
             onInlineNameChange={setInlineAddName}

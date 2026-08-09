@@ -20,10 +20,9 @@ export function computeReorder(milestones, activeId, overId) {
 
   if (!activeNode || !overNode) return null
   if (activeNode.parent_id !== overNode.parent_id) return null
-  if (activeNode.phase !== overNode.phase) return null
 
   const siblings = milestones
-    .filter(m => m.phase === activeNode.phase && m.parent_id === activeNode.parent_id)
+    .filter(m => m.parent_id === activeNode.parent_id)
     .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
 
   const activeIdx = siblings.findIndex(s => s.id === activeId)
