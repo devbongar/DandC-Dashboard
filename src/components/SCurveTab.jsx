@@ -439,9 +439,10 @@ function ActivityRefLabel({ viewBox, name, yOffset = 0 }) {
   )
 }
 
-function WpMarkerLabel({ viewBox, name, slotIndex = 0 }) {
+function WpMarkerLabel({ viewBox, name, date, slotIndex = 0 }) {
   const { x, y, height } = viewBox
-  const displayName = name.length > 24 ? name.slice(0, 22) + '…' : name
+  const truncName    = name.length > 20 ? name.slice(0, 18) + '…' : name
+  const displayName  = date ? `${truncName} ${date}` : truncName
   const tx = x + 3 + slotIndex * 11
   const ty = y + height - 10
   return (
@@ -1713,7 +1714,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               if (!periodLabel) return null
               const slot = slotsByPeriod.get(periodLabel) ?? 0
               slotsByPeriod.set(periodLabel, slot + 1)
-              return { id: a.id, name: a.milestone_name, periodLabel, slotIndex: slot }
+              return { id: a.id, name: a.milestone_name, date: a.planned_end?.slice(0, 10), periodLabel, slotIndex: slot }
             })
             .filter(Boolean)
         })()
@@ -1856,10 +1857,10 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                         label={<ActivityRefLabel name={name} yOffset={yOffset} />}
                       />
                     ))}
-                    {wpMarkers.map(({ id, name, periodLabel, slotIndex }) => (
+                    {wpMarkers.map(({ id, name, date, periodLabel, slotIndex }) => (
                       <ReferenceLine key={`wp_${id}`} x={periodLabel}
                         stroke="#f59e0b" strokeDasharray="4 2" strokeWidth={1.5}
-                        label={<WpMarkerLabel name={name} slotIndex={slotIndex} />}
+                        label={<WpMarkerLabel name={name} date={date} slotIndex={slotIndex} />}
                       />
                     ))}
                   </ComposedChart>
