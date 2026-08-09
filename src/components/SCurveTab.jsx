@@ -462,9 +462,10 @@ function WpMarkerLabel({ viewBox, name, date, slotIndex = 0 }) {
   )
 }
 
-function makeSeriesLabel(color, yOffsets) {
+function makeSeriesLabel(color, yOffsets, interval = 1) {
   return function SeriesLabel({ x, y, value, index }) {
     if (value == null) return null
+    if (interval > 1 && index % interval !== 0) return null
     const yOff = yOffsets?.[index] ?? -30
     return (
       <text x={x} y={y + yOff} fill={color} fontWeight={700}
@@ -513,6 +514,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   const [showLabelBaselinesMap, setShowLabelBaselinesMap] = useState(_sv.showLabelBaselinesMap ?? {})
   const [showLabelActual,      setShowLabelActual]      = useState(_sv.showLabelActual    ?? true)
   const [showLabelForecast,    setShowLabelForecast]    = useState(_sv.showLabelForecast  ?? true)
+  const [labelStep,        setLabelStep]            = useState(_sv.labelStep      ?? 1)
   const [scopeOpen,            setScopeOpen]            = useState(false)
   const [settingsOpen,         setSettingsOpen]         = useState(false)
   const [wpBaselines,          setWpBaselines]          = useState([])
@@ -702,6 +704,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         showLabelBaselinesMap,
         showLabelActual,
         showLabelForecast,
+        labelStep,
       }))
       showToast('View saved')
     } catch {
@@ -977,7 +980,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     : colWidth
 
   const xHoriz = effectiveColW >= 56
-  const labelInterval = xHoriz
+  const xTickInterval = xHoriz
     ? Math.max(0, Math.ceil(52 / effectiveColW) - 1)
     : Math.max(0, Math.ceil(12 / effectiveColW) - 1)
 
@@ -1129,6 +1132,19 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                 style={viewMode === mode ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)' } : undefined}
               >{mode}</button>
             ))}
+            {viewMode === 'monthly' && (
+              <div className="flex items-center gap-1.5 ml-1">
+                <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Label&nbsp;every</span>
+                <input
+                  type="number"
+                  min={1}
+                  value={labelStep}
+                  onChange={e => setLabelStep(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-12 px-2 py-1 text-xs rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white tabular-nums"
+                />
+                <span className="text-[10px] text-gray-400">mo</span>
+              </div>
+            )}
             {milestones.length > 0 && (
               <ActivityMultiSelect
                 milestones={milestones}
@@ -1806,7 +1822,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                       axisLine={{ stroke: '#e5e7eb' }}
                       padding={{ left: effectiveColW / 2, right: effectiveColW / 2 }}
                       height={xHoriz ? 24 : 52}
-                      interval={labelInterval}
+                      interval={xTickInterval}
                       tick={({ x, y, payload }) => (
                         <g transform={`translate(${x},${y})`}>
                           <text
@@ -1837,19 +1853,19 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                           dot={false}
                           connectNulls
                           filter="url(#line-glow)"
-                          label={el && showLabelBaselinesMap[id] !== false ? { content: makeSeriesLabel(color, el.yOffsets) } : undefined}
+                          label={el && showLabelBaselinesMap[id] !== false ? { content: makeSeriesLabel(color, el.yOffsets, viewMode === 'monthly' ? labelStep : 1) } : undefined}
                         />
                       )
                     })}
                     {showForecast && (
                       <Line type="monotone" dataKey="forecast" name="Forecast" stroke={forecastColor} strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls
                         filter="url(#line-glow)"
-                        label={endLabelMap['forecast'] && showLabelForecast ? { content: makeSeriesLabel(forecastColor, endLabelMap['forecast'].yOffsets) } : undefined} />
+                        label={endLabelMap['forecast'] && showLabelForecast ? { content: makeSeriesLabel(forecastColor, endLabelMap['forecast'].yOffsets, viewMode === 'monthly' ? labelStep : 1) } : undefined} />
                     )}
                     {showActual && (
                       <Line type="monotone" dataKey="actual" name="Actual" stroke={actualColor} strokeWidth={2} dot={{ r: 3, fill: actualColor, strokeWidth: 0 }} connectNulls
                         filter="url(#line-glow)"
-                        label={endLabelMap['actual'] && showLabelActual ? { content: makeSeriesLabel(actualColor, endLabelMap['actual'].yOffsets) } : undefined} />
+                        label={endLabelMap['actual'] && showLabelActual ? { content: makeSeriesLabel(actualColor, endLabelMap['actual'].yOffsets, viewMode === 'monthly' ? labelStep : 1) } : undefined} />
                     )}
                     {activityMarkers.map(({ id, name, periodLabel, yOffset }) => (
                       <ReferenceLine key={id} x={periodLabel}
