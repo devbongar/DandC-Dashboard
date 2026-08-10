@@ -87,7 +87,7 @@ export default function Sidebar({ profile, open, onClose }) {
         </div>
 
         {/* -- Navigation -- */}
-        <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden">
+        <nav className="flex-1 py-4 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
           <p className="px-4 mb-1.5 text-[10px] font-semibold text-white/20 uppercase tracking-widest select-none">
             Menu
           </p>
