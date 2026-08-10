@@ -6,7 +6,6 @@ import ComplianceTable from '../../components/ComplianceTable'
 import UnitCompletionChart from '../../components/UnitCompletionChart'
 import LoadingScreen from '../../components/LoadingScreen'
 import useMinLoading from '../../hooks/useMinLoading'
-import PdfDownloadButton from '../../components/PdfDownloadButton'
 
 export default function AdminDashboard() {
   const { profile, loading } = useProfile()
@@ -25,7 +24,7 @@ export default function AdminDashboard() {
           <div className="[&>section]:mb-0"><ComplianceTable id="panel-compliance" /></div>
         </div>
       </div>
-      <PdfDownloadButton />
+
     </DashboardLayout>
   )
 }

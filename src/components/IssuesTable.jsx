@@ -69,10 +69,13 @@ export default function IssuesTable({ id }) {
   useEffect(() => { fetchAll() }, [])
 
   useEffect(() => {
-    const handler = (e) => { if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false) }
+    if (!filtersOpen) return
+    const handler = (e) => {
+      if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false)
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
-  }, [])
+  }, [filtersOpen])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -122,213 +125,111 @@ export default function IssuesTable({ id }) {
   }, [issues, projects, type4ph])
 
   return (
-    <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col min-h-[400px] flex-1">
+    <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col h-[600px]">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />
           <h2 className="text-sm font-bold text-black">Issues &amp; Concerns</h2>
+          {!loading && (
+            <span className="text-xs font-semibold text-gray-400">{filtered.length} issue{filtered.length !== 1 ? 's' : ''}</span>
+          )}
         </div>
-        {!loading && (
-          <span className="text-xs font-bold text-[#ed6055]">{filtered.length} issue{filtered.length !== 1 ? 's' : ''}</span>
+        {!loading && issues.length > 0 && (
+          <div ref={filtersRef} className="relative flex-shrink-0">
+            <button
+              onClick={() => setFiltersOpen(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+              style={{
+                background: filtersOpen || hasActiveFilter ? '#fff' : '#fafafa',
+                borderColor: hasActiveFilter ? '#ed6055' : (filtersOpen ? '#ed6055' : '#e5e7eb'),
+                color: hasActiveFilter ? '#ed6055' : '#6b7280',
+                boxShadow: filtersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+              Filters
+              {hasActiveFilter && (
+                <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+                  {[type4ph !== 'all', filterProject !== 'all', filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel !== 'all'].filter(Boolean).length}
+                </span>
+              )}
+            </button>
+            {filtersOpen && (
+              <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
+                style={{ width: 240, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
+              >
+                <div className="p-3 space-y-3">
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Type</p>
+                    <div
+                      className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
+                      style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
+                    >
+                      {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
+                        <button
+                          key={t.key}
+                          onClick={() => { setType4ph(t.key); setFilterProject('all') }}
+                          className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                          style={type4ph === t.key ? {
+                            background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
+                            color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                          } : { color: '#6b7280', background: 'transparent' }}
+                        >{t.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Project</p>
+                    <SearchDropdown
+                      fluid
+                      options={projectOptions}
+                      value={filterProject} onChange={setFilterProject}
+                      emptyValue="all" emptyLabel="All Projects" placeholder="Search projects…"
+                      icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+                    />
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[{ value: 'all', label: 'All' }, ...Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))].map(o => (
+                        <button key={o.value} onClick={() => setFilterStatus(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                          style={filterStatus === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[{ value: 'all', label: 'All' }, ...GROUPS.map(g => ({ value: g, label: g }))].map(o => (
+                        <button key={o.value} onClick={() => setFilterGroup(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                          style={filterGroup === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
+                    <div className="flex flex-wrap gap-1">
+                      {[{ value: 'all', label: 'All' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))].map(o => (
+                        <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                          style={filterMgmtLevel === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  {hasActiveFilter && (
+                    <button onClick={clearFilters} className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors">
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
         )}
       </div>
-
-      {/* Filters */}
-      {!loading && issues.length > 0 && (
-        <div className="flex flex-col gap-2 mb-4">
-
-          {/* -- Mobile layout (< sm) -- */}
-          <div className="flex flex-col gap-2 sm:hidden">
-            {/* Type toggle -- full width */}
-            <div
-              className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
-              style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
-            >
-              {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => { setType4ph(t.key); setFilterProject('all') }}
-                  className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
-                  style={type4ph === t.key ? {
-                    background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
-                    color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
-                  } : { color: '#6b7280', background: 'transparent' }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-
-            {/* Project + Filters button side by side */}
-            <div className="flex gap-2">
-              <div className="flex-1 min-w-0">
-                <SearchDropdown
-                  fluid
-                  options={projectOptions}
-                  value={filterProject} onChange={setFilterProject}
-                  emptyValue="all" emptyLabel="All Projects" placeholder="Search projects…"
-                  icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
-                />
-              </div>
-              <div ref={filtersRef} className="relative flex-shrink-0">
-                <button
-                  onClick={() => setFiltersOpen(v => !v)}
-                  className="h-full flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
-                  style={{
-                    background: filtersOpen || filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' ? '#fff' : '#fafafa',
-                    borderColor: filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' ? '#ed6055' : (filtersOpen ? '#ed6055' : '#e5e7eb'),
-                    color: filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' ? '#ed6055' : '#6b7280',
-                    boxShadow: filtersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-                  }}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                  </svg>
-                  Filters
-                  {(filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all') && (
-                    <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                      {[filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel !== 'all'].filter(Boolean).length}
-                    </span>
-                  )}
-                </button>
-                {filtersOpen && (
-                  <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
-                    style={{ width: 240, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}
-                  >
-                    <div className="p-3 space-y-3">
-                      <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
-                        <div className="flex flex-wrap gap-1">
-                          {[{ value: 'all', label: 'All' }, ...Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))].map(o => (
-                            <button key={o.value} onClick={() => setFilterStatus(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                              style={filterStatus === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
-                        <div className="flex flex-wrap gap-1">
-                          {[{ value: 'all', label: 'All' }, ...GROUPS.map(g => ({ value: g, label: g }))].map(o => (
-                            <button key={o.value} onClick={() => setFilterGroup(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                              style={filterGroup === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
-                          ))}
-                        </div>
-                      </div>
-                      <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
-                        <div className="flex flex-wrap gap-1">
-                          {[{ value: 'all', label: 'All' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))].map(o => (
-                            <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                              style={filterMgmtLevel === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {hasActiveFilter && (
-              <button onClick={clearFilters} className="w-full py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 bg-white transition">
-                Clear filters
-              </button>
-            )}
-          </div>
-
-          {/* -- Desktop layout (sm+) -- */}
-          <div className="hidden sm:flex items-center gap-2 flex-wrap">
-            <div
-              className="flex items-center gap-0.5 flex-shrink-0 p-0.5 rounded-lg"
-              style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
-            >
-              {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => { setType4ph(t.key); setFilterProject('all') }}
-                  className="relative px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
-                  style={type4ph === t.key ? {
-                    background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
-                    color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
-                  } : { color: '#6b7280', background: 'transparent' }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            <SearchDropdown
-              options={projectOptions} value={filterProject} onChange={setFilterProject}
-              emptyValue="all" emptyLabel="All Projects" placeholder="Search projects…" minWidth={130}
-              icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
-            />
-            <div ref={filtersRef} className="relative flex-shrink-0">
-              <button
-                onClick={() => setFiltersOpen(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
-                style={{
-                  background: filtersOpen || filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' ? '#fff' : '#fafafa',
-                  borderColor: filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' ? '#ed6055' : (filtersOpen ? '#ed6055' : '#e5e7eb'),
-                  color: filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' ? '#ed6055' : '#6b7280',
-                  boxShadow: filtersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-                }}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                </svg>
-                Filters
-                {(filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all') && (
-                  <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                    {[filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel !== 'all'].filter(Boolean).length}
-                  </span>
-                )}
-              </button>
-              {filtersOpen && (
-                <div className="absolute left-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden"
-                  style={{ width: 240, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
-                >
-                  <div className="p-3 space-y-3">
-                    <div>
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
-                      <div className="flex flex-wrap gap-1">
-                        {[{ value: 'all', label: 'All' }, ...Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))].map(o => (
-                          <button key={o.value} onClick={() => setFilterStatus(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                            style={filterStatus === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
-                      <div className="flex flex-wrap gap-1">
-                        {[{ value: 'all', label: 'All' }, ...GROUPS.map(g => ({ value: g, label: g }))].map(o => (
-                          <button key={o.value} onClick={() => setFilterGroup(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                            style={filterGroup === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
-                        ))}
-                      </div>
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
-                      <div className="flex flex-wrap gap-1">
-                        {[{ value: 'all', label: 'All' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))].map(o => (
-                          <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                            style={filterMgmtLevel === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-            {hasActiveFilter && (
-              <button onClick={clearFilters} className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 bg-white transition whitespace-nowrap">
-                Clear
-              </button>
-            )}
-          </div>
-
-        </div>
-      )}
 
       {/* Table */}
       <div className="rounded-xl border border-gray-200 overflow-hidden flex-1 flex flex-col">
