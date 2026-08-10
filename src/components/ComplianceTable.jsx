@@ -1,5 +1,8 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { computePermitStatus } from '../lib/permitUtils'
+import { slugify } from '../pages/ProjectDetailPage'
 import SearchDropdown from './SearchDropdown'
 import TriangleLoader from './TriangleLoader'
 
@@ -209,6 +212,16 @@ const NotStartedCell = () => (
   </div>
 )
 
+const OverdueCell = () => (
+  <div className="flex items-center justify-center">
+    <span className="w-7 h-7 rounded-full bg-red-100 flex items-center justify-center">
+      <svg className="w-3.5 h-3.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+      </svg>
+    </span>
+  </div>
+)
+
 const NACell = () => (
   <span className="text-xs text-gray-300 font-medium select-none">--</span>
 )
@@ -217,44 +230,37 @@ const NACell = () => (
 // -- Main component ------------------------------------------------------------
 
 export default function ComplianceTable({ id }) {
+  const navigate = useNavigate()
   const [permits, setPermits]     = useState([])
   const [projects, setProjects]   = useState([])
   const [loading, setLoading]     = useState(true)
   const [filterProjects, setFilterProjects] = useState([])
-  const [standardNames, setStandardNames]   = useState([])
-  const [highlightedNames, setHighlightedNames] = useState(new Set())
   const [sortOrder, setSortOrder] = useState('asc')
   const [type4ph, setType4ph]     = useState('all')
-  const [tooltip, setTooltip]     = useState(null) // { x, y, text }
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const filtersRef = useRef(null)
 
   useEffect(() => { fetchAll() }, [])
 
+  useEffect(() => {
+    if (!filtersOpen) return
+    const handler = (e) => {
+      if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [filtersOpen])
+
   const fetchAll = async () => {
     setLoading(true)
-    const [permitsRes, projectsRes, standardsRes] = await Promise.all([
-      supabase.from('project_permits').select('id, project_id, permit_name, status, remarks, parent_id'),
+    const [permitsRes, projectsRes] = await Promise.all([
+      supabase.from('permits').select('id, project_id, name, status, actual_start, actual_finish, planned_finish'),
       supabase.from('projects').select('id, name, is_4ph_project').order('name'),
-      supabase.from('standard_permits').select('id, permit_name, parent_id, is_highlighted').is('parent_id', null).order('sort_order'),
     ])
-    if (permitsRes.data)   setPermits(permitsRes.data)
-    if (projectsRes.data)  setProjects(projectsRes.data)
-    if (standardsRes.data) {
-      setStandardNames(standardsRes.data.map(s => s.permit_name))
-      setHighlightedNames(new Set(standardsRes.data.filter(s => s.is_highlighted).map(s => s.permit_name)))
-    }
+    if (permitsRes.data)  setPermits(permitsRes.data)
+    if (projectsRes.data) setProjects(projectsRes.data)
     setLoading(false)
   }
-
-  const permitNames = standardNames
-
-  const lookup = useMemo(() => {
-    const map = {}
-    permits.filter(p => !p.parent_id).forEach(p => {
-      if (!map[p.project_id]) map[p.project_id] = {}
-      map[p.project_id][p.permit_name] = { status: p.status, remarks: p.remarks ?? null }
-    })
-    return map
-  }, [permits])
 
   const visibleProjects = useMemo(() => {
     let list = [...projects]
@@ -267,38 +273,37 @@ export default function ComplianceTable({ id }) {
     return list
   }, [projects, filterProjects, sortOrder, type4ph])
 
+  const lookup = useMemo(() => {
+    const map = {}
+    permits.forEach(p => {
+      if (!map[p.project_id]) map[p.project_id] = {}
+      map[p.project_id][p.name] = computePermitStatus(p)
+    })
+    return map
+  }, [permits])
+
+  const permitNames = useMemo(() => {
+    const visibleIds = new Set(visibleProjects.map(p => p.id))
+    const seen = new Set()
+    permits.filter(p => visibleIds.has(p.project_id)).forEach(p => seen.add(p.name))
+    return [...seen].sort()
+  }, [permits, visibleProjects])
+
   const projectOptions = useMemo(() => {
     const list = type4ph === 'all' ? projects : projects.filter(p => type4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)
     return list.map(p => ({ value: p.id, label: p.name }))
   }, [projects, type4ph])
 
-  const showTooltip = (e, text) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    setTooltip({ x: rect.left + rect.width / 2, y: rect.top, text })
-  }
-  const hideTooltip = () => setTooltip(null)
-
   const renderCell = (projectId, permitName) => {
-    const entry = lookup[projectId]?.[permitName]
-    if (!entry) return <NACell />
-    const { status, remarks } = entry
-    const icon = status === 'done' ? <DoneCell /> : status === 'ongoing' ? <OngoingCell /> : <NotStartedCell />
-    if (!remarks) return icon
-    return (
-      <div
-        className="cursor-pointer relative"
-        onMouseEnter={e => showTooltip(e, remarks)}
-        onMouseLeave={hideTooltip}
-        onClick={e => { e.stopPropagation(); tooltip?.text === remarks ? hideTooltip() : showTooltip(e, remarks) }}
-      >
-        {icon}
-        {/* dot indicator for cells with remarks */}
-        <span className="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-blue-400 ring-1 ring-white" />
-      </div>
-    )
+    const status = lookup[projectId]?.[permitName]
+    if (!status) return <NACell />
+    if (status === 'acquired')    return <DoneCell />
+    if (status === 'in-progress') return <OngoingCell />
+    if (status === 'overdue')     return <OverdueCell />
+    return <NotStartedCell />
   }
 
-  const isEmpty = !loading && (projects.length === 0 || standardNames.length === 0)
+  const isEmpty = !loading && (projects.length === 0 || permitNames.length === 0)
 
   return (
     <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col h-[600px]">
@@ -309,100 +314,102 @@ export default function ComplianceTable({ id }) {
           <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />
           <h2 className="text-sm font-bold text-black">Permits &amp; Licensing</h2>
         </div>
-        {!loading && !isEmpty && (
-          <span className="text-xs font-bold text-[#ed6055]">
-            {visibleProjects.length}{filterProjects.length > 0 ? ` / ${projects.length}` : ''} project{projects.length !== 1 ? 's' : ''}
-          </span>
-        )}
-      </div>
-
-      {/* Filters */}
-      {!loading && !isEmpty && (
-        <div className="flex flex-col gap-2 mb-4">
-
-          {/* -- Mobile layout (< sm) -- */}
-          <div className="flex flex-col gap-2 sm:hidden">
-            {/* Type toggle -- full width */}
-            <div
-              className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
-              style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
-            >
-              {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => { setType4ph(t.key); setFilterProjects([]) }}
-                  className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
-                  style={type4ph === t.key ? {
-                    background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
-                    color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
-                  } : { color: '#6b7280', background: 'transparent' }}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
-            {/* Project + Sort side by side */}
-            <div className="flex gap-2">
-              <div className="flex-1 min-w-0">
-                <MultiSearchDropdown
-                  fluid
-                  options={projectOptions} values={filterProjects} onChange={setFilterProjects}
-                  emptyLabel="All Projects" placeholder="Search projects…"
-                  icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
-                />
-              </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => navigate('/admin/permits')}
+            className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
+            title="Open Permits Dashboard"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+            </svg>
+          </button>
+          {!loading && !isEmpty && (() => {
+          const activeCount = [type4ph !== 'all', filterProjects.length > 0, sortOrder !== 'asc'].filter(Boolean).length
+          return (
+            <div ref={filtersRef} className="relative flex-shrink-0">
               <button
-                onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-                className="flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 transition"
-                style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+                onClick={() => setFiltersOpen(v => !v)}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                style={{
+                  background: filtersOpen || activeCount > 0 ? '#fff' : '#fafafa',
+                  borderColor: activeCount > 0 ? '#ed6055' : (filtersOpen ? '#ed6055' : '#e5e7eb'),
+                  color: activeCount > 0 ? '#ed6055' : '#6b7280',
+                  boxShadow: filtersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                }}
               >
-                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M7 12h10M11 17h2" />
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
                 </svg>
-                {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
+                Filters
+                {activeCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+                    {activeCount}
+                  </span>
+                )}
               </button>
-            </div>
-          </div>
-
-          {/* -- Desktop layout (sm+) -- */}
-          <div className="hidden sm:flex items-center gap-2 flex-wrap">
-            <div
-              className="flex items-center gap-0.5 flex-shrink-0 p-0.5 rounded-lg"
-              style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
-            >
-              {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => { setType4ph(t.key); setFilterProjects([]) }}
-                  className="relative px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
-                  style={type4ph === t.key ? {
-                    background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
-                    color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
-                  } : { color: '#6b7280', background: 'transparent' }}
+              {filtersOpen && (
+                <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl"
+                  style={{ width: 260, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
                 >
-                  {t.label}
-                </button>
-              ))}
+                  <div className="p-3 space-y-3">
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Type</p>
+                      <div
+                        className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
+                        style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
+                      >
+                        {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
+                          <button
+                            key={t.key}
+                            onClick={() => { setType4ph(t.key); setFilterProjects([]) }}
+                            className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                            style={type4ph === t.key ? {
+                              background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
+                              color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                            } : { color: '#6b7280', background: 'transparent' }}
+                          >{t.label}</button>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Project</p>
+                      <MultiSearchDropdown
+                        fluid
+                        options={projectOptions} values={filterProjects} onChange={setFilterProjects}
+                        emptyLabel="All Projects" placeholder="Search projects…"
+                        icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Sort</p>
+                      <button
+                        onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+                        className="w-full flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 transition"
+                        style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+                      >
+                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M7 12h10M11 17h2" />
+                        </svg>
+                        {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
+                      </button>
+                    </div>
+                    {activeCount > 0 && (
+                      <button
+                        onClick={() => { setType4ph('all'); setFilterProjects([]); setSortOrder('asc') }}
+                        className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors"
+                      >
+                        Clear all filters
+                      </button>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
-            <MultiSearchDropdown
-              options={projectOptions} values={filterProjects} onChange={setFilterProjects}
-              emptyLabel="All Projects" placeholder="Search projects…" minWidth={130}
-              icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
-            />
-            <button
-              onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 transition"
-              style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
-            >
-              <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M7 12h10M11 17h2" />
-              </svg>
-              {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
-            </button>
-          </div>
-
+          )
+        })()}
         </div>
-      )}
+      </div>
 
       {/* Legend */}
       {!loading && !isEmpty && (
@@ -413,7 +420,7 @@ export default function ComplianceTable({ id }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
               </svg>
             </span>
-            <span className="text-xs text-gray-500 font-medium">Done</span>
+            <span className="text-xs text-gray-500 font-medium">Acquired</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -421,7 +428,7 @@ export default function ComplianceTable({ id }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </span>
-            <span className="text-xs text-gray-500 font-medium">Ongoing</span>
+            <span className="text-xs text-gray-500 font-medium">In Progress</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
@@ -429,7 +436,15 @@ export default function ComplianceTable({ id }) {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M5 12h14" />
               </svg>
             </span>
-            <span className="text-xs text-gray-500 font-medium">Not Yet Started</span>
+            <span className="text-xs text-gray-500 font-medium">Pending</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="w-5 h-5 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <svg className="w-3 h-3 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+              </svg>
+            </span>
+            <span className="text-xs text-gray-500 font-medium">Overdue</span>
           </div>
           <div className="flex items-center gap-1.5">
             <span className="w-5 h-5 flex items-center justify-center flex-shrink-0">
@@ -462,7 +477,7 @@ export default function ComplianceTable({ id }) {
             </button>
           </div>
         ) : (
-          <div className="overflow-auto flex-1" onClick={hideTooltip}>
+          <div className="overflow-auto flex-1">
             <table className="text-xs" style={{ borderCollapse: 'separate', borderSpacing: 0 }}>
               <thead>
                 <tr>
@@ -477,35 +492,23 @@ export default function ComplianceTable({ id }) {
                   </th>
 
                   {/* Permit column headers -- rotated */}
-                  {permitNames.map(name => {
-                    const hl = highlightedNames.has(name)
-                    return (
-                      <th
-                        key={name}
-                        className="sticky top-0 z-20 border-b border-r border-gray-200"
-                        style={{
-                          width: 52, minWidth: 52,
-                          background: hl ? '#fffbeb' : '#fafafa',
-                          borderTop: `3px solid ${hl ? '#f59e0b' : '#e5e7eb'}`,
-                        }}
-                      >
-                        <div className="flex flex-col items-center justify-end h-32 pb-2.5 px-1 gap-0.5">
-                          {hl && (
-                            <svg className="w-3.5 h-3.5 flex-shrink-0" viewBox="0 0 24 24" fill="#f59e0b" stroke="#f59e0b" strokeWidth={1}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-                            </svg>
-                          )}
-                          <span
-                            title={name}
-                            style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: 108 }}
-                            className={`leading-tight overflow-hidden ${hl ? 'text-[11px] font-bold text-amber-700' : 'text-[11px] font-medium text-gray-500'}`}
-                          >
-                            {name}
-                          </span>
-                        </div>
-                      </th>
-                    )
-                  })}
+                  {permitNames.map(name => (
+                    <th
+                      key={name}
+                      className="sticky top-0 z-20 border-b border-r border-gray-200"
+                      style={{ width: 52, minWidth: 52, background: '#fafafa', borderTop: '3px solid #e5e7eb' }}
+                    >
+                      <div className="flex flex-col items-center justify-end h-32 pb-2.5 px-1">
+                        <span
+                          title={name}
+                          style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)', maxHeight: 108 }}
+                          className="text-[11px] font-medium text-gray-500 leading-tight overflow-hidden"
+                        >
+                          {name}
+                        </span>
+                      </div>
+                    </th>
+                  ))}
                 </tr>
               </thead>
 
@@ -513,15 +516,19 @@ export default function ComplianceTable({ id }) {
                 {visibleProjects.map(proj => (
                   <tr key={proj.id} className="hover:bg-[#ed6055]/[0.02] transition">
                     <td className="sticky left-0 z-10 border-r border-b border-gray-100 px-3 sm:px-4 py-3 bg-white">
-                      <span className="block truncate max-w-[130px] sm:max-w-[200px] text-xs font-semibold text-gray-800" title={proj.name}>
+                      <button
+                        onClick={() => navigate(`/projects/${slugify(proj.name)}?tab=Permits`, { state: { id: proj.id } })}
+                        className="block truncate max-w-[130px] sm:max-w-[200px] text-xs font-semibold text-gray-800 hover:text-[#ed6055] transition-colors text-left"
+                        title={proj.name}
+                      >
                         {proj.name}
-                      </span>
+                      </button>
                     </td>
                     {permitNames.map(name => (
                       <td
                         key={name}
                         className="border-r border-b border-gray-100 p-1.5 text-center align-middle"
-                        style={{ width: 52, background: highlightedNames.has(name) ? '#fffbeb' : '#fff' }}
+                        style={{ width: 52, background: '#fff' }}
                       >
                         {renderCell(proj.id, name)}
                       </td>
@@ -534,17 +541,6 @@ export default function ComplianceTable({ id }) {
         )}
       </div>
 
-      {tooltip && (
-        <div
-          className="fixed z-[200] pointer-events-none"
-          style={{ left: tooltip.x, top: tooltip.y - 10, transform: 'translate(-50%, -100%)' }}
-        >
-          <div className="bg-gray-900 text-white rounded-lg px-3 py-2 shadow-xl max-w-[240px] break-words text-left leading-relaxed whitespace-pre-wrap" style={{ fontSize: 16 }}>
-            {tooltip.text}
-          </div>
-          <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-gray-900" />
-        </div>
-      )}
     </section>
   )
 }

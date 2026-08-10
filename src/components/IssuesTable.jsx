@@ -252,68 +252,84 @@ export default function IssuesTable({ id }) {
             <table className="w-full text-sm">
               <thead>
                 <tr className="sticky top-0 z-10" style={{ background: '#fff', borderTop: '2px solid #ed6055', borderBottom: '1px solid #e5e7eb' }}>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-700 whitespace-nowrap">Issue</th>
-                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-700 whitespace-nowrap">Action Steps</th>
+                  <th className="text-left px-3 py-3 text-xs font-bold text-gray-700 whitespace-nowrap w-8">#</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-700">Issue</th>
                   <th className="text-left px-4 py-3 text-xs font-bold text-gray-700 whitespace-nowrap w-20">Status</th>
+                  <th className="text-left px-4 py-3 text-xs font-bold text-gray-700 whitespace-nowrap w-20">Aging</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-50">
-                {Object.entries(
-                  filtered.reduce((acc, issue) => {
-                    const pid = issue.project_id ?? '__none__'
-                    if (!acc[pid]) acc[pid] = []
-                    acc[pid].push(issue)
-                    return acc
-                  }, {})
-                )
-                  .sort(([a], [b]) => projectName(a).localeCompare(projectName(b)))
-                  .map(([pid, groupIssues]) => {
-                    const isCollapsed = collapsed.has(pid)
-                    return (
-                      <Fragment key={pid}>
-                        {/* Project group row */}
-                        <tr
-                          className="cursor-pointer select-none hover:bg-[#ed6055]/5 transition"
-                          style={{ background: 'rgba(237,96,85,0.04)', borderTop: '1px solid #f3f4f6' }}
-                          onClick={() => toggleGroup(pid)}
-                        >
-                          <td colSpan={3} className="px-4 py-2">
-                            <div className="flex items-center gap-2">
-                              <div className="w-[3px] h-3.5 rounded-full bg-[#ed6055] flex-shrink-0" />
-                              <ChevronIcon collapsed={isCollapsed} />
-                              <span className="text-xs font-bold text-gray-800">{projectName(pid)}</span>
-                              <span className="text-xs font-bold text-white bg-[#ed6055] rounded-full px-1.5 py-0.5 leading-none">
-                                {groupIssues.length}
-                              </span>
-                            </div>
-                          </td>
-                        </tr>
-
-                        {/* Issue rows */}
-                        {!isCollapsed && groupIssues.map((issue, idx) => {
-                          const sc = STATUS_CONFIG[issue.status] ?? STATUS_CONFIG.open
-                          return (
-                            <tr
-                              key={issue.id}
-                              onClick={() => openView(issue)}
-                              className="hover:bg-[#ed6055]/[0.03] active:scale-[0.99] active:bg-[#ed6055]/[0.06] transition cursor-pointer"
-                              style={{ borderTop: idx === 0 ? 'none' : '1px solid #f9fafb' }}
-                            >
-                              <td className="px-4 py-3 w-[45%]">
-                                <p className="line-clamp-3 text-xs text-gray-700 leading-relaxed">{issue.details || <span className="italic text-gray-300">--</span>}</p>
-                              </td>
-                              <td className="px-4 py-3 w-[45%]">
-                                <p className="line-clamp-3 text-xs text-gray-500 leading-relaxed">{issue.action_steps || <span className="italic text-gray-300">--</span>}</p>
-                              </td>
-                              <td className="px-4 py-3 w-20 whitespace-nowrap">
-                                <span className={`inline-block text-xs font-bold px-2.5 py-0.5 rounded-full ${sc.className}`}>{sc.label}</span>
-                              </td>
-                            </tr>
-                          )
-                        })}
-                      </Fragment>
-                    )
-                  })}
+                {(() => {
+                  let counter = 0
+                  const STATUS_ORDER = { open: 0, hold: 1, close: 2 }
+                  return Object.entries(
+                    filtered.reduce((acc, issue) => {
+                      const pid = issue.project_id ?? '__none__'
+                      if (!acc[pid]) acc[pid] = []
+                      acc[pid].push(issue)
+                      return acc
+                    }, {})
+                  )
+                    .sort(([a], [b]) => projectName(a).localeCompare(projectName(b)))
+                    .map(([pid, groupIssues]) => {
+                      const isCollapsed = collapsed.has(pid)
+                      const sorted = groupIssues.slice().sort((a, b) => {
+                        const sd = (STATUS_ORDER[a.status] ?? 3) - (STATUS_ORDER[b.status] ?? 3)
+                        if (sd !== 0) return sd
+                        return (daysAging(b.date_presented) ?? 0) - (daysAging(a.date_presented) ?? 0)
+                      })
+                      return (
+                        <Fragment key={pid}>
+                          <tr
+                            className="cursor-pointer select-none hover:bg-[#ed6055]/5 transition"
+                            style={{ background: 'rgba(237,96,85,0.04)', borderTop: '1px solid #f3f4f6' }}
+                            onClick={() => toggleGroup(pid)}
+                          >
+                            <td colSpan={4} className="px-4 py-2">
+                              <div className="flex items-center gap-2">
+                                <div className="w-[3px] h-3.5 rounded-full bg-[#ed6055] flex-shrink-0" />
+                                <ChevronIcon collapsed={isCollapsed} />
+                                <span className="text-xs font-bold text-gray-800">{projectName(pid)}</span>
+                                <span className="text-xs font-bold text-white bg-[#ed6055] rounded-full px-1.5 py-0.5 leading-none">
+                                  {groupIssues.length}
+                                </span>
+                              </div>
+                            </td>
+                          </tr>
+                          {!isCollapsed && sorted.map((issue, idx) => {
+                            counter++
+                            const sc = STATUS_CONFIG[issue.status] ?? STATUS_CONFIG.open
+                            const aging = daysAging(issue.date_presented)
+                            return (
+                              <tr
+                                key={issue.id}
+                                onClick={() => openView(issue)}
+                                className="hover:bg-[#ed6055]/[0.03] active:scale-[0.99] active:bg-[#ed6055]/[0.06] transition cursor-pointer"
+                                style={{ borderTop: idx === 0 ? 'none' : '1px solid #f9fafb' }}
+                              >
+                                <td className="px-3 py-3 text-xs font-semibold text-gray-400 text-center w-8">{counter}</td>
+                                <td className="px-4 py-3">
+                                  <p className="line-clamp-3 text-xs text-gray-700 leading-relaxed">{issue.details || <span className="italic text-gray-300">--</span>}</p>
+                                </td>
+                                <td className="px-4 py-3 w-20 whitespace-nowrap">
+                                  <span className={`inline-block text-xs font-bold px-2.5 py-0.5 rounded-full ${sc.className}`}>{sc.label}</span>
+                                </td>
+                                <td className="px-4 py-3 w-20 whitespace-nowrap">
+                                  {aging !== null ? (
+                                    <span className={`inline-block text-xs font-bold px-2 py-0.5 rounded-full ${
+                                      aging >= 30 ? 'bg-red-50 text-red-600 border border-red-100' :
+                                      aging >= 15 ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                                      'bg-gray-50 text-gray-500 border border-gray-100'
+                                    }`}>{aging}d</span>
+                                  ) : <span className="text-gray-300 text-xs italic">--</span>}
+                                </td>
+                              </tr>
+                            )
+                          })}
+                        </Fragment>
+                      )
+                    })
+                })()}
               </tbody>
             </table>
           </div>
