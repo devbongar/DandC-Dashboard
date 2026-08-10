@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase, fetchAll } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr, toFloat, toInt } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
@@ -643,6 +644,7 @@ function OverviewDetailItem({ label, value, icon }) {
 // -- Overview Tab -------------------------------------------------------------
 
 function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false }) {
+  const navigate = useNavigate()
   const buildForm = () => ({
     name:             project.name ?? '',
     project_code:     project.project_code ?? '',
@@ -660,6 +662,16 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   const [editing, setEditing] = useState(startEditing)
   const [form, setForm] = useState(startEditing ? buildForm() : {})
   const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
+  const [deleting, setDeleting] = useState(false)
+
+  const handleDeleteProject = async () => {
+    setDeleting(true)
+    const { error } = await supabase.from('projects').delete().eq('id', project.id)
+    setDeleting(false)
+    if (error) { showToast('Failed to delete project.', 'error'); setConfirmDelete(false); return }
+    navigate('/projects')
+  }
   // pendingCoverUrl: undefined = no change | null = removal | string = blob preview URL
   const [pendingCoverUrl, setPendingCoverUrl] = useState(undefined)
   const [pendingFile, setPendingFile] = useState(null)
@@ -891,9 +903,9 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           />
         </div>
 
-        {/* Edit button pinned to bottom */}
+        {/* Edit + Delete buttons pinned to bottom */}
         {isAdmin && (
-          <div className="px-8 py-4 border-t border-gray-100 flex justify-end mt-auto" style={{ animation: 'fade-in-up 220ms 180ms ease-out both' }}>
+          <div className="px-8 py-4 border-t border-gray-100 flex items-center justify-end gap-2 mt-auto" style={{ animation: 'fade-in-up 220ms 180ms ease-out both' }}>
             <button
               onClick={startEdit}
               className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-gray-500 hover:text-[#ed6055] hover:bg-red-50 border border-gray-200 bg-white transition-colors duration-200 text-xs font-semibold shadow-sm active:scale-[0.97]"
@@ -903,6 +915,30 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
               <PencilIcon />
               Edit
             </button>
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-gray-400 hover:text-red-600 hover:bg-red-50 border border-gray-200 bg-white transition-colors duration-200 text-xs font-semibold shadow-sm active:scale-[0.97]"
+              title="Delete project"
+            >
+              <TrashIcon />
+              Delete
+            </button>
+          </div>
+        )}
+
+        {/* Confirm delete project */}
+        {confirmDelete && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
+            <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm">
+              <h3 className="text-base font-bold text-black mb-1">Delete this project?</h3>
+              <p className="text-sm text-gray-500 mb-5">This will permanently delete <span className="font-semibold text-gray-700">{project.name}</span> and all its data. This cannot be undone.</p>
+              <div className="flex gap-2">
+                <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+                <button onClick={handleDeleteProject} disabled={deleting} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-60">
+                  {deleting ? 'Deleting…' : 'Delete'}
+                </button>
+              </div>
+            </div>
           </div>
         )}
       </div>

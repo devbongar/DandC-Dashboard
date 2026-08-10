@@ -308,61 +308,7 @@ export default function ProjectsPage() {
             <p className="text-gray-500 text-sm mt-0.5">{projects.length} project{projects.length !== 1 ? 's' : ''} total</p>
           </div>
         </div>
-        <div className="flex items-center gap-2 flex-wrap justify-end">
-          {/* Actions dropdown */}
-          <div className="relative" ref={actionsRef}>
-            <button
-              onClick={() => setShowActions(v => !v)}
-              className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-gray-200 bg-white hover:bg-[#ed6055]/5 hover:border-[#ed6055]/30 hover:text-[#ed6055] text-gray-600 text-sm font-semibold transition"
-            >
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
-              Actions
-            </button>
-            {showActions && (
-              <>
-                <div className="fixed inset-0 z-30" onClick={() => setShowActions(false)} />
-                <div className="absolute right-0 top-full mt-1.5 z-40 bg-white rounded-xl border border-gray-200 shadow-lg py-1.5 min-w-[160px]">
-                  {projects.length > 0 && (
-                    <button
-                      onClick={() => { setShowReportBuilder(true); setShowActions(false) }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
-                    >
-                      <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                      Report
-                    </button>
-                  )}
-                  {projects.length > 0 && (
-                    <button
-                      onClick={() => { handleExport(); setShowActions(false) }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
-                    >
-                      <DownloadIcon /> Export
-                    </button>
-                  )}
-                  {isAdmin && (
-                    <>
-                      <button
-                        onClick={() => { importRef.current?.click(); setShowActions(false) }}
-                        disabled={importing}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
-                      >
-                        <UploadIcon /> {importing ? 'Importing…' : 'Import'}
-                      </button>
-                      <div className="my-1 border-t border-gray-100" />
-                      <button
-                        onClick={() => { openAdd(); setShowActions(false) }}
-                        className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition"
-                      >
-                        <PlusIcon /> Add Project
-                      </button>
-                    </>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
-          <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
-        </div>
+        <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
       </div>
 
       {/* Filters */}
@@ -404,6 +350,58 @@ export default function ProjectsPage() {
                   Clear
                 </button>
               )}
+              {/* Actions dropdown */}
+              <div className="relative flex-shrink-0" ref={actionsRef}>
+                <button
+                  onClick={() => setShowActions(v => !v)}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-gray-200 bg-white hover:bg-[#ed6055]/5 hover:border-[#ed6055]/30 hover:text-[#ed6055] text-gray-600 text-sm font-medium transition"
+                >
+                  <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="5" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                  Actions
+                </button>
+                {showActions && (
+                  <>
+                    <div className="fixed inset-0 z-30" onClick={() => setShowActions(false)} />
+                    <div className="absolute right-0 top-full mt-1.5 z-40 bg-white rounded-xl border border-gray-200 shadow-lg py-1.5 min-w-[160px]">
+                      {projects.length > 0 && (
+                        <button
+                          onClick={() => { setShowReportBuilder(true); setShowActions(false) }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                        >
+                          <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                          Report
+                        </button>
+                      )}
+                      {projects.length > 0 && (
+                        <button
+                          onClick={() => { handleExport(); setShowActions(false) }}
+                          className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition"
+                        >
+                          <DownloadIcon /> Export
+                        </button>
+                      )}
+                      {isAdmin && (
+                        <>
+                          <button
+                            onClick={() => { importRef.current?.click(); setShowActions(false) }}
+                            disabled={importing}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50"
+                          >
+                            <UploadIcon /> {importing ? 'Importing…' : 'Import'}
+                          </button>
+                          <div className="my-1 border-t border-gray-100" />
+                          <button
+                            onClick={() => { openAdd(); setShowActions(false) }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition"
+                          >
+                            <PlusIcon /> Add Project
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
             </div>
 
             {showFilters && (
@@ -453,7 +451,7 @@ export default function ProjectsPage() {
       })()}
 
       {/* Table */}
-      <div className="sm:bg-white sm:rounded-2xl sm:shadow-sm sm:border sm:border-gray-100 sm:overflow-hidden">
+      <div className="sm:bg-white sm:rounded-2xl sm:shadow-sm sm:border sm:border-gray-100" style={{ overflow: 'clip' }}>
         {loading ? (
           <TriangleLoader label="Loading projects…" />
         ) : filtered.length === 0 ? (
@@ -523,35 +521,24 @@ export default function ProjectsPage() {
                       )}
                     </div>
 
-                    {/* Admin delete */}
-                    {isAdmin && (
-                      <div className="mt-2 pt-2 border-t border-gray-100 flex justify-end" onClick={e => e.stopPropagation()}>
-                        <button
-                          onClick={e => { e.stopPropagation(); setDeleteTarget(project) }}
-                          className="min-h-[32px] px-3 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 rounded-lg transition-colors"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    )}
                   </div>
                 )
               })}
             </div>
 
             {/* -- Desktop table (hidden below sm) -- */}
-            <div className="hidden sm:block overflow-x-auto">
+            <div className="hidden sm:block">
               <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-gray-100">
-                    <th className="text-center px-3 py-3 bg-gray-50/80 whitespace-nowrap w-10">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">No.</span>
+                <thead className="sticky z-20 bg-gray-100" style={{ top: 'calc(4rem + env(safe-area-inset-top, 0px) + 8px)', boxShadow: '0 -8px 0 0 #e4e7ec' }}>
+                  <tr className="border-b border-gray-200">
+                    <th className="text-center px-3 py-3 bg-gray-100 whitespace-nowrap w-10">
+                      <span className="text-sm font-semibold text-gray-700">No.</span>
                     </th>
-                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
+                    <th className="text-left px-5 py-3 bg-gray-100 whitespace-nowrap">
                       <button
                         onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
                         aria-label={`Sort by project name ${sortOrder === 'asc' ? 'descending' : 'ascending'}`}
-                        className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wider hover:text-black transition group"
+                        className="flex items-center gap-1.5 text-sm font-semibold text-gray-700 hover:text-gray-900 transition group"
                       >
                         Project Name
                         <span className="flex flex-col gap-[1px] opacity-50 group-hover:opacity-100 transition">
@@ -560,26 +547,18 @@ export default function ProjectsPage() {
                         </span>
                       </button>
                     </th>
-                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Business Unit</span>
+                    <th className="text-left px-5 py-3 bg-gray-100 whitespace-nowrap">
+                      <span className="text-sm font-semibold text-gray-700">Business Unit</span>
                     </th>
-                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Development Type</span>
+                    <th className="text-left px-5 py-3 bg-gray-100 whitespace-nowrap">
+                      <span className="text-sm font-semibold text-gray-700">Development Type</span>
                     </th>
-                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">4PH</span>
+                    <th className="text-left px-5 py-3 bg-gray-100 whitespace-nowrap">
+                      <span className="text-sm font-semibold text-gray-700">Location</span>
                     </th>
-                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Location</span>
+                    <th className="text-left px-5 py-3 bg-gray-100 whitespace-nowrap">
+                      <span className="text-sm font-semibold text-gray-700">Phase</span>
                     </th>
-                    <th className="text-left px-5 py-3 bg-gray-50/80 whitespace-nowrap">
-                      <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Phase</span>
-                    </th>
-                    {isAdmin && (
-                      <th className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50/80">
-                        Actions
-                      </th>
-                    )}
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -593,28 +572,23 @@ export default function ProjectsPage() {
                         style={{ boxShadow: `inset 3px 0 0 ${phaseColor}` }}
                       >
                         <td className="px-3 py-4 text-center">
-                          <span className="text-xs font-medium text-gray-400 tabular-nums">{idx + 1}</span>
+                          <span className="text-sm font-medium text-gray-400 tabular-nums">{idx + 1}</span>
                         </td>
                         <td className="px-5 py-4">
                           <p className="font-semibold text-black">{project.name}</p>
                         </td>
-                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">{project.business_unit || <span className="text-gray-300 italic">--</span>}</td>
-                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap capitalize">
+                        <td className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap">{project.business_unit || <span className="text-gray-300 italic">--</span>}</td>
+                        <td className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap capitalize">
                           {project.development_type
                             ? project.development_type === 'housing' ? 'Housing' : 'Condominium'
                             : <span className="text-gray-300 italic">--</span>}
                         </td>
-                        <td className="px-5 py-4 text-xs whitespace-nowrap">
-                          {project.is_4ph_project
-                            ? <span className="font-semibold px-2.5 py-1 rounded-full bg-[#ed6055]/10 text-[#ed6055]">4PH</span>
-                            : <span className="text-gray-300 italic">--</span>}
-                        </td>
-                        <td className="px-5 py-4 text-gray-500 text-xs whitespace-nowrap">
+                        <td className="px-5 py-4 text-gray-500 text-sm whitespace-nowrap">
                           {project.city && project.province
                             ? `${project.city}, ${project.province}`
                             : project.city || project.province || <span className="text-gray-300 italic">--</span>}
                         </td>
-                        <td className="px-5 py-4 text-xs whitespace-nowrap">
+                        <td className="px-5 py-4 text-sm whitespace-nowrap">
                           {project.phase
                             ? (() => {
                                 const ph = PHASE_MAP[project.phase]
@@ -626,18 +600,6 @@ export default function ProjectsPage() {
                               })()
                             : <span className="text-gray-300 italic">--</span>}
                         </td>
-                        {isAdmin && (
-                          <td className="px-5 py-4">
-                            <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
-                              <button onClick={e => { e.stopPropagation(); navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } }) }} className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-black hover:bg-gray-100 transition" title="Edit">
-                                <PencilIcon />
-                              </button>
-                              <button onClick={e => { e.stopPropagation(); setDeleteTarget(project) }} className="w-9 h-9 flex items-center justify-center rounded-lg text-gray-400 hover:text-[#ed6055] hover:bg-[#ed6055]/5 transition" title="Delete">
-                                <TrashIcon />
-                              </button>
-                            </div>
-                          </td>
-                        )}
                       </tr>
                     )
                   })}
