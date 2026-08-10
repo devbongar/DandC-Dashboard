@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeFilter } from '../lib/scurveUtils'
-import { downloadWorkbook, downloadBaselineTemplate, downloadActualTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
+import { downloadWorkbook, downloadBaselineTemplate, downloadActualTemplate, downloadForecastTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
   ComposedChart, Area, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer,
 } from 'recharts'
@@ -114,6 +114,26 @@ function parseActualExcel(wb) {
     const periodic = Math.max(0, cum - prevCum)
     prevCum        = cum
     return { ...r, actual_pct: periodic }
+  })
+}
+
+function parseForecastExcel(wb) {
+  const sheet = wb['Forecast Data'] ?? wb['Actual Data'] ?? Object.values(wb)[0] ?? []
+  const parsed = sheet
+    .map(row => {
+      const period_date = parsePeriodDate(row['Period'] ?? row['Period (locked)'] ?? row['period'])
+      const forecast_pct = toFloat(row['Forecast %'] ?? row['forecast_pct'] ?? row['forecast'])
+      return period_date && forecast_pct !== null ? { period_date, forecast_pct } : null
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.period_date.localeCompare(b.period_date))
+
+  let prevCum = 0
+  return parsed.map(r => {
+    const cum      = r.forecast_pct ?? 0
+    const periodic = Math.max(0, cum - prevCum)
+    prevCum        = cum
+    return { ...r, forecast_pct: periodic }
   })
 }
 
@@ -501,7 +521,9 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   const [renamingId,           setRenamingId]           = useState(null)
   const [renameValue,          setRenameValue]          = useState('')
   const [renameSaving,         setRenameSaving]         = useState(false)
+  const [confirmDeleteId,      setConfirmDeleteId]      = useState(null)
   const [importingActual,      setImportingActual]      = useState(false)
+  const [importingForecast,    setImportingForecast]    = useState(false)
   const [milestones,           setMilestones]           = useState([])
   const [selectedActivityIds,  setSelectedActivityIds]  = useState([])
   const [buildings,            setBuildings]            = useState([])
@@ -523,7 +545,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   const [wpMarkerSelectedIds,  setWpMarkerSelectedIds]  = useState(_sv.wpMarkerSelectedIds ?? [])
   const scopeRef      = useRef(null)
   const existingImportRef = useRef(null)
-  const actualImportRef = useRef(null)
+  const actualImportRef    = useRef(null)
+  const forecastImportRef  = useRef(null)
 
   const blColor = (id, i) => baselineColors[id] ?? BASELINE_COLORS[i % BASELINE_COLORS.length]
 
@@ -830,6 +853,38 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     setImportingActual(false)
   }
 
+  const handleImportForecast = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    setImportingForecast(true)
+    try {
+      const wb     = await parseWorkbook(file)
+      const parsed = parseForecastExcel(wb)
+      if (!parsed.length) {
+        showToast('Import failed: no valid rows found. Check "Period" and "Forecast %" columns.', 'error')
+        setImportingForecast(false)
+        return
+      }
+      const { building_id } = getScopeFilter(selectedBuildingId)
+      const forecastMap = Object.fromEntries(forecasts.map(r => [r.period_date, r]))
+      await Promise.all(parsed.map(r => {
+        const insertRow = { project_id: project.id, period_date: r.period_date, forecast_pct: r.forecast_pct, building_id }
+        const existing  = forecastMap[r.period_date]
+        return existing
+          ? supabase.from('scurve_forecast').update({ forecast_pct: r.forecast_pct, updated_at: new Date().toISOString() }).eq('id', existing.id)
+          : supabase.from('scurve_forecast').insert(insertRow)
+      }))
+      let q = supabase.from('scurve_forecast').select('*').eq('project_id', project.id)
+      q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
+      setForecasts((await q.order('period_date')).data ?? [])
+      showToast(`Imported ${parsed.length} forecast periods`)
+    } catch {
+      showToast('Failed to read file', 'error')
+    }
+    setImportingForecast(false)
+  }
+
   const handleRenameBaseline = async (id) => {
     const trimmed = renameValue.trim()
     if (!trimmed) return
@@ -840,6 +895,16 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     setRenamingId(null)
     setRenameSaving(false)
     showToast('Baseline renamed')
+  }
+
+  const handleDeleteBaseline = async (id) => {
+    await supabase.from('scurve_baseline_data').delete().eq('baseline_id', id)
+    await supabase.from('project_scurve_baselines').delete().eq('id', id)
+    const { data: bls } = await supabase.from('project_scurve_baselines').select('*').eq('project_id', project.id).order('created_at')
+    setBaselines(bls ?? [])
+    setSelectedBaselineIds(prev => prev.filter(x => x !== id))
+    setConfirmDeleteId(null)
+    showToast('Baseline deleted')
   }
 
   const applyBaselineImport = async (newRows, overwriteRows, targetId) => {
@@ -1108,6 +1173,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
           onChange={handleImportExisting} className="hidden" />
         <input ref={actualImportRef} type="file" accept=".xlsx,.xls,.csv"
           onChange={handleImportActual} className="hidden" />
+        <input ref={forecastImportRef} type="file" accept=".xlsx,.xls,.csv"
+          onChange={handleImportForecast} className="hidden" />
       </div>
 
       {/* Settings floating modal */}
@@ -1293,6 +1360,25 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                     </svg>
                     Actual Template
                   </button>
+                  <button
+                    onClick={() => forecastImportRef.current?.click()}
+                    disabled={importingForecast}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97] disabled:opacity-50"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+                    </svg>
+                    {importingForecast ? 'Reading…' : 'Import Forecast'}
+                  </button>
+                  <button
+                    onClick={downloadForecastTemplate}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-[color,border-color,transform] duration-150 ease-out active:scale-[0.97]"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Forecast Template
+                  </button>
                 </>
               )}
               {baselines.length > 0 && (
@@ -1370,6 +1456,22 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                           Cancel
                         </button>
                       </>
+                    ) : confirmDeleteId === b.id ? (
+                      <>
+                        <span className="flex-1 text-xs text-red-600 font-semibold truncate">Delete "{b.name}"?</span>
+                        <button
+                          onClick={() => handleDeleteBaseline(b.id)}
+                          className="px-2 py-1 text-xs font-semibold rounded-lg bg-red-600 text-white hover:bg-red-700 transition-[background-color,transform] duration-150 ease-out active:scale-[0.97] flex-shrink-0"
+                        >
+                          Delete
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(null)}
+                          className="text-xs text-gray-400 hover:text-gray-600 transition-colors duration-150 ease-out flex-shrink-0"
+                        >
+                          Cancel
+                        </button>
+                      </>
                     ) : (
                       <>
                         <span className="flex-1 text-xs text-gray-700 truncate">{b.name}</span>
@@ -1381,6 +1483,15 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                         >
                           <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                          </svg>
+                        </button>
+                        <button
+                          onClick={() => setConfirmDeleteId(b.id)}
+                          className="flex-shrink-0 p-1 -m-1 rounded text-gray-400 hover:text-red-500 transition-colors duration-150 ease-out active:scale-[0.9]"
+                          title="Delete"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                           </svg>
                         </button>
                       </>

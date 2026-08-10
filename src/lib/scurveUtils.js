@@ -118,8 +118,7 @@ export function computeChartData(periods, baselineData, actuals, forecasts) {
       period:   formatPeriod(p),
       baseline: (bPct > 0 && i <= lastBaselineIdx)           ? cumBaseline  : null,
       actual:   (aPct > 0 && i <= lastActualIdx)             ? cumActual    : null,
-      forecast: (i <= lastForecastIdx && (aPct > 0 || fPct > 0 || cumForecast > 0 && i <= lastForecastIdx))
-                  ? cumForecast : null,
+      forecast: (aPct > 0 || fPct > 0) ? cumForecast : null,
       _date:    p,
     }
   })

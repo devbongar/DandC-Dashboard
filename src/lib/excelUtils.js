@@ -189,6 +189,77 @@ export async function downloadActualTemplate(filename = 'actual-import-template.
   URL.revokeObjectURL(url)
 }
 
+export async function downloadForecastTemplate(filename = 'forecast-import-template.xlsx') {
+  const wb = new ExcelJS.Workbook()
+
+  const ins = wb.addWorksheet('Instructions')
+  ins.columns = [{ width: 22 }, { width: 68 }]
+
+  const title = ins.addRow(['Forecast Import Template -- Instructions'])
+  ins.mergeCells('A1:B1')
+  title.getCell(1).font = { bold: true, size: 12, color: { argb: 'FFFFFFFF' } }
+  title.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFED6055' } }
+  title.getCell(1).alignment = { vertical: 'middle', horizontal: 'left', indent: 1 }
+  title.height = 24
+  ins.addRow([])
+
+  const addRow = (label, text) => {
+    const r = ins.addRow([label, text])
+    r.getCell(1).font = { bold: true, color: { argb: 'FF111827' } }
+    r.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF9FAFB' } }
+    r.getCell(2).font = { color: { argb: 'FF374151' } }
+    r.getCell(2).alignment = { wrapText: true }
+    r.height = 32
+  }
+
+  addRow('Period column',     'Use m/d/yyyy format -- e.g. 1/1/2026 · 12/31/2026. Other accepted: 2026-01-01 · Jan \'26 · January 2026')
+  addRow('Forecast % column', 'Enter the CUMULATIVE % at the end of each period (0–100). The system converts to increments automatically.')
+  addRow('Column headers',    'Do not rename "Period" or "Forecast %" -- these exact names are required for import to work.')
+  addRow('Sheet name',        'Any sheet name works -- the first sheet in the file is used.')
+  addRow('Example',           'If Jan=5%, Feb=13%, Mar=23% cumulative -- enter 5, 13, 23 (not 5, 8, 10).')
+
+  ins.addRow([])
+  const exHeader = ins.addRow(['Example data:'])
+  exHeader.getCell(1).font = { bold: true, color: { argb: 'FF111827' } }
+  const exColHeader = ins.addRow(['Period', 'Forecast %'])
+  exColHeader.eachCell(c => {
+    c.font = { bold: true, color: { argb: 'FFFFFFFF' } }
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF6B7280' } }
+  })
+  ;[['1/1/2026', 5], ['2/1/2026', 13], ['3/1/2026', 23]].forEach(([p, v]) => {
+    const r = ins.addRow([p, v])
+    r.eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } } })
+  })
+
+  const ws = wb.addWorksheet('Forecast Data')
+  ws.columns = [
+    { header: 'Period',     key: 'period',   width: 18 },
+    { header: 'Forecast %', key: 'forecast', width: 14 },
+  ]
+  const header = ws.getRow(1)
+  header.font = { bold: true, color: { argb: 'FF111827' } }
+  header.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF1F5F9' } }
+  header.height = 20
+
+  const now = new Date()
+  for (let i = 0; i < 12; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth() + i, 1)
+    ws.addRow([`${d.getMonth() + 1}/1/${d.getFullYear()}`, ''])
+  }
+  ws.addRow([])
+  const note = ws.addRow(['← Add more rows below as needed', ''])
+  note.getCell(1).font = { italic: true, color: { argb: 'FF9CA3AF' } }
+
+  const buffer = await wb.xlsx.writeBuffer()
+  const blob   = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+  const url    = URL.createObjectURL(blob)
+  const a      = document.createElement('a')
+  a.href       = url
+  a.download   = filename
+  a.click()
+  URL.revokeObjectURL(url)
+}
+
 export async function downloadBaselineTemplate(filename = 'baseline-import-template.xlsx') {
   const wb = new ExcelJS.Workbook()
 
