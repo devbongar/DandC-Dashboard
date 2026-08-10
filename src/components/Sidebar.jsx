@@ -8,15 +8,18 @@ import { ROLE_LABELS, ROLE_BADGE, navKeyForProfile } from '../lib/roles'
 const NAV = {
   admin: [
     { label: 'Dashboard',             path: '/admin/dashboard',              Icon: HomeIcon },
+    { label: 'Unit Completion',        path: '/admin/unit-completion',        Icon: ChartBarIcon },
+    { label: 'Permits Dashboard',      path: '/admin/permits',                Icon: ClipboardListIcon },
     { label: 'Projects',              path: '/projects',                     Icon: FolderIcon },
     { label: 'Standard Permits',      path: '/admin/standard-permits',       Icon: DocumentCheckIcon },
-    { label: 'Role Assignment',       path: '/admin/roles',                  Icon: ShieldIcon },
     { label: 'Work Program Template', path: '/admin/work-program-template',  Icon: TemplateIcon },
+    { label: 'User Management',       path: '/admin/users',                  Icon: UsersIcon },
     { label: 'Settings',              path: '/admin/settings',               Icon: SettingsIcon },
   ],
   ho: [
-    { label: 'Dashboard', path: '/ho/dashboard', Icon: HomeIcon },
-    { label: 'Projects',  path: '/projects',     Icon: FolderIcon },
+    { label: 'Dashboard',         path: '/ho/dashboard',   Icon: HomeIcon },
+    { label: 'Projects',          path: '/projects',       Icon: FolderIcon },
+    { label: 'Permits Dashboard', path: '/admin/permits',  Icon: ClipboardListIcon },
   ],
   reporter: [
     { label: 'Dashboard', path: '/reporter/dashboard', Icon: HomeIcon },
@@ -114,55 +117,6 @@ export default function Sidebar({ profile, open, onClose }) {
             })}
           </ul>
 
-          {/* -- Admin Users section (admin only) -- */}
-          {profile?.role === 'admin' && (
-            <div className="mt-6 px-4">
-              <p className="mb-2 text-[10px] font-semibold text-white/20 uppercase tracking-widest select-none">
-                Admin Users
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <NavLink
-                  to="/admin/users"
-                  onClick={onClose}
-                  className={({ isActive }) => [
-                    'flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl',
-                    'border transition-all duration-150 text-center',
-                    isActive
-                      ? 'bg-white/10 border-[#ed6055]/50 text-white'
-                      : 'bg-white/[0.04] border-white/[0.08] text-white/50 hover:bg-white/[0.08] hover:text-white/80',
-                  ].join(' ')}
-                >
-                  <UsersIcon className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-[10px] font-medium leading-tight">User Management</span>
-                </NavLink>
-              </div>
-            </div>
-          )}
-
-          {/* -- Permits Monitoring section (HO users only) -- */}
-          {profile?.team === 'ho' && (
-            <div className="mt-6 px-4">
-              <p className="mb-2 text-[10px] font-semibold text-white/20 uppercase tracking-widest select-none">
-                Permits Monitoring
-              </p>
-              <div className="grid grid-cols-2 gap-2">
-                <NavLink
-                  to="/admin/permits"
-                  onClick={onClose}
-                  className={({ isActive }) => [
-                    'flex flex-col items-center justify-center gap-1.5 p-3 rounded-xl',
-                    'border transition-all duration-150 text-center',
-                    isActive
-                      ? 'bg-white/10 border-[#ed6055]/50 text-white'
-                      : 'bg-white/[0.04] border-white/[0.08] text-white/50 hover:bg-white/[0.08] hover:text-white/80',
-                  ].join(' ')}
-                >
-                  <ClipboardListIcon className="w-5 h-5 flex-shrink-0" />
-                  <span className="text-[10px] font-medium leading-tight">Permits Dashboard</span>
-                </NavLink>
-              </div>
-            </div>
-          )}
         </nav>
 
         {/* -- Footer -- */}
@@ -274,6 +228,13 @@ function SettingsIcon({ className }) {
   )
 }
 
+function ChartBarIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+    </svg>
+  )
+}
 function ClipboardListIcon({ className }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>

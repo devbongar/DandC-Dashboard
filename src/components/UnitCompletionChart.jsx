@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { supabase, fetchAll } from '../lib/supabaseClient'
 import TriangleLoader from './TriangleLoader'
 import {
@@ -136,7 +137,9 @@ function CustomTooltip({ active, payload, label }) {
 }
 
 // -- Main Component ------------------------------------------------------------
-export default function UnitCompletionChart({ id }) {
+export default function UnitCompletionChart({ id, expanded = false }) {
+  const navigate = useNavigate()
+  const chartHeight = expanded ? 380 : 240
   const [allProjects, setAllProjects]   = useState(null)
   const [floors, setFloors]             = useState([])
   const [completions, setCompletions]   = useState([])
@@ -294,7 +297,7 @@ const chartData = useMemo(
   }, [availableYears, timeMode])
 
   return (
-    <section id={id} className="bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col">
+    <section id={id} className={`bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col${expanded ? ' min-h-[calc(100dvh-5.5rem)]' : ''}`}>
       {/* Title row */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
@@ -412,6 +415,16 @@ const chartData = useMemo(
               </div>
             )}
           </div>
+          {!expanded && <button
+            onClick={() => navigate('/admin/unit-completion')}
+            title="Full screen"
+            className="flex-shrink-0 p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors"
+            style={{ background: '#fafafa' }}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
+            </svg>
+          </button>}
         </div>
       </div>
 
@@ -583,7 +596,7 @@ const chartData = useMemo(
               <div className="flex">
                 {/* Fixed Y-axis */}
                 <div style={{ width: 45, flexShrink: 0 }}>
-                  <ResponsiveContainer width={45} height={240}>
+                  <ResponsiveContainer width={45} height={chartHeight}>
                     <BarChart data={chartData} margin={{ top: 4, right: 0, left: -10, bottom: 36 }}>
                       <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                       <Bar dataKey="m4Expected" fill="transparent" isAnimationActive={false} />
@@ -594,7 +607,7 @@ const chartData = useMemo(
                 {/* Scrollable bars */}
                 <div className="overflow-x-auto flex-1 min-w-0" ref={m4Ref}>
                   <div style={{ width: chartWidthPct }}>
-                    <ResponsiveContainer width="100%" height={240}>
+                    <ResponsiveContainer width="100%" height={chartHeight}>
                       <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                         <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
@@ -619,7 +632,7 @@ const chartData = useMemo(
               <div className="flex">
                 {/* Fixed Y-axis */}
                 <div style={{ width: 45, flexShrink: 0 }}>
-                  <ResponsiveContainer width={45} height={240}>
+                  <ResponsiveContainer width={45} height={chartHeight}>
                     <BarChart data={chartData} margin={{ top: 4, right: 0, left: -10, bottom: 36 }}>
                       <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                       <Bar dataKey="m5Expected" fill="transparent" isAnimationActive={false} />
@@ -630,7 +643,7 @@ const chartData = useMemo(
                 {/* Scrollable bars */}
                 <div className="overflow-x-auto flex-1 min-w-0" ref={m5Ref}>
                   <div style={{ width: chartWidthPct }}>
-                    <ResponsiveContainer width="100%" height={240}>
+                    <ResponsiveContainer width="100%" height={chartHeight}>
                       <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                         <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
