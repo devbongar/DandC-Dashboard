@@ -13,13 +13,13 @@ import PermitsTab from './PermitsTab'
 
 // -- Speed-dial FAB nav items --------------------------------------------------
 const FAB_NAV = [
-  { key: 'Planned M4/M5',     label: 'Planned M4/M5', icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg> },
-  { key: 'Completion (M4/M5)',label: 'Completion',     icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
   { key: 'Work Program',      label: 'Work Program',  icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg> },
-  { key: 'S-Curve',           label: 'S-Curve',       icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg> },
+  { key: 'Planned M4/M5',     label: 'Planned M4/M5', icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg> },
   { key: 'Permits',           label: 'Permits',       icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg> },
-  { key: 'Issues & Concerns', label: 'Issues',        icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg> },
+  { key: 'S-Curve',           label: 'S-Curve',       icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg> },
+  { key: 'Unit Completion',label: 'Unit Completion',     icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg> },
   { key: 'Photos',            label: 'Photos',        icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg> },
+  { key: 'Issues & Concerns', label: 'Issues',        icon: <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg> },
 ]
 
 // -- Constants -----------------------------------------------------------------
@@ -57,7 +57,7 @@ const noNeg = (...vals) => vals.filter(v => v !== null && v !== undefined).some(
 
 const inputCls  = 'w-full px-3 py-2.5 text-sm rounded-xl border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:border-[#ed6055] bg-white transition-colors'
 
-const BASE_TABS = ['Project Info', 'Planned M4/M5', 'Completion (M4/M5)', 'Work Program', 'S-Curve', 'Permits', 'Issues & Concerns', 'Photos']
+const BASE_TABS = ['Project Info', 'Work Program', 'Planned M4/M5', 'Permits', 'S-Curve', 'Unit Completion', 'Photos', 'Issues & Concerns']
 
 const ISSUE_STATUS_CONFIG = {
   open:  { label: 'Open',  cls: 'bg-[#ed6055] text-white' },
@@ -1418,16 +1418,15 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
 }
 
 function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = true, onCopyDone }) {
-  const [buildings, setBuildings]   = useState([])
-  const [adding, setAdding]         = useState(false)
+  const [buildings, setBuildings]           = useState([])
+  const [showAddModal, setShowAddModal]     = useState(false)
+  const [editingBuilding, setEditingBuilding] = useState(null)
   const [bulkAdding, setBulkAdding]         = useState(false)
   const [bulkDeleting, setBulkDeleting]     = useState(false)
   const [copying, setCopying]               = useState(false)
-  const [editId, setEditId]         = useState(null)
-  const [nameInput, setNameInput]   = useState('')
-  const [deleteId, setDeleteId]     = useState(null)
-  const [moreOpen, setMoreOpen]     = useState(false)
-  const moreRef                     = useRef(null)
+  const [deleteId, setDeleteId]             = useState(null)
+  const [moreOpen, setMoreOpen]             = useState(false)
+  const moreRef                             = useRef(null)
 
   useEffect(() => {
     if (!moreOpen) return
@@ -1450,25 +1449,6 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
     }
   }
 
-  const addBuilding = async () => {
-    const name = nameInput.trim()
-    if (!name) return
-    const { data } = await supabase
-      .from('project_buildings')
-      .insert({ project_id: projectId, name, sort_order: buildings.length })
-      .select('*').single()
-    if (data) { setBuildings(b => [...b, data]); onChange(data.id) }
-    setAdding(false); setNameInput('')
-  }
-
-  const renameBuilding = async (id) => {
-    const name = nameInput.trim()
-    if (!name) return
-    await supabase.from('project_buildings').update({ name }).eq('id', id)
-    setBuildings(b => b.map(x => x.id === id ? { ...x, name } : x))
-    setEditId(null); setNameInput('')
-  }
-
   const deleteBuilding = async (id) => {
     await supabase.from('project_floors').delete().eq('building_id', id)
     await supabase.from('project_parking_floors').delete().eq('building_id', id)
@@ -1480,7 +1460,6 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
 
   if (buildings.length === 0 && !isAdmin) return null
 
-  // First 3 pills always visible; if the selected building is beyond that, bubble it up
   const PILL_LIMIT    = 3
   const basePills     = buildings.slice(0, PILL_LIMIT)
   const rawOverflow   = buildings.slice(PILL_LIMIT)
@@ -1489,27 +1468,22 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
   const overflowPills = rawOverflow.filter(b => b.id !== buildingId)
 
   const renderPill = (b) => (
-    editId === b.id ? (
-      <div key={b.id} className="flex items-center gap-1">
-        <input
-          autoFocus
-          value={nameInput}
-          onChange={e => setNameInput(e.target.value)}
-          onKeyDown={e => { if (e.key === 'Enter') renameBuilding(b.id); if (e.key === 'Escape') { setEditId(null); setNameInput('') } }}
-          className="text-xs border border-gray-300 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-[#ed6055]"
-        />
-        <button onClick={() => renameBuilding(b.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45]">Save</button>
-        <button onClick={() => { setEditId(null); setNameInput('') }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-      </div>
-    ) : (
-      <div key={b.id} className="flex items-center gap-0.5 group">
-        <button
-          onClick={() => onChange(b.id)}
-          className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${buildingId === b.id ? 'bg-[#ed6055] text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-        >
-          {b.name}
-        </button>
-        {isAdmin && (
+    <div key={b.id} className="flex items-center gap-0.5 group">
+      <button
+        onClick={() => onChange(b.id)}
+        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${buildingId === b.id ? 'bg-[#ed6055] text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
+      >
+        {b.name}
+      </button>
+      {isAdmin && (
+        <>
+          <button
+            onClick={() => setEditingBuilding(b)}
+            className="opacity-0 group-hover:opacity-100 transition p-1 text-gray-400 hover:text-[#ed6055]"
+            title={`Edit ${b.name}`}
+          >
+            <PencilIcon />
+          </button>
           <button
             onClick={() => setDeleteId(b.id)}
             className="opacity-0 group-hover:opacity-100 transition p-1 text-gray-400 hover:text-red-500"
@@ -1517,16 +1491,15 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
           >
             <TrashIcon />
           </button>
-        )}
-      </div>
-    )
+        </>
+      )}
+    </div>
   )
 
   return (
-    <div className="flex items-center gap-2 flex-wrap mb-5">
+    <div className="flex items-center gap-2 flex-wrap">
       {visiblePills.map(renderPill)}
 
-      {/* Overflow "+N more" dropdown */}
       {overflowPills.length > 0 && (
         <div className="relative" ref={moreRef}>
           <button
@@ -1554,10 +1527,10 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
         </div>
       )}
 
-      {isAdmin && canAdd && !adding && (
+      {isAdmin && canAdd && (
         <>
           <button
-            onClick={() => { setAdding(true); setNameInput('') }}
+            onClick={() => setShowAddModal(true)}
             className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold border border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] transition"
           >
             <PlusIcon /> Add Tower/Location
@@ -1573,25 +1546,37 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
         </>
       )}
 
-      {canAdd && adding && (
-        <div className="flex items-center gap-1">
-          <input
-            autoFocus
-            value={nameInput}
-            onChange={e => setNameInput(e.target.value)}
-            onKeyDown={e => { if (e.key === 'Enter') addBuilding(); if (e.key === 'Escape') { setAdding(false); setNameInput('') } }}
-            placeholder="e.g. Tower A"
-            className="text-xs border border-gray-300 rounded-lg px-2 py-1 w-32 focus:outline-none focus:ring-2 focus:ring-[#ed6055]"
-          />
-          <button onClick={addBuilding} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45]">Add</button>
-          <button onClick={() => { setAdding(false); setNameInput('') }} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button>
-        </div>
-      )}
-
       {deleteId !== null && (
         <ConfirmDeleteModal
           onConfirm={() => { deleteBuilding(deleteId); setDeleteId(null) }}
           onCancel={() => setDeleteId(null)}
+        />
+      )}
+
+      {showAddModal && (
+        <AddTowerModal
+          projectId={projectId}
+          existingCount={buildings.length}
+          onDone={(building) => {
+            setBuildings(b => [...b, building])
+            onChange(building.id)
+            setShowAddModal(false)
+            onCopyDone?.()
+          }}
+          onCancel={() => setShowAddModal(false)}
+        />
+      )}
+
+      {editingBuilding && (
+        <EditTowerModal
+          building={editingBuilding}
+          projectId={projectId}
+          onDone={(updated) => {
+            setBuildings(b => b.map(x => x.id === updated.id ? { ...x, name: updated.name } : x))
+            setEditingBuilding(null)
+            onCopyDone?.()
+          }}
+          onCancel={() => setEditingBuilding(null)}
         />
       )}
 
@@ -1632,6 +1617,224 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
           onCancel={() => setCopying(false)}
         />
       )}
+    </div>
+  )
+}
+
+function TowerFloorRangeFields({ from, setFrom, to, setTo, prefix, setPrefix, count, setCount, countLabel }) {
+  const fieldCls = 'w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40'
+  const labelCls = 'block text-xs font-medium text-gray-500 mb-1'
+  return (
+    <div className="mt-2 pl-5 space-y-2 border-l-2 border-gray-100">
+      <div className="grid grid-cols-2 gap-2">
+        <div><label className={labelCls}>From Floor</label><input type="number" value={from} onChange={e => setFrom(e.target.value)} placeholder="1" className={fieldCls} /></div>
+        <div><label className={labelCls}>To Floor</label><input type="number" value={to} onChange={e => setTo(e.target.value)} placeholder="40" className={fieldCls} /></div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div><label className={labelCls}>Prefix <span className="font-normal text-gray-400">(opt.)</span></label><input value={prefix} onChange={e => setPrefix(e.target.value)} placeholder="F or L" className={fieldCls} /></div>
+        <div><label className={labelCls}>{countLabel} / Floor <span className="font-normal text-gray-400">(opt.)</span></label><input type="number" value={count} onChange={e => setCount(e.target.value)} placeholder="0" className={fieldCls} /></div>
+      </div>
+    </div>
+  )
+}
+
+function buildTowerFloorRows(from, to, prefix, count, projectId, buildingId) {
+  const f = parseInt(from), t = parseInt(to)
+  if (isNaN(f) || isNaN(t) || f > t || t - f > 199) return []
+  return Array.from({ length: t - f + 1 }, (_, i) => ({
+    project_id: projectId,
+    building_id: buildingId,
+    physical_level: prefix ? `${prefix}${f + i}` : String(f + i),
+    marketing_level: null,
+    num_units: count !== '' && !isNaN(parseInt(count)) ? parseInt(count) : null,
+    m4_planned_start: null, m4_planned_end: null,
+    m5_planned_start: null, m5_planned_end: null,
+  }))
+}
+
+function AddTowerModal({ projectId, existingCount, onDone, onCancel }) {
+  const [name, setName]             = useState('')
+  const [hasRes, setHasRes]         = useState(true)
+  const [hasPark, setHasPark]       = useState(false)
+  const [reFrom, setReFrom]         = useState('')
+  const [reTo, setReTo]             = useState('')
+  const [rePrefix, setRePrefix]     = useState('')
+  const [reUnits, setReUnits]       = useState('')
+  const [pkFrom, setPkFrom]         = useState('')
+  const [pkTo, setPkTo]             = useState('')
+  const [pkPrefix, setPkPrefix]     = useState('')
+  const [pkSpaces, setPkSpaces]     = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [err, setErr]               = useState('')
+
+  const handleSubmit = async () => {
+    const trimName = name.trim()
+    if (!trimName) { setErr('Tower name is required.'); return }
+    setSubmitting(true); setErr('')
+    const { data: building, error } = await supabase
+      .from('project_buildings')
+      .insert({ project_id: projectId, name: trimName, sort_order: existingCount })
+      .select('*').single()
+    if (error) { setErr(error.message); setSubmitting(false); return }
+    const ops = []
+    if (hasRes) {
+      const rows = buildTowerFloorRows(reFrom, reTo, rePrefix, reUnits, projectId, building.id)
+      if (rows.length > 0) ops.push(supabase.from('project_floors').insert(rows))
+    }
+    if (hasPark) {
+      const rows = buildTowerFloorRows(pkFrom, pkTo, pkPrefix, pkSpaces, projectId, building.id)
+      if (rows.length > 0) ops.push(supabase.from('project_parking_floors').insert(rows))
+    }
+    await Promise.all(ops)
+    onDone(building)
+  }
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/20 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 overflow-y-auto max-h-[90vh]">
+        <h3 className="text-sm font-bold text-gray-900 mb-4">Add Tower / Location</h3>
+        <div className="mb-5">
+          <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
+          <input
+            autoFocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
+            placeholder="e.g. Tower A"
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40"
+          />
+        </div>
+        <div className="space-y-4 mb-5">
+          <div>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input type="checkbox" checked={hasRes} onChange={e => setHasRes(e.target.checked)} className="w-4 h-4 rounded accent-[#ed6055]" />
+              <span className="text-sm font-semibold text-gray-800">Residential Units</span>
+            </label>
+            {hasRes && <TowerFloorRangeFields from={reFrom} setFrom={setReFrom} to={reTo} setTo={setReTo} prefix={rePrefix} setPrefix={setRePrefix} count={reUnits} setCount={setReUnits} countLabel="Units" />}
+          </div>
+          <div>
+            <label className="flex items-center gap-2.5 cursor-pointer select-none">
+              <input type="checkbox" checked={hasPark} onChange={e => setHasPark(e.target.checked)} className="w-4 h-4 rounded accent-[#ed6055]" />
+              <span className="text-sm font-semibold text-gray-800">Parking</span>
+            </label>
+            {hasPark && <TowerFloorRangeFields from={pkFrom} setFrom={setPkFrom} to={pkTo} setTo={setPkTo} prefix={pkPrefix} setPrefix={setPkPrefix} count={pkSpaces} setCount={setPkSpaces} countLabel="Spaces" />}
+          </div>
+        </div>
+        {err && <p className="text-xs text-red-500 mb-3">{err}</p>}
+        <div className="flex justify-end gap-2">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium transition">Cancel</button>
+          <button onClick={handleSubmit} disabled={submitting} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
+            {submitting ? 'Adding…' : 'Add Tower'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EditTowerModal({ building, projectId, onDone, onCancel }) {
+  const [name, setName]             = useState(building.name)
+  const [resSummary, setResSummary] = useState({ floors: 0, units: 0 })
+  const [pkSummary, setPkSummary]   = useState({ floors: 0, units: 0 })
+  const [addRes, setAddRes]         = useState(false)
+  const [addPark, setAddPark]       = useState(false)
+  const [reFrom, setReFrom]         = useState('')
+  const [reTo, setReTo]             = useState('')
+  const [rePrefix, setRePrefix]     = useState('')
+  const [reUnits, setReUnits]       = useState('')
+  const [pkFrom, setPkFrom]         = useState('')
+  const [pkTo, setPkTo]             = useState('')
+  const [pkPrefix, setPkPrefix]     = useState('')
+  const [pkSpaces, setPkSpaces]     = useState('')
+  const [saving, setSaving]         = useState(false)
+  const [err, setErr]               = useState('')
+
+  useEffect(() => {
+    const load = async () => {
+      const [rRes, pRes] = await Promise.all([
+        supabase.from('project_floors').select('num_units').eq('building_id', building.id),
+        supabase.from('project_parking_floors').select('num_units').eq('building_id', building.id),
+      ])
+      if (rRes.data) setResSummary({ floors: rRes.data.length, units: rRes.data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
+      if (pRes.data) setPkSummary({ floors: pRes.data.length, units: pRes.data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
+    }
+    load()
+  }, [building.id])
+
+  const handleSave = async () => {
+    const trimName = name.trim()
+    if (!trimName) { setErr('Name is required.'); return }
+    setSaving(true); setErr('')
+    const ops = []
+    if (trimName !== building.name) ops.push(supabase.from('project_buildings').update({ name: trimName }).eq('id', building.id))
+    if (addRes) {
+      const rows = buildTowerFloorRows(reFrom, reTo, rePrefix, reUnits, projectId, building.id)
+      if (rows.length > 0) ops.push(supabase.from('project_floors').insert(rows))
+    }
+    if (addPark) {
+      const rows = buildTowerFloorRows(pkFrom, pkTo, pkPrefix, pkSpaces, projectId, building.id)
+      if (rows.length > 0) ops.push(supabase.from('project_parking_floors').insert(rows))
+    }
+    await Promise.all(ops)
+    onDone({ ...building, name: trimName })
+  }
+
+  const StatPill = ({ count, label, color }) => (
+    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${color}`}>
+      {count} {label}
+    </span>
+  )
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/20 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 overflow-y-auto max-h-[90vh]">
+        <h3 className="text-sm font-bold text-gray-900 mb-4">Edit Tower</h3>
+        <div className="mb-5">
+          <label className="block text-xs font-medium text-gray-600 mb-1">Name</label>
+          <input
+            autoFocus
+            value={name}
+            onChange={e => setName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Escape') onCancel() }}
+            className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40"
+          />
+        </div>
+        <div className="space-y-3 mb-5">
+          <div className="rounded-xl border border-gray-100 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-gray-800">Residential Units</span>
+              <div className="flex gap-1.5">
+                <StatPill count={resSummary.floors} label="floors" color="bg-amber-50 text-amber-700" />
+                <StatPill count={resSummary.units} label="units" color="bg-amber-50 text-amber-700" />
+              </div>
+            </div>
+            <button onClick={() => setAddRes(v => !v)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] transition">
+              {addRes ? '− Hide' : '+ Add more floors'}
+            </button>
+            {addRes && <TowerFloorRangeFields from={reFrom} setFrom={setReFrom} to={reTo} setTo={setReTo} prefix={rePrefix} setPrefix={setRePrefix} count={reUnits} setCount={setReUnits} countLabel="Units" />}
+          </div>
+          <div className="rounded-xl border border-gray-100 p-3">
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-sm font-semibold text-gray-800">Parking</span>
+              <div className="flex gap-1.5">
+                <StatPill count={pkSummary.floors} label="floors" color="bg-blue-50 text-blue-700" />
+                <StatPill count={pkSummary.units} label="spaces" color="bg-blue-50 text-blue-700" />
+              </div>
+            </div>
+            <button onClick={() => setAddPark(v => !v)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] transition">
+              {addPark ? '− Hide' : '+ Add parking floors'}
+            </button>
+            {addPark && <TowerFloorRangeFields from={pkFrom} setFrom={setPkFrom} to={pkTo} setTo={setPkTo} prefix={pkPrefix} setPrefix={setPkPrefix} count={pkSpaces} setCount={setPkSpaces} countLabel="Spaces" />}
+          </div>
+        </div>
+        {err && <p className="text-xs text-red-500 mb-3">{err}</p>}
+        <div className="flex justify-end gap-2">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium transition">Cancel</button>
+          <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
+            {saving ? 'Saving…' : 'Save'}
+          </button>
+        </div>
+      </div>
     </div>
   )
 }
@@ -1813,9 +2016,9 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
           <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-200">
-                <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 72 }}>Phys. Level</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 72 }}>Mktg. Level</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 64 }}>Units</th>
+                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 72 }}>Phys. Level</th>
+                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 72 }}>Mktg. Level</th>
+                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 64 }}>Units</th>
                 <th className="text-center px-3 py-2 font-semibold text-amber-500 uppercase tracking-wider" colSpan={2} style={{ minWidth: 120 }}>
                   <div>M4 Planned</div>
                   <div className="flex justify-around mt-0.5 normal-case tracking-normal font-medium text-[10px] text-amber-400"><span>Start Date</span><span>End Date</span></div>
@@ -1985,9 +2188,9 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
           <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-200">
-                <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 72 }}>Phys. Level</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 72 }}>Mktg. Level</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-400 uppercase tracking-wider" style={{ minWidth: 64 }}>Spaces</th>
+                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 72 }}>Phys. Level</th>
+                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 72 }}>Mktg. Level</th>
+                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 64 }}>Spaces</th>
                 <th className="text-center px-3 py-2 font-semibold text-amber-500 uppercase tracking-wider" colSpan={2} style={{ minWidth: 120 }}>
                   <div>M4 Planned</div>
                   <div className="flex justify-around mt-0.5 normal-case tracking-normal font-medium text-[10px] text-amber-400"><span>Start Date</span><span>End Date</span></div>
@@ -2194,52 +2397,80 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
 }
 
 function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey = 0, onExport, onImport, importing, importErrors = [], onDismissImportErrors }) {
-  const [floorRefreshKey, setFloorRefreshKey]     = useState(0)
-  const [buildingId, setBuildingId]               = useState(null)
-  const [resSummary, setResSummary]               = useState({ floors: 0, units: 0 })
-  const [parkSummary, setParkSummary]             = useState({ floors: 0, units: 0 })
+  const [floorRefreshKey, setFloorRefreshKey]       = useState(0)
+  const [buildingId, setBuildingId]                 = useState(null)
+  const [resSummary, setResSummary]                 = useState({ floors: 0, units: 0 })
+  const [parkSummary, setParkSummary]               = useState({ floors: 0, units: 0 })
+  const [forceShowParking, setForceShowParking]     = useState(false)
+
+  useEffect(() => { setForceShowParking(false) }, [buildingId])
+  useEffect(() => { if (parkSummary.floors > 0) setForceShowParking(true) }, [parkSummary.floors])
+
+  const showParking = parkSummary.floors > 0 || forceShowParking
 
   return (
     <div>
-      <div className="sticky top-0 z-30 bg-white">
-        <ImportErrorPanel errors={importErrors} onDismiss={onDismissImportErrors} />
-        <div className="flex items-center justify-between py-3 border-b border-gray-100 mb-5">
-          <span className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Towers / Locations</span>
+      <ImportErrorPanel errors={importErrors} onDismiss={onDismissImportErrors} />
+
+      <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5 mt-1">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-4 rounded-full bg-[#ed6055]" />
+            <h3 className="text-sm font-bold text-gray-900">Towers / Locations</h3>
+          </div>
           <ExcelButtons onExport={onExport} onImport={onImport} importing={importing} />
         </div>
+        <BuildingSelector
+          projectId={project.id}
+          isAdmin={isAdmin}
+          buildingId={buildingId}
+          onChange={id => { setBuildingId(id); setResSummary({ floors: 0, units: 0 }); setParkSummary({ floors: 0, units: 0 }) }}
+          onCopyDone={() => { setResSummary({ floors: 0, units: 0 }); setParkSummary({ floors: 0, units: 0 }); setFloorRefreshKey(k => k + 1) }}
+        />
       </div>
-
-      <BuildingSelector
-        projectId={project.id}
-        isAdmin={isAdmin}
-        buildingId={buildingId}
-        onChange={id => { setBuildingId(id); setResSummary({ floors: 0, units: 0 }); setParkSummary({ floors: 0, units: 0 }) }}
-        onCopyDone={() => { setResSummary({ floors: 0, units: 0 }); setParkSummary({ floors: 0, units: 0 }); setFloorRefreshKey(k => k + 1) }}
-      />
 
       {buildingId && (resSummary.floors > 0 || parkSummary.floors > 0) && (
         <div className="flex flex-wrap gap-3 mb-5">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-amber-50 border border-amber-100 text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-            <span className="text-gray-500">Residential</span>
-            <span className="text-gray-300">Â·</span>
-            <span className="font-semibold text-gray-800">{resSummary.floors} floor{resSummary.floors !== 1 ? 's' : ''}</span>
-            <span className="text-gray-300">Â·</span>
-            <span className="font-semibold text-gray-800">{resSummary.units} unit{resSummary.units !== 1 ? 's' : ''}</span>
-          </div>
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-blue-50 border border-blue-100 text-xs">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-            <span className="text-gray-500">Parking</span>
-            <span className="text-gray-300">Â·</span>
-            <span className="font-semibold text-gray-800">{parkSummary.floors} floor{parkSummary.floors !== 1 ? 's' : ''}</span>
-            <span className="text-gray-300">Â·</span>
-            <span className="font-semibold text-gray-800">{parkSummary.units} space{parkSummary.units !== 1 ? 's' : ''}</span>
-          </div>
+          {resSummary.floors > 0 && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
+              <span className="text-gray-500">Residential</span>
+              <span className="text-gray-300">·</span>
+              <span className="font-semibold text-gray-800">{resSummary.floors} floor{resSummary.floors !== 1 ? 's' : ''}</span>
+              <span className="text-gray-300">·</span>
+              <span className="font-semibold text-gray-800">{resSummary.units} unit{resSummary.units !== 1 ? 's' : ''}</span>
+            </div>
+          )}
+          {parkSummary.floors > 0 && (
+            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
+              <span className="text-gray-500">Parking</span>
+              <span className="text-gray-300">·</span>
+              <span className="font-semibold text-gray-800">{parkSummary.floors} floor{parkSummary.floors !== 1 ? 's' : ''}</span>
+              <span className="text-gray-300">·</span>
+              <span className="font-semibold text-gray-800">{parkSummary.units} space{parkSummary.units !== 1 ? 's' : ''}</span>
+            </div>
+          )}
         </div>
       )}
 
       <ProjectFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setResSummary} />
-      <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={devRefreshKey} onSummaryChange={setParkSummary} />
+
+      {/* Always render ParkingFloorSchedule so onSummaryChange fires; hide via CSS when not relevant */}
+      <div className={showParking && buildingId ? '' : 'hidden'}>
+        <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setParkSummary} />
+      </div>
+
+      {buildingId && !showParking && isAdmin && (
+        <div className="mt-2">
+          <button
+            onClick={() => setForceShowParking(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-dashed border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500 rounded-lg transition"
+          >
+            <PlusIcon /> Add Parking Floors
+          </button>
+        </div>
+      )}
     </div>
   )
 }
@@ -4770,20 +5001,12 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 
   const SECTIONS = [
     {
-      key: 'Planned M4/M5', label: 'Planned M4/M5',
-      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>,
-    },
-    {
-      key: 'Completion (M4/M5)', label: 'Completion',
-      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
-    },
-    {
       key: 'Work Program', label: 'Work Program',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" /></svg>,
     },
     {
-      key: 'S-Curve', label: 'S-Curve',
-      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>,
+      key: 'Planned M4/M5', label: 'Planned M4/M5',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>,
     },
     {
       key: 'Permits', label: 'Permits',
@@ -4791,13 +5014,21 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>,
     },
     {
-      key: 'Issues & Concerns', label: 'Issues',
-      badge: tabCounts.issues, alert: tabCounts.issues > 0,
-      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>,
+      key: 'S-Curve', label: 'S-Curve',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 18L9 11.25l4.306 4.307a11.95 11.95 0 015.814-5.519l2.74-1.22m0 0l-5.94-2.28m5.94 2.28l-2.28 5.941" /></svg>,
+    },
+    {
+      key: 'Unit Completion', label: 'Unit Completion',
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>,
     },
     {
       key: 'Photos', label: 'Photos',
       icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>,
+    },
+    {
+      key: 'Issues & Concerns', label: 'Issues',
+      badge: tabCounts.issues, alert: tabCounts.issues > 0,
+      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>,
     },
   ]
 
@@ -4926,7 +5157,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} showToast={showToast} />}
             {activeSection === 'Permits'            && <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} />}
             {activeSection === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
-            {activeSection === 'Completion (M4/M5)' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {activeSection === 'Unit Completion' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'Photos'             && <PhotosTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
           </div>
         )}
