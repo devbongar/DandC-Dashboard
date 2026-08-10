@@ -537,6 +537,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   const [showLabelActual,      setShowLabelActual]      = useState(_sv.showLabelActual    ?? true)
   const [showLabelForecast,    setShowLabelForecast]    = useState(_sv.showLabelForecast  ?? true)
   const [labelStep,        setLabelStep]            = useState(_sv.labelStep      ?? 1)
+  const [summaryBaselineId, setSummaryBaselineId]   = useState(_sv.summaryBaselineId ?? null)
+  const [summaryBaselineData, setSummaryBaselineData] = useState([])
   const [scopeOpen,            setScopeOpen]            = useState(false)
   const [settingsOpen,         setSettingsOpen]         = useState(false)
   const [wpBaselines,          setWpBaselines]          = useState([])
@@ -668,6 +670,15 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     ).then(entries => setBaselineDataMap(Object.fromEntries(entries)))
   }, [JSON.stringify(selectedBaselineIds), selectedBuildingId]) // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Fetch summary baseline data independently whenever summaryBaselineId changes
+  useEffect(() => {
+    if (!summaryBaselineId) { setSummaryBaselineData([]); return }
+    const { building_id } = getScopeFilter(selectedBuildingId)
+    let q = supabase.from('scurve_baseline_data').select('*').eq('baseline_id', summaryBaselineId)
+    q = building_id ? q.eq('building_id', building_id) : q.is('building_id', null)
+    q.order('period_date').then(({ data }) => setSummaryBaselineData(data ?? []))
+  }, [summaryBaselineId, selectedBuildingId]) // eslint-disable-line react-hooks/exhaustive-deps
+
   const baselineMaps = useMemo(() => {
     const result = {}
     for (const [id, data] of Object.entries(baselineDataMap)) {
@@ -731,6 +742,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         labelStep,
         wpMarkerBaselineId,
         wpMarkerSelectedIds,
+        summaryBaselineId,
       }))
       showToast('View saved')
     } catch {
@@ -1082,10 +1094,12 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   ]
 
   // Summary card metrics
-  // baselines is already ordered created_at ASC from DB -- .at(-1) = newest among selected
-  const refBaseline = selectedBaselineIds.length
-    ? baselines.filter(b => selectedBaselineIds.includes(b.id)).at(-1) ?? null
-    : null
+  const refBaseline = (() => {
+    if (summaryBaselineId) return baselines.find(b => b.id === summaryBaselineId) ?? null
+    return selectedBaselineIds.length
+      ? baselines.filter(b => selectedBaselineIds.includes(b.id)).at(-1) ?? null
+      : null
+  })()
 
   const latestActualDate = chartData
     .filter(d => d.actual != null)
@@ -1102,10 +1116,12 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     .sort((a, b) => a._date < b._date ? 1 : -1)[0]?._date ?? null
 
   const summaryPlanned = (() => {
-    if (!refBaseline || !latestDataDate) return null
-    const blData = baselineDataMap[refBaseline.id] ?? []
+    if (!refBaseline || !latestActualDate) return null
+    const blData = summaryBaselineId
+      ? summaryBaselineData
+      : (baselineDataMap[refBaseline.id] ?? [])
     const rows = [...blData]
-      .filter(r => r.period_date <= latestDataDate)
+      .filter(r => r.period_date <= latestActualDate)
       .sort((a, b) => a.period_date.localeCompare(b.period_date))
     let cum = 0
     rows.forEach(r => { cum = Math.min(100, cum + (r.planned_pct ?? 0)) })
@@ -1299,6 +1315,23 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               </button>
             ))}
           </div>
+          {/* Summary card baseline picker */}
+          {baselines.length > 0 && (
+            <div className="flex items-center gap-2 flex-wrap border-t border-gray-200 pt-3">
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Summary</span>
+              <span className="text-[10px] text-gray-400">Planned POC baseline:</span>
+              <select
+                value={summaryBaselineId ?? ''}
+                onChange={e => setSummaryBaselineId(e.target.value || null)}
+                className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white cursor-pointer"
+              >
+                <option value="">Auto (last selected)</option>
+                {baselines.map(b => (
+                  <option key={b.id} value={b.id}>{b.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           {/* Data actions row (admin) */}
           {(isAdmin || baselines.length > 0) && (
             <div className="flex items-center gap-2 flex-wrap border-t border-gray-200 pt-3">
