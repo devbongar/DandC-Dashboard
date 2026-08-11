@@ -2939,12 +2939,14 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
         </div>
       )}
 
-      <ProjectFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setResSummary} />
+      {buildingId && <ProjectFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setResSummary} />}
 
       {/* Always render ParkingFloorSchedule so onSummaryChange fires; hide via CSS when not relevant */}
-      <div className={showParking && buildingId ? '' : 'hidden'}>
-        <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setParkSummary} />
-      </div>
+      {buildingId && (
+        <div className={showParking ? '' : 'hidden'}>
+          <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setParkSummary} />
+        </div>
+      )}
 
       {buildingId && !showParking && isAdmin && (
         <div className="mt-2">
