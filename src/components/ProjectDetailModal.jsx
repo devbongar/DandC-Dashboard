@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
+import { createPortal } from 'react-dom'
 import { useNavigate } from 'react-router-dom'
 import { supabase, fetchAll } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr, toFloat, toInt } from '../lib/excelUtils'
@@ -630,13 +631,14 @@ function IosCard({ icon, title, children }) {
 
 // -- Overview Detail Item (editorial style) -----------------------------------
 function OverviewDetailItem({ label, value, icon }) {
+  if (!value && value !== 0) return null
   return (
     <div className="pl-3 border-l-2 border-transparent hover:border-[#ed6055]/50 transition-all duration-200">
       <div className="flex items-center gap-1.5 mb-1">
         {icon && <span className="text-gray-400 flex-shrink-0">{icon}</span>}
         <p className="text-[10px] tracking-[0.12em] uppercase font-semibold text-gray-400">{label}</p>
       </div>
-      <p className="text-sm text-gray-800">{value || <span className="text-gray-300">--</span>}</p>
+      <p className="text-sm text-gray-800">{value}</p>
     </div>
   )
 }
@@ -657,6 +659,10 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
     development_type: project.development_type ?? '',
     phase:            project.phase ?? '',
     project_brief:    project.project_brief ?? '',
+    num_towers:       project.num_towers ?? '',
+    floors_per_tower: project.floors_per_tower ?? '',
+    units_per_floor:  project.units_per_floor ?? '',
+    total_units:      project.total_units ?? '',
   })
 
   const [editing, setEditing] = useState(startEditing)
@@ -705,6 +711,10 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
       development_type: form.development_type || null,
       phase:            form.phase || null,
       project_brief:    form.project_brief.trim() || null,
+      num_towers:       form.num_towers !== '' ? parseInt(form.num_towers) : null,
+      floors_per_tower: form.floors_per_tower !== '' ? parseInt(form.floors_per_tower) : null,
+      units_per_floor:  form.units_per_floor !== '' ? parseInt(form.units_per_floor) : null,
+      total_units:      form.total_units !== '' ? parseInt(form.total_units) : null,
     }
     if (pendingFile) {
       const ext  = pendingFile.name.split('.').pop().toLowerCase()
@@ -836,6 +846,27 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
             </Field>
           </div>
         </IosCard>
+
+        <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>} title="Development Scale">
+          <div className="grid grid-cols-2 gap-x-5 gap-y-4">
+            <Field label="No. of Towers">
+              <input type="number" min="0" value={f('num_towers')} onChange={e => set('num_towers', e.target.value)} placeholder="e.g. 3" className={inputCls} />
+            </Field>
+            <Field label="Floors per Tower">
+              <input type="number" min="0" value={f('floors_per_tower')} onChange={e => set('floors_per_tower', e.target.value)} placeholder="e.g. 40" className={inputCls} />
+            </Field>
+            <Field label="Units per Floor">
+              <input type="number" min="0" value={f('units_per_floor')} onChange={e => set('units_per_floor', e.target.value)} placeholder="e.g. 4" className={inputCls} />
+            </Field>
+            <Field label="Total Units">
+              <input type="number" min="0" value={f('total_units')} onChange={e => set('total_units', e.target.value)} placeholder="e.g. 480" className={inputCls} />
+            </Field>
+          </div>
+        </IosCard>
+
+        <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" /></svg>} title="Unit Types">
+          <UnitTypesSection projectId={project.id} isAdmin={isAdmin} showToast={showToast} />
+        </IosCard>
       </div>
     </div>
   )
@@ -862,7 +893,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           </h2>
           {(project.project_code || project.business_unit) && (
             <p className="mt-2 text-[11px] tracking-[0.14em] uppercase font-medium text-gray-400">
-              {[project.project_code, formatBU(project.business_unit)].filter(Boolean).join(' Â· ')}
+              {[project.project_code, formatBU(project.business_unit)].filter(Boolean).join(' · ')}
             </p>
           )}
         </div>
@@ -887,11 +918,6 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
             icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>}
           />
           <OverviewDetailItem
-            label="4PH Project"
-            value={project.is_4ph_project ? 'Yes' : 'No'}
-            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"/><line x1="7" y1="7" x2="7.01" y2="7"/></svg>}
-          />
-          <OverviewDetailItem
             label="Lot Area"
             value={project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : null}
             icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>}
@@ -902,6 +928,19 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
             icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>}
           />
         </div>
+
+        {/* Development Scale */}
+        {(project.num_towers != null || project.floors_per_tower != null || project.units_per_floor != null || project.total_units != null) && (
+          <div className="px-8 py-6 grid grid-cols-4 gap-x-8 border-t border-gray-100" style={{ animation: 'fade-in-up 220ms 160ms ease-out both' }}>
+            <OverviewDetailItem label="No. of Towers" value={project.num_towers != null ? String(project.num_towers) : null} icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M9 21V7l6-4v18"/><path d="M9 3H5v18h4"/></svg>} />
+            <OverviewDetailItem label="Floors per Tower" value={project.floors_per_tower != null ? String(project.floors_per_tower) : null} icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18"/></svg>} />
+            <OverviewDetailItem label="Units per Floor" value={project.units_per_floor != null ? String(project.units_per_floor) : null} icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>} />
+            <OverviewDetailItem label="Total Units" value={project.total_units != null ? project.total_units.toLocaleString() : null} icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>} />
+          </div>
+        )}
+
+        {/* Unit Types */}
+        <UnitTypesSectionView projectId={project.id} />
 
         {/* Edit + Delete buttons pinned to bottom */}
         {isAdmin && (
@@ -946,6 +985,273 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 }
 
+// -- Unit type photo constants -------------------------------------------------
+
+const PHOTO_LABELS = ['Floor Plan', 'Render', '3D View', 'Site Plan', 'Other']
+
+// -- Unit type photo carousel (view mode) -------------------------------------
+
+function UnitTypePhotoCarousel({ photos }) {
+  const [idx, setIdx] = useState(0)
+  const [activeType, setActiveType] = useState('All')
+  const [paused, setPaused] = useState(false)
+  const [lightbox, setLightbox] = useState(false)
+  const directionRef = useRef('next')
+
+  const unitTypes = ['All', ...Array.from(new Set(photos.map(p => p.unit_type))).filter(Boolean)]
+  const filtered = activeType === 'All' ? photos : photos.filter(p => p.unit_type === activeType)
+
+  const selectType = type => { directionRef.current = 'next'; setActiveType(type); setIdx(0) }
+  const prev = () => { directionRef.current = 'prev'; setIdx(i => (i - 1 + filtered.length) % filtered.length); setPaused(true); setTimeout(() => setPaused(false), 6000) }
+  const next = () => { directionRef.current = 'next'; setIdx(i => (i + 1) % filtered.length); setPaused(true); setTimeout(() => setPaused(false), 6000) }
+
+  useEffect(() => {
+    if (paused || filtered.length <= 1) return
+    const t = setInterval(() => { directionRef.current = 'next'; setIdx(i => (i + 1) % filtered.length) }, 4000)
+    return () => clearInterval(t)
+  }, [paused, filtered.length, activeType])
+
+  if (!photos.length) return null
+
+  const photo = filtered[Math.min(idx, filtered.length - 1)]
+  if (!photo) return null
+
+  return (
+    <div>
+      <style>{`
+        @keyframes carouselInRight { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+        @keyframes carouselInLeft  { from { opacity: 0; transform: translateX(-28px); } to { opacity: 1; transform: translateX(0); } }
+      `}</style>
+      {unitTypes.length > 2 && (
+        <div className="flex gap-0 p-1 bg-gray-100 rounded-xl mb-3 w-fit">
+          {unitTypes.map(type => (
+            <button
+              key={type}
+              onClick={() => selectType(type)}
+              className={`relative px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all duration-200 active:scale-95 ${
+                activeType === type
+                  ? 'bg-white text-gray-900 shadow-sm'
+                  : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {type}
+            </button>
+          ))}
+        </div>
+      )}
+      <div
+        className="relative rounded-xl overflow-hidden bg-gray-100 shadow-xl"
+        style={{ aspectRatio: '16/9' }}
+        onMouseEnter={() => setPaused(true)}
+        onMouseLeave={() => setPaused(false)}
+      >
+        <div
+          key={`${activeType}-${idx}`}
+          className="absolute inset-0"
+          style={{ animation: `${directionRef.current === 'next' ? 'carouselInRight' : 'carouselInLeft'} 380ms cubic-bezier(0.23, 1, 0.32, 1) both` }}
+        >
+          <img
+            src={photo.url}
+            alt={`${photo.unit_type} ${photo.label ?? ''}`}
+            className="w-full h-full object-cover cursor-zoom-in"
+            loading="lazy"
+            onClick={() => setLightbox(true)}
+          />
+        </div>
+        <div className="absolute bottom-4 left-4">
+          <div className="px-4 py-3 rounded-xl bg-black/30 backdrop-blur-sm flex flex-col gap-1">
+            <span className="text-white text-base font-bold leading-tight">{photo.unit_type}</span>
+            <div className="flex items-center gap-3 text-white/75 text-xs leading-tight">
+              {photo.saleable_area_sqm != null && <span>{Number(photo.saleable_area_sqm).toLocaleString()} sqm saleable</span>}
+              {photo.quantity != null && <span>{photo.quantity} units</span>}
+            </div>
+          </div>
+        </div>
+        {filtered.length > 1 && (
+          <>
+            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">‹</button>
+            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">›</button>
+            <div className="absolute bottom-3 right-3 flex gap-1">
+              {filtered.map((_, i) => (
+                <button
+                  key={i}
+                  onClick={() => setIdx(i)}
+                  className={`h-1.5 rounded-full transition-all duration-200 ${i === idx ? 'bg-white w-4' : 'bg-white/50 w-1.5'}`}
+                />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+      {lightbox && createPortal(
+        <div
+          className="fixed inset-0 z-[9999] bg-black/90 backdrop-blur-sm flex items-center justify-center"
+          onClick={() => setLightbox(false)}
+        >
+          <button
+            onClick={() => setLightbox(false)}
+            className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors"
+            aria-label="Close"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+          {filtered.length > 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); prev() }}
+              className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors text-xl leading-none active:scale-95"
+            >‹</button>
+          )}
+          <img
+            src={photo.url}
+            alt={photo.unit_type}
+            className="max-w-[90vw] max-h-[90vh] object-contain"
+            onClick={e => e.stopPropagation()}
+          />
+          {filtered.length > 1 && (
+            <button
+              onClick={e => { e.stopPropagation(); next() }}
+              className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors text-xl leading-none active:scale-95"
+            >›</button>
+          )}
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
+            <div className="px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm text-center">
+              <p className="text-white font-bold text-sm">{photo.unit_type}</p>
+              <div className="flex items-center justify-center gap-3 text-white/65 text-xs mt-0.5">
+                {photo.saleable_area_sqm != null && <span>{Number(photo.saleable_area_sqm).toLocaleString()} sqm saleable</span>}
+                {photo.quantity != null && <span>{photo.quantity} units</span>}
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+    </div>
+  )
+}
+
+// -- Unit type photo manager (admin, inside UnitTypesSection) ------------------
+
+function UnitTypePhotoManager({ unitTypeId, unitTypeName, showToast }) {
+  const [photos, setPhotos] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [pendingLabel, setPendingLabel] = useState('Floor Plan')
+  const fileRef = useRef(null)
+
+  useEffect(() => { loadPhotos() }, [unitTypeId])
+
+  const loadPhotos = async () => {
+    const { data } = await supabase.from('project_unit_type_photos')
+      .select('*').eq('unit_type_id', unitTypeId).order('sort_order')
+    if (data) setPhotos(data)
+  }
+
+  const upload = async e => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `unit-type-photos/${unitTypeId}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+    const { error } = await supabase.storage.from('floor-layouts').upload(path, file)
+    if (error) { showToast('Upload failed: ' + error.message, 'error'); setUploading(false); return }
+    const { data: urlData } = supabase.storage.from('floor-layouts').getPublicUrl(path)
+    await supabase.from('project_unit_type_photos').insert({
+      unit_type_id: unitTypeId,
+      url: urlData.publicUrl,
+      label: pendingLabel,
+      sort_order: photos.length,
+    })
+    showToast('Photo added.', 'success')
+    setUploading(false)
+    if (fileRef.current) fileRef.current.value = ''
+    loadPhotos()
+  }
+
+  const deletePhoto = async (id) => {
+    await supabase.from('project_unit_type_photos').delete().eq('id', id)
+    loadPhotos()
+  }
+
+  return (
+    <div className="px-4 py-3 bg-gray-50 border-t border-dashed border-gray-200">
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Photos — {unitTypeName}</p>
+      <div className="flex items-start gap-2 flex-wrap">
+        {photos.map(p => (
+          <div key={p.id} className="relative group w-24 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
+            <img src={p.url} alt={p.label} className="w-full h-full object-cover" />
+            <div className="absolute bottom-0 left-0 right-0 px-1.5 py-0.5 bg-black/55 text-white text-[9px] truncate leading-tight">{p.label}</div>
+            <button
+              onClick={() => deletePhoto(p.id)}
+              className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] items-center justify-center hidden group-hover:flex leading-none"
+            >×</button>
+          </div>
+        ))}
+        <div className="flex items-center gap-1.5 flex-shrink-0">
+          <select
+            value={pendingLabel}
+            onChange={e => setPendingLabel(e.target.value)}
+            className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white h-8 focus:outline-none focus:ring-1 focus:ring-[#ed6055]/40"
+          >
+            {PHOTO_LABELS.map(l => <option key={l}>{l}</option>)}
+          </select>
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading}
+            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 h-8 rounded-lg border border-gray-200 bg-white hover:border-[#ed6055] hover:text-[#ed6055] transition-colors disabled:opacity-50"
+          >
+            {uploading ? 'Uploading…' : '+ Photo'}
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={upload} />
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// -- Unit Types read-only view (Project Info tab) ------------------------------
+
+function UnitTypesSectionView({ projectId }) {
+  const [rows, setRows] = useState([])
+  const [photos, setPhotos] = useState([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    const load = async () => {
+      const { data: unitTypes } = await supabase.from('project_unit_types').select('*').eq('project_id', projectId).order('sort_order')
+      if (!unitTypes) { setLoaded(true); return }
+      setRows(unitTypes)
+      if (unitTypes.length > 0) {
+        const { data: photoData } = await supabase
+          .from('project_unit_type_photos')
+          .select('*')
+          .in('unit_type_id', unitTypes.map(r => r.id))
+          .order('sort_order')
+        if (photoData) {
+          const typeMap = Object.fromEntries(unitTypes.map(r => [r.id, r]))
+          setPhotos(photoData.map(p => {
+            const ut = typeMap[p.unit_type_id] ?? {}
+            return { ...p, unit_type: ut.unit_type ?? '', saleable_area_sqm: ut.saleable_area_sqm ?? null, quantity: ut.quantity ?? null }
+          }))
+        }
+      }
+      setLoaded(true)
+    }
+    load()
+  }, [projectId])
+
+  if (!loaded || rows.length === 0) return null
+
+  return (
+    <div className="px-8 py-5 border-t border-gray-100" style={{ animation: 'fade-in-up 220ms 180ms ease-out both' }}>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-3">Unit Types</p>
+      {photos.length > 0 && (
+        <div className="mb-4">
+          <UnitTypePhotoCarousel photos={photos} />
+        </div>
+      )}
+    </div>
+  )
+}
+
 // -- Development Tab -----------------------------------------------------------
 
 function UnitTypesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
@@ -955,6 +1261,13 @@ function UnitTypesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
   const [deleteId, setDeleteId] = useState(null)
   const [viewUrl, setViewUrl] = useState(null)
   const [form, setForm] = useState({})
+  const [expandedPhotos, setExpandedPhotos] = useState(new Set())
+
+  const togglePhotos = id => setExpandedPhotos(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
 
   useEffect(() => { load() }, [projectId, refreshKey])
 
@@ -1002,8 +1315,8 @@ function UnitTypesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
         <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
           <thead><tr className="bg-gray-50/80 border-b border-gray-200">{cols.map(h => <th key={h} className="text-left px-4 py-2.5 font-semibold text-gray-400 uppercase tracking-wider">{h}</th>)}</tr></thead>
           <tbody className="divide-y divide-gray-100">
-            {rows.map(row => editId === row.id ? (
-              <tr key={row.id}>
+            {rows.flatMap(row => editId === row.id ? [
+              <tr key={`edit-${row.id}`}>
                 <td className="px-4 py-2"><InlineInput value={form.unit_type} onChange={v => setForm(p => ({ ...p, unit_type: v }))} placeholder="Type name" /></td>
                 <td className="px-4 py-2"><InlineInput type="number" value={form.quantity} onChange={v => setForm(p => ({ ...p, quantity: v }))} /></td>
                 <td className="px-4 py-2"><InlineInput type="number" value={form.cfa_sqm} onChange={v => setForm(p => ({ ...p, cfa_sqm: v }))} /></td>
@@ -1011,19 +1324,27 @@ function UnitTypesSection({ projectId, isAdmin, showToast, refreshKey = 0 }) {
                 <td className="px-4 py-2"><FloorUploadCell value={form.floor_layout_url} onChange={v => setForm(p => ({ ...p, floor_layout_url: v }))} showToast={showToast} /></td>
                 <td className="px-4 py-2 whitespace-nowrap"><button onClick={() => save(row.id)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] mr-2">Save</button><button onClick={() => setEditId(null)} className="text-xs text-gray-400 hover:text-gray-600">Cancel</button></td>
               </tr>
-            ) : (
-              <tr key={row.id} className="hover:bg-gray-50/50">
+            ] : [
+              <tr key={`row-${row.id}`} className="hover:bg-gray-50/50">
                 <td className="px-4 py-2.5 font-medium text-black">{row.unit_type}</td>
                 <td className="px-4 py-2.5 text-gray-600">{row.quantity ?? '--'}</td>
                 <td className="px-4 py-2.5 text-gray-600">{row.cfa_sqm ?? '--'}</td>
                 <td className="px-4 py-2.5 text-gray-600">{row.saleable_area_sqm ?? '--'}</td>
                 <td className="px-4 py-2.5">{row.floor_layout_url ? <button onClick={() => setViewUrl(row.floor_layout_url)} className="text-[#ed6055] hover:underline text-xs font-medium max-w-[140px] truncate block text-left" title={getFileName(row.floor_layout_url)}>{getFileName(row.floor_layout_url)}</button> : <span className="text-gray-400">--</span>}</td>
                 {isAdmin && <td className="px-4 py-2.5"><div className="flex gap-1">
+                  <button onClick={() => togglePhotos(row.id)} className={`p-1 transition-colors ${expandedPhotos.has(row.id) ? 'text-[#ed6055]' : 'text-gray-400 hover:text-[#ed6055]'}`} title="Manage photos"><CameraIcon /></button>
                   <button onClick={() => { setForm({ unit_type: row.unit_type, quantity: row.quantity ?? '', cfa_sqm: row.cfa_sqm ?? '', saleable_area_sqm: row.saleable_area_sqm ?? '', floor_layout_url: row.floor_layout_url ?? '' }); setEditId(row.id) }} className="p-1 text-gray-400 hover:text-blue-600"><PencilIcon /></button>
                   <button onClick={() => setDeleteId(row.id)} className="p-1 text-gray-400 hover:text-red-500"><TrashIcon /></button>
                 </div></td>}
-              </tr>
-            ))}
+              </tr>,
+              expandedPhotos.has(row.id) && (
+                <tr key={`photos-${row.id}`}>
+                  <td colSpan={cols.length} className="p-0">
+                    <UnitTypePhotoManager unitTypeId={row.id} unitTypeName={row.unit_type} showToast={showToast} />
+                  </td>
+                </tr>
+              )
+            ].filter(Boolean))}
             {adding && (
               <tr>
                 <td className="px-4 py-2"><InlineInput value={form.unit_type} onChange={v => setForm(p => ({ ...p, unit_type: v }))} placeholder="Type name" /></td>
@@ -5308,6 +5629,12 @@ const PencilIcon = () => (
 const TrashIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+  </svg>
+)
+const CameraIcon = () => (
+  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" />
+    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" />
   </svg>
 )
 const XIcon = () => (
