@@ -1135,56 +1135,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   return (
     <div ref={containerRef} className="h-full flex flex-col overflow-hidden px-4 sm:px-8 py-3 sm:py-4 gap-3">
 
-      {/* Toolbar: scope + baseline + settings */}
+      {/* Toolbar: hidden file inputs only */}
       <div className="flex-shrink-0 flex items-center gap-3 flex-wrap">
-        {buildings.length > 0 && (() => {
-          const scopeLabel = selectedBuildingId
-            ? (buildings.find(b => b.id === selectedBuildingId)?.name ?? 'Tower')
-            : 'Project'
-          const isProject = selectedBuildingId === null
-          return (
-            <div ref={scopeRef} className="relative">
-              <button
-                type="button"
-                onClick={() => {
-                  setScopeOpen(v => !v)
-                  const handler = e => { if (scopeRef.current && !scopeRef.current.contains(e.target)) setScopeOpen(false) }
-                  document.addEventListener('mousedown', handler, { once: true })
-                }}
-                className="flex items-center gap-2 px-3 py-1.5 text-xs font-semibold rounded-lg border transition min-w-36"
-                style={isProject
-                  ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff', borderColor: 'transparent' }
-                  : { background: '#fff', color: '#374151', borderColor: '#e5e7eb' }}
-              >
-                <span className="flex-1 text-left truncate">{scopeLabel}</span>
-                <svg className="w-3 h-3 flex-shrink-0 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                </svg>
-              </button>
-              {scopeOpen && (
-                <div className="absolute top-full mt-1 left-0 z-30 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-44 max-h-64 overflow-y-auto">
-                  <button type="button"
-                    onClick={() => { switchScope(null); setScopeOpen(false) }}
-                    className={`w-full text-left px-4 py-2 text-xs font-semibold transition flex items-center gap-2 ${selectedBuildingId === null ? 'text-[#ed6055]' : 'text-gray-700 hover:bg-gray-50'}`}
-                  >
-                    {selectedBuildingId === null && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
-                    Project
-                  </button>
-                  {buildings.length > 0 && <div className="border-t border-gray-100 my-1" />}
-                  {buildings.map(b => (
-                    <button key={b.id} type="button"
-                      onClick={() => { switchScope(b.id); setScopeOpen(false) }}
-                      className={`w-full text-left px-4 py-2 text-xs transition flex items-center gap-2 ${selectedBuildingId === b.id ? 'text-[#ed6055] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-                    >
-                      {selectedBuildingId === b.id && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
-                      {b.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )
-        })()}
         <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
           onChange={handleImportExisting} className="hidden" />
         <input ref={actualImportRef} type="file" accept=".xlsx,.xls,.csv"
@@ -1705,6 +1657,54 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                   )}
                 </div>
               ))}
+              </div>
+            )
+          })()}
+
+          {/* Tower scope selector */}
+          {buildings.length > 0 && (() => {
+            const scopeLabel = selectedBuildingId
+              ? (buildings.find(b => b.id === selectedBuildingId)?.name ?? 'Tower')
+              : 'Project'
+            const isProject = selectedBuildingId === null
+            return (
+              <div ref={scopeRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setScopeOpen(v => !v)
+                    const handler = e => { if (scopeRef.current && !scopeRef.current.contains(e.target)) setScopeOpen(false) }
+                    document.addEventListener('mousedown', handler, { once: true })
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-[#ed6055] transition"
+                >
+                  {!isProject && <span className="w-2 h-2 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                  <span className="flex-1 text-left truncate">{scopeLabel}</span>
+                  <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+                {scopeOpen && (
+                  <div className="absolute bottom-full mb-1 left-0 z-30 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-44 max-h-64 overflow-y-auto">
+                    <button type="button"
+                      onClick={() => { switchScope(null); setScopeOpen(false) }}
+                      className={`w-full text-left px-4 py-2 text-xs font-semibold transition flex items-center gap-2 ${selectedBuildingId === null ? 'text-[#ed6055]' : 'text-gray-700 hover:bg-gray-50'}`}
+                    >
+                      {selectedBuildingId === null && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                      Project
+                    </button>
+                    {buildings.length > 0 && <div className="border-t border-gray-100 my-1" />}
+                    {buildings.map(b => (
+                      <button key={b.id} type="button"
+                        onClick={() => { switchScope(b.id); setScopeOpen(false) }}
+                        className={`w-full text-left px-4 py-2 text-xs transition flex items-center gap-2 ${selectedBuildingId === b.id ? 'text-[#ed6055] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                      >
+                        {selectedBuildingId === b.id && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                        {b.name}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )
           })()}
