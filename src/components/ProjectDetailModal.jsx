@@ -513,7 +513,7 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
               <img
                 src={url}
                 alt={`${project.name} cover photo`}
-                className="w-full h-full object-cover cover-reveal"
+                className="w-full h-full object-contain cover-reveal"
               />
             </button>
 
@@ -662,7 +662,7 @@ function OverviewDetailItem({ label, value, icon }) {
         {icon && <span className="text-gray-400 flex-shrink-0">{icon}</span>}
         <p className="text-[10px] tracking-[0.12em] uppercase font-semibold text-gray-400">{label}</p>
       </div>
-      <p className="text-sm text-gray-800">{value}</p>
+      <p className="text-sm text-gray-800 whitespace-pre-wrap">{value}</p>
     </div>
   )
 }
@@ -683,10 +683,10 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
     development_type: project.development_type ?? '',
     phase:            project.phase ?? '',
     project_brief:    project.project_brief ?? '',
-    num_towers:       project.num_towers ?? '',
-    floors_per_tower: project.floors_per_tower ?? '',
-    units_per_floor:  project.units_per_floor ?? '',
-    total_units:      project.total_units ?? '',
+    num_towers:       project.num_towers != null ? String(project.num_towers) : '',
+    floors_per_tower: project.floors_per_tower != null ? String(project.floors_per_tower) : '',
+    units_per_floor:  project.units_per_floor != null ? String(project.units_per_floor) : '',
+    total_units:      project.total_units != null ? String(project.total_units) : '',
   })
 
   const [editing, setEditing] = useState(startEditing)
@@ -735,10 +735,10 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
       development_type: form.development_type || null,
       phase:            form.phase || null,
       project_brief:    form.project_brief.trim() || null,
-      num_towers:       form.num_towers !== '' ? parseInt(form.num_towers) : null,
-      floors_per_tower: form.floors_per_tower !== '' ? parseInt(form.floors_per_tower) : null,
-      units_per_floor:  form.units_per_floor !== '' ? parseInt(form.units_per_floor) : null,
-      total_units:      form.total_units !== '' ? parseInt(form.total_units) : null,
+      num_towers:       String(form.num_towers ?? '').trim() || null,
+      floors_per_tower: String(form.floors_per_tower ?? '').trim() || null,
+      units_per_floor:  String(form.units_per_floor ?? '').trim() || null,
+      total_units:      String(form.total_units ?? '').trim() || null,
     }
     if (pendingFile) {
       const ext  = pendingFile.name.split('.').pop().toLowerCase()
@@ -874,16 +874,16 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" /></svg>} title="Development Scale">
           <div className="grid grid-cols-2 gap-x-5 gap-y-4">
             <Field label="No. of Towers">
-              <input type="number" min="0" value={f('num_towers')} onChange={e => set('num_towers', e.target.value)} placeholder="e.g. 3" className={inputCls} />
+              <textarea rows={2} value={f('num_towers')} onChange={e => set('num_towers', e.target.value)} placeholder="e.g. 3" className={`${inputCls} resize-none`} />
             </Field>
             <Field label="Floors per Tower">
-              <input type="number" min="0" value={f('floors_per_tower')} onChange={e => set('floors_per_tower', e.target.value)} placeholder="e.g. 40" className={inputCls} />
+              <textarea rows={2} value={f('floors_per_tower')} onChange={e => set('floors_per_tower', e.target.value)} placeholder="e.g. 40" className={`${inputCls} resize-none`} />
             </Field>
             <Field label="Units per Floor">
-              <input type="number" min="0" value={f('units_per_floor')} onChange={e => set('units_per_floor', e.target.value)} placeholder="e.g. 4" className={inputCls} />
+              <textarea rows={2} value={f('units_per_floor')} onChange={e => set('units_per_floor', e.target.value)} placeholder="e.g. 4" className={`${inputCls} resize-none`} />
             </Field>
             <Field label="Total Units">
-              <input type="number" min="0" value={f('total_units')} onChange={e => set('total_units', e.target.value)} placeholder="e.g. 480" className={inputCls} />
+              <textarea rows={2} value={f('total_units')} onChange={e => set('total_units', e.target.value)} placeholder="e.g. 480" className={`${inputCls} resize-none`} />
             </Field>
           </div>
         </IosCard>
@@ -958,14 +958,17 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         </div>
 
         {/* Development Scale */}
-        {(project.num_towers != null || project.floors_per_tower != null || project.units_per_floor != null || project.total_units != null) && (
-          <div className="px-8 py-6 grid grid-cols-4 gap-x-8 border-t border-gray-100" style={{ animation: 'fade-in-up 220ms 160ms ease-out both' }}>
+        {(project.num_towers != null || project.floors_per_tower != null || project.units_per_floor != null || project.total_units != null) && (() => {
+          const devCols = [project.num_towers, project.floors_per_tower, project.units_per_floor, project.total_units].filter(v => v != null).length
+          return (
+          <div className="px-8 py-6 grid gap-x-8 border-t border-gray-100" style={{ animation: 'fade-in-up 220ms 160ms ease-out both', gridTemplateColumns: `repeat(${devCols}, 1fr)` }}>
             <OverviewDetailItem label="No. of Towers" value={project.num_towers != null ? String(project.num_towers) : null} icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M9 21V7l6-4v18"/><path d="M9 3H5v18h4"/></svg>} />
             <OverviewDetailItem label="Floors per Tower" value={project.floors_per_tower != null ? String(project.floors_per_tower) : null} icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18"/></svg>} />
             <OverviewDetailItem label="Units per Floor" value={project.units_per_floor != null ? String(project.units_per_floor) : null} icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="7" width="20" height="14" rx="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>} />
-            <OverviewDetailItem label="Total Units" value={project.total_units != null ? project.total_units.toLocaleString() : null} icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>} />
+            <OverviewDetailItem label="Total Units" value={project.total_units != null ? String(project.total_units) : null} icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg>} />
           </div>
-        )}
+          )
+        })()}
 
         {/* Unit Types */}
         <UnitTypesSectionView projectId={project.id} />
