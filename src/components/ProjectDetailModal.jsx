@@ -1780,15 +1780,6 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
   const [bulkDeleting, setBulkDeleting]     = useState(false)
   const [copying, setCopying]               = useState(false)
   const [deleteId, setDeleteId]             = useState(null)
-  const [moreOpen, setMoreOpen]             = useState(false)
-  const moreRef                             = useRef(null)
-
-  useEffect(() => {
-    if (!moreOpen) return
-    const handler = (e) => { if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false) }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [moreOpen])
 
   useEffect(() => { load() }, [projectId])
 
@@ -1815,72 +1806,38 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
 
   if (buildings.length === 0 && !isAdmin) return null
 
-  const PILL_LIMIT    = 3
-  const basePills     = buildings.slice(0, PILL_LIMIT)
-  const rawOverflow   = buildings.slice(PILL_LIMIT)
-  const selectedExtra = rawOverflow.find(b => b.id === buildingId)
-  const visiblePills  = selectedExtra ? [...basePills, selectedExtra] : basePills
-  const overflowPills = rawOverflow.filter(b => b.id !== buildingId)
-
-  const renderPill = (b) => (
-    <div key={b.id} className="flex items-center gap-0.5 group">
-      <button
-        onClick={() => onChange(b.id)}
-        className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition ${buildingId === b.id ? 'bg-[#ed6055] text-white shadow-sm' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-      >
-        {b.name}
-      </button>
-      {isAdmin && (
-        <>
-          <button
-            onClick={() => setEditingBuilding(b)}
-            className="opacity-0 group-hover:opacity-100 transition p-1 text-gray-400 hover:text-[#ed6055]"
-            title={`Edit ${b.name}`}
-          >
-            <PencilIcon />
-          </button>
-          <button
-            onClick={() => setDeleteId(b.id)}
-            className="opacity-0 group-hover:opacity-100 transition p-1 text-gray-400 hover:text-red-500"
-            title={`Delete ${b.name}`}
-          >
-            <TrashIcon />
-          </button>
-        </>
-      )}
-    </div>
-  )
+  const selectedBuilding = buildings.find(b => b.id === buildingId) ?? null
 
   return (
     <div className="flex items-center gap-2 flex-wrap">
-      {visiblePills.map(renderPill)}
-
-      {overflowPills.length > 0 && (
-        <div className="relative" ref={moreRef}>
-          <button
-            onClick={() => setMoreOpen(v => !v)}
-            className={`flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold transition ${moreOpen ? 'bg-gray-200 text-gray-700' : 'bg-gray-100 text-gray-500 hover:bg-gray-200'}`}
-          >
-            +{overflowPills.length} more
-            <svg className={`w-3 h-3 transition-transform ${moreOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-            </svg>
-          </button>
-          {moreOpen && (
-            <div className="absolute top-full left-0 mt-1 z-30 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-[140px]">
-              {overflowPills.map(b => (
-                <button
-                  key={b.id}
-                  onClick={() => { onChange(b.id); setMoreOpen(false) }}
-                  className="w-full text-left px-3 py-2 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition"
-                >
-                  {b.name}
-                </button>
-              ))}
-            </div>
-          )}
+      <div className="flex items-center gap-1.5">
+        <div className="w-56">
+          <SelectDropdown
+            options={buildings.map(b => ({ value: b.id, label: b.name }))}
+            value={buildingId}
+            onChange={onChange}
+            placeholder="Select tower…"
+          />
         </div>
-      )}
+        {isAdmin && selectedBuilding && (
+          <>
+            <button
+              onClick={() => setEditingBuilding(selectedBuilding)}
+              className="p-1.5 text-gray-400 hover:text-[#ed6055] transition"
+              title={`Edit ${selectedBuilding.name}`}
+            >
+              <PencilIcon />
+            </button>
+            <button
+              onClick={() => setDeleteId(selectedBuilding.id)}
+              className="p-1.5 text-gray-400 hover:text-red-500 transition"
+              title={`Delete ${selectedBuilding.name}`}
+            >
+              <TrashIcon />
+            </button>
+          </>
+        )}
+      </div>
 
       {isAdmin && canAdd && (
         <>
@@ -2367,22 +2324,32 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
         )
       )} />
       <div className="overflow-x-auto">
-        <div className={`bg-white rounded-xl border overflow-hidden min-w-[900px] transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
-          <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
+        <div className={`bg-white rounded-xl border overflow-hidden transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
+          <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 56 }} />
+              <col style={{ width: 56 }} />
+              <col style={{ width: 40 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 80 }} />
+              {isAdmin && <col style={{ width: 40 }} />}
+            </colgroup>
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-200">
-                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 72 }}>Phys. Level</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 72 }}>Mktg. Level</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 64 }}>Units</th>
-                <th className="text-center px-3 py-2 font-semibold text-amber-500 uppercase tracking-wider" colSpan={2} style={{ minWidth: 120 }}>
+                <th className="text-left px-2 py-2 font-semibold text-gray-600 leading-tight">Phys.<br/>Level</th>
+                <th className="text-left px-2 py-2 font-semibold text-gray-600 leading-tight">Mktg.<br/>Level</th>
+                <th className="text-left px-1 py-2 font-semibold text-gray-600">Units</th>
+                <th className="text-center px-1 py-2 font-semibold text-gray-600" colSpan={2}>
                   <div>M4 Planned</div>
-                  <div className="flex justify-around mt-0.5 normal-case tracking-normal font-medium text-[10px] text-amber-400"><span>Start Date</span><span>End Date</span></div>
+                  <div className="flex justify-around mt-0.5 font-medium text-[10px] text-gray-400"><span>Start Date</span><span>End Date</span></div>
                 </th>
-                <th className="text-center px-3 py-2 font-semibold text-green-600 uppercase tracking-wider" colSpan={2} style={{ minWidth: 120 }}>
+                <th className="text-center px-1 py-2 font-semibold text-gray-600" colSpan={2}>
                   <div>M5 Planned</div>
-                  <div className="flex justify-around mt-0.5 normal-case tracking-normal font-medium text-[10px] text-green-500"><span>Start Date</span><span>End Date</span></div>
+                  <div className="flex justify-around mt-0.5 font-medium text-[10px] text-gray-400"><span>Start Date</span><span>End Date</span></div>
                 </th>
-                {isAdmin && <th style={{ width: 80 }} />}
+                {isAdmin && <th />}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -2410,14 +2377,14 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
                 </tr>
               ) : (
                 <tr key={row.id} className="hover:bg-gray-50/50">
-                  <td className="px-3 py-2 font-semibold text-black">{row.physical_level}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || '--'}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? '--'}</td>
-                  <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_start)}</td>
-                  <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_end)}</td>
-                  <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_start)}</td>
-                  <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_end)}</td>
-                  {isAdmin && <td className="px-3 py-2"><button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button></td>}
+                  <td className="px-2 py-1.5 font-semibold text-black">{row.physical_level}</td>
+                  <td className="px-2 py-1.5 text-gray-600">{row.marketing_level || '--'}</td>
+                  <td className="px-2 py-1.5 text-gray-600">{row.num_units ?? '--'}</td>
+                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_start)}</td>
+                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_end)}</td>
+                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_start)}</td>
+                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_end)}</td>
+                  {isAdmin && <td className="px-2 py-1.5"><button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button></td>}
                 </tr>
               ))}
               {adding && (() => {
@@ -2539,22 +2506,32 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
         )
       )} />
       <div className="overflow-x-auto">
-        <div className={`bg-white rounded-xl border overflow-hidden min-w-[900px] transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
-          <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100">
+        <div className={`bg-white rounded-xl border overflow-hidden transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
+          <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100" style={{ tableLayout: 'fixed' }}>
+            <colgroup>
+              <col style={{ width: 56 }} />
+              <col style={{ width: 56 }} />
+              <col style={{ width: 40 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 80 }} />
+              <col style={{ width: 80 }} />
+              {isAdmin && <col style={{ width: 40 }} />}
+            </colgroup>
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-200">
-                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 72 }}>Phys. Level</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 72 }}>Mktg. Level</th>
-                <th className="text-left px-3 py-2 font-semibold text-gray-600 uppercase tracking-wider" style={{ minWidth: 64 }}>Spaces</th>
-                <th className="text-center px-3 py-2 font-semibold text-amber-500 uppercase tracking-wider" colSpan={2} style={{ minWidth: 120 }}>
+                <th className="text-left px-2 py-2 font-semibold text-gray-600 uppercase tracking-wider leading-tight">Phys.<br/>Level</th>
+                <th className="text-left px-2 py-2 font-semibold text-gray-600 uppercase tracking-wider leading-tight">Mktg.<br/>Level</th>
+                <th className="text-left px-1 py-2 font-semibold text-gray-600">Spaces</th>
+                <th className="text-center px-1 py-2 font-semibold text-amber-500 uppercase tracking-wider" colSpan={2}>
                   <div>M4 Planned</div>
                   <div className="flex justify-around mt-0.5 normal-case tracking-normal font-medium text-[10px] text-amber-400"><span>Start Date</span><span>End Date</span></div>
                 </th>
-                <th className="text-center px-3 py-2 font-semibold text-green-600 uppercase tracking-wider" colSpan={2} style={{ minWidth: 120 }}>
+                <th className="text-center px-1 py-2 font-semibold text-green-600 uppercase tracking-wider" colSpan={2}>
                   <div>M5 Planned</div>
                   <div className="flex justify-around mt-0.5 normal-case tracking-normal font-medium text-[10px] text-green-500"><span>Start Date</span><span>End Date</span></div>
                 </th>
-                {isAdmin && <th style={{ width: 80 }} />}
+                {isAdmin && <th />}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
@@ -2582,14 +2559,14 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
                 </tr>
               ) : (
                 <tr key={row.id} className="hover:bg-gray-50/50">
-                  <td className="px-3 py-2 font-semibold text-black">{row.physical_level}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.marketing_level || '--'}</td>
-                  <td className="px-3 py-2 text-gray-600">{row.num_units ?? '--'}</td>
-                  <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_start)}</td>
-                  <td className="px-3 py-2 text-gray-500">{fmt(row.m4_planned_end)}</td>
-                  <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_start)}</td>
-                  <td className="px-3 py-2 text-gray-500">{fmt(row.m5_planned_end)}</td>
-                  {isAdmin && <td className="px-3 py-2"><button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button></td>}
+                  <td className="px-2 py-1.5 font-semibold text-black">{row.physical_level}</td>
+                  <td className="px-2 py-1.5 text-gray-600">{row.marketing_level || '--'}</td>
+                  <td className="px-2 py-1.5 text-gray-600">{row.num_units ?? '--'}</td>
+                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_start)}</td>
+                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_end)}</td>
+                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_start)}</td>
+                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_end)}</td>
+                  {isAdmin && <td className="px-2 py-1.5"><button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button></td>}
                 </tr>
               ))}
               {adding && (() => {
@@ -2894,7 +2871,7 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
   const showParking = parkSummary.floors > 0 || forceShowParking
 
   return (
-    <div>
+    <div className="max-w-3xl mx-auto pt-4">
       <ImportErrorPanel errors={importErrors} onDismiss={onDismissImportErrors} />
 
       <div className="bg-white rounded-xl border border-gray-200 p-4 mb-5 mt-1">
