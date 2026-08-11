@@ -584,19 +584,19 @@ const chartData = useMemo(
           No unit completion data recorded yet.
         </div>
       ) : (
-        <div>
-          <div className="grid lg:grid-cols-2 gap-4">
+        <div className={expanded ? 'flex-1 min-h-0 flex flex-col' : ''}>
+          <div className={`grid lg:grid-cols-2 gap-4${expanded ? ' flex-1 min-h-0' : ''}`}>
             {/* M4 */}
-            <div>
+            <div className={expanded ? 'flex flex-col' : ''}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-bold text-gray-700">M4</span>
                 <span className="text-xs text-gray-400">Unit Completion</span>
                 <div className="flex-1 h-px bg-gray-100" />
               </div>
-              <div className="flex">
+              <div className={`flex${expanded ? ' flex-1 min-h-0' : ''}`}>
                 {/* Fixed Y-axis */}
-                <div style={{ width: 45, flexShrink: 0 }}>
-                  <ResponsiveContainer width={45} height={chartHeight}>
+                <div style={{ width: 45, flexShrink: 0 }} className={expanded ? 'h-full' : ''}>
+                  <ResponsiveContainer width={45} height={expanded ? '100%' : chartHeight}>
                     <BarChart data={chartData} margin={{ top: 4, right: 0, left: -10, bottom: 36 }}>
                       <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                       <Bar dataKey="m4Expected" fill="transparent" isAnimationActive={false} />
@@ -605,9 +605,9 @@ const chartData = useMemo(
                   </ResponsiveContainer>
                 </div>
                 {/* Scrollable bars */}
-                <div className="overflow-x-auto flex-1 min-w-0" ref={m4Ref}>
-                  <div style={{ width: chartWidthPct }}>
-                    <ResponsiveContainer width="100%" height={chartHeight}>
+                <div className={`overflow-x-auto flex-1 min-w-0${expanded ? ' h-full' : ''}`} ref={m4Ref}>
+                  <div style={{ width: chartWidthPct }} className={expanded ? 'h-full' : ''}>
+                    <ResponsiveContainer width="100%" height={expanded ? '100%' : chartHeight}>
                       <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                         <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
@@ -623,16 +623,16 @@ const chartData = useMemo(
             </div>
 
             {/* M5 */}
-            <div>
+            <div className={expanded ? 'flex flex-col' : ''}>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-bold text-gray-700">M5</span>
                 <span className="text-xs text-gray-400">Handover to PMO</span>
                 <div className="flex-1 h-px bg-gray-100" />
               </div>
-              <div className="flex">
+              <div className={`flex${expanded ? ' flex-1 min-h-0' : ''}`}>
                 {/* Fixed Y-axis */}
-                <div style={{ width: 45, flexShrink: 0 }}>
-                  <ResponsiveContainer width={45} height={chartHeight}>
+                <div style={{ width: 45, flexShrink: 0 }} className={expanded ? 'h-full' : ''}>
+                  <ResponsiveContainer width={45} height={expanded ? '100%' : chartHeight}>
                     <BarChart data={chartData} margin={{ top: 4, right: 0, left: -10, bottom: 36 }}>
                       <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                       <Bar dataKey="m5Expected" fill="transparent" isAnimationActive={false} />
@@ -641,9 +641,9 @@ const chartData = useMemo(
                   </ResponsiveContainer>
                 </div>
                 {/* Scrollable bars */}
-                <div className="overflow-x-auto flex-1 min-w-0" ref={m5Ref}>
-                  <div style={{ width: chartWidthPct }}>
-                    <ResponsiveContainer width="100%" height={chartHeight}>
+                <div className={`overflow-x-auto flex-1 min-w-0${expanded ? ' h-full' : ''}`} ref={m5Ref}>
+                  <div style={{ width: chartWidthPct }} className={expanded ? 'h-full' : ''}>
+                    <ResponsiveContainer width="100%" height={expanded ? '100%' : chartHeight}>
                       <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
                         <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                         <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
