@@ -541,6 +541,30 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
               </button>
             )}
 
+            {/* Download button -- always visible on hover when photo exists */}
+            <button
+              onClick={async e => {
+                e.stopPropagation()
+                try {
+                  const res = await fetch(url)
+                  const blob = await res.blob()
+                  const ext = url.split('?')[0].split('.').pop() || 'jpg'
+                  const link = document.createElement('a')
+                  link.href = URL.createObjectURL(blob)
+                  link.download = `${project.name ?? 'cover'}-cover.${ext}`
+                  link.click()
+                  URL.revokeObjectURL(link.href)
+                } catch { showToast('Download failed.', 'error') }
+              }}
+              className="absolute bottom-3 right-3 w-8 h-8 rounded-full bg-black/40 hover:bg-black/65 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-[opacity,background-color] duration-200 shadow-md backdrop-blur-sm active:scale-[0.97]"
+              title="Download cover photo"
+              aria-label="Download cover photo"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+              </svg>
+            </button>
+
             {/* Admin: remove photo -- icon button top-right on hover (edit mode only) */}
             {isAdmin && editing && (
               <button
@@ -867,6 +891,10 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h3.75M9 15h3.75M9 18h3.75m3 .75H18a2.25 2.25 0 002.25-2.25V6.108c0-1.135-.845-2.098-1.976-2.192a48.424 48.424 0 00-1.123-.08m-5.801 0c-.065.21-.1.433-.1.664 0 .414.336.75.75.75h4.5a.75.75 0 00.75-.75 2.25 2.25 0 00-.1-.664m-5.8 0A2.251 2.251 0 0113.5 2.25H15c1.012 0 1.867.668 2.15 1.586m-5.8 0c-.376.023-.75.05-1.124.08C9.095 4.01 8.25 4.973 8.25 6.108V8.25m0 0H4.875c-.621 0-1.125.504-1.125 1.125v11.25c0 .621.504 1.125 1.125 1.125h9.75c.621 0 1.125-.504 1.125-1.125V9.375c0-.621-.504-1.125-1.125-1.125H8.25zM6.75 12h.008v.008H6.75V12zm0 3h.008v.008H6.75V15zm0 3h.008v.008H6.75V18z" /></svg>} title="Unit Types">
           <UnitTypesSection projectId={project.id} isAdmin={isAdmin} showToast={showToast} />
         </IosCard>
+
+        <IosCard icon={<svg className="w-4 h-4 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>} title="Project Plans">
+          <ProjectPlansSection projectId={project.id} isAdmin={isAdmin} editing={true} showToast={showToast} />
+        </IosCard>
       </div>
     </div>
   )
@@ -941,6 +969,9 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
 
         {/* Unit Types */}
         <UnitTypesSectionView projectId={project.id} />
+
+        {/* Project Plans */}
+        <ProjectPlansSection projectId={project.id} isAdmin={isAdmin} editing={editing} showToast={showToast} />
 
         {/* Edit + Delete buttons pinned to bottom */}
         {isAdmin && (
@@ -2717,6 +2748,136 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
   )
 }
 
+// -- Project Plans Section -----------------------------------------------------
+
+function ProjectPlansSection({ projectId, isAdmin, editing = false, showToast }) {
+  const [plans, setPlans]         = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [nameInput, setNameInput] = useState('')
+  const [adding, setAdding]       = useState(false)
+  const [previewUrl, setPreviewUrl] = useState(null)
+  const [previewName, setPreviewName] = useState('')
+  const [deleteId, setDeleteId]   = useState(null)
+  const fileRef = useRef(null)
+
+  useEffect(() => { load() }, [projectId])
+
+  const load = async () => {
+    const { data } = await supabase.from('project_pdf_plans').select('*').eq('project_id', projectId).order('sort_order')
+    if (data) setPlans(data)
+  }
+
+  const upload = async e => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    if (!nameInput.trim()) { showToast('Enter a plan name first.', 'error'); return }
+    setUploading(true)
+    const safeName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_')
+    const path = `pdf-plans/${projectId}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+    const { error } = await supabase.storage.from('project-plans').upload(path, file)
+    if (error) { showToast('Upload failed: ' + error.message, 'error'); setUploading(false); return }
+    const { data: urlData } = supabase.storage.from('project-plans').getPublicUrl(path)
+    await supabase.from('project_pdf_plans').insert({ project_id: projectId, name: nameInput.trim(), url: urlData.publicUrl, sort_order: plans.length })
+    showToast('Plan uploaded.', 'success')
+    setUploading(false)
+    setNameInput('')
+    setAdding(false)
+    if (fileRef.current) fileRef.current.value = ''
+    load()
+  }
+
+  const del = async id => {
+    await supabase.from('project_pdf_plans').delete().eq('id', id)
+    load()
+  }
+
+  if (!isAdmin && plans.length === 0) return null
+
+  return (
+    <div className="px-8 py-5 border-t border-gray-100" style={{ animation: 'fade-in-up 220ms 200ms ease-out both' }}>
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Project Plans</p>
+        {isAdmin && editing && !adding && (
+          <button
+            onClick={() => setAdding(true)}
+            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition"
+          >
+            <PlusIcon /> Upload
+          </button>
+        )}
+      </div>
+
+      {isAdmin && editing && adding && (
+        <div className="flex items-center gap-2 mb-3 p-3 rounded-lg bg-gray-50 border border-dashed border-gray-200">
+          <input
+            type="text"
+            value={nameInput}
+            onChange={e => setNameInput(e.target.value)}
+            placeholder="Plan name (e.g. Master Plan, Typical Floor)"
+            className="flex-1 text-xs border border-gray-200 rounded-lg px-3 py-2 bg-white focus:outline-none focus:ring-1 focus:ring-[#ed6055]/40"
+          />
+          <button
+            onClick={() => fileRef.current?.click()}
+            disabled={uploading || !nameInput.trim()}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] transition disabled:opacity-50"
+          >
+            {uploading ? 'Uploading…' : 'Choose PDF'}
+          </button>
+          <button onClick={() => { setAdding(false); setNameInput('') }} className="text-xs text-gray-400 hover:text-gray-600 px-2">Cancel</button>
+          <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={upload} />
+        </div>
+      )}
+
+      {plans.length === 0 && !adding && (
+        <p className="text-xs text-gray-400 py-2">No plans uploaded yet.</p>
+      )}
+
+      <div className="space-y-1">
+        {plans.map(plan => (
+          <div key={plan.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50 group">
+            <svg className="w-5 h-5 text-red-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+            </svg>
+            <span className="flex-1 text-xs font-medium text-gray-800 truncate">{plan.name}</span>
+            <button
+              onClick={() => { setPreviewUrl(plan.url); setPreviewName(plan.name) }}
+              className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              Preview
+            </button>
+            {isAdmin && editing && (
+              <button
+                onClick={() => setDeleteId(plan.id)}
+                className="p-1 text-gray-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+              >
+                <TrashIcon />
+              </button>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {previewUrl && createPortal(
+        <div className="fixed inset-0 z-[9999] bg-black/80 backdrop-blur-sm flex flex-col">
+          <div className="flex items-center justify-between px-5 py-3 bg-black/60 flex-shrink-0">
+            <span className="text-white text-sm font-semibold truncate">{previewName}</span>
+            <button
+              onClick={() => setPreviewUrl(null)}
+              className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors flex-shrink-0"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            </button>
+          </div>
+          <iframe src={previewUrl} className="flex-1 w-full border-0" title={previewName} />
+        </div>,
+        document.body
+      )}
+
+      {deleteId !== null && <ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />}
+    </div>
+  )
+}
+
 function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey = 0, onExport, onImport, importing, importErrors = [], onDismissImportErrors }) {
   const [floorRefreshKey, setFloorRefreshKey]       = useState(0)
   const [buildingId, setBuildingId]                 = useState(null)
@@ -2792,6 +2953,7 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
           </button>
         </div>
       )}
+
     </div>
   )
 }
