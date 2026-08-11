@@ -5089,11 +5089,15 @@ function CompletionTab({ project, isAdmin, showToast }) {
   }
 
   return (
-    <div>
-      <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} />
+    <div className="max-w-3xl mx-auto pt-4 space-y-5">
+      {/* Tower selector card */}
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
+        <SectionHeader title="Tower / Location" />
+        <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} />
+      </div>
 
-      {/* Legend + multi-select toolbar -- sticky within the scrollable tab panel */}
-      <div className="sticky top-0 z-20 bg-white py-3 flex flex-wrap items-center justify-between gap-3 border-b border-gray-100">
+      {/* Legend + multi-select toolbar */}
+      <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
           {Object.entries(UNIT_STATUS_CONFIG).map(([key, cfg]) => (
             <span key={key} className="flex items-center gap-1.5">
@@ -5131,7 +5135,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
       </div>
 
       {/* Residential floors */}
-      <div className="mt-8">
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
         <SectionHeader title="Unit Floors" />
         <UnitGrid floorList={floors} cMap={completionMap} maxU={maxUnits} type="unit" emptyMsg="No unit floors defined yet. Add them in the Development tab."
           isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
@@ -5139,7 +5143,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
       </div>
 
       {/* Parking floors */}
-      <div className="mt-8">
+      <div className="bg-white rounded-xl border border-gray-200 p-4">
         <SectionHeader title="Parking Floors" />
         <UnitGrid floorList={parkingFloors} cMap={parkingCompletionMap} maxU={maxParkingUnits} type="parking" emptyMsg="No parking floors defined yet. Add them in the Development tab."
           isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
