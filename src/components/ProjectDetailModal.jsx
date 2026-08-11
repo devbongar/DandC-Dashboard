@@ -4451,6 +4451,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
   const [photos, setPhotos]               = useState([])
   const [loading, setLoading]             = useState(true)
   const [lightbox, setLightbox]           = useState(null)
+  const [lbLoaded, setLbLoaded]           = useState(false)
   const [showUploadScreen, setShowUpload] = useState(false)
   const [filterMonth, setFilterMonth]     = useState('')
   const [filterTags, setFilterTags]       = useState([])
@@ -4722,9 +4723,9 @@ function PhotosTab({ project, isAdmin, showToast }) {
                     <div key={photo.id}
                       className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
                       style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
-                      onMouseEnter={e => e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'}
+                      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'; const img = new Image(); img.src = getUrl(photo.storage_path) }}
                       onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)'}
-                      onClick={() => { setSlideDir('open'); setImgKey(k => k + 1); setLightbox(photo._flatIdx) }}>
+                      onClick={() => { setSlideDir('open'); setImgKey(k => k + 1); setLbLoaded(false); setLightbox(photo._flatIdx) }}>
                       <img
                         src={getThumbnailUrl(photo.storage_path)}
                         onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = getUrl(photo.storage_path) }}
@@ -4764,8 +4765,8 @@ function PhotosTab({ project, isAdmin, showToast }) {
       )}
 
       {/* Lightbox */}
-      {lightbox !== null && filteredPhotos[lightbox] && (
-        <div className="lb-backdrop fixed inset-0 z-[70] bg-black/90 flex items-center justify-center" onClick={() => setLightbox(null)}>
+      {lightbox !== null && filteredPhotos[lightbox] && createPortal(
+        <div className="lb-backdrop fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center" onClick={() => setLightbox(null)}>
           <button
             className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
             onClick={() => setLightbox(null)}>
@@ -4776,7 +4777,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
           {lightbox > 0 && (
             <button
               className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
-              onClick={e => { e.stopPropagation(); setSlideDir('prev'); setImgKey(k => k + 1); setLightbox(l => l - 1) }}>
+              onClick={e => { e.stopPropagation(); setSlideDir('prev'); setImgKey(k => k + 1); setLbLoaded(false); setLightbox(l => l - 1) }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
@@ -4785,18 +4786,30 @@ function PhotosTab({ project, isAdmin, showToast }) {
           {lightbox < filteredPhotos.length - 1 && (
             <button
               className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
-              onClick={e => { e.stopPropagation(); setSlideDir('next'); setImgKey(k => k + 1); setLightbox(l => l + 1) }}>
+              onClick={e => { e.stopPropagation(); setSlideDir('next'); setImgKey(k => k + 1); setLbLoaded(false); setLightbox(l => l + 1) }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
             </button>
           )}
-          <img
-            key={imgKey}
-            src={getUrl(filteredPhotos[lightbox].storage_path)}
-            alt={fixEncoding(filteredPhotos[lightbox].file_name)}
-            className={`max-w-[88vw] max-h-[80vh] object-contain rounded-lg shadow-2xl ${slideDir === 'next' ? 'lb-slide-next' : slideDir === 'prev' ? 'lb-slide-prev' : 'lb-img-open'}`}
-            onClick={e => e.stopPropagation()} />
+          <div className="relative flex items-center justify-center max-w-[88vw] max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            {/* Thumbnail placeholder — visible until full-size loads */}
+            {!lbLoaded && (
+              <img
+                src={getThumbnailUrl(filteredPhotos[lightbox].storage_path)}
+                alt=""
+                aria-hidden
+                className="absolute inset-0 w-full h-full object-contain rounded-lg blur-sm scale-105 opacity-60"
+              />
+            )}
+            <img
+              key={imgKey}
+              src={getUrl(filteredPhotos[lightbox].storage_path)}
+              alt={fixEncoding(filteredPhotos[lightbox].file_name)}
+              onLoad={() => setLbLoaded(true)}
+              className={`relative max-w-[88vw] max-h-[80vh] object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${lbLoaded ? 'opacity-100' : 'opacity-0'} ${slideDir === 'next' ? 'lb-slide-next' : slideDir === 'prev' ? 'lb-slide-prev' : 'lb-img-open'}`}
+            />
+          </div>
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2" onClick={e => e.stopPropagation()}>
             {(filteredPhotos[lightbox].tags ?? []).length > 0 && (
               <div className="flex gap-1.5 flex-wrap justify-center">
@@ -4819,7 +4832,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       </div>{/* end grid padding */}
       {deletePhoto && (

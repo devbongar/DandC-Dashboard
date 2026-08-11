@@ -11,8 +11,8 @@ const NAV = {
     { label: 'Unit Completion',        path: '/admin/unit-completion',        Icon: ChartBarIcon },
     { label: 'Permits Dashboard',      path: '/admin/permits',                Icon: ClipboardListIcon },
     { label: 'Projects',              path: '/projects',                     Icon: FolderIcon },
-    { label: 'Standard Permits',      path: '/admin/standard-permits',       Icon: DocumentCheckIcon },
-    { label: 'Work Program Template', path: '/admin/work-program-template',  Icon: TemplateIcon },
+    { label: 'Standard Permits',      path: '/admin/standard-permits',       Icon: DocumentCheckIcon, comingSoon: true },
+    { label: 'Work Program Template', path: '/admin/work-program-template',  Icon: TemplateIcon,       comingSoon: true },
     { label: 'User Management',       path: '/admin/users',                  Icon: UsersIcon },
     { label: 'Settings',              path: '/admin/settings',               Icon: SettingsIcon },
   ],
@@ -95,6 +95,18 @@ export default function Sidebar({ profile, open, onClose }) {
           <ul className="space-y-px px-2">
             {items.map((item) => {
               const { Icon } = item
+
+              if (item.comingSoon) {
+                return (
+                  <li key={item.path}>
+                    <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border-l-[3px] border-transparent text-white/25 cursor-default select-none">
+                      <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                      <span className="text-sm font-medium leading-none flex-1">{item.label}</span>
+                      <span className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded bg-white/10 text-white/35">Soon</span>
+                    </div>
+                  </li>
+                )
+              }
 
               return (
                 <li key={item.path}>
