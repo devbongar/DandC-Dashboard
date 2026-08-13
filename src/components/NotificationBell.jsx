@@ -9,7 +9,7 @@ function BellIcon({ className }) {
   )
 }
 
-export default function NotificationBell({ userId }) {
+export default function NotificationBell({ userId, variant = 'dark' }) {
   const [notifications, setNotifications] = useState([])
   const [open,          setOpen]          = useState(false)
   const panelRef = useRef(null)
@@ -86,7 +86,7 @@ export default function NotificationBell({ userId }) {
     <div className="relative" ref={panelRef}>
       <button
         onClick={() => setOpen(o => !o)}
-        className="relative p-2 rounded-lg text-white/60 hover:text-white hover:bg-white/[0.08] transition"
+        className={`relative p-2 rounded-lg transition ${variant === 'light' ? 'text-gray-500 hover:text-gray-800 hover:bg-black/[0.05]' : 'text-white/60 hover:text-white hover:bg-white/[0.08]'}`}
         aria-label="Notifications"
       >
         <BellIcon className="w-5 h-5" />

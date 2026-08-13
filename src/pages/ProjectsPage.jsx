@@ -457,7 +457,11 @@ export default function ProjectsPage() {
 
       {/* Card grid */}
       {loading ? (
-        <TriangleLoader label="Loading projects…" />
+        <div className="flex flex-col items-center justify-center py-12">
+          <div className="loadingspinner">
+            <div id="square1" /><div id="square2" /><div id="square3" /><div id="square4" /><div id="square5" />
+          </div>
+        </div>
       ) : filtered.length === 0 ? (
         <div className="text-center py-20">
           {projects.length === 0 ? (
