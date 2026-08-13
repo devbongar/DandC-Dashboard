@@ -189,7 +189,7 @@ export default function DashboardLayout({ profile, children, navOverride, action
           className="floatingMenuButton"
           style={{
             position: 'fixed',
-            top: '1rem',
+            top: '5rem',
             left: '1rem',
             zIndex: 50,
             opacity: headerHidden && !sidebarOpen ? 1 : 0,
