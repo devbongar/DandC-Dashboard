@@ -509,7 +509,7 @@ export default function ProjectsPage() {
                     )}
                     {project.cover_photo_url && (
                       <img
-                        src={toThumbUrl(project.cover_photo_url)}
+                        src={project.cover_photo_thumb_url || project.cover_photo_url}
                         onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = project.cover_photo_url }}
                         alt=""
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"

@@ -479,9 +479,16 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
     if (upErr) { showToast('Upload failed: ' + upErr.message, 'error'); setUploading(false); return }
     const { data } = supabase.storage.from('project-photos').getPublicUrl(path)
     const publicUrl = `${data.publicUrl}?t=${Date.now()}`
-    const { error: dbErr } = await supabase.from('projects').update({ cover_photo_url: publicUrl }).eq('id', project.id)
+    let thumbUrl = null
+    const thumbBlob = await createThumbnail(file, 800)
+    if (thumbBlob) {
+      const thumbPath = `thumbs/${path}`
+      await supabase.storage.from('project-photos').upload(thumbPath, thumbBlob, { upsert: true, contentType: 'image/jpeg' })
+      thumbUrl = `${supabase.storage.from('project-photos').getPublicUrl(thumbPath).data.publicUrl}?t=${Date.now()}`
+    }
+    const { error: dbErr } = await supabase.from('projects').update({ cover_photo_url: publicUrl, cover_photo_thumb_url: thumbUrl }).eq('id', project.id)
     if (dbErr) { showToast('Failed to save photo.', 'error'); setUploading(false); return }
-    onUpdated({ cover_photo_url: publicUrl })
+    onUpdated({ cover_photo_url: publicUrl, cover_photo_thumb_url: thumbUrl })
     showToast('Cover photo updated.', 'success')
     setUploading(false)
     e.target.value = ''
@@ -747,9 +754,16 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
       if (upErr) { showToast('Upload failed: ' + upErr.message, 'error'); setSaving(false); return }
       const { data } = supabase.storage.from('project-photos').getPublicUrl(path)
       payload.cover_photo_url = `${data.publicUrl}?t=${Date.now()}`
+      const thumbBlob = await createThumbnail(pendingFile, 800)
+      if (thumbBlob) {
+        const thumbPath = `thumbs/${path}`
+        await supabase.storage.from('project-photos').upload(thumbPath, thumbBlob, { upsert: true, contentType: 'image/jpeg' })
+        payload.cover_photo_thumb_url = `${supabase.storage.from('project-photos').getPublicUrl(thumbPath).data.publicUrl}?t=${Date.now()}`
+      }
       URL.revokeObjectURL(pendingCoverUrl)
     } else if (pendingCoverUrl === null) {
       payload.cover_photo_url = null
+      payload.cover_photo_thumb_url = null
     }
     if (noNeg(payload.lot_area, payload.developable_area)) { showToast('Values cannot be negative.', 'error'); setSaving(false); return }
     const { error } = await supabase.from('projects').update(payload).eq('id', project.id)
