@@ -122,10 +122,8 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
   width: 2em;
   height: 2em;
   border-radius: 0.5em;
-  background: rgba(232, 232, 232, 0.55);
-  border: 1px solid rgba(232, 232, 232, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: #e8e8e8;
+  border: 1px solid #e8e8e8;
   transition: all .3s;
   box-shadow: 6px 6px 12px rgba(197,197,197,0.5),
              -6px -6px 12px rgba(255,255,255,0.5);
