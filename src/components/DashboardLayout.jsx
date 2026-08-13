@@ -13,9 +13,10 @@ const ROLE_LABELS = {
 }
 
 
-export default function DashboardLayout({ profile, children, navOverride, actions, title }) {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [menuOpen,    setMenuOpen]    = useState(false)
+export default function DashboardLayout({ profile, children, navOverride, actions, title, scrollHeader = false }) {
+  const [sidebarOpen,  setSidebarOpen]  = useState(false)
+  const [menuOpen,     setMenuOpen]     = useState(false)
+  const [headerHidden, setHeaderHidden] = useState(false)
   const menuRef = useRef(null)
   const navigate = useNavigate()
 
@@ -31,6 +32,15 @@ export default function DashboardLayout({ profile, children, navOverride, action
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  // Floating hamburger: show after header scrolls out of view
+  useEffect(() => {
+    if (!scrollHeader) return
+    const HEADER_H = 64
+    const onScroll = () => setHeaderHidden(window.scrollY > HEADER_H)
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [scrollHeader])
+
   const signOut = async () => {
     await supabase.auth.signOut()
     navigate('/signin')
@@ -41,7 +51,7 @@ export default function DashboardLayout({ profile, children, navOverride, action
 
       {/* -- Topbar -- */}
       <div
-        className="fixed top-0 left-0 right-0 z-40 flex flex-col"
+        className={`${scrollHeader ? 'relative' : 'fixed top-0 left-0 right-0 z-40'} flex flex-col`}
         style={{ background: 'rgba(63,63,63,1)', borderBottom: '1px solid rgba(255,255,255,0.08)', boxShadow: '0 1px 0 rgba(0,0,0,0.18)' }}
       >
         {/* Safe-area spacer -- pushes content below the status bar on iOS PWA */}
@@ -171,8 +181,31 @@ export default function DashboardLayout({ profile, children, navOverride, action
       {/* Sidebar */}
       <Sidebar profile={profile} open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
 
+      {/* Floating hamburger pill -- only on scrollHeader pages, after header exits view */}
+      {scrollHeader && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          aria-label="Open menu"
+          className="floatingMenuButton"
+          style={{
+            position: 'fixed',
+            top: '1rem',
+            left: '1rem',
+            zIndex: 50,
+            opacity: headerHidden && !sidebarOpen ? 1 : 0,
+            pointerEvents: headerHidden && !sidebarOpen ? 'auto' : 'none',
+            transform: headerHidden && !sidebarOpen ? 'translateY(0)' : 'translateY(-8px)',
+            transition: 'opacity 220ms ease, transform 220ms ease',
+          }}
+        >
+          <span />
+          <span />
+          <span />
+        </button>
+      )}
+
       {/* Main content -- offset = topbar (4rem) + safe-area-inset-top */}
-      <div style={{ paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))' }}>
+      <div style={scrollHeader ? {} : { paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))' }}>
         <div className="px-3 sm:px-4 pt-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
           {children}
         </div>

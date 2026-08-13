@@ -302,7 +302,7 @@ export default function ProjectsPage() {
   if (showLoading) return <LoadingScreen />
 
   return (
-    <DashboardLayout profile={profile}>
+    <DashboardLayout profile={profile} scrollHeader>
       <div className="max-w-6xl mx-auto">
       {/* Page header */}
       <div className="flex items-center justify-between mb-6">
@@ -475,7 +475,7 @@ export default function ProjectsPage() {
         </div>
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-10">
             {filtered.map((project, idx) => {
               const ph = PHASE_MAP[project.phase]
               const phaseColor = ph?.color ?? '#94a3b8'

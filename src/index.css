@@ -9,6 +9,11 @@
 html, body {
   margin: 0;
   background-color: #111111;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+html::-webkit-scrollbar, body::-webkit-scrollbar {
+  display: none;
 }
 
 /* -- Floating triangle variants --------------------------- */
@@ -104,6 +109,42 @@ html, body {
 }
 .settings-panel-enter {
   animation: ph1-panel-down 180ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+
+/* -- Floating hamburger button -------------------------------- */
+.floatingMenuButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 13%;
+  color: #090909;
+  width: 2em;
+  height: 2em;
+  border-radius: 0.5em;
+  background: rgba(232, 232, 232, 0.55);
+  border: 1px solid rgba(232, 232, 232, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  transition: all .3s;
+  box-shadow: 6px 6px 12px rgba(197,197,197,0.5),
+             -6px -6px 12px rgba(255,255,255,0.5);
+  cursor: pointer;
+}
+.floatingMenuButton:hover {
+  border: 1px solid rgba(255,255,255,0.8);
+}
+.floatingMenuButton:active {
+  color: #666;
+  box-shadow: inset 4px 4px 12px rgba(197,197,197,0.5),
+             inset -4px -4px 12px rgba(255,255,255,0.5);
+}
+.floatingMenuButton span {
+  width: 16px;
+  height: 2px;
+  background: #9ca3af;
+  border-radius: 100px;
+  transition: 0.3s ease;
 }
 
 /* -- Reduced motion: disable all custom animations ----------- */
