@@ -1,25 +1,27 @@
 import ph1Logo from '../assets/ph1Logo.jpg'
 import ph1LogoWhite from '../assets/ph1WorldWhite.png'
+import { useAppSettings } from '../contexts/AppSettingsContext'
 
 const heights = { sm: 30, md: 44, lg: 88 }
 
 export default function Logo({ size = 'md', variant = 'light' }) {
+  const { logoUrl, logoWhiteUrl } = useAppSettings()
   const h = heights[size] ?? heights.md
 
-  // Red topbar (#ed6055): use the dedicated white-logo asset directly.
+  const lightSrc = logoUrl      || ph1Logo
+  const whiteSrc = logoWhiteUrl || ph1LogoWhite
+
   if (variant === 'white') {
     return (
       <img
-        src={ph1LogoWhite}
-        alt="PH1 World Developers"
+        src={whiteSrc}
+        alt="Logo"
         style={{ height: h, width: 'auto', display: 'block' }}
         draggable={false}
       />
     )
   }
 
-  // Near-black surfaces (sidebar #111111, loading screen, sign-in panel):
-  // multiply kills the colours, so wrap in a white pill instead.
   if (variant === 'light') {
     const pad = Math.round(h * 0.12)
     return (
@@ -33,8 +35,8 @@ export default function Logo({ size = 'md', variant = 'light' }) {
         }}
       >
         <img
-          src={ph1Logo}
-          alt="PH1 World Developers"
+          src={lightSrc}
+          alt="Logo"
           style={{ height: h, width: 'auto', display: 'block' }}
           draggable={false}
         />
@@ -42,11 +44,10 @@ export default function Logo({ size = 'md', variant = 'light' }) {
     )
   }
 
-  // Light / white page backgrounds (unauthorized, mobile auth): natural colours.
   return (
     <img
-      src={ph1Logo}
-      alt="PH1 World Developers"
+      src={lightSrc}
+      alt="Logo"
       style={{ height: h, width: 'auto', display: 'block' }}
       draggable={false}
     />

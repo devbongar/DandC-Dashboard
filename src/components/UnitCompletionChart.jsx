@@ -347,7 +347,7 @@ const chartData = useMemo(
             )}
           </div>
           {!expanded && <button
-            onClick={() => navigate('/admin/unit-completion')}
+            onClick={() => navigate('/unit-completion')}
             title="Full screen"
             className="flex-shrink-0 p-1.5 rounded-lg border border-gray-200 text-gray-400 hover:text-gray-700 hover:border-gray-300 transition-colors"
             style={{ background: '#fafafa' }}

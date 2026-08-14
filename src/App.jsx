@@ -20,9 +20,11 @@ import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import ProtectedRoute from './components/ProtectedRoute'
+import { AppSettingsProvider } from './contexts/AppSettingsContext'
 
 function App() {
   return (
+    <AppSettingsProvider>
     <BrowserRouter>
       <Routes>
         {/* Public */}
@@ -51,14 +53,15 @@ function App() {
         <Route path="/admin/users"                  element={<ProtectedRoute roles={['admin']}><UserManagement /></ProtectedRoute>} />
         <Route path="/admin/standard-permits"       element={<ProtectedRoute roles={['admin']}><StandardPermits /></ProtectedRoute>} />
         <Route path="/admin/work-program-template"  element={<ProtectedRoute roles={['admin']}><WorkProgramTemplate /></ProtectedRoute>} />
-        <Route path="/admin/permits"                element={<ProtectedRoute roles={['admin','head','reviewer','endorser','reporter','viewer']}><PermitsDashboard /></ProtectedRoute>} />
-        <Route path="/admin/unit-completion"        element={<ProtectedRoute><UnitCompletionPage /></ProtectedRoute>} />
+        <Route path="/permits"                       element={<ProtectedRoute roles={['admin','head','reviewer','endorser','reporter','viewer']}><PermitsDashboard /></ProtectedRoute>} />
+        <Route path="/unit-completion"               element={<ProtectedRoute><UnitCompletionPage /></ProtectedRoute>} />
         <Route path="/admin/settings"               element={<ProtectedRoute roles={['admin']}><Settings /></ProtectedRoute>} />
 
         <Route path="/" element={<Navigate to="/signin" replace />} />
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
     </BrowserRouter>
+    </AppSettingsProvider>
   )
 }
 

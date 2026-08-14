@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../../lib/supabaseClient'
 import DashboardLayout from '../../components/DashboardLayout'
 import useProfile from '../../hooks/useProfile'
 import LoadingScreen from '../../components/LoadingScreen'
 import { sendTeamsTestNotification } from '../../lib/notifications'
+import { useAppSettings } from '../../contexts/AppSettingsContext'
 
 function Section({ title, description, children }) {
   return (
@@ -19,6 +20,45 @@ function Section({ title, description, children }) {
 
 export default function Settings() {
   const { profile, loading: profileLoading } = useProfile()
+  const { logoUrl, logoWhiteUrl, refresh: refreshSettings } = useAppSettings()
+
+  const [logoUploading,      setLogoUploading]      = useState(false)
+  const [logoWhiteUploading, setLogoWhiteUploading] = useState(false)
+  const [logoStatus,         setLogoStatus]         = useState(null)
+  const lightInputRef = useRef(null)
+  const whiteInputRef = useRef(null)
+
+  async function uploadLogo(file, variant) {
+    const isWhite  = variant === 'white'
+    const setUpl   = isWhite ? setLogoWhiteUploading : setLogoUploading
+    const settingKey = isWhite ? 'logo_white_url' : 'logo_url'
+    const storagePath = `logos/logo-${variant}.${file.name.split('.').pop()}`
+
+    setUpl(true)
+    setLogoStatus(null)
+
+    const { error: upErr } = await supabase.storage
+      .from('app-assets')
+      .upload(storagePath, file, { upsert: true, contentType: file.type })
+
+    if (upErr) { setUpl(false); setLogoStatus('error'); setTimeout(() => setLogoStatus(null), 3000); return }
+
+    const { data: { publicUrl } } = supabase.storage.from('app-assets').getPublicUrl(storagePath)
+
+    const { error: dbErr } = await supabase.from('app_settings')
+      .upsert({ key: settingKey, value: publicUrl }, { onConflict: 'key' })
+
+    setUpl(false)
+    if (dbErr) { setLogoStatus('error'); } else { setLogoStatus('saved'); refreshSettings() }
+    setTimeout(() => setLogoStatus(null), 3000)
+  }
+
+  async function removeLogo(variant) {
+    const isWhite    = variant === 'white'
+    const settingKey = isWhite ? 'logo_white_url' : 'logo_url'
+    await supabase.from('app_settings').delete().eq('key', settingKey)
+    refreshSettings()
+  }
 
   const [webhookUrl,    setWebhookUrl]    = useState('')
   const [webhookSaving, setWebhookSaving] = useState(false)
@@ -98,6 +138,67 @@ export default function Settings() {
           <h1 className="text-xl font-bold text-gray-900 dark:text-white">Settings</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Admin configuration</p>
         </div>
+
+        {/* App Branding */}
+        <Section title="App Branding" description="Upload custom logos. Light logo for light backgrounds; white logo for the dark sidebar and topbar.">
+          <div className="space-y-5">
+            {[
+              { variant: 'light', label: 'Light Logo', desc: 'Used on white/light backgrounds', current: logoUrl,      uploading: logoUploading,      inputRef: lightInputRef },
+              { variant: 'white', label: 'White Logo',  desc: 'Used on dark sidebar and topbar',  current: logoWhiteUrl, uploading: logoWhiteUploading, inputRef: whiteInputRef },
+            ].map(({ variant, label, desc, current, uploading, inputRef }) => (
+              <div key={variant} className="flex items-center gap-4">
+                {/* Preview box */}
+                <div
+                  className="w-28 h-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-200"
+                  style={{ background: variant === 'white' ? '#2d2d2d' : '#f9fafb' }}
+                >
+                  {current
+                    ? <img src={current} alt={label} className="max-h-10 max-w-[90px] object-contain" />
+                    : <span className="text-[10px] text-gray-400">No logo</span>
+                  }
+                </div>
+
+                {/* Info + actions */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-semibold text-gray-800">{label}</p>
+                  <p className="text-[11px] text-gray-400 mb-2">{desc}</p>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <input
+                      ref={inputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f, variant); e.target.value = '' }}
+                    />
+                    <button
+                      onClick={() => inputRef.current?.click()}
+                      disabled={uploading}
+                      className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors"
+                    >
+                      {uploading ? 'Uploading…' : current ? 'Replace' : 'Upload'}
+                    </button>
+                    {current && (
+                      <button
+                        onClick={() => removeLogo(variant)}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
+                      >
+                        Remove
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+
+            {logoStatus && (
+              <p className={`text-xs font-medium px-2.5 py-1 rounded-lg w-fit ${
+                logoStatus === 'saved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
+              }`}>
+                {logoStatus === 'saved' ? '✓ Logo saved' : '✗ Upload failed'}
+              </p>
+            )}
+          </div>
+        </Section>
 
         {/* MS Teams */}
         <Section

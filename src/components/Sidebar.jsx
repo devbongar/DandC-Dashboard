@@ -8,8 +8,8 @@ import { ROLE_LABELS, ROLE_BADGE, navKeyForProfile } from '../lib/roles'
 const NAV = {
   admin: [
     { label: 'Dashboard',             path: '/admin/dashboard',              Icon: HomeIcon },
-    { label: 'Unit Completion',        path: '/admin/unit-completion',        Icon: ChartBarIcon },
-    { label: 'Permits Dashboard',      path: '/admin/permits',                Icon: ClipboardListIcon },
+    { label: 'Unit Completion',        path: '/unit-completion',              Icon: ChartBarIcon },
+    { label: 'Permits Dashboard',      path: '/permits',                Icon: ClipboardListIcon },
     { label: 'Projects',              path: '/projects',                     Icon: FolderIcon },
     { label: 'Standard Permits',      path: '/admin/standard-permits',       Icon: DocumentCheckIcon, comingSoon: true },
     { label: 'Work Program Template', path: '/admin/work-program-template',  Icon: TemplateIcon,       comingSoon: true },
@@ -19,7 +19,7 @@ const NAV = {
   ho: [
     { label: 'Dashboard',         path: '/ho/dashboard',   Icon: HomeIcon },
     { label: 'Projects',          path: '/projects',       Icon: FolderIcon },
-    { label: 'Permits Dashboard', path: '/admin/permits',  Icon: ClipboardListIcon },
+    { label: 'Permits Dashboard', path: '/permits',  Icon: ClipboardListIcon },
   ],
   reporter: [
     { label: 'Dashboard', path: '/reporter/dashboard', Icon: HomeIcon },

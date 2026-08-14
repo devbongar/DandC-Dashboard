@@ -400,7 +400,7 @@ export default function ComplianceTable({ id }) {
           )
         })()}
           <button
-            onClick={() => navigate('/admin/permits')}
+            onClick={() => navigate('/permits')}
             className="p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"
             title="Open Permits Dashboard"
           >

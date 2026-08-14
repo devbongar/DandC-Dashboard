@@ -13,8 +13,8 @@ import SearchDropdown from '../../components/SearchDropdown'
 const NAV_GROUPS = [
   [
     { label: 'Dashboard',             path: '/admin/dashboard',             Icon: HomeIcon },
-    { label: 'Unit Completion',        path: '/admin/unit-completion',       Icon: ChartBarIcon },
-    { label: 'Permits Dashboard',      path: '/admin/permits',               Icon: ClipboardListIcon },
+    { label: 'Unit Completion',        path: '/unit-completion',             Icon: ChartBarIcon },
+    { label: 'Permits Dashboard',      path: '/permits',                     Icon: ClipboardListIcon },
     { label: 'Projects',              path: '/projects',                    Icon: FolderIcon },
   ],
   [
@@ -28,6 +28,7 @@ const NAV_GROUPS = [
 export default function UnitCompletionPage() {
   const { profile, loading } = useProfile()
   const showLoading = useMinLoading(loading)
+  const [expanded,    setExpanded]    = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const [menuOpen,    setMenuOpen]    = useState(false)
   const [filterOpen,  setFilterOpen]  = useState(false)
   const [allProjects, setAllProjects] = useState(null)
@@ -79,6 +80,14 @@ export default function UnitCompletionPage() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
+  const toggleSidebar = () => {
+    setExpanded(v => {
+      const next = !v
+      localStorage.setItem('sidebar_expanded', String(next))
+      return next
+    })
+  }
+
   const signOut = async () => {
     await supabase.auth.signOut()
     navigate('/signin')
@@ -89,17 +98,28 @@ export default function UnitCompletionPage() {
   return (
     <div className="flex h-screen overflow-hidden bg-gray-50" style={{ minHeight: '100dvh' }}>
 
-      {/* -- Icon sidebar -- */}
+      {/* -- Sidebar -- */}
       <aside
-        className="flex-shrink-0 flex flex-col items-center py-3 gap-1"
-        style={{ width: 80, background: '#2d2d2d', borderRight: '1px solid rgba(255,255,255,0.06)' }}
+        className="flex-shrink-0 flex flex-col py-3 gap-1 overflow-hidden"
+        style={{
+          width: expanded ? 240 : 80,
+          background: '#2d2d2d',
+          borderRight: '1px solid rgba(255,255,255,0.06)',
+          transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
+        }}
       >
         {/* Logo */}
-        <div className="flex items-center justify-center w-full h-14 flex-shrink-0 border-b border-white/5 mb-1">
-          <Logo size="sm" variant="white" />
+        <div
+          className="flex items-center h-14 flex-shrink-0 border-b border-white/5 mb-1"
+          style={{ paddingLeft: expanded ? 16 : 0, justifyContent: expanded ? 'flex-start' : 'center' }}
+        >
+          <Logo size="md" variant="white" />
+          {expanded && (
+            <span className="ml-3 text-white font-bold text-base tracking-wide whitespace-nowrap overflow-hidden">D&amp;C Dashboard</span>
+          )}
         </div>
 
-        {/* Nav icons */}
+        {/* Nav */}
         <nav className="flex flex-col flex-1 w-full px-2 gap-0.5">
           {NAV_GROUPS.map((group, gi) => (
             <div key={gi} className="flex flex-col gap-0.5">
@@ -113,12 +133,13 @@ export default function UnitCompletionPage() {
                   return (
                     <div key={item.path} className="relative group">
                       <div
-                        className="flex items-center justify-center w-full h-11 rounded-lg cursor-default"
-                        style={{ color: 'rgba(255,255,255,0.18)' }}
+                        className="flex items-center w-full h-11 rounded-lg cursor-default"
+                        style={{ color: 'rgba(255,255,255,0.18)', justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
                       >
-                        <Icon className="w-[18px] h-[18px]" />
+                        <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                        {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
                       </div>
-                      <SidebarTooltip label={`${item.label} (Soon)`} />
+                      {!expanded && <SidebarTooltip label={`${item.label} (Soon)`} />}
                     </div>
                   )
                 }
@@ -128,11 +149,12 @@ export default function UnitCompletionPage() {
                     <NavLink
                       to={item.path}
                       className={({ isActive }) => [
-                        'flex items-center justify-center w-full h-11 rounded-lg transition-all duration-150',
+                        'flex items-center w-full h-11 rounded-lg transition-all duration-150',
                         isActive
                           ? 'bg-white/10 text-white'
                           : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
                       ].join(' ')}
+                      style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
                     >
                       {({ isActive }) => (
                         <>
@@ -142,32 +164,38 @@ export default function UnitCompletionPage() {
                               style={{ width: 3, height: 20, background: '#ed6055' }}
                             />
                           )}
-                          <Icon className="w-[18px] h-[18px]" />
+                          <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                          {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
                         </>
                       )}
                     </NavLink>
-                    <SidebarTooltip label={item.label} />
+                    {!expanded && <SidebarTooltip label={item.label} />}
                   </div>
                 )
               })}
             </div>
           ))}
+
+          {/* Expand / collapse toggle */}
+          <div className="mt-2 relative group">
+            <button
+              onClick={toggleSidebar}
+              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
+              style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+            >
+              <svg
+                className="w-[18px] h-[18px] flex-shrink-0 transition-transform duration-220"
+                style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
+              </svg>
+              {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">Collapse</span>}
+            </button>
+            {!expanded && <SidebarTooltip label="Expand" />}
+          </div>
         </nav>
 
-        {/* User avatar at bottom */}
-        <div className="flex-shrink-0 mt-auto pb-1">
-          <button
-            onClick={() => navigate('/profile')}
-            title={profile?.full_name ?? profile?.email ?? 'Profile'}
-            className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center ring-1 ring-white/20 hover:ring-white/50 transition"
-            style={{ background: 'rgba(237,96,85,0.2)' }}
-          >
-            {profile?.avatar_url
-              ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-              : <span className="text-[11px] font-bold text-[#ed6055]">{initial}</span>
-            }
-          </button>
-        </div>
       </aside>
 
       {/* -- Right column -- */}
@@ -187,7 +215,7 @@ export default function UnitCompletionPage() {
             zIndex: 10,
           }}
         >
-          <span className="text-lg font-bold text-gray-800 tracking-wide">Unit Completion</span>
+          <span className="text-lg font-bold text-gray-800 tracking-wide">Unit Completion Status</span>
 
           <div className="flex-1" />
 
@@ -199,7 +227,7 @@ export default function UnitCompletionPage() {
             <input
               type="text"
               placeholder="Search…"
-              className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-72"
+              className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
             />
           </div>
 
@@ -218,7 +246,6 @@ export default function UnitCompletionPage() {
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
               </svg>
-              Filters
               {activeFilterCount > 0 && (
                 <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
                   {activeFilterCount}
