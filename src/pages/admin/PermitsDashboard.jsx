@@ -260,10 +260,13 @@ export default function PermitsDashboard() {
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
 
+        {/* Main content */}
+        <main className="flex-1 overflow-auto">
+
         {/* Header */}
         <header
-          className="flex-shrink-0 flex items-center h-14 px-5 gap-4"
-          style={{ background: 'transparent', borderBottom: 'none', boxShadow: 'none', position: 'sticky', top: 0, zIndex: 10 }}
+          className="flex items-center h-14 px-5 gap-4"
+          style={{ background: 'transparent', borderBottom: 'none', boxShadow: 'none' }}
         >
           <span className="text-lg font-bold text-gray-800 tracking-wide">Permits Monitoring</span>
           <div className="flex-1" />
@@ -390,8 +393,7 @@ export default function PermitsDashboard() {
           </div>
         </header>
 
-        {/* Main content */}
-        <main className="flex-1 overflow-auto p-4 sm:p-6">
+        <div className="p-4 sm:p-6">
           <div className="max-w-7xl mx-auto space-y-5">
 
             {/* Summary cards */}
@@ -416,8 +418,8 @@ export default function PermitsDashboard() {
                       onClick={() => setFilterStatus(active ? 'all' : c.filterKey)}
                       className={`flex-none w-36 sm:w-auto text-left rounded-xl border p-4 transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${
                         active
-                          ? 'bg-white border-transparent ring-2 ring-[#ed6055] shadow-md'
-                          : 'bg-white border-gray-100 shadow-sm hover:shadow-md'
+                          ? 'bg-white border-transparent ring-2 ring-[#ed6055] shadow-xl'
+                          : 'bg-white border-gray-100 shadow-md hover:shadow-xl'
                       }`}
                     >
                       <div className="flex items-center justify-between gap-2">
@@ -643,6 +645,7 @@ export default function PermitsDashboard() {
             </div>
 
           </div>
+        </div>
         </main>
       </div>
 
