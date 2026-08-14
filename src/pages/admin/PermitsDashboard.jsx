@@ -167,8 +167,10 @@ export default function PermitsDashboard() {
         className="flex-shrink-0 flex flex-col py-3 gap-1 overflow-hidden"
         style={{
           width: expanded ? 240 : 80,
-          background: '#2d2d2d',
-          borderRight: '1px solid rgba(255,255,255,0.06)',
+          background: 'rgba(18,18,18,0.92)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          borderRight: '1px solid rgba(255,255,255,0.08)',
           transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
         }}
       >
