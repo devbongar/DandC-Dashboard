@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { NavLink, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import useProfile from '../hooks/useProfile'
@@ -17,12 +17,6 @@ const NAV_GROUPS = [
     { label: 'Unit Completion',  path: '/unit-completion',   Icon: ChartBarIcon },
     { label: 'Permits Dashboard',path: '/permits',           Icon: ClipboardListIcon },
     { label: 'Projects',         path: '/projects',          Icon: FolderIcon },
-  ],
-  [
-    { label: 'Standard Permits',      path: '/admin/standard-permits',      Icon: DocumentCheckIcon, comingSoon: true },
-    { label: 'Work Program Template', path: '/admin/work-program-template', Icon: TemplateIcon,      comingSoon: true },
-    { label: 'User Management',       path: '/admin/users',                 Icon: UsersIcon },
-    { label: 'Settings',              path: '/admin/settings',              Icon: SettingsIcon },
   ],
 ]
 
@@ -64,15 +58,33 @@ export default function ProjectDetailPage() {
   })
   const [reportOpen,  setReportOpen]  = useState(false)
   const [expanded,    setExpanded]    = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
+  const [showLabels,  setShowLabels]  = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
+  const tooltipRef = useRef(null)
+
+  const showTooltip = (e, label) => {
+    if (showLabels) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    const el = tooltipRef.current
+    if (!el) return
+    el.textContent = label
+    el.style.top = `${rect.top + rect.height / 2}px`
+    el.style.opacity = '1'
+  }
+  const hideTooltip = () => {
+    if (tooltipRef.current) tooltipRef.current.style.opacity = '0'
+  }
   const [menuOpen,    setMenuOpen]    = useState(false)
 
   const initial   = (profile?.full_name?.[0] ?? profile?.email?.[0] ?? '?').toUpperCase()
   const roleLabel = ROLE_LABELS[profile?.role] ?? profile?.role ?? ''
 
   const toggleSidebar = () => {
+    if (tooltipRef.current) tooltipRef.current.style.opacity = '0'
     setExpanded(v => {
       const next = !v
       localStorage.setItem('sidebar_expanded', String(next))
+      if (!next) setShowLabels(false)
+      else setTimeout(() => setShowLabels(true), 230)
       return next
     })
   }
@@ -115,7 +127,7 @@ export default function ProjectDetailPage() {
 
       {/* -- Sidebar -- */}
       <aside
-        className="flex-shrink-0 flex flex-col py-3 gap-1 overflow-hidden"
+        className="flex-shrink-0 flex flex-col py-3 gap-1"
         style={{
           width: expanded ? 240 : 80,
           background: 'rgba(18,18,18,0.92)',
@@ -123,6 +135,7 @@ export default function ProjectDetailPage() {
           WebkitBackdropFilter: 'blur(20px)',
           borderRight: '1px solid rgba(255,255,255,0.08)',
           transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
+          zIndex: 1,
         }}
       >
         {/* Logo */}
@@ -131,13 +144,13 @@ export default function ProjectDetailPage() {
           style={{ paddingLeft: expanded ? 16 : 0, justifyContent: expanded ? 'flex-start' : 'center' }}
         >
           <Logo size="md" variant="white" />
-          {expanded && (
+          {showLabels && (
             <span className="ml-3 text-white font-bold text-base tracking-wide whitespace-nowrap overflow-hidden">D&amp;C Dashboard</span>
           )}
         </div>
 
         {/* Nav */}
-        <nav className="flex flex-col flex-1 w-full px-2 gap-0.5 overflow-y-auto overflow-x-hidden [&::-webkit-scrollbar]:hidden">
+        <nav className="flex flex-col flex-1 w-full px-2 gap-0.5 overflow-y-auto [&::-webkit-scrollbar]:hidden">
           {/* Main app nav */}
           {NAV_GROUPS.map((group, gi) => (
             <div key={gi} className="flex flex-col gap-0.5">
@@ -146,41 +159,75 @@ export default function ProjectDetailPage() {
               )}
               {group.map((item) => {
                 const { Icon } = item
-                if (item.comingSoon) {
-                  return (
-                    <div key={item.path} className="relative group">
-                      <div
-                        className="flex items-center w-full h-11 rounded-lg cursor-default"
-                        style={{ color: 'rgba(255,255,255,0.18)', justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
-                      >
-                        <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-                        {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
-                      </div>
-                      {!expanded && <SidebarTooltip label={`${item.label} (Soon)`} />}
-                    </div>
-                  )
-                }
                 return (
-                  <div key={item.path} className="relative group">
-                    <NavLink
-                      to={item.path}
-                      className={({ isActive }) => [
-                        'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                        isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
-                      ].join(' ')}
-                      style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+                  <div key={item.path}>
+                    <div className="relative group"
+                      onMouseEnter={(e) => showTooltip(e, item.label)}
+                      onMouseLeave={hideTooltip}
                     >
-                      {({ isActive }) => (
-                        <>
-                          {isActive && (
-                            <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 20, background: '#ed6055' }} />
-                          )}
-                          <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-                          {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
-                        </>
-                      )}
-                    </NavLink>
-                    {!expanded && <SidebarTooltip label={item.label} />}
+                      <NavLink
+                        to={item.path}
+                        className={({ isActive }) => [
+                          'flex items-center w-full h-11 rounded-lg transition-all duration-150',
+                          isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                        ].join(' ')}
+                        style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+                      >
+                        {({ isActive }) => (
+                          <>
+                            {isActive && (
+                              <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 20, background: '#ed6055' }} />
+                            )}
+                            <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                            {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
+                          </>
+                        )}
+                      </NavLink>
+                    </div>
+                    {item.children?.map(child => {
+                      const CIcon = child.Icon
+                      if (child.comingSoon) {
+                        return (
+                          <div key={child.path} className="relative group"
+                            onMouseEnter={(e) => showTooltip(e, `${child.label} (Soon)`)}
+                            onMouseLeave={hideTooltip}
+                          >
+                            <div
+                              className="flex items-center w-full h-9 rounded-lg cursor-default"
+                              style={{ color: 'rgba(255,255,255,0.18)', justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 28 : 0 }}
+                            >
+                              <CIcon className="w-[15px] h-[15px] flex-shrink-0" />
+                              {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
+                            </div>
+                          </div>
+                        )
+                      }
+                      return (
+                        <div key={child.path} className="relative group"
+                          onMouseEnter={(e) => showTooltip(e, child.label)}
+                          onMouseLeave={hideTooltip}
+                        >
+                          <NavLink
+                            to={child.path}
+                            className={({ isActive }) => [
+                              'flex items-center w-full h-9 rounded-lg transition-all duration-150',
+                              isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                            ].join(' ')}
+                            style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 28 : 0 }}
+                          >
+                            {({ isActive }) => (
+                              <>
+                                {isActive && (
+                                  <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 16, background: '#ed6055' }} />
+                                )}
+                                <CIcon className="w-[15px] h-[15px] flex-shrink-0" />
+                                {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
+                              </>
+                            )}
+                          </NavLink>
+                        </div>
+                      )
+                    })}
                   </div>
                 )
               })}
@@ -188,8 +235,8 @@ export default function ProjectDetailPage() {
           ))}
 
           {/* -- Project nav section -- */}
-          <div className="my-2 mx-1" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
-          {expanded && (
+          <div className="my-2 mx-1" style={{ height: 1, minHeight: 1, flexShrink: 0, background: 'rgba(255,255,255,0.2)' }} />
+          {showLabels && (
             <p className="text-[10px] font-bold uppercase tracking-widest px-3 mb-1 whitespace-nowrap overflow-hidden text-ellipsis"
               style={{ color: 'rgba(255,255,255,0.28)' }}>
               {project.name}
@@ -199,7 +246,10 @@ export default function ProjectDetailPage() {
             const { Icon } = item
             const isActive = section === item.key
             return (
-              <div key={String(item.key)} className="relative group">
+              <div key={String(item.key)} className="relative group"
+                onMouseEnter={(e) => showTooltip(e, item.label)}
+                onMouseLeave={hideTooltip}
+              >
                 <button
                   onClick={() => {
                     setSection(item.key)
@@ -215,15 +265,42 @@ export default function ProjectDetailPage() {
                     <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 16, background: '#ed6055' }} />
                   )}
                   <Icon className="w-[16px] h-[16px] flex-shrink-0" />
-                  {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
+                  {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
                 </button>
-                {!expanded && <SidebarTooltip label={item.label} />}
               </div>
             )
           })}
+          <div className="my-2 mx-1" style={{ height: 1, minHeight: 1, flexShrink: 0, background: 'rgba(255,255,255,0.2)' }} />
+
+          {/* Settings + collapse pinned to bottom */}
+          <div className="flex-1" />
+          <div className="relative group"
+            onMouseEnter={(e) => showTooltip(e, 'Settings')}
+            onMouseLeave={hideTooltip}
+          >
+            <NavLink
+              to="/admin/settings"
+              className={({ isActive }) => [
+                'flex items-center w-full h-11 rounded-lg transition-all duration-150',
+                isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+              ].join(' ')}
+              style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 20, background: '#ed6055' }} />}
+                  <SettingsIcon className="w-[18px] h-[18px] flex-shrink-0" />
+                  {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Settings</span>}
+                </>
+              )}
+            </NavLink>
+          </div>
 
           {/* Expand / collapse toggle */}
-          <div className="mt-2 relative group">
+          <div className="mt-1 relative group"
+            onMouseEnter={(e) => showTooltip(e, expanded ? 'Collapse' : 'Expand')}
+            onMouseLeave={hideTooltip}
+          >
             <button
               onClick={toggleSidebar}
               className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
@@ -236,12 +313,30 @@ export default function ProjectDetailPage() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
               </svg>
-              {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">Collapse</span>}
+              {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Collapse</span>}
             </button>
-            {!expanded && <SidebarTooltip label="Expand" />}
           </div>
         </nav>
       </aside>
+
+      <div ref={tooltipRef} style={{
+        position: 'fixed',
+        left: 90,
+        top: 0,
+        transform: 'translateY(-50%)',
+        background: '#1a1a1a',
+        color: '#fff',
+        padding: '6px 10px',
+        borderRadius: '8px',
+        fontSize: '12px',
+        fontWeight: 500,
+        whiteSpace: 'nowrap',
+        pointerEvents: 'none',
+        zIndex: 9999,
+        boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        opacity: 0,
+        transition: 'opacity 100ms',
+      }} />
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">

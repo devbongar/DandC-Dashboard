@@ -16,16 +16,10 @@ import { ROLE_LABELS } from '../lib/roles'
 
 const NAV_GROUPS = [
   [
-    { label: 'Dashboard',             path: '/admin/dashboard',             Icon: HomeIcon },
-    { label: 'Unit Completion',        path: '/unit-completion',             Icon: ChartBarIcon },
-    { label: 'Permits Dashboard',      path: '/permits',                     Icon: ClipboardListIcon },
-    { label: 'Projects',              path: '/projects',                    Icon: FolderIcon },
-  ],
-  [
-    { label: 'Standard Permits',      path: '/admin/standard-permits',      Icon: DocumentCheckIcon, comingSoon: true },
-    { label: 'Work Program Template', path: '/admin/work-program-template', Icon: TemplateIcon,      comingSoon: true },
-    { label: 'User Management',       path: '/admin/users',                 Icon: UsersIcon },
-    { label: 'Settings',             path: '/admin/settings',              Icon: SettingsIcon },
+    { label: 'Dashboard',        path: '/admin/dashboard', Icon: HomeIcon },
+    { label: 'Unit Completion',  path: '/unit-completion', Icon: ChartBarIcon },
+    { label: 'Permits Dashboard',path: '/permits',         Icon: ClipboardListIcon },
+    { label: 'Projects',         path: '/projects',        Icon: FolderIcon },
   ],
 ]
 
@@ -130,7 +124,8 @@ export default function ProjectsPage() {
   const { profile, loading: profileLoading } = useProfile()
   const isAdmin = profile?.role === 'admin'
 
-  const [expanded, setExpanded] = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
+  const [expanded,   setExpanded]   = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
+  const [showLabels, setShowLabels] = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const [menuOpen, setMenuOpen] = useState(false)
 
   const [projects, setProjects]     = useState([])
@@ -165,6 +160,8 @@ export default function ProjectsPage() {
     setExpanded(v => {
       const next = !v
       localStorage.setItem('sidebar_expanded', String(next))
+      if (!next) setShowLabels(false)
+      else setTimeout(() => setShowLabels(true), 230)
       return next
     })
   }
@@ -353,7 +350,7 @@ export default function ProjectsPage() {
 
       {/* -- Sidebar -- */}
       <aside
-        className="flex-shrink-0 flex flex-col py-3 gap-1 overflow-hidden"
+        className="flex-shrink-0 flex flex-col py-3 gap-1"
         style={{
           width: expanded ? 240 : 80,
           background: 'rgba(18,18,18,0.92)',
@@ -361,6 +358,7 @@ export default function ProjectsPage() {
           WebkitBackdropFilter: 'blur(20px)',
           borderRight: '1px solid rgba(255,255,255,0.08)',
           transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
+          zIndex: 1,
         }}
       >
         {/* Logo */}
@@ -369,7 +367,7 @@ export default function ProjectsPage() {
           style={{ paddingLeft: expanded ? 16 : 0, justifyContent: expanded ? 'flex-start' : 'center' }}
         >
           <Logo size="md" variant="white" />
-          {expanded && (
+          {showLabels && (
             <span className="ml-3 text-white font-bold text-base tracking-wide whitespace-nowrap overflow-hidden">D&amp;C Dashboard</span>
           )}
         </div>
@@ -383,52 +381,103 @@ export default function ProjectsPage() {
               )}
               {group.map((item) => {
                 const { Icon } = item
-                if (item.comingSoon) {
-                  return (
-                    <div key={item.path} className="relative group">
-                      <div
-                        className="flex items-center w-full h-11 rounded-lg cursor-default"
-                        style={{ color: 'rgba(255,255,255,0.18)', justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
-                      >
-                        <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-                        {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
-                      </div>
-                      {!expanded && <SidebarTooltip label={`${item.label} (Soon)`} />}
-                    </div>
-                  )
-                }
                 return (
-                  <div key={item.path} className="relative group">
-                    <NavLink
-                      to={item.path}
-                      className={({ isActive }) => [
-                        'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                        isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
-                      ].join(' ')}
-                      style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
-                    >
-                      {({ isActive }) => (
-                        <>
-                          {isActive && (
+                  <div key={item.path}>
+                    <div className="relative group">
+                      <NavLink
+                        to={item.path}
+                        className={({ isActive }) => [
+                          'flex items-center w-full h-11 rounded-lg transition-all duration-150',
+                          isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                        ].join(' ')}
+                        style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+                      >
+                        {({ isActive }) => (
+                          <>
+                            {isActive && (
+                              <div
+                                className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full"
+                                style={{ width: 3, height: 20, background: '#ed6055' }}
+                              />
+                            )}
+                            <Icon className="w-[18px] h-[18px] flex-shrink-0" />
+                            {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
+                          </>
+                        )}
+                      </NavLink>
+                      {!showLabels && <SidebarTooltip label={item.label} />}
+                    </div>
+                    {item.children?.map(child => {
+                      const CIcon = child.Icon
+                      if (child.comingSoon) {
+                        return (
+                          <div key={child.path} className="relative group">
                             <div
-                              className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full"
-                              style={{ width: 3, height: 20, background: '#ed6055' }}
-                            />
-                          )}
-                          <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-                          {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
-                        </>
-                      )}
-                    </NavLink>
-                    {!expanded && <SidebarTooltip label={item.label} />}
+                              className="flex items-center w-full h-9 rounded-lg cursor-default"
+                              style={{ color: 'rgba(255,255,255,0.18)', justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 28 : 0 }}
+                            >
+                              <CIcon className="w-[15px] h-[15px] flex-shrink-0" />
+                              {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
+                            </div>
+                            {!showLabels && <SidebarTooltip label={`${child.label} (Soon)`} />}
+                          </div>
+                        )
+                      }
+                      return (
+                        <div key={child.path} className="relative group">
+                          <NavLink
+                            to={child.path}
+                            className={({ isActive }) => [
+                              'flex items-center w-full h-9 rounded-lg transition-all duration-150',
+                              isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                            ].join(' ')}
+                            style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 28 : 0 }}
+                          >
+                            {({ isActive }) => (
+                              <>
+                                {isActive && (
+                                  <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 16, background: '#ed6055' }} />
+                                )}
+                                <CIcon className="w-[15px] h-[15px] flex-shrink-0" />
+                                {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
+                              </>
+                            )}
+                          </NavLink>
+                          {!showLabels && <SidebarTooltip label={child.label} />}
+                        </div>
+                      )
+                    })}
                   </div>
                 )
               })}
             </div>
           ))}
 
+          {/* Settings + collapse pinned to bottom */}
+          <div className="flex-1" />
+          <div className="my-1 mx-1" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
+          <div className="relative group">
+            <NavLink
+              to="/admin/settings"
+              className={({ isActive }) => [
+                'flex items-center w-full h-11 rounded-lg transition-all duration-150',
+                isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+              ].join(' ')}
+              style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+            >
+              {({ isActive }) => (
+                <>
+                  {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 20, background: '#ed6055' }} />}
+                  <SettingsIcon className="w-[18px] h-[18px] flex-shrink-0" />
+                  {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Settings</span>}
+                </>
+              )}
+            </NavLink>
+            {!showLabels && <SidebarTooltip label="Settings" />}
+          </div>
+
           {/* Expand / collapse toggle */}
-          <div className="mt-2 relative group">
+          <div className="mt-1 relative group">
             <button
               onClick={toggleSidebar}
               className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
@@ -441,9 +490,9 @@ export default function ProjectsPage() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
               </svg>
-              {expanded && <span className="ml-3 text-xs font-medium whitespace-nowrap">Collapse</span>}
+              {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Collapse</span>}
             </button>
-            {!expanded && <SidebarTooltip label="Expand" />}
+            {!showLabels && <SidebarTooltip label="Expand" />}
           </div>
         </nav>
       </aside>
