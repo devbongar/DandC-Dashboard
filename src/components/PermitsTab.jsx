@@ -79,13 +79,6 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
     load()
   }
 
-  async function deletePermit(id) {
-    if (!isAdmin) return
-    const { error } = await supabase.from('permits').delete().eq('id', id)
-    if (error) { showToast?.('Failed to delete permit.', 'error'); return }
-    setPermits(prev => prev.filter(p => p.id !== id))
-  }
-
   if (loading) {
     return <div className="py-6 text-sm text-gray-400 px-4">Loading permits...</div>
   }
@@ -112,26 +105,8 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
   const hasActiveFilter = filterStatus !== 'all' || search !== ''
 
   return (
-    <div className="h-full overflow-y-auto bg-gray-50">
+    <div className="bg-gray-50">
       <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
-
-        {/* Sub-header: count + add */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <p className="text-sm font-semibold text-gray-500 flex-shrink-0">
-            {rows.length} permit{rows.length !== 1 ? 's' : ''}
-            {hasActiveFilter && permits.length !== rows.length && (
-              <span className="text-gray-400 font-normal"> of {permits.length}</span>
-            )}
-          </p>
-          {hasActiveFilter && (
-            <button
-              onClick={() => { onFilterStatusChange?.('all'); onSearchChange?.('') }}
-              className="text-xs text-[#ed6055] hover:underline flex-shrink-0"
-            >
-              Clear
-            </button>
-          )}
-        </div>
 
         {/* Summary cards */}
         {permits.length > 0 && (
@@ -157,7 +132,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                     className={`flex-none w-36 sm:w-auto text-left rounded-xl border p-4 transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${
                       active
                         ? 'bg-white border-transparent ring-2 ring-[#ed6055] shadow-xl'
-                        : 'bg-white border-gray-100 shadow-md hover:shadow-xl'
+                        : 'bg-white border-gray-100 shadow-md hover:shadow-xl hover:-translate-y-1'
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
@@ -244,6 +219,26 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
             <button onClick={() => { onFilterStatusChange?.('all'); onSearchChange?.('') }} className="mt-2 text-xs text-[#ed6055] hover:underline">
               Clear filters
             </button>
+          </div>
+        )}
+
+        {/* Count label */}
+        {permits.length > 0 && (
+          <div className="flex items-center gap-3">
+            <p className="text-sm font-semibold text-gray-500">
+              {rows.length} permit{rows.length !== 1 ? 's' : ''}
+              {hasActiveFilter && permits.length !== rows.length && (
+                <span className="text-gray-400 font-normal"> of {permits.length}</span>
+              )}
+            </p>
+            {hasActiveFilter && (
+              <button
+                onClick={() => { onFilterStatusChange?.('all'); onSearchChange?.('') }}
+                className="text-xs text-[#ed6055] hover:underline"
+              >
+                Clear
+              </button>
+            )}
           </div>
         )}
 
@@ -377,17 +372,6 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
 
                   </div>
 
-                  {/* Admin delete */}
-                  {isAdmin && (
-                    <div className="pt-2 border-t border-black/[0.06] flex justify-end">
-                      <button
-                        onClick={e => { e.stopPropagation(); deletePermit(permit.id) }}
-                        className="min-h-[28px] px-3 text-xs text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                      >
-                        Delete
-                      </button>
-                    </div>
-                  )}
                 </button>
               )
             })}
@@ -407,6 +391,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
           projectName={project?.name}
           onClose={() => setSelected(null)}
           onUpdated={load}
+          onDeleted={(id) => { setSelected(null); setPermits(prev => prev.filter(p => p.id !== id)) }}
         />
       )}
     </div>

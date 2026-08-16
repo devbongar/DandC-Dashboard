@@ -5524,7 +5524,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className="bg-white rounded-none shadow-2xl w-full h-full flex flex-col overflow-hidden">
+      <div className={`rounded-none w-full flex flex-col ${asPage && activeSection === 'Permits' ? 'bg-gray-50' : asPage ? 'bg-gray-50 h-full overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -5546,6 +5546,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           <div key="Work Program" className="flex-1 overflow-hidden flex flex-col section-slide-in">
             <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} />
           </div>
+        ) : activeSection === 'Permits' ? (
+          <div key="Permits" className="section-slide-in">
+            <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} search={permitsSearch} onSearchChange={onPermitsSearchChange} filterStatus={permitsFilter} onFilterStatusChange={onPermitsFilterChange} creating={permitsCreating} onCreatingChange={onPermitsCreatingChange} />
+          </div>
         ) : (
           <div
             key={activeSection}
@@ -5553,7 +5557,6 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           >
             {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} showToast={showToast} />}
-            {activeSection === 'Permits'            && <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} search={permitsSearch} onSearchChange={onPermitsSearchChange} filterStatus={permitsFilter} onFilterStatusChange={onPermitsFilterChange} creating={permitsCreating} onCreatingChange={onPermitsCreatingChange} />}
             {activeSection === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'Unit Completion' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'Photos'             && <PhotosTab      project={project} isAdmin={isAdmin} showToast={showToast} />}

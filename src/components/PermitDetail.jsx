@@ -61,7 +61,7 @@ function CloseIcon() {
 
 const INPUT_CLS = 'w-full px-3 py-2 text-base sm:text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition-shadow'
 
-export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, isReporter, isViewer, currentUserId, projectName, onClose, onUpdated }) {
+export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, isReporter, isViewer, currentUserId, projectName, onClose, onUpdated, onDeleted }) {
   const [permit,         setPermit]         = useState(initialPermit)
   const [requirements,   setRequirements]   = useState([])
   const [issues,         setIssues]         = useState([])
@@ -77,9 +77,11 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
   const [showRaiseForm, setShowRaiseForm] = useState(false)
   const [hoUsers,      setHoUsers]      = useState([])
 
-  const [toast,        setToast]        = useState(null)
-  const [confirmIssue, setConfirmIssue] = useState(null)
-  const [confirmReq,   setConfirmReq]   = useState(null)
+  const [toast,          setToast]          = useState(null)
+  const [confirmIssue,   setConfirmIssue]   = useState(null)
+  const [confirmReq,     setConfirmReq]     = useState(null)
+  const [confirmDelete,  setConfirmDelete]  = useState(false)
+  const [deleting,       setDeleting]       = useState(false)
 
   const [editingSchedule, setEditingSchedule] = useState(false)
   const [scheduleDraft,   setScheduleDraft]   = useState({})
@@ -243,6 +245,16 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
     setAddingReq(false)
   }
 
+  async function deletePermit() {
+    if (!isAdmin) return
+    setDeleting(true)
+    const { error } = await supabase.from('permits').delete().eq('id', permit.id)
+    setDeleting(false)
+    if (error) { showToast('Failed to delete permit.', 'error'); return }
+    onDeleted?.(permit.id)
+    onClose()
+  }
+
   async function deleteRequirement(req) {
     if (!isAdmin) return
     const { error } = await supabase.from('permit_requirements').delete().eq('id', req.id)
@@ -383,6 +395,39 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
         </div>
       )}
 
+      {/* Delete permit confirmation */}
+      {confirmDelete && (
+        <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', backgroundColor: 'rgba(0,0,0,0.4)' }}>
+          <div className="w-full max-w-sm bg-white/90 dark:bg-gray-900/90 rounded-3xl shadow-2xl overflow-hidden" style={{ animation: 'ios-sheet 0.28s cubic-bezier(0.34,1.56,0.64,1) both' }}>
+            <div className="px-6 pt-7 pb-5 text-center">
+              <div className="w-11 h-11 rounded-2xl bg-red-100 flex items-center justify-center mx-auto mb-4">
+                <svg className="w-5 h-5 text-red-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                </svg>
+              </div>
+              <p className="text-base font-bold text-gray-900 dark:text-white mb-1">Delete Permit?</p>
+              <p className="text-sm text-gray-500 dark:text-gray-400 leading-relaxed line-clamp-2">{permit.name}</p>
+              <p className="text-xs text-gray-400 mt-1">This will also delete all requirements and issues.</p>
+            </div>
+            <div className="px-4 pb-5 flex flex-col gap-2.5">
+              <button
+                onClick={deletePermit}
+                disabled={deleting}
+                className="w-full py-3.5 rounded-2xl bg-red-500 hover:bg-red-600 active:scale-[0.98] text-white text-sm font-bold disabled:opacity-50 transition-all"
+              >
+                {deleting ? 'Deleting...' : 'Delete Permit'}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="w-full py-3.5 rounded-2xl bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 active:scale-[0.98] text-gray-700 dark:text-gray-300 text-sm font-semibold transition-all"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Raise Issue floating panel */}
       {showRaiseForm && (
         <div className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center p-4" style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)', backgroundColor: 'rgba(0,0,0,0.4)' }}>
@@ -459,13 +504,26 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
               </div>
               <h2 className="text-base font-bold text-gray-900 dark:text-white leading-snug break-words">{permit.name}</h2>
             </div>
-            <button
-              onClick={handleClose}
-              className="flex-shrink-0 w-11 h-11 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors"
-              aria-label="Close"
-            >
-              <CloseIcon />
-            </button>
+            <div className="flex items-center gap-1 flex-shrink-0">
+              {isAdmin && (
+                <button
+                  onClick={() => setConfirmDelete(true)}
+                  className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 active:bg-red-100 transition-colors"
+                  aria-label="Delete permit"
+                >
+                  <svg className="w-4.5 h-4.5 w-[18px] h-[18px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+                  </svg>
+                </button>
+              )}
+              <button
+                onClick={handleClose}
+                className="w-11 h-11 flex items-center justify-center rounded-xl text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors"
+                aria-label="Close"
+              >
+                <CloseIcon />
+              </button>
+            </div>
           </div>
         </div>
 

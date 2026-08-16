@@ -356,19 +356,10 @@ export default function ProjectDetailPage() {
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main className="flex-1 overflow-hidden flex flex-col">
+        <main className="flex-1 overflow-y-auto">
 
           {/* Header */}
-          <header className="flex-shrink-0 flex items-center h-14 px-5 gap-4" style={{ background: 'transparent' }}>
-            {/* Back to projects */}
-            <button
-              onClick={() => navigate('/projects')}
-              className="flex items-center gap-1.5 text-gray-400 hover:text-gray-700 transition text-sm flex-shrink-0"
-            >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-              </svg>
-            </button>
+          <header className="flex items-center h-14 px-5 gap-4" style={{ background: 'transparent' }}>
             <span className="text-lg font-bold text-gray-800 tracking-wide truncate">{project.name}</span>
             {activeLabel !== 'Project Info' && (
               <span className="text-sm text-gray-400 flex-shrink-0">/ {activeLabel}</span>
@@ -561,9 +552,7 @@ export default function ProjectDetailPage() {
             </div>
           </header>
 
-          {/* Project detail content — fills remaining height */}
-          <div className="flex-1 overflow-hidden">
-            <ProjectDetailModal
+          <ProjectDetailModal
               asPage
               project={project}
               isAdmin={isAdmin}
@@ -591,7 +580,6 @@ export default function ProjectDetailPage() {
               permitsCreating={permitsCreating}
               onPermitsCreatingChange={setPermitsCreating}
             />
-          </div>
         </main>
       </div>
     </div>
