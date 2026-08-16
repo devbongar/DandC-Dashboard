@@ -4448,23 +4448,19 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
 
 // -- Photos Gallery ------------------------------------------------------------
 
-function PhotosTab({ project, isAdmin, showToast }) {
+function PhotosTab({ project, isAdmin, showToast, search = '', onSearchChange, filterTags = [], onFilterTagsChange, filterMonth = '', onFilterMonthChange, sortOrder = 'newest', onSortOrderChange, showUpload = false, onShowUploadChange }) {
   const [photos, setPhotos]               = useState([])
   const [loading, setLoading]             = useState(true)
   const [lightbox, setLightbox]           = useState(null)
   const [lbLoaded, setLbLoaded]           = useState(false)
-  const [showUploadScreen, setShowUpload] = useState(false)
-  const [filterMonth, setFilterMonth]     = useState('')
-  const [filterTags, setFilterTags]       = useState([])
-  const [sortOrder, setSortOrder]         = useState('newest')
   const [deletePhoto, setDeletePhoto]     = useState(null)
-  const [search, setSearch]               = useState('')
-  const [filtersOpen, setFiltersOpen]     = useState(false)
-  const [actionsOpen, setActionsOpen]     = useState(false)
   const [slideDir, setSlideDir]           = useState('open')
   const [imgKey, setImgKey]               = useState(0)
-  const filtersRef                        = useRef(null)
-  const actionsRef                        = useRef(null)
+  const showUploadScreen = showUpload
+  const setShowUpload    = onShowUploadChange
+  const setFilterMonth   = onFilterMonthChange
+  const setFilterTags    = onFilterTagsChange
+  const setSortOrder     = onSortOrderChange
 
   const load = async () => {
     setLoading(true)
@@ -4479,15 +4475,6 @@ function PhotosTab({ project, isAdmin, showToast }) {
 
   useEffect(() => { load() }, [project.id])
 
-  useEffect(() => {
-    const handler = e => {
-      if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false)
-      if (actionsRef.current && !actionsRef.current.contains(e.target)) setActionsOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
   const getUrl = (path) =>
     supabase.storage.from('project-photos').getPublicUrl(path).data.publicUrl
 
@@ -4498,12 +4485,6 @@ function PhotosTab({ project, isAdmin, showToast }) {
     const seen = new Set()
     photos.forEach(p => { const m = (p.photo_date ?? p.created_at)?.slice(0, 7); if (m) seen.add(m) })
     return [...seen].sort().reverse()
-  }, [photos])
-
-  const existingTags = useMemo(() => {
-    const seen = new Set()
-    photos.forEach(p => (p.tags ?? []).forEach(t => seen.add(t)))
-    return PHOTO_TAGS.filter(t => seen.has(t))
   }, [photos])
 
   const activeFilterCount = [!!filterMonth, filterTags.length > 0].filter(Boolean).length
@@ -4533,9 +4514,6 @@ function PhotosTab({ project, isAdmin, showToast }) {
     return [...map.entries()].map(([day, items]) => ({ day, items }))
   }, [filteredPhotos])
 
-  const toggleFilterTag = (tag) =>
-    setFilterTags(t => t.includes(tag) ? t.filter(x => x !== tag) : [...t, tag])
-
   const handleDelete = (photo, e) => {
     e.stopPropagation()
     setDeletePhoto(photo)
@@ -4564,131 +4542,6 @@ function PhotosTab({ project, isAdmin, showToast }) {
   return (
     <div className="pt-4 px-3 sm:px-6">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="px-4 pt-3 pb-3 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
-          <div className="flex items-center gap-2">
-            <div className="w-1 h-4 rounded-full bg-[#ed6055]" />
-            <h3 className="text-sm font-bold text-black">Photos</h3>
-          </div>
-          {/* Toolbar */}
-          <div className="flex items-center gap-2 flex-1 min-w-0 flex-wrap">
-            {/* Search */}
-            <div className="relative flex-1 min-w-[160px]">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z" />
-              </svg>
-              <input type="text" placeholder="Search photos…" value={search} onChange={e => setSearch(e.target.value)}
-                className="w-full pl-8 pr-8 py-2 text-xs rounded-lg border border-gray-200 bg-white text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 focus:border-[#ed6055]/60 transition-shadow" />
-              {search && (
-                <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
-                  <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
-                </button>
-              )}
-            </div>
-
-            {/* Filters button */}
-            <div ref={filtersRef} className="relative flex-shrink-0">
-              <button onClick={() => setFiltersOpen(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
-                style={{
-                  background: filtersOpen || activeFilterCount > 0 ? '#fff' : '#fafafa',
-                  borderColor: activeFilterCount > 0 ? '#ed6055' : filtersOpen ? '#ed6055' : '#e5e7eb',
-                  color: activeFilterCount > 0 ? '#ed6055' : '#6b7280',
-                  boxShadow: filtersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-                }}>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-                </svg>
-                Filters
-                {activeFilterCount > 0 && (
-                  <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">{activeFilterCount}</span>
-                )}
-              </button>
-              {filtersOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden settings-panel-enter"
-                  style={{ width: 220, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}>
-                  <div className="p-3 space-y-3">
-                    {months.length > 0 && (
-                      <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Month</p>
-                        <div className="flex flex-wrap gap-1">
-                          {[{ value: '', label: 'All' }, ...months.map(m => ({ value: m, label: fmtPhotoMonth(m) }))].map(o => (
-                            <button key={o.value} onClick={() => setFilterMonth(o.value)}
-                              className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                              style={filterMonth === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
-                              {o.label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {existingTags.length > 0 && (
-                      <div>
-                        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Tags</p>
-                        <div className="flex flex-wrap gap-1">
-                          {existingTags.map(tag => (
-                            <button key={tag} onClick={() => toggleFilterTag(tag)}
-                              className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                              style={filterTags.includes(tag) ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
-                              {tag}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                    {activeFilterCount > 0 && (
-                      <button onClick={() => { setFilterMonth(''); setFilterTags([]); setSearch('') }}
-                        className="w-full py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition">
-                        Clear filters
-                      </button>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Actions button */}
-            <div ref={actionsRef} className="relative flex-shrink-0">
-              <button onClick={() => setActionsOpen(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
-                style={{
-                  background: actionsOpen ? '#fff' : '#fafafa',
-                  borderColor: actionsOpen ? '#ed6055' : '#e5e7eb',
-                  color: '#6b7280',
-                  boxShadow: actionsOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-                }}>
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-                </svg>
-                Actions
-              </button>
-              {actionsOpen && (
-                <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl settings-panel-enter overflow-visible"
-                  style={{ width: 180, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)', borderRadius: 12 }}>
-                  <div className="p-1.5 space-y-0.5">
-                    {isAdmin && (
-                      <button onClick={() => { setShowUpload(true); setActionsOpen(false) }}
-                        className="group w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
-                        <svg className="w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-150 ease-out group-hover:scale-125" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                        </svg>
-                        Upload Photos
-                      </button>
-                    )}
-                    <button onClick={() => { setSortOrder(s => s === 'newest' ? 'oldest' : 'newest'); setActionsOpen(false) }}
-                      className="group w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
-                      <svg className={`w-3.5 h-3.5 text-gray-400 flex-shrink-0 transition-transform duration-150 group-hover:scale-125 ${sortOrder === 'oldest' ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h5.25m5.25-.75L17.25 9m0 0L21 12.75M17.25 9v12" />
-                      </svg>
-                      Sort: {sortOrder === 'newest' ? 'Newest first' : 'Oldest first'}
-                    </button>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>{/* end toolbar */}
-        </div>{/* end header */}
-
         {/* Grid */}
       <div className="px-4 py-4">
       {filteredPhotos.length === 0 ? (
@@ -4701,7 +4554,7 @@ function PhotosTab({ project, isAdmin, showToast }) {
           {hasFilters ? (
             <>
               <p className="text-sm text-gray-400">No photos match the current filters</p>
-              <button onClick={() => { setFilterMonth(''); setFilterTags([]); setSearch('') }} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
+              <button onClick={() => { setFilterMonth(''); setFilterTags([]); onSearchChange?.('') }} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
             </>
           ) : (
             <>
@@ -5420,7 +5273,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 // -- Main Modal ----------------------------------------------------------------
 
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange, photosSearch = '', onPhotosSearchChange, photosFilterTags = [], onPhotosFilterTagsChange, photosFilterMonth = '', onPhotosFilterMonthChange, photosSortOrder = 'newest', onPhotosSortOrderChange, photosShowUpload = false, onPhotosShowUploadChange }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
 
@@ -5524,7 +5377,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && activeSection === 'Permits' ? 'bg-gray-200' : asPage ? 'bg-gray-200 h-full overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Permits' || activeSection === 'Photos') ? 'bg-gray-200' : asPage ? 'bg-gray-200 h-full overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -5550,6 +5403,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           <div key="Permits" className="section-slide-in">
             <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} search={permitsSearch} onSearchChange={onPermitsSearchChange} filterStatus={permitsFilter} onFilterStatusChange={onPermitsFilterChange} creating={permitsCreating} onCreatingChange={onPermitsCreatingChange} />
           </div>
+        ) : activeSection === 'Photos' ? (
+          <div key="Photos" className="section-slide-in">
+            <PhotosTab project={project} isAdmin={isAdmin} showToast={showToast} search={photosSearch} onSearchChange={onPhotosSearchChange} filterTags={photosFilterTags} onFilterTagsChange={onPhotosFilterTagsChange} filterMonth={photosFilterMonth} onFilterMonthChange={onPhotosFilterMonthChange} sortOrder={photosSortOrder} onSortOrderChange={onPhotosSortOrderChange} showUpload={photosShowUpload} onShowUploadChange={onPhotosShowUploadChange} />
+          </div>
         ) : (
           <div
             key={activeSection}
@@ -5559,7 +5416,6 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} showToast={showToast} />}
             {activeSection === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'Unit Completion' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
-            {activeSection === 'Photos'             && <PhotosTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
           </div>
         )}
       </div>
