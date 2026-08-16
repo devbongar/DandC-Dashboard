@@ -105,7 +105,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
   const hasActiveFilter = filterStatus !== 'all' || search !== ''
 
   return (
-    <div className="bg-gray-50">
+    <div className="bg-gray-200">
       <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
 
         {/* Summary cards */}

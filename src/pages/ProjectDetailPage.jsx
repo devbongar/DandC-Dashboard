@@ -139,7 +139,7 @@ export default function ProjectDetailPage() {
   const activeLabel = section === null ? 'Project Info' : section
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50" style={{ minHeight: '100dvh' }}>
+    <div className="flex h-screen overflow-hidden bg-gray-200" style={{ minHeight: '100dvh' }}>
 
       {/* -- Sidebar -- */}
       <aside

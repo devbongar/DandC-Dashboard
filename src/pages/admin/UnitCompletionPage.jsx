@@ -93,7 +93,7 @@ export default function UnitCompletionPage() {
   if (showLoading) return <LoadingScreen />
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50" style={{ minHeight: '100dvh' }}>
+    <div className="flex h-screen overflow-hidden bg-gray-200" style={{ minHeight: '100dvh' }}>
 
       {/* -- Sidebar -- */}
       <aside
