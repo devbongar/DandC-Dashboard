@@ -4041,6 +4041,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
     <p className="text-xs text-gray-400 italic py-4">{emptyMsg}</p>
   )
   return (
+    <div className="rounded-xl overflow-hidden">
     <div className="overflow-x-auto">
       <table className="border-separate border-spacing-0 text-xs">
         <thead>
@@ -4090,6 +4091,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
           ))}
         </tbody>
       </table>
+    </div>
     </div>
   )
 }
@@ -4554,6 +4556,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
   const [floorModalDate, setFloorModalDate]         = useState('')
   const [floorModalDateBad, setFloorModalDateBad]   = useState(false)
   const [floorModalSaving, setFloorModalSaving]     = useState(false)
+  const [productType, setProductType]               = useState(null)  // null=both, 'unit', 'parking'
 
   const sortFloors = arr =>[...(arr ?? [])].sort((a, b) => {
     const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
@@ -4595,6 +4598,30 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
   const maxUnits        = useMemo(() => floors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [floors])
   const maxParkingUnits = useMemo(() => parkingFloors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [parkingFloors])
+  const unitTotal       = useMemo(() => floors.reduce((s, f) => s + (f.num_units ?? 0), 0), [floors])
+  const parkingTotal    = useMemo(() => parkingFloors.reduce((s, f) => s + (f.num_units ?? 0), 0), [parkingFloors])
+
+  const unitStats = useMemo(() => {
+    let in_progress = 0, m4 = 0, m5 = 0
+    floors.forEach(floor => {
+      for (let i = 1; i <= (floor.num_units ?? 0); i++) {
+        const s = completionMap[`${floor.id}-${i}`]?.status ?? 'none'
+        if (s === 'm5') m5++; else if (s === 'm4') m4++; else if (s === 'in_progress') in_progress++
+      }
+    })
+    return { in_progress, m4, m5 }
+  }, [floors, completionMap])
+
+  const parkingStats = useMemo(() => {
+    let in_progress = 0, m4 = 0, m5 = 0
+    parkingFloors.forEach(floor => {
+      for (let i = 1; i <= (floor.num_units ?? 0); i++) {
+        const s = parkingCompletionMap[`${floor.id}-${i}`]?.status ?? 'none'
+        if (s === 'm5') m5++; else if (s === 'm4') m4++; else if (s === 'in_progress') in_progress++
+      }
+    })
+    return { in_progress, m4, m5 }
+  }, [parkingFloors, parkingCompletionMap])
 
   const stats = useMemo(() => {
     let total = 0, none = 0, in_progress = 0, m4 = 0, m5 = 0
@@ -4825,87 +4852,159 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
   return (
     <div className="max-w-7xl mx-auto pt-4 px-3 sm:px-6 space-y-5">
-      {/* Tower selector card */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <SectionHeader title="Tower / Location" />
-        <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} />
-      </div>
-
-      {/* Summary cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-        {[
-          { label: 'Total Units',  value: stats.total,       accent: 'bg-gray-700',    bg: 'bg-gray-50',    text: 'text-gray-800',   sub: 'text-gray-500' },
-          { label: 'Not Started',  value: stats.none,        accent: 'bg-gray-400',    bg: 'bg-white',      text: 'text-gray-700',   sub: 'text-gray-400', pct: stats.total },
-          { label: 'In Progress',  value: stats.in_progress, accent: 'bg-yellow-400',  bg: 'bg-yellow-50',  text: 'text-yellow-800', sub: 'text-yellow-600', pct: stats.total },
-          { label: 'M4 Complete',  value: stats.m4,          accent: 'bg-green-300',   bg: 'bg-green-50',   text: 'text-green-800',  sub: 'text-green-600', pct: stats.total },
-          { label: 'M5 Handover',  value: stats.m5,          accent: 'bg-green-600',   bg: 'bg-green-50',   text: 'text-green-900',  sub: 'text-green-700', pct: stats.total },
-        ].map(({ label, value, accent, bg, text, sub, pct }) => (
-          <div key={label} className={`relative overflow-hidden rounded-xl border border-gray-200 shadow-sm ${bg} flex flex-col justify-between px-4 py-3.5 min-h-[80px]`}>
-            <div className={`absolute left-0 top-0 bottom-0 w-1 ${accent} rounded-l-xl`} />
-            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">{label}</p>
-            <div className="flex items-end justify-between gap-2">
-              <span className={`text-2xl font-bold leading-none tabular-nums ${text}`}>{value}</span>
-              {pct > 0 && value > 0 && (
-                <span className={`text-[11px] font-semibold mb-0.5 ${sub}`}>{Math.round(value / pct * 100)}%</span>
-              )}
-            </div>
+      {/* Building + product type selector */}
+      <div className="grid grid-cols-3 gap-4 items-stretch relative z-10">
+        {/* Building card */}
+        <div className="bg-white/60 backdrop-blur-md border border-white/80 shadow-md rounded-xl p-4 flex flex-col gap-3">
+          <div className="flex items-center gap-2">
+            <svg className="w-4 h-4 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
+            </svg>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Building</span>
           </div>
-        ))}
-      </div>
-
-      {/* Legend + multi-select toolbar */}
-      <div className="bg-white rounded-xl border border-gray-200 px-4 py-3 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-4 text-xs text-gray-500">
-          {Object.entries(UNIT_STATUS_CONFIG).map(([key, cfg]) => (
-            <span key={key} className="flex items-center gap-1.5">
-              <span className={`w-3.5 h-3.5 rounded-sm inline-block ${cfg.dot}`} />
-              {cfg.label}
-            </span>
-          ))}
+          <div className="flex-1 flex items-center">
+            <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} />
+          </div>
         </div>
-        {isAdmin && (
-          <div className="flex items-center gap-2 flex-shrink-0">
-            {multiSelectMode ? (
-              <>
-                <span className="text-xs text-gray-500">{selectedCells.size} selected</span>
-                <button
-                  onClick={() => { setBulkForm({ status: 'none', m4_date: '', m5_date: '' }); setBulkModal(true) }}
-                  disabled={selectedCells.size === 0}
-                  className="px-3 py-1.5 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-40 transition"
-                >
-                  Set Status
-                </button>
-                <button onClick={exitMultiSelect} className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition">
-                  Cancel
-                </button>
-              </>
-            ) : (
-              <button
-                onClick={() => setMultiSelectMode(true)}
-                className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition"
-              >
-                Multi-select
-              </button>
-            )}
-          </div>
-        )}
+
+        {/* Residential card */}
+        {(() => {
+          const active = productType === 'unit'
+          return (
+            <button
+              onClick={() => setProductType(prev => prev === 'unit' ? null : 'unit')}
+              className={`text-left rounded-xl p-4 flex flex-col gap-0 transition-all duration-200 ease-out hover:-translate-y-1.5 hover:shadow-xl backdrop-blur-md border shadow-md ${active ? 'bg-[#ed6055]/10 border-[#ed6055]/50' : 'bg-white/60 border-white/80 hover:bg-white/80'}`}
+            >
+              <div className="grid grid-cols-[1fr_auto] mb-3">
+                <svg className={`w-4 h-4 self-start ${active ? 'text-[#ed6055]' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+                </svg>
+                <div className="row-span-2 flex items-end justify-end pl-2">
+                  <span className={`text-5xl font-black tabular-nums leading-none ${active ? 'text-[#ed6055]' : 'text-gray-800'}`}>{unitTotal}</span>
+                  <span className="text-[10px] text-gray-400 mb-1 ml-1">units</span>
+                </div>
+                <div className="flex items-baseline mt-1">
+                  <span className={`text-sm font-black uppercase tracking-widest ${active ? 'text-[#ed6055]' : 'text-gray-500'}`}>Residential</span>
+                </div>
+              </div>
+              <div className="border-t border-gray-200/60 pt-2.5 grid grid-cols-3 gap-1 text-center">
+                <div>
+                  <div className="text-sm font-bold tabular-nums text-yellow-600">{unitStats.in_progress}</div>
+                  <div className="text-[9px] text-gray-400 uppercase tracking-wide leading-tight mt-0.5">In Progress</div>
+                </div>
+                <div>
+                  <div className="text-sm font-bold tabular-nums text-green-600">{unitStats.m4}</div>
+                  <div className="text-[9px] text-gray-400 uppercase tracking-wide leading-tight mt-0.5">M4 Done</div>
+                </div>
+                <div>
+                  <div className="text-sm font-bold tabular-nums text-green-800">{unitStats.m5}</div>
+                  <div className="text-[9px] text-gray-400 uppercase tracking-wide leading-tight mt-0.5">M5 Done</div>
+                </div>
+              </div>
+            </button>
+          )
+        })()}
+
+        {/* Parking card */}
+        {(() => {
+          const active = productType === 'parking'
+          return (
+            <button
+              onClick={() => setProductType(prev => prev === 'parking' ? null : 'parking')}
+              className={`text-left rounded-xl p-4 flex flex-col gap-0 transition-all duration-200 ease-out hover:-translate-y-1.5 hover:shadow-xl backdrop-blur-md border shadow-md ${active ? 'bg-[#ed6055]/10 border-[#ed6055]/50' : 'bg-white/60 border-white/80 hover:bg-white/80'}`}
+            >
+              <div className="grid grid-cols-[1fr_auto] mb-3">
+                <svg className={`w-4 h-4 self-start ${active ? 'text-[#ed6055]' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 18.75a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h6m-9 0H3.375a1.125 1.125 0 01-1.125-1.125V14.25m17.25 4.5a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m3 0h1.125c.621 0 1.129-.504 1.09-1.124a17.902 17.902 0 00-3.213-9.193 2.056 2.056 0 00-1.58-.86H14.25M16.5 18.75h-2.25m0-11.177v-.958c0-.568-.422-1.048-.987-1.106a48.554 48.554 0 00-10.026 0 1.106 1.106 0 00-.987 1.106v7.635m12-6.677v6.677m0 4.5v-4.5m0 0h-12" />
+                </svg>
+                <div className="row-span-2 flex items-end justify-end pl-2">
+                  <span className={`text-5xl font-black tabular-nums leading-none ${active ? 'text-[#ed6055]' : 'text-gray-800'}`}>{parkingTotal}</span>
+                  <span className="text-[10px] text-gray-400 mb-1 ml-1">slots</span>
+                </div>
+                <div className="flex items-baseline mt-1">
+                  <span className={`text-sm font-black uppercase tracking-widest ${active ? 'text-[#ed6055]' : 'text-gray-500'}`}>Parking</span>
+                </div>
+              </div>
+              <div className="border-t border-gray-200/60 pt-2.5 grid grid-cols-3 gap-1 text-center">
+                <div>
+                  <div className="text-sm font-bold tabular-nums text-yellow-600">{parkingStats.in_progress}</div>
+                  <div className="text-[9px] text-gray-400 uppercase tracking-wide leading-tight mt-0.5">In Progress</div>
+                </div>
+                <div>
+                  <div className="text-sm font-bold tabular-nums text-green-600">{parkingStats.m4}</div>
+                  <div className="text-[9px] text-gray-400 uppercase tracking-wide leading-tight mt-0.5">M4 Done</div>
+                </div>
+                <div>
+                  <div className="text-sm font-bold tabular-nums text-green-800">{parkingStats.m5}</div>
+                  <div className="text-[9px] text-gray-400 uppercase tracking-wide leading-tight mt-0.5">M5 Done</div>
+                </div>
+              </div>
+            </button>
+          )
+        })()}
       </div>
 
       {/* Residential floors */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <SectionHeader title="Unit Floors" />
-        <UnitGrid floorList={floors} cMap={completionMap} maxU={maxUnits} type="unit" emptyMsg="No unit floors defined yet. Add them in the Development tab."
-          isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
-          onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
-      </div>
+      {(!productType || productType === 'unit') && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <SectionHeader title="Residential Units" action={isAdmin && (
+            <div className="flex items-center gap-2">
+              {multiSelectMode && (
+                <>
+                  <span className="text-xs text-gray-500">{selectedCells.size} selected</span>
+                  <button
+                    onClick={() => { setBulkForm({ status: 'none', m4_date: '', m5_date: '' }); setBulkModal(true) }}
+                    disabled={selectedCells.size === 0}
+                    className="px-3 py-1.5 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-40 transition"
+                  >Set Status</button>
+                  <button onClick={exitMultiSelect} className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition">
+                    Cancel
+                  </button>
+                </>
+              )}
+              {!multiSelectMode && (
+                <button onClick={() => setMultiSelectMode(true)} className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition">
+                  Multi-select
+                </button>
+              )}
+            </div>
+          )} />
+          <UnitGrid floorList={floors} cMap={completionMap} maxU={maxUnits} type="unit" emptyMsg="No unit floors defined yet. Add them in the Development tab."
+            isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
+            onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
+        </div>
+      )}
 
       {/* Parking floors */}
-      <div className="bg-white rounded-xl border border-gray-200 p-4">
-        <SectionHeader title="Parking Floors" />
-        <UnitGrid floorList={parkingFloors} cMap={parkingCompletionMap} maxU={maxParkingUnits} type="parking" emptyMsg="No parking floors defined yet. Add them in the Development tab."
-          isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
-          onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
-      </div>
+      {(!productType || productType === 'parking') && (
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <SectionHeader title="Parking Slots" action={isAdmin && (
+            <div className="flex items-center gap-2">
+              {multiSelectMode && (
+                <>
+                  <span className="text-xs text-gray-500">{selectedCells.size} selected</span>
+                  <button
+                    onClick={() => { setBulkForm({ status: 'none', m4_date: '', m5_date: '' }); setBulkModal(true) }}
+                    disabled={selectedCells.size === 0}
+                    className="px-3 py-1.5 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-40 transition"
+                  >Set Status</button>
+                  <button onClick={exitMultiSelect} className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition">
+                    Cancel
+                  </button>
+                </>
+              )}
+              {!multiSelectMode && (
+                <button onClick={() => setMultiSelectMode(true)} className="px-3 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition">
+                  Multi-select
+                </button>
+              )}
+            </div>
+          )} />
+          <UnitGrid floorList={parkingFloors} cMap={parkingCompletionMap} maxU={maxParkingUnits} type="parking" emptyMsg="No parking floors defined yet. Add them in the Development tab."
+            isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
+            onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
+        </div>
+      )}
 
       {/* Floor status modal */}
       {floorModal && (
