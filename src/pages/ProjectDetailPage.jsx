@@ -77,7 +77,11 @@ export default function ProjectDetailPage() {
   const [issuesActionsOpen,     setIssuesActionsOpen]     = useState(false)
   const [issuesShowAdd,         setIssuesShowAdd]         = useState(false)
   const issuesFnsRef     = useRef({})
+  const ganttFnsRef      = useRef({})
   const mainScrollRef    = useRef(null)
+  const [ganttActionsOpen, setGanttActionsOpen] = useState(false)
+  const ganttActionsRef  = useRef(null)
+  const [ganttBLName, setGanttBLName] = useState(null)
   const [expanded,    setExpanded]    = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const [showLabels,  setShowLabels]  = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const tooltipRef    = useRef(null)
@@ -129,6 +133,7 @@ export default function ProjectDetailPage() {
       if (photosActionsPopRef.current && !photosActionsPopRef.current.contains(e.target)) setPhotosActionsOpen(false)
       if (issuesFilterPopRef.current && !issuesFilterPopRef.current.contains(e.target)) setIssuesFiltersOpen(false)
       if (issuesActionsPopRef.current && !issuesActionsPopRef.current.contains(e.target)) setIssuesActionsOpen(false)
+      if (ganttActionsRef.current && !ganttActionsRef.current.contains(e.target)) setGanttActionsOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -384,13 +389,18 @@ export default function ProjectDetailPage() {
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main ref={mainScrollRef} className="flex-1 overflow-y-auto">
+        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
 
           {/* Header */}
           <header className="flex items-center h-14 px-5 gap-4" style={{ background: 'transparent' }}>
             <span className="text-lg font-bold text-gray-800 tracking-wide truncate">{project.name}</span>
             {activeLabel !== 'Project Info' && (
-              <span className="text-sm text-gray-400 flex-shrink-0">/ {activeLabel}</span>
+              <span className="text-sm text-gray-400 flex-shrink-0 flex items-center gap-1.5">
+                / {activeLabel}
+                {section === 'Work Program' && ganttBLName && (
+                  <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[11px] font-semibold">{ganttBLName}</span>
+                )}
+              </span>
             )}
             <div className="flex-1" />
 
@@ -664,6 +674,52 @@ export default function ProjectDetailPage() {
               </>
             )}
 
+            {/* Work Program controls — only visible on Work Program tab */}
+            {section === 'Work Program' && (
+              <div className="relative flex-shrink-0" ref={ganttActionsRef}>
+                <button
+                  onClick={() => setGanttActionsOpen(v => !v)}
+                  className="flex items-center justify-center w-8 h-8 rounded-lg border transition-all"
+                  style={{
+                    background: ganttActionsOpen ? '#fff' : '#f9fafb',
+                    borderColor: ganttActionsOpen ? '#ed6055' : '#e5e7eb',
+                    color: ganttActionsOpen ? '#ed6055' : '#6b7280',
+                    boxShadow: ganttActionsOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                  }}
+                  aria-label="Actions"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                  </svg>
+                </button>
+                {ganttActionsOpen && (
+                  <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden" style={{ width: 180, animation: 'ph1-dropdown 0.15s ease-out both' }}>
+                    <div className="p-1.5 space-y-0.5">
+                      <button
+                        onClick={() => { ganttFnsRef.current.toggleSettings?.(); setGanttActionsOpen(false) }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left"
+                      >
+                        <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                        </svg>
+                        Settings
+                      </button>
+                      <button
+                        onClick={() => { setReportOpen(true); setGanttActionsOpen(false) }}
+                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left"
+                      >
+                        <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                          <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                        </svg>
+                        Report
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Permits controls — only visible on Permits tab */}
             {section === 'Permits' && (
               <>
@@ -782,8 +838,8 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Report button — hidden on Permits/Photos/Issues tabs (lives inside Actions dropdown there) */}
-            {section !== 'Permits' && section !== 'Photos' && section !== 'Issues & Concerns' && (
+            {/* Report button — hidden on Permits/Photos/Issues/Work Program tabs (lives inside Actions dropdown there) */}
+            {section !== 'Permits' && section !== 'Photos' && section !== 'Issues & Concerns' && section !== 'Work Program' && (
               <button
                 onClick={() => setReportOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
@@ -900,6 +956,8 @@ export default function ProjectDetailPage() {
               issuesShowAdd={issuesShowAdd}
               onIssuesShowAddChange={setIssuesShowAdd}
               onIssuesRegisterFns={fns => { issuesFnsRef.current = fns }}
+              onGanttRegisterFns={fns => { ganttFnsRef.current = fns }}
+              onGanttActiveBLChange={setGanttBLName}
             />
         </main>
       </div>

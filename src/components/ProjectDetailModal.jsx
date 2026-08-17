@@ -5262,7 +5262,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 // -- Main Modal ----------------------------------------------------------------
 
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange, photosSearch = '', onPhotosSearchChange, photosFilterTags = [], onPhotosFilterTagsChange, photosFilterMonth = '', onPhotosFilterMonthChange, photosSortOrder = 'newest', onPhotosSortOrderChange, photosShowUpload = false, onPhotosShowUploadChange, issuesSearch = '', onIssuesSearchChange, issuesFilterStatus = 'all', onIssuesFilterStatusChange, issuesFilterGroup = 'all', onIssuesFilterGroupChange, issuesFilterMgmtLevel = 'all', onIssuesFilterMgmtLevelChange, issuesShowAdd = false, onIssuesShowAddChange, onIssuesRegisterFns }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange, photosSearch = '', onPhotosSearchChange, photosFilterTags = [], onPhotosFilterTagsChange, photosFilterMonth = '', onPhotosFilterMonthChange, photosSortOrder = 'newest', onPhotosSortOrderChange, photosShowUpload = false, onPhotosShowUploadChange, issuesSearch = '', onIssuesSearchChange, issuesFilterStatus = 'all', onIssuesFilterStatusChange, issuesFilterGroup = 'all', onIssuesFilterGroupChange, issuesFilterMgmtLevel = 'all', onIssuesFilterMgmtLevelChange, issuesShowAdd = false, onIssuesShowAddChange, onIssuesRegisterFns, onGanttRegisterFns, onGanttActiveBLChange }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
 
@@ -5315,7 +5315,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   }
 
   return (
-    <div className={asPage ? 'w-full h-full' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-sm'}>
+    <div className={asPage ? 'w-full flex-1 min-h-0 flex flex-col' : 'fixed inset-0 z-50 flex items-center justify-center bg-black/10 backdrop-blur-sm'}>
       <style>{`
         @keyframes menu-in {
           from { opacity: 0; transform: scale(0.95) translateY(-4px); }
@@ -5366,7 +5366,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 h-full overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -5386,7 +5386,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           </div>
         ) : activeSection === 'Work Program' ? (
           <div key="Work Program" className="flex-1 overflow-hidden flex flex-col section-slide-in">
-            <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} />
+            <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} onRegisterFns={onGanttRegisterFns} onActiveBLChange={onGanttActiveBLChange} />
           </div>
         ) : activeSection === 'Permits' ? (
           <div key="Permits" className="section-slide-in">
