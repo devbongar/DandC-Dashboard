@@ -2605,44 +2605,61 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
             )}
           </div>
         ) : (
-          <GanttChart
-            milestones={milestones}
-            overrideMin={overrideMin}
-            overrideMax={overrideMax}
-            timeScale={timeScale}
-            colPx={colPx}
-            labelW={labelW}
-            setLabelW={setLabelW}
-            colVisibility={colVisibility}
-            barVisibility={barVisibility}
-            barColors={barColors}
-            showBarLabels={showBarLabels}
-            drafts={drafts}
-            setDrafts={setDrafts}
-            onSave={handleSave}
-            onDelete={(id) => setDeleteId(id)}
-            isAdmin={isAdmin}
-            showToast={showToast}
-            inlineAdd={inlineAdd}
-            inlineAddName={inlineAddName}
-            onInlineNameChange={setInlineAddName}
-            onInlineSave={handleInlineSave}
-            onInlineCancel={handleInlineCancel}
-            inlineAdding={inlineAdding}
-            onSetInlineAdd={setInlineAdd}
-            activeBL={activeBL}
-            collapsedIds={collapsedIds}
-            onToggleCollapse={handleToggleCollapse}
-            dependencies={dependencies}
-            onSavePreds={handleSavePreds}
-            isAutoMode={isAutoMode}
-            isBLConfirmed={isBLConfirmed}
-            onSaveDuration={handleSaveDuration}
-            onSaveDate={handleSaveDate}
-            onReorder={handleReorder}
-            selectedId={selectedId}
-            onSelect={setSelectedId}
-          />
+          <div className="relative flex-1 min-h-0 flex flex-col">
+            <GanttChart
+              milestones={milestones}
+              overrideMin={overrideMin}
+              overrideMax={overrideMax}
+              timeScale={timeScale}
+              colPx={colPx}
+              labelW={labelW}
+              setLabelW={setLabelW}
+              colVisibility={colVisibility}
+              barVisibility={barVisibility}
+              barColors={barColors}
+              showBarLabels={showBarLabels}
+              drafts={drafts}
+              setDrafts={setDrafts}
+              onSave={handleSave}
+              onDelete={(id) => setDeleteId(id)}
+              isAdmin={isAdmin}
+              showToast={showToast}
+              inlineAdd={inlineAdd}
+              inlineAddName={inlineAddName}
+              onInlineNameChange={setInlineAddName}
+              onInlineSave={handleInlineSave}
+              onInlineCancel={handleInlineCancel}
+              inlineAdding={inlineAdding}
+              onSetInlineAdd={setInlineAdd}
+              activeBL={activeBL}
+              collapsedIds={collapsedIds}
+              onToggleCollapse={handleToggleCollapse}
+              dependencies={dependencies}
+              onSavePreds={handleSavePreds}
+              isAutoMode={isAutoMode}
+              isBLConfirmed={isBLConfirmed}
+              onSaveDuration={handleSaveDuration}
+              onSaveDate={handleSaveDate}
+              onReorder={handleReorder}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
+            {/* Floating legend card */}
+            {[{ key: 'planned', label: 'Planned' }, { key: 'actual', label: 'Actual' }, { key: 'projected', label: 'Forecast' }].some(b => barVisibility[b.key]) && (
+              <div className="absolute top-16 right-3 z-10 bg-white/90 backdrop-blur-sm rounded-xl shadow-md border border-gray-100 px-3 py-2.5 flex flex-col gap-1.5 pointer-events-none select-none">
+                {[
+                  { key: 'planned',   label: 'Planned' },
+                  { key: 'actual',    label: 'Actual' },
+                  { key: 'projected', label: 'Forecast' },
+                ].filter(b => barVisibility[b.key]).map(b => (
+                  <div key={b.key} className="flex items-center gap-2">
+                    <span className="w-5 h-2.5 rounded-sm flex-shrink-0" style={{ backgroundColor: barColors[b.key] }} />
+                    <span className="text-[11px] text-gray-600 leading-none">{b.label}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         )}
       </div>
       {deleteId !== null && (
