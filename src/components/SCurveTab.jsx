@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
+import useProfile from '../hooks/useProfile'
 import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeFilter } from '../lib/scurveUtils'
 import { downloadWorkbook, downloadBaselineTemplate, downloadActualTemplate, downloadForecastTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
 import {
@@ -497,6 +498,7 @@ function makeSeriesLabel(color, yOffsets, interval = 1) {
 }
 
 export default function SCurveTab({ project, isAdmin, canEdit, showToast: showToastProp }) {
+  const { profile } = useProfile()
   const viewKey = `scurve_view_${project.id}`
   const _sv = (() => { try { return JSON.parse(localStorage.getItem(viewKey)) ?? {} } catch { return {} } })()
 
@@ -553,20 +555,45 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   const blColor = (id, i) => baselineColors[id] ?? BASELINE_COLORS[i % BASELINE_COLORS.length]
 
   const dateRangeKey = `scurve_dateRange_${project.id}`
-  const [fromMonth, setFromMonthRaw] = useState(() => {
+  const [fromMonth, setFromMonth] = useState(() => {
     try { return JSON.parse(localStorage.getItem(dateRangeKey))?.from ?? '' } catch { return '' }
   })
-  const [toMonth, setToMonthRaw] = useState(() => {
+  const [toMonth, setToMonth] = useState(() => {
     try { return JSON.parse(localStorage.getItem(dateRangeKey))?.to ?? '' } catch { return '' }
   })
-  const setFromMonth = v => {
-    setFromMonthRaw(v)
-    try { localStorage.setItem(dateRangeKey, JSON.stringify({ from: v, to: toMonth })) } catch {}
-  }
-  const setToMonth = v => {
-    setToMonthRaw(v)
-    try { localStorage.setItem(dateRangeKey, JSON.stringify({ from: fromMonth, to: v })) } catch {}
-  }
+
+  // Load saved view from DB on mount, overriding localStorage defaults
+  useEffect(() => {
+    supabase
+      .from('project_scurve_view')
+      .select('settings, date_range')
+      .eq('project_id', project.id)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!data) return
+        const s = data.settings ?? {}
+        const dr = data.date_range ?? {}
+        if (s.selectedBaselineIds !== undefined) setSelectedBaselineIds(s.selectedBaselineIds)
+        if (s.showActual        !== undefined) setShowActual(s.showActual)
+        if (s.showForecast      !== undefined) setShowForecast(s.showForecast)
+        if (s.viewMode          !== undefined) setViewMode(s.viewMode)
+        if (s.selectedBuildingId !== undefined) setSelectedBuildingId(s.selectedBuildingId)
+        if (s.colWidth          !== undefined) setColWidth(s.colWidth)
+        if (s.showTable         !== undefined) setShowTable(s.showTable)
+        if (s.forecastColor     !== undefined) setForecastColor(s.forecastColor)
+        if (s.actualColor       !== undefined) setActualColor(s.actualColor)
+        if (s.baselineColors    !== undefined) setBaselineColors(s.baselineColors)
+        if (s.showLabelBaselinesMap !== undefined) setShowLabelBaselinesMap(s.showLabelBaselinesMap)
+        if (s.showLabelActual   !== undefined) setShowLabelActual(s.showLabelActual)
+        if (s.showLabelForecast !== undefined) setShowLabelForecast(s.showLabelForecast)
+        if (s.labelStep         !== undefined) setLabelStep(s.labelStep)
+        if (s.wpMarkerBaselineId !== undefined) setWpMarkerBaselineId(s.wpMarkerBaselineId)
+        if (s.wpMarkerSelectedIds !== undefined) setWpMarkerSelectedIds(s.wpMarkerSelectedIds)
+        if (s.summaryBaselineId !== undefined) setSummaryBaselineId(s.summaryBaselineId)
+        if (dr.from             !== undefined) setFromMonth(dr.from)
+        if (dr.to               !== undefined) setToMonth(dr.to)
+      })
+  }, [project.id])
 
   const showToast = (message, type = 'success') => {
     if (showToastProp) { showToastProp(message, type); return }
@@ -723,31 +750,31 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     })
   }, [allPeriods, baselineDataMap, actuals, forecasts, selectedBaselineIds]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const handleSaveView = () => {
-    try {
-      localStorage.setItem(viewKey, JSON.stringify({
-        selectedBaselineIds,
-        showActual,
-        showForecast,
-        viewMode,
-        selectedBuildingId,
-        colWidth,
-        showTable,
-        forecastColor,
-        actualColor,
-        baselineColors,
-        showLabelBaselinesMap,
-        showLabelActual,
-        showLabelForecast,
-        labelStep,
-        wpMarkerBaselineId,
-        wpMarkerSelectedIds,
-        summaryBaselineId,
-      }))
-      showToast('View saved')
-    } catch {
-      showToast('Failed to save view', 'error')
+  const handleSaveView = async () => {
+    const settings = {
+      selectedBaselineIds,
+      showActual,
+      showForecast,
+      viewMode,
+      selectedBuildingId,
+      colWidth,
+      showTable,
+      forecastColor,
+      actualColor,
+      baselineColors,
+      showLabelBaselinesMap,
+      showLabelActual,
+      showLabelForecast,
+      labelStep,
+      wpMarkerBaselineId,
+      wpMarkerSelectedIds,
+      summaryBaselineId,
     }
+    const date_range = { from: fromMonth, to: toMonth }
+    const { error } = await supabase
+      .from('project_scurve_view')
+      .upsert({ project_id: project.id, settings, date_range, updated_at: new Date().toISOString(), updated_by: profile?.id ?? null }, { onConflict: 'project_id' })
+    if (error) { showToast('Failed to save view', 'error') } else { showToast('View saved') }
   }
 
   const handleCreateBaseline = async ({ name, cutoff_date, notes, importedRows }) => {

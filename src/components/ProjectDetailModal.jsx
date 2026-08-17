@@ -3782,7 +3782,7 @@ function IssuesTab({ project, isAdmin, showToast, search = '', onSearchChange, f
         <div className="overflow-x-auto">
           <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
             <thead>
-              <tr className="sticky top-0 z-10 bg-gray-700 border-b border-gray-700">
+              <tr className="sticky top-0 z-10 bg-gray-600 border-b border-gray-700">
                 {['No.', 'Issue', 'Group', 'Management Level', 'Status', 'Date Presented', 'Days Aging'].map(h => (
                   <th key={h} className={`px-4 py-3 text-xs font-bold text-gray-200 ${h === 'Management Level' || h === 'Group' || h === 'Days Aging' ? 'whitespace-normal text-center' : h === 'Issue' ? 'text-left w-full' : 'text-left whitespace-nowrap'}`}>
                     {h === 'Days Aging' ? <><span>Days</span><br /><span>Aging</span></> : h}
@@ -4030,9 +4030,10 @@ const isValidRawDate = (val) => {
 const cellKey = (type, floorId, unitNum) => `${type}:${floorId}:${unitNum}`
 
 const UNIT_STATUS_CONFIG = {
-  none: { label: 'Not Started',              cell: 'bg-white text-gray-600 border-gray-200',      dot: 'bg-gray-300' },
-  m4:   { label: 'M4 Complete', cell: 'bg-yellow-300 text-yellow-900 border-yellow-400', dot: 'bg-yellow-400' },
-  m5:   { label: 'M5 Handover', cell: 'bg-green-500 text-white border-green-600',   dot: 'bg-green-500' },
+  none:        { label: 'Not Started',  cell: 'bg-gray-50 text-gray-400 border-gray-200',       dot: 'bg-gray-300' },
+  in_progress: { label: 'In Progress',  cell: 'bg-yellow-200 text-yellow-800 border-yellow-300', dot: 'bg-yellow-400' },
+  m4:          { label: 'M4 Complete',  cell: 'bg-green-100 text-green-700 border-green-200',    dot: 'bg-green-300' },
+  m5:          { label: 'M5 Handover',  cell: 'bg-green-600 text-white border-green-700',        dot: 'bg-green-600' },
 }
 
 function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectMode, selectedCells, onToggleCell, onOpenCell, onFloorClick }) {
@@ -4041,12 +4042,12 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
   )
   return (
     <div className="overflow-x-auto">
-      <table className="border-collapse text-xs">
+      <table className="border-separate border-spacing-0 text-xs">
         <thead>
-          <tr>
-            <th className="px-3 py-1.5 text-left text-[10px] font-semibold text-gray-400 uppercase tracking-wider sticky left-0 bg-white z-10 min-w-[80px]">Floor</th>
+          <tr className="bg-gray-600">
+            <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-200 uppercase tracking-widest sticky left-0 bg-gray-600 z-10 min-w-[80px] border-r border-gray-500">Floor</th>
             {Array.from({ length: maxU }, (_, i) => (
-              <th key={i} className="px-1 py-1.5 text-center text-[10px] font-semibold text-gray-400 min-w-[44px]">
+              <th key={i} className="py-2 text-center text-[10px] font-semibold text-gray-300 tracking-wide" style={{ width: 44, minWidth: 44 }}>
                 {String(i + 1).padStart(2, '0')}
               </th>
             ))}
@@ -4054,20 +4055,18 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
         </thead>
         <tbody>
           {floorList.map(floor => (
-            <tr key={floor.id} className="border-t border-gray-100">
-              <td className="px-3 py-1 whitespace-nowrap sticky left-0 bg-white z-10">
-                <div className="flex items-center gap-1">
-                  <span
-                    onClick={isAdmin ? () => onFloorClick(type, floor) : undefined}
-                    title={isAdmin ? `Set status for ${/^\d+$/.test(floor.physical_level) ? floor.physical_level + 'F' : floor.physical_level}` : undefined}
-                    className={`font-semibold transition ${isAdmin ? 'text-gray-700 hover:text-[#ed6055] cursor-pointer select-none' : 'text-gray-700'}`}
-                  >{/^\d+$/.test(floor.physical_level) ? `${floor.physical_level}F` : floor.physical_level}</span>
-                </div>
+            <tr key={floor.id} className="group">
+              <td className="px-3 py-0 whitespace-nowrap sticky left-0 bg-gray-100 group-hover:bg-gray-150 z-10 border-t border-gray-200 border-r border-gray-300" style={{ height: 44 }}>
+                <span
+                  onClick={isAdmin ? () => onFloorClick(type, floor) : undefined}
+                  title={isAdmin ? `Set status for ${/^\d+$/.test(floor.physical_level) ? floor.physical_level + 'F' : floor.physical_level}` : undefined}
+                  className={`text-xs font-semibold transition-colors duration-150 ${isAdmin ? 'text-gray-600 hover:text-[#ed6055] cursor-pointer select-none' : 'text-gray-600'}`}
+                >{/^\d+$/.test(floor.physical_level) ? `${floor.physical_level}F` : floor.physical_level}</span>
               </td>
               {Array.from({ length: maxU }, (_, i) => {
                 const unitNum = i + 1
                 if (unitNum > (floor.num_units ?? 0)) {
-                  return <td key={i} className="px-1 py-1 opacity-0 pointer-events-none"><span className="w-11 h-11 block" /></td>
+                  return <td key={i} className="p-0 border border-gray-100 bg-gray-100/40" style={{ width: 44, height: 44 }} />
                 }
                 const c = cMap[`${floor.id}-${unitNum}`]
                 const status = c?.status ?? 'none'
@@ -4075,12 +4074,12 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
                 const key = cellKey(type, floor.id, unitNum)
                 const isSelected = multiSelectMode && selectedCells.has(key)
                 return (
-                  <td key={i} className="px-1 py-1">
+                  <td key={i} className="p-0 border border-gray-200 relative" style={{ width: 44, height: 44 }}>
                     <button
                       onClick={isAdmin ? (multiSelectMode ? () => onToggleCell(type, floor, unitNum) : () => onOpenCell(type, floor, unitNum)) : undefined}
-                      title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} -- ${cfg.label}`}
+                      title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} — ${cfg.label}`}
                       aria-label={`${type === 'parking' ? 'Parking' : 'Unit'} ${floor.physical_level}-${String(unitNum).padStart(2, '0')}: ${cfg.label}`}
-                      className={`w-11 h-11 rounded border text-[9px] font-bold transition ${cfg.cell} ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'ring-2 ring-[#ed6055] ring-offset-1' : (isAdmin && !multiSelectMode ? 'hover:opacity-75 hover:shadow-md' : '')}`}
+                      className={`w-full h-full text-[10px] font-semibold tracking-wide transition-all duration-150 ease-out ${cfg.cell} ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'ring-2 ring-[#ed6055] ring-inset z-10 relative' : (isAdmin && !multiSelectMode ? 'hover:scale-[1.18] hover:shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:z-10 hover:relative' : '')}`}
                     >
                       {String(unitNum).padStart(2, '0')}
                     </button>
@@ -4550,7 +4549,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
   const [bulkModal, setBulkModal]                   = useState(false)
   const [bulkForm, setBulkForm]                     = useState({ status: 'none', m4_date: '', m5_date: '', m4_bad: false, m5_bad: false })
   const [bulkSaving, setBulkSaving]                 = useState(false)
-  const [floorModal, setFloorModal]                 = useState(null)  // { type, floor, stats:{none,m4,m5}, total }
+  const [floorModal, setFloorModal]                 = useState(null)  // { type, floor, stats:{none,in_progress,m4,m5}, total }
   const [floorModalStatus, setFloorModalStatus]     = useState('none')
   const [floorModalDate, setFloorModalDate]         = useState('')
   const [floorModalDateBad, setFloorModalDateBad]   = useState(false)
@@ -4596,6 +4595,33 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
   const maxUnits        = useMemo(() => floors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [floors])
   const maxParkingUnits = useMemo(() => parkingFloors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [parkingFloors])
+
+  const stats = useMemo(() => {
+    let total = 0, none = 0, in_progress = 0, m4 = 0, m5 = 0
+    floors.forEach(floor => {
+      const count = floor.num_units ?? 0
+      total += count
+      for (let i = 1; i <= count; i++) {
+        const s = completionMap[`${floor.id}-${i}`]?.status ?? 'none'
+        if (s === 'm5') m5++
+        else if (s === 'm4') m4++
+        else if (s === 'in_progress') in_progress++
+        else none++
+      }
+    })
+    parkingFloors.forEach(floor => {
+      const count = floor.num_units ?? 0
+      total += count
+      for (let i = 1; i <= count; i++) {
+        const s = parkingCompletionMap[`${floor.id}-${i}`]?.status ?? 'none'
+        if (s === 'm5') m5++
+        else if (s === 'm4') m4++
+        else if (s === 'in_progress') in_progress++
+        else none++
+      }
+    })
+    return { total, none, in_progress, m4, m5 }
+  }, [floors, parkingFloors, completionMap, parkingCompletionMap])
 
   const openCell = (type, floor, unitNum) => {
     const cMap = type === 'parking' ? parkingCompletionMap : completionMap
@@ -4659,14 +4685,15 @@ function CompletionTab({ project, isAdmin, showToast }) {
   const openFloorModal = (type, floor) => {
     const cMap = type === 'parking' ? parkingCompletionMap : completionMap
     const count = floor.num_units ?? 0
-    let none = 0, m4 = 0, m5 = 0
+    let none = 0, in_progress = 0, m4 = 0, m5 = 0
     for (let i = 1; i <= count; i++) {
       const s = cMap[`${floor.id}-${i}`]?.status ?? 'none'
       if (s === 'm4') m4++
       else if (s === 'm5') m5++
+      else if (s === 'in_progress') in_progress++
       else none++
     }
-    setFloorModal({ type, floor, stats: { none, m4, m5 }, total: count })
+    setFloorModal({ type, floor, stats: { none, in_progress, m4, m5 }, total: count })
     setFloorModalStatus('none')
     setFloorModalDate('')
     setFloorModalDateBad(false)
@@ -4797,11 +4824,33 @@ function CompletionTab({ project, isAdmin, showToast }) {
   }
 
   return (
-    <div className="max-w-3xl mx-auto pt-4 space-y-5">
+    <div className="max-w-7xl mx-auto pt-4 px-3 sm:px-6 space-y-5">
       {/* Tower selector card */}
       <div className="bg-white rounded-xl border border-gray-200 p-4">
         <SectionHeader title="Tower / Location" />
         <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} />
+      </div>
+
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
+        {[
+          { label: 'Total Units',  value: stats.total,       accent: 'bg-gray-700',    bg: 'bg-gray-50',    text: 'text-gray-800',   sub: 'text-gray-500' },
+          { label: 'Not Started',  value: stats.none,        accent: 'bg-gray-400',    bg: 'bg-white',      text: 'text-gray-700',   sub: 'text-gray-400', pct: stats.total },
+          { label: 'In Progress',  value: stats.in_progress, accent: 'bg-yellow-400',  bg: 'bg-yellow-50',  text: 'text-yellow-800', sub: 'text-yellow-600', pct: stats.total },
+          { label: 'M4 Complete',  value: stats.m4,          accent: 'bg-green-300',   bg: 'bg-green-50',   text: 'text-green-800',  sub: 'text-green-600', pct: stats.total },
+          { label: 'M5 Handover',  value: stats.m5,          accent: 'bg-green-600',   bg: 'bg-green-50',   text: 'text-green-900',  sub: 'text-green-700', pct: stats.total },
+        ].map(({ label, value, accent, bg, text, sub, pct }) => (
+          <div key={label} className={`relative overflow-hidden rounded-xl border border-gray-200 shadow-sm ${bg} flex flex-col justify-between px-4 py-3.5 min-h-[80px]`}>
+            <div className={`absolute left-0 top-0 bottom-0 w-1 ${accent} rounded-l-xl`} />
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400 mb-1">{label}</p>
+            <div className="flex items-end justify-between gap-2">
+              <span className={`text-2xl font-bold leading-none tabular-nums ${text}`}>{value}</span>
+              {pct > 0 && value > 0 && (
+                <span className={`text-[11px] font-semibold mb-0.5 ${sub}`}>{Math.round(value / pct * 100)}%</span>
+              )}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Legend + multi-select toolbar */}
@@ -4873,22 +4922,28 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <p className="text-xs text-gray-400 mb-4">{floorModal.total} units total</p>
 
             {/* Breakdown */}
-            <div className="flex items-center gap-2 mb-5">
+            <div className="flex flex-wrap items-center gap-2 mb-5">
               {floorModal.stats.none > 0 && (
                 <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-gray-100 text-gray-500 text-[11px] font-semibold">
                   <span className="w-2 h-2 rounded-sm bg-gray-300 inline-block" />
-                  {floorModal.stats.none} Not Tagged
+                  {floorModal.stats.none} Not Started
+                </span>
+              )}
+              {floorModal.stats.in_progress > 0 && (
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-yellow-50 text-yellow-700 text-[11px] font-semibold border border-yellow-200">
+                  <span className="w-2 h-2 rounded-sm bg-yellow-400 inline-block" />
+                  {floorModal.stats.in_progress} In Progress
                 </span>
               )}
               {floorModal.stats.m4 > 0 && (
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-yellow-50 text-yellow-700 text-[11px] font-semibold border border-yellow-200">
-                  <span className="w-2 h-2 rounded-sm bg-yellow-400 inline-block" />
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-50 text-green-700 text-[11px] font-semibold border border-green-200">
+                  <span className="w-2 h-2 rounded-sm bg-green-300 inline-block" />
                   {floorModal.stats.m4} M4
                 </span>
               )}
               {floorModal.stats.m5 > 0 && (
-                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-50 text-green-700 text-[11px] font-semibold border border-green-200">
-                  <span className="w-2 h-2 rounded-sm bg-green-400 inline-block" />
+                <span className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-green-100 text-green-800 text-[11px] font-semibold border border-green-300">
+                  <span className="w-2 h-2 rounded-sm bg-green-600 inline-block" />
                   {floorModal.stats.m5} M5
                 </span>
               )}
@@ -4897,7 +4952,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <div className="space-y-4">
               <div>
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Set all units to</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {Object.entries(UNIT_STATUS_CONFIG).map(([val, cfg]) => (
                     <button key={val}
                       onClick={() => {
@@ -4963,7 +5018,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <div className="space-y-4">
               <div>
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {Object.entries(UNIT_STATUS_CONFIG).map(([val, cfg]) => (
                     <button key={val}
                       onClick={() => {
@@ -5033,9 +5088,9 @@ function CompletionTab({ project, isAdmin, showToast }) {
             <div className="space-y-4">
               <div>
                 <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Status</p>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {Object.entries(UNIT_STATUS_CONFIG).map(([val, cfg]) => {
-                    const m5Locked = val === 'm5' && selected?.existing?.status !== 'm4'
+                    const m5Locked = val === 'm5' && !['m4', 'in_progress', 'm5'].includes(selected?.existing?.status)
                     return (
                       <button key={val}
                         disabled={m5Locked}
@@ -5212,7 +5267,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns') ? 'bg-gray-200' : asPage ? 'bg-gray-200 h-full overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 h-full overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -5246,6 +5301,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           <div key="Issues & Concerns" className="section-slide-in">
             <IssuesTab project={project} isAdmin={isAdmin} showToast={showToast} search={issuesSearch} onSearchChange={onIssuesSearchChange} filterStatus={issuesFilterStatus} onFilterStatusChange={onIssuesFilterStatusChange} filterGroup={issuesFilterGroup} onFilterGroupChange={onIssuesFilterGroupChange} filterMgmtLevel={issuesFilterMgmtLevel} onFilterMgmtLevelChange={onIssuesFilterMgmtLevelChange} showAdd={issuesShowAdd} onShowAddChange={onIssuesShowAddChange} onRegisterFns={onIssuesRegisterFns} />
           </div>
+        ) : activeSection === 'Unit Completion' ? (
+          <div key="Unit Completion" className="section-slide-in">
+            <CompletionTab project={project} isAdmin={isAdmin} showToast={showToast} />
+          </div>
         ) : (
           <div
             key={activeSection}
@@ -5253,7 +5312,6 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           >
             {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} showToast={showToast} />}
-            {activeSection === 'Unit Completion' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           </div>
         )}
       </div>
