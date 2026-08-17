@@ -338,7 +338,7 @@ export default function ProjectsPage() {
   ].filter(Boolean).length
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-50" style={{ minHeight: '100dvh' }}>
+    <div className="flex h-screen overflow-hidden overscroll-x-none bg-gray-50" style={{ minHeight: '100dvh' }}>
       <style>{`
         @keyframes card-shine {
           from { transform: translateX(-180%) skewX(-18deg); opacity: 1; }
@@ -522,7 +522,7 @@ export default function ProjectsPage() {
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main className="flex-1 overflow-auto">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none">
 
           {/* Header */}
           <header
