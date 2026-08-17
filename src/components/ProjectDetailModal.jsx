@@ -3606,7 +3606,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
 const ISSUE_STATUS_MAP_OUT = { open: 'Open', close: 'Close', hold: 'Hold' }
 const ISSUE_STATUS_MAP_IN  = { Open: 'open', Close: 'close', Hold: 'hold' }
 
-function IssuesTab({ project, isAdmin, showToast }) {
+function IssuesTab({ project, isAdmin, showToast, search = '', onSearchChange, filterStatus = 'all', onFilterStatusChange, filterGroup = 'all', onFilterGroupChange, filterMgmtLevel = 'all', onFilterMgmtLevelChange, showAdd = false, onShowAddChange, onRegisterFns }) {
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal]     = useState(null)   // 'view' | 'add' | 'edit' | 'delete'
@@ -3614,14 +3614,6 @@ function IssuesTab({ project, isAdmin, showToast }) {
   const [form, setForm]       = useState(ISSUE_EMPTY)
   const [saving, setSaving]   = useState(false)
   const [deleteId, setDeleteId] = useState(null)
-  const [filterStatus, setFilterStatus]       = useState('all')
-  const [filterGroup, setFilterGroup]         = useState('all')
-  const [filterMgmtLevel, setFilterMgmtLevel] = useState('all')
-  const [search, setSearch]                   = useState('')
-  const [filtersOpen, setFiltersOpen]         = useState(false)
-  const [actionsOpen, setActionsOpen]         = useState(false)
-  const filtersRef                            = useRef(null)
-  const actionsRef                            = useRef(null)
   const [importing, setImporting]             = useState(false)
   const [importErrors, setImportErrors]       = useState([])
 
@@ -3668,7 +3660,6 @@ function IssuesTab({ project, isAdmin, showToast }) {
         action_steps: String(r['Action Steps'] ?? '').trim() || null,
       })).filter(r => r.details)
       const errors = []
-      // Validate dates against raw Excel values before toDateStr auto-corrects overflow
       rawRows.forEach((r, i) => {
         if (!String(r['Details'] ?? '').trim()) return
         if (r['Date Presented'] && !isValidRawDate(r['Date Presented'])) errors.push(`Row ${i + 2}: Date Presented is not a valid calendar date.`)
@@ -3684,6 +3675,10 @@ function IssuesTab({ project, isAdmin, showToast }) {
       setImporting(false)
     }
   }
+
+  useEffect(() => { onRegisterFns?.({ export: handleExport, import: handleImport }) })
+
+  useEffect(() => { if (showAdd) { openAdd(); onShowAddChange?.(false) } }, [showAdd])
 
   useEffect(() => { load() }, [project.id])
 
@@ -3750,15 +3745,6 @@ function IssuesTab({ project, isAdmin, showToast }) {
     setDeleteId(null); load()
   }
 
-  useEffect(() => {
-    const handler = (e) => {
-      if (filtersRef.current && !filtersRef.current.contains(e.target)) setFiltersOpen(false)
-      if (actionsRef.current && !actionsRef.current.contains(e.target)) setActionsOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
-
   const filtered = rows.filter(r => {
     const matchStatus    = filterStatus    === 'all' || r.status           === filterStatus
     const matchGroup     = filterGroup     === 'all' || r.issue_group      === filterGroup
@@ -3769,7 +3755,7 @@ function IssuesTab({ project, isAdmin, showToast }) {
   })
   const activeFilterCount = [filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel !== 'all'].filter(Boolean).length
   const hasFilter = activeFilterCount > 0 || search !== ''
-  const clearFilters = () => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel('all'); setSearch('') }
+  const clearFilters = () => { onFilterStatusChange?.('all'); onFilterGroupChange?.('all'); onFilterMgmtLevelChange?.('all'); onSearchChange?.('') }
 
   const iCls = 'w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm text-black bg-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent'
   const fCls = 'flex-1 min-w-[110px] px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055]'
@@ -3778,164 +3764,13 @@ function IssuesTab({ project, isAdmin, showToast }) {
   return (
     <div className="pt-4 px-3 sm:px-6">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 max-w-7xl mx-auto">
-        <div className="sticky top-0 z-30 bg-white rounded-t-xl border-b border-gray-100 px-4 pt-3 pb-0">
-          <ImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
-          <SectionHeader title="Issues & Concerns" />
-        </div>
+        {importErrors.length > 0 && (
+          <div className="px-4 pt-3 pb-0 border-b border-gray-100">
+            <ImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
+          </div>
+        )}
 
         <div className="px-4 pt-3 pb-4">
-
-      {!loading && (
-        <div className="flex items-center gap-2 mb-3">
-          {/* Search bar */}
-          <div className="relative flex-1 min-w-0">
-            <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 15.803 7.5 7.5 0 0016.803 15.803z" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Search issues…"
-              value={search}
-              onChange={e => setSearch(e.target.value)}
-              className="w-full pl-8 pr-8 py-2 text-xs rounded-lg border border-gray-200 bg-white text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 focus:border-[#ed6055]/60 transition-shadow"
-            />
-            {search && (
-              <button onClick={() => setSearch('')} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition">
-                <svg className="w-3.5 h-3.5" viewBox="0 0 20 20" fill="currentColor"><path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" /></svg>
-              </button>
-            )}
-          </div>
-
-          {/* Filter button */}
-          <div ref={filtersRef} className="relative flex-shrink-0">
-            <button
-              onClick={() => setFiltersOpen(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
-              style={{
-                background: filtersOpen || activeFilterCount > 0 ? '#fff' : '#fafafa',
-                borderColor: activeFilterCount > 0 ? '#ed6055' : filtersOpen ? '#ed6055' : '#e5e7eb',
-                color: activeFilterCount > 0 ? '#ed6055' : '#6b7280',
-                boxShadow: filtersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-              }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-              </svg>
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-
-            {filtersOpen && (
-              <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden settings-panel-enter"
-                style={{ width: 220, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}
-              >
-                <div className="p-3 space-y-3">
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
-                    <div className="flex flex-wrap gap-1">
-                      {[{ value: 'all', label: 'All' }, ...Object.entries(ISSUE_STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))].map(o => (
-                        <button key={o.value} onClick={() => setFilterStatus(o.value)}
-                          className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                          style={filterStatus === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
-                          {o.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
-                    <div className="flex flex-wrap gap-1">
-                      {[{ value: 'all', label: 'All' }, ...ISSUE_GROUPS.map(g => ({ value: g, label: g }))].map(o => (
-                        <button key={o.value} onClick={() => setFilterGroup(o.value)}
-                          className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                          style={filterGroup === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
-                          {o.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
-                    <div className="flex flex-wrap gap-1">
-                      {[{ value: 'all', label: 'All' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))].map(o => (
-                        <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)}
-                          className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                          style={filterMgmtLevel === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
-                          {o.label}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  {activeFilterCount > 0 && (
-                    <button onClick={() => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel('all') }}
-                      className="w-full py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition">
-                      Clear filters
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Actions button */}
-          <div ref={actionsRef} className="relative flex-shrink-0">
-            <button
-              onClick={() => setActionsOpen(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-2 rounded-lg border text-xs font-semibold transition-all"
-              style={{
-                background: actionsOpen ? '#fff' : '#fafafa',
-                borderColor: actionsOpen ? '#ed6055' : '#e5e7eb',
-                color: '#6b7280',
-                boxShadow: actionsOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-              }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
-              </svg>
-              Actions
-            </button>
-
-            {actionsOpen && (
-              <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl overflow-hidden settings-panel-enter"
-                style={{ width: 180, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)' }}
-              >
-                <div className="p-1.5 space-y-0.5">
-                  <button onClick={() => { handleExport(); setActionsOpen(false) }}
-                    className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition text-left">
-                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
-                    </svg>
-                    Export to Excel
-                  </button>
-                  <label className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-gray-700 hover:bg-gray-50 transition cursor-pointer">
-                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
-                    </svg>
-                    {importing ? 'Importing…' : 'Import from Excel'}
-                    <input type="file" accept=".xlsx,.xls" className="hidden" onChange={e => { if (e.target.files?.[0]) { handleImport(e.target.files[0]); setActionsOpen(false); e.target.value = '' } }} />
-                  </label>
-                  {isAdmin && (
-                    <>
-                      <div className="h-px bg-gray-100 mx-2 my-1" />
-                      <button onClick={() => { openAdd(); setActionsOpen(false) }}
-                        className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-[#ed6055] hover:bg-[#ed6055]/5 transition text-left">
-                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-                        </svg>
-                        Add Issue
-                      </button>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
 
       {loading ? (
         <TriangleLoader label="Loading issues…" />
@@ -5273,7 +5108,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
 
 // -- Main Modal ----------------------------------------------------------------
 
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange, photosSearch = '', onPhotosSearchChange, photosFilterTags = [], onPhotosFilterTagsChange, photosFilterMonth = '', onPhotosFilterMonthChange, photosSortOrder = 'newest', onPhotosSortOrderChange, photosShowUpload = false, onPhotosShowUploadChange }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange, photosSearch = '', onPhotosSearchChange, photosFilterTags = [], onPhotosFilterTagsChange, photosFilterMonth = '', onPhotosFilterMonthChange, photosSortOrder = 'newest', onPhotosSortOrderChange, photosShowUpload = false, onPhotosShowUploadChange, issuesSearch = '', onIssuesSearchChange, issuesFilterStatus = 'all', onIssuesFilterStatusChange, issuesFilterGroup = 'all', onIssuesFilterGroupChange, issuesFilterMgmtLevel = 'all', onIssuesFilterMgmtLevelChange, issuesShowAdd = false, onIssuesShowAddChange, onIssuesRegisterFns }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
 
@@ -5377,7 +5212,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Permits' || activeSection === 'Photos') ? 'bg-gray-200' : asPage ? 'bg-gray-200 h-full overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns') ? 'bg-gray-200' : asPage ? 'bg-gray-200 h-full overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -5407,6 +5242,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           <div key="Photos" className="section-slide-in">
             <PhotosTab project={project} isAdmin={isAdmin} showToast={showToast} search={photosSearch} onSearchChange={onPhotosSearchChange} filterTags={photosFilterTags} onFilterTagsChange={onPhotosFilterTagsChange} filterMonth={photosFilterMonth} onFilterMonthChange={onPhotosFilterMonthChange} sortOrder={photosSortOrder} onSortOrderChange={onPhotosSortOrderChange} showUpload={photosShowUpload} onShowUploadChange={onPhotosShowUploadChange} />
           </div>
+        ) : activeSection === 'Issues & Concerns' ? (
+          <div key="Issues & Concerns" className="section-slide-in">
+            <IssuesTab project={project} isAdmin={isAdmin} showToast={showToast} search={issuesSearch} onSearchChange={onIssuesSearchChange} filterStatus={issuesFilterStatus} onFilterStatusChange={onIssuesFilterStatusChange} filterGroup={issuesFilterGroup} onFilterGroupChange={onIssuesFilterGroupChange} filterMgmtLevel={issuesFilterMgmtLevel} onFilterMgmtLevelChange={onIssuesFilterMgmtLevelChange} showAdd={issuesShowAdd} onShowAddChange={onIssuesShowAddChange} onRegisterFns={onIssuesRegisterFns} />
+          </div>
         ) : (
           <div
             key={activeSection}
@@ -5414,7 +5253,6 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           >
             {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} showToast={showToast} />}
-            {activeSection === 'Issues & Concerns'  && <IssuesTab      project={project} isAdmin={isAdmin} showToast={showToast} />}
             {activeSection === 'Unit Completion' && <CompletionTab  project={project} isAdmin={isAdmin} showToast={showToast} />}
           </div>
         )}

@@ -1133,7 +1133,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     : null
 
   return (
-    <div ref={containerRef} className="h-full flex flex-col overflow-hidden px-4 sm:px-8 py-3 sm:py-4 gap-3">
+    <div ref={containerRef} className="h-full flex flex-col overflow-hidden px-4 sm:px-8 pt-3 sm:pt-4 pb-20 gap-3">
 
       {/* Toolbar: hidden file inputs only */}
       <div className="flex-shrink-0 flex items-center gap-3 flex-wrap">
@@ -1886,11 +1886,6 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
 
         return (
           <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden pb-2">
-            {/* Title row */}
-            <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-3 pb-2.5 border-b border-gray-100">
-              <div className="w-1 h-4 rounded-full bg-[#ed6055]" />
-              <h3 className="text-sm font-bold text-black">S-Curve</h3>
-            </div>
             {/* Legend */}
             <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-2.5 pb-2.5 flex-wrap border-b border-gray-100">
               {selectedBaselineIds.map((id, i) => {
@@ -1935,7 +1930,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                     <text x={10} y={chartSlotHeight / 2} textAnchor="middle" fontSize={10} fill="#9ca3af"
                       transform={`rotate(-90,10,${chartSlotHeight / 2})`}>% Complete</text>
                     {[0, 20, 40, 60, 80, 100].map(v => {
-                      const y = plotTop + plotH * (1 - v / 110)
+                      const y = plotTop + plotH * (1 - (v - (-8)) / (110 - (-8)))
                       return (
                         <text key={v} x={yAxisPanelW - 6} y={y} textAnchor="end"
                           dominantBaseline="middle" fontSize={11} fontWeight="600" fill="#4b5563">{v}%</text>
@@ -1965,7 +1960,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                         </feMerge>
                       </filter>
                     </defs>
-                    <YAxis domain={[0, 110]} hide width={0} />
+                    <YAxis domain={[-8, 110]} hide width={0} />
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="period" tickLine={false}
                       axisLine={{ stroke: '#e5e7eb' }}

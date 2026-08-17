@@ -69,13 +69,23 @@ export default function ProjectDetailPage() {
   const [photosFiltersOpen,  setPhotosFiltersOpen]  = useState(false)
   const [photosActionsOpen,  setPhotosActionsOpen]  = useState(false)
   const [photosShowUpload,   setPhotosShowUpload]   = useState(false)
+  const [issuesSearch,          setIssuesSearch]          = useState('')
+  const [issuesFilterStatus,    setIssuesFilterStatus]    = useState('all')
+  const [issuesFilterGroup,     setIssuesFilterGroup]     = useState('all')
+  const [issuesFilterMgmtLevel, setIssuesFilterMgmtLevel] = useState('all')
+  const [issuesFiltersOpen,     setIssuesFiltersOpen]     = useState(false)
+  const [issuesActionsOpen,     setIssuesActionsOpen]     = useState(false)
+  const [issuesShowAdd,         setIssuesShowAdd]         = useState(false)
+  const issuesFnsRef     = useRef({})
   const [expanded,    setExpanded]    = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const [showLabels,  setShowLabels]  = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const tooltipRef    = useRef(null)
   const filterPopRef        = useRef(null)
   const actionsPopRef       = useRef(null)
-  const photosFilterPopRef  = useRef(null)
-  const photosActionsPopRef = useRef(null)
+  const photosFilterPopRef   = useRef(null)
+  const photosActionsPopRef  = useRef(null)
+  const issuesFilterPopRef   = useRef(null)
+  const issuesActionsPopRef  = useRef(null)
 
   const showTooltip = (e, label) => {
     if (showLabels) return
@@ -116,6 +126,8 @@ export default function ProjectDetailPage() {
       if (actionsPopRef.current && !actionsPopRef.current.contains(e.target)) setPermitsActionsOpen(false)
       if (photosFilterPopRef.current && !photosFilterPopRef.current.contains(e.target)) setPhotosFiltersOpen(false)
       if (photosActionsPopRef.current && !photosActionsPopRef.current.contains(e.target)) setPhotosActionsOpen(false)
+      if (issuesFilterPopRef.current && !issuesFilterPopRef.current.contains(e.target)) setIssuesFiltersOpen(false)
+      if (issuesActionsPopRef.current && !issuesActionsPopRef.current.contains(e.target)) setIssuesActionsOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -497,6 +509,156 @@ export default function ProjectDetailPage() {
               </>
             )}
 
+            {/* Issues & Concerns controls — only visible on Issues tab */}
+            {section === 'Issues & Concerns' && (
+              <>
+                {/* Search */}
+                <div className="relative flex-shrink-0">
+                  <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Search issues…"
+                    value={issuesSearch}
+                    onChange={e => setIssuesSearch(e.target.value)}
+                    className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
+                  />
+                </div>
+
+                {/* Filter button */}
+                <div ref={issuesFilterPopRef} className="relative flex-shrink-0">
+                  <button
+                    onClick={() => setIssuesFiltersOpen(v => !v)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
+                    style={{
+                      background: issuesFiltersOpen || issuesFilterStatus !== 'all' || issuesFilterGroup !== 'all' || issuesFilterMgmtLevel !== 'all' ? '#fff' : '#f9fafb',
+                      borderColor: (issuesFilterStatus !== 'all' || issuesFilterGroup !== 'all' || issuesFilterMgmtLevel !== 'all') ? '#ed6055' : issuesFiltersOpen ? '#ed6055' : '#e5e7eb',
+                      color: (issuesFilterStatus !== 'all' || issuesFilterGroup !== 'all' || issuesFilterMgmtLevel !== 'all') ? '#ed6055' : '#6b7280',
+                      boxShadow: issuesFiltersOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                    }}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                    </svg>
+                    Filters
+                    {[issuesFilterStatus !== 'all', issuesFilterGroup !== 'all', issuesFilterMgmtLevel !== 'all'].filter(Boolean).length > 0 && (
+                      <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+                        {[issuesFilterStatus !== 'all', issuesFilterGroup !== 'all', issuesFilterMgmtLevel !== 'all'].filter(Boolean).length}
+                      </span>
+                    )}
+                  </button>
+                  {issuesFiltersOpen && (
+                    <div className="absolute right-0 top-full mt-2 z-50 rounded-xl overflow-hidden" style={{ width: 220, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10)', animation: 'ph1-dropdown 0.15s ease-out both' }}>
+                      <div className="p-3 space-y-3">
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Status</p>
+                          <div className="flex flex-wrap gap-1">
+                            {[{ value: 'all', label: 'All' }, { value: 'open', label: 'Open' }, { value: 'close', label: 'Close' }, { value: 'hold', label: 'Hold' }].map(o => (
+                              <button key={o.value} onClick={() => setIssuesFilterStatus(o.value)}
+                                className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                                style={issuesFilterStatus === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
+                                {o.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
+                          <div className="flex flex-wrap gap-1">
+                            {['all', 'Commercial', 'Design', 'Construction', 'Compliance'].map(g => (
+                              <button key={g} onClick={() => setIssuesFilterGroup(g)}
+                                className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                                style={issuesFilterGroup === g ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
+                                {g === 'all' ? 'All' : g}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        <div>
+                          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
+                          <div className="flex flex-wrap gap-1">
+                            {['all', 'ESA', 'Management Committee'].map(l => (
+                              <button key={l} onClick={() => setIssuesFilterMgmtLevel(l)}
+                                className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                                style={issuesFilterMgmtLevel === l ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>
+                                {l === 'all' ? 'All' : l}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {(issuesFilterStatus !== 'all' || issuesFilterGroup !== 'all' || issuesFilterMgmtLevel !== 'all') && (
+                          <button onClick={() => { setIssuesFilterStatus('all'); setIssuesFilterGroup('all'); setIssuesFilterMgmtLevel('all') }}
+                            className="w-full py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-500 hover:bg-gray-50 transition">
+                            Clear filters
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Actions button */}
+                <div ref={issuesActionsPopRef} className="relative flex-shrink-0">
+                  <button
+                    onClick={() => setIssuesActionsOpen(v => !v)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                    style={{
+                      background: issuesActionsOpen ? '#fff' : '#f9fafb',
+                      borderColor: issuesActionsOpen ? '#ed6055' : '#e5e7eb',
+                      color: issuesActionsOpen ? '#ed6055' : '#6b7280',
+                      boxShadow: issuesActionsOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                    }}
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
+                  </button>
+                  {issuesActionsOpen && (
+                    <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden" style={{ width: 200, animation: 'ph1-dropdown 0.15s ease-out both' }}>
+                      <div className="p-1.5 space-y-0.5">
+                        <button onClick={() => { issuesFnsRef.current.export?.(); setIssuesActionsOpen(false) }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
+                          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                          </svg>
+                          Export to Excel
+                        </button>
+                        <label className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition cursor-pointer">
+                          <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5m-13.5-9L12 3m0 0l4.5 4.5M12 3v13.5" />
+                          </svg>
+                          Import from Excel
+                          <input type="file" accept=".xlsx,.xls" className="hidden" onChange={e => { if (e.target.files?.[0]) { issuesFnsRef.current.import?.(e.target.files[0]); setIssuesActionsOpen(false); e.target.value = '' } }} />
+                        </label>
+                        {isAdmin && (
+                          <>
+                            <div className="h-px bg-gray-100 mx-2 my-1" />
+                            <button onClick={() => { setIssuesShowAdd(true); setIssuesActionsOpen(false) }}
+                              className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-[#ed6055] hover:bg-[#ed6055]/5 transition text-left">
+                              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+                              </svg>
+                              Add Issue
+                            </button>
+                          </>
+                        )}
+                        <div className="h-px bg-gray-100 mx-2 my-1" />
+                        <button onClick={() => { setReportOpen(true); setIssuesActionsOpen(false) }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
+                          <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>
+                            <line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>
+                          </svg>
+                          Report
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
+
             {/* Permits controls — only visible on Permits tab */}
             {section === 'Permits' && (
               <>
@@ -615,8 +777,8 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Report button — hidden on Permits/Photos tabs (lives inside Actions dropdown there) */}
-            {section !== 'Permits' && section !== 'Photos' && (
+            {/* Report button — hidden on Permits/Photos/Issues tabs (lives inside Actions dropdown there) */}
+            {section !== 'Permits' && section !== 'Photos' && section !== 'Issues & Concerns' && (
               <button
                 onClick={() => setReportOpen(true)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
@@ -694,6 +856,7 @@ export default function ProjectDetailPage() {
                 setSection(s)
                 setSearchParams({ tab: s ?? 'Project Info' })
                 if (s !== 'Photos') { setPhotosSearch(''); setPhotosFilterTags([]); setPhotosFilterMonth(''); setPhotosSortOrder('newest'); setPhotosFiltersOpen(false); setPhotosActionsOpen(false); setPhotosShowUpload(false) }
+                if (s !== 'Issues & Concerns') { setIssuesSearch(''); setIssuesFilterStatus('all'); setIssuesFilterGroup('all'); setIssuesFilterMgmtLevel('all'); setIssuesFiltersOpen(false); setIssuesActionsOpen(false); setIssuesShowAdd(false) }
                 if (s !== 'Permits') {
                   setPermitsSearch('')
                   setPermitsFilter('all')
@@ -721,6 +884,17 @@ export default function ProjectDetailPage() {
               onPhotosSortOrderChange={setPhotosSortOrder}
               photosShowUpload={photosShowUpload}
               onPhotosShowUploadChange={setPhotosShowUpload}
+              issuesSearch={issuesSearch}
+              onIssuesSearchChange={setIssuesSearch}
+              issuesFilterStatus={issuesFilterStatus}
+              onIssuesFilterStatusChange={setIssuesFilterStatus}
+              issuesFilterGroup={issuesFilterGroup}
+              onIssuesFilterGroupChange={setIssuesFilterGroup}
+              issuesFilterMgmtLevel={issuesFilterMgmtLevel}
+              onIssuesFilterMgmtLevelChange={setIssuesFilterMgmtLevel}
+              issuesShowAdd={issuesShowAdd}
+              onIssuesShowAddChange={setIssuesShowAdd}
+              onIssuesRegisterFns={fns => { issuesFnsRef.current = fns }}
             />
         </main>
       </div>
