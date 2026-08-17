@@ -148,6 +148,7 @@ export default function ProjectsPage() {
   const [showReportBuilder, setShowReportBuilder] = useState(false)
   const [showFilters, setShowFilters]   = useState(false)
   const [showActions, setShowActions]   = useState(false)
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
 
   const menuRef    = useRef(null)
   const actionsRef = useRef(null)
@@ -348,17 +349,24 @@ export default function ProjectsPage() {
         }
       `}</style>
 
+      {/* -- Mobile sidebar backdrop -- */}
+      {mobileSidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 sm:hidden"
+          onClick={() => setMobileSidebarOpen(false)}
+        />
+      )}
+
       {/* -- Sidebar -- */}
       <aside
-        className="flex-shrink-0 flex flex-col py-3 gap-1"
+        className={`fixed sm:relative inset-y-0 left-0 z-40 sm:z-auto flex-shrink-0 flex flex-col py-3 gap-1 overflow-y-auto transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0`}
         style={{
           width: expanded ? 240 : 80,
           background: 'rgba(18,18,18,0.92)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           borderRight: '1px solid rgba(255,255,255,0.08)',
-          transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
-          zIndex: 1,
+          transition: 'transform 220ms cubic-bezier(0.4,0,0.2,1), width 220ms cubic-bezier(0.4,0,0.2,1)',
         }}
       >
         {/* Logo */}
@@ -386,6 +394,7 @@ export default function ProjectsPage() {
                     <div className="relative group">
                       <NavLink
                         to={item.path}
+                        onClick={() => setMobileSidebarOpen(false)}
                         className={({ isActive }) => [
                           'flex items-center w-full h-11 rounded-lg transition-all duration-150',
                           isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
@@ -497,6 +506,20 @@ export default function ProjectsPage() {
         </nav>
       </aside>
 
+      {/* -- Floating hamburger (mobile only, hidden when sidebar open) -- */}
+      {!mobileSidebarOpen && (
+        <button
+          className="sm:hidden fixed z-50 flex items-center justify-center w-9 h-9 rounded-xl shadow-lg transition-all"
+          style={{ top: 110, left: 12, background: 'rgba(240,240,240,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}
+          onClick={() => setMobileSidebarOpen(v => !v)}
+          aria-label="Open menu"
+        >
+          <svg style={{ width: 18, height: 18 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-600">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+      )}
+
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <main className="flex-1 overflow-auto">
@@ -510,7 +533,7 @@ export default function ProjectsPage() {
             <div className="flex-1" />
 
             {/* Search */}
-            <div className="relative">
+            <div className="relative hidden sm:block">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
               </svg>
@@ -523,10 +546,10 @@ export default function ProjectsPage() {
               />
             </div>
 
-            {/* Filter button */}
+            {/* Filter button — desktop only */}
             <button
               onClick={() => setShowFilters(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
               style={{
                 background: showFilters || activeCount > 0 ? '#fff' : '#f9fafb',
                 borderColor: activeCount > 0 ? '#ed6055' : showFilters ? '#ed6055' : '#e5e7eb',
@@ -546,15 +569,15 @@ export default function ProjectsPage() {
             {activeCount > 0 && (
               <button
                 onClick={() => { setPhaseFilter('all'); setBusinessUnitFilter('all'); setDevTypeFilter('all'); setIs4phFilter('all') }}
-                className="text-xs text-gray-400 hover:text-gray-600 transition flex-shrink-0"
+                className="hidden sm:block text-xs text-gray-400 hover:text-gray-600 transition flex-shrink-0"
               >
                 Clear
               </button>
             )}
 
-            {/* Actions dropdown */}
+            {/* Actions dropdown — desktop only */}
             <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
-            <div className="relative flex-shrink-0" ref={actionsRef}>
+            <div className="hidden sm:block relative flex-shrink-0" ref={actionsRef}>
               <button
                 onClick={() => setShowActions(v => !v)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
@@ -652,6 +675,87 @@ export default function ProjectsPage() {
               )}
             </div>
           </header>
+
+          {/* Mobile toolbar — search + filter + actions */}
+          <div className="sm:hidden flex items-center gap-2 px-4 pb-3">
+            {/* Search */}
+            <div className="relative flex-1">
+              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Search projects…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition"
+              />
+            </div>
+            {/* Filter */}
+            <button
+              onClick={() => setShowFilters(v => !v)}
+              className="relative flex items-center justify-center w-9 h-9 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
+              style={{
+                background: showFilters || activeCount > 0 ? '#fff' : '#f9fafb',
+                borderColor: activeCount > 0 ? '#ed6055' : showFilters ? '#ed6055' : '#e5e7eb',
+                color: activeCount > 0 ? '#ed6055' : '#6b7280',
+                boxShadow: showFilters ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+              {activeCount > 0 && (
+                <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#ed6055] text-white text-[8px] font-bold flex items-center justify-center leading-none">{activeCount}</span>
+              )}
+            </button>
+            {/* Actions */}
+            <div className="relative flex-shrink-0" ref={actionsRef}>
+              <button
+                onClick={() => setShowActions(v => !v)}
+                className="flex items-center justify-center w-9 h-9 rounded-lg border text-xs font-semibold transition-all"
+                style={{
+                  background: showActions ? '#fff' : '#f9fafb',
+                  borderColor: showActions ? '#ed6055' : '#e5e7eb',
+                  color: showActions ? '#ed6055' : '#6b7280',
+                  boxShadow: showActions ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                </svg>
+              </button>
+              {showActions && (
+                <>
+                  <div className="fixed inset-0 z-30" onClick={() => setShowActions(false)} />
+                  <div className="absolute right-0 top-full mt-1.5 z-40 bg-white rounded-xl border border-gray-200 shadow-lg py-1.5 min-w-[160px]">
+                    {projects.length > 0 && (
+                      <button onClick={() => { setShowReportBuilder(true); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">
+                        <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                        Report
+                      </button>
+                    )}
+                    {projects.length > 0 && (
+                      <button onClick={() => { handleExport(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">
+                        <DownloadIcon /> Export
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <>
+                        <button onClick={() => { importRef.current?.click(); setShowActions(false) }} disabled={importing} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50">
+                          <UploadIcon /> {importing ? 'Importing…' : 'Import'}
+                        </button>
+                        <div className="my-1 border-t border-gray-100" />
+                        <button onClick={() => { openAdd(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition">
+                          <PlusIcon /> Add Project
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
 
           {/* Filter panel — below header, above scroll */}
           {showFilters && (
