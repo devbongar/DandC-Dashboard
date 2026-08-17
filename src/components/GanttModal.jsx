@@ -8,6 +8,7 @@ import TriangleLoader from './TriangleLoader'
 import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors, scheduleMilestones, scheduleProjected, expandDependencies } from '../lib/ganttDependencies'
 import { buildChildAddForm, computeReorder } from '../lib/ganttUtils'
 import { copyTemplateToBaseline } from '../lib/templateUtils'
+import useProfile from '../hooks/useProfile'
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation' },
@@ -458,7 +459,7 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
       >
         {value
           ? <span className="text-gray-500 group-hover:text-blue-600 group-hover:underline group-hover:underline-offset-2 group-hover:decoration-dotted transition-colors">{fmtDate(value)}</span>
-          : <span className="text-[10px] text-gray-300 group-hover:text-blue-400 transition-colors">+ set date</span>}
+          : <span className="text-[10px] text-gray-300 group-hover:text-blue-400 transition-colors">--</span>}
       </div>
     )
   }
@@ -898,36 +899,13 @@ function GToolbarSelect({ options = [], value, onChange, fullWidth = false }) {
   )
 }
 
-function ColResizeButton({ id, activeId, onToggle, value, presets, onSelect }) {
+function DragResizeHandle({ onMouseDown }) {
   return (
-    <div style={{ position: 'relative' }} className="flex-shrink-0 ml-1">
-      <button
-        onClick={(e) => { e.stopPropagation(); onToggle(id === activeId ? null : id) }}
-        className={`flex items-center justify-center p-0.5 rounded transition-colors ${id === activeId ? 'text-blue-500 bg-blue-50' : 'text-gray-400 hover:text-gray-600 hover:bg-gray-200'}`}
-        title="Adjust column width"
-      >
-        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8 9l-4 3 4 3M16 9l4 3-4 3" />
-        </svg>
-      </button>
-      {id === activeId && (
-        <div
-          style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', zIndex: 200, marginTop: 4, minWidth: 88 }}
-          className="bg-white border border-gray-200 rounded-lg shadow-lg p-1.5 flex flex-col gap-1"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {presets.map(({ label, v }) => (
-            <button
-              key={v}
-              onClick={() => { onSelect(v); onToggle(null) }}
-              className={`text-xs px-3 py-1.5 rounded text-left transition-colors ${Math.round(value) === v ? 'bg-blue-500 text-white font-medium' : 'hover:bg-gray-100 text-gray-700'}`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
+    <div
+      onMouseDown={onMouseDown}
+      style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, cursor: 'col-resize', zIndex: 10 }}
+      className="hover:bg-blue-400/50 transition-colors"
+    />
   )
 }
 
@@ -935,13 +913,23 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const [durColW,  setDurColW]  = useState(DUR_COL_W)
   const [predColW, setPredColW] = useState(PRED_COL_W)
   const [dateColWidths, setDateColWidths] = useState({ plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W })
-  const [activeResizeCol, setActiveResizeCol] = useState(null)
-  useEffect(() => {
-    if (!activeResizeCol) return
-    const close = () => setActiveResizeCol(null)
-    document.addEventListener('click', close)
-    return () => document.removeEventListener('click', close)
-  }, [activeResizeCol])
+  const dragRef = useRef(null)
+  const startColDrag = (e, currentW, setter, minW = 40) => {
+    e.preventDefault()
+    dragRef.current = { startX: e.clientX, startW: currentW, setter, minW }
+    const onMove = (ev) => {
+      if (!dragRef.current) return
+      const { startX, startW, setter: set, minW: mn } = dragRef.current
+      set(Math.max(mn, startW + (ev.clientX - startX)))
+    }
+    const onUp = () => {
+      dragRef.current = null
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+    }
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 2 } }))
   const handleDragEnd = ({ active, over }) => {
     if (over && active.id !== over.id) onReorder(String(active.id), String(over.id))
@@ -1026,83 +1014,65 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
             <span className="text-[10px] font-bold text-gray-500">#</span>
           </div>
           {/* Activity name column */}
-          <div style={{ width: labelW, minWidth: labelW }} className="flex items-center pl-3 pr-1 self-stretch border-r border-gray-300 flex-shrink-0 gap-1">
+          <div style={{ width: labelW, minWidth: labelW, position: 'relative' }} className="flex items-center pl-3 pr-1 self-stretch border-r border-gray-300 flex-shrink-0">
             <span className="text-xs font-bold text-gray-700 flex-1 min-w-0">Activity</span>
-            <ColResizeButton id="activity" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={labelW}
-              presets={[{ label: 'Narrow', v: 200 }, { label: 'Default', v: 320 }, { label: 'Wide', v: 440 }]}
-              onSelect={setLabelW} />
+            <DragResizeHandle onMouseDown={e => startColDrag(e, labelW, setLabelW, 120)} />
           </div>
           {/* Duration -- always its own column */}
           {showDuration && (
-            <div style={{ width: durColW, minWidth: durColW }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+            <div style={{ width: durColW, minWidth: durColW, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0 px-1">
               <span className="text-xs font-bold text-gray-600">Dur.</span>
-              <ColResizeButton id="dur" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={durColW}
-                presets={[{ label: 'Narrow', v: 56 }, { label: 'Default', v: 72 }, { label: 'Wide', v: 100 }]}
-                onSelect={setDurColW} />
+              <DragResizeHandle onMouseDown={e => startColDrag(e, durColW, setDurColW, 40)} />
             </div>
           )}
           {/* Predecessors -- always its own column */}
           {showPredecessor && (
-            <div style={{ width: predColW, minWidth: predColW }} className="flex items-center gap-1 px-2 self-stretch border-r border-gray-300 flex-shrink-0">
+            <div style={{ width: predColW, minWidth: predColW, position: 'relative' }} className="flex items-center gap-1 px-2 self-stretch border-r border-gray-300 flex-shrink-0">
               <span className="text-xs font-bold text-gray-600">Pred.</span>
               <svg className="w-3 h-3 text-gray-400 flex-shrink-0 cursor-help" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
                 title={"Format: <row>FS|SS|FF|SF[+/-days]\nExamples: 3FS (row 3 finish→start), 2SS+5 (row 2 start→start +5 days)\nSeparate multiple predecessors with commas."}>
                 <circle cx="12" cy="12" r="10" />
                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 16v-4m0-4h.01" />
               </svg>
-              <ColResizeButton id="pred" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={predColW}
-                presets={[{ label: 'Narrow', v: 72 }, { label: 'Default', v: 96 }, { label: 'Wide', v: 128 }]}
-                onSelect={setPredColW} />
+              <DragResizeHandle onMouseDown={e => startColDrag(e, predColW, setPredColW, 48)} />
             </div>
           )}
           {/* Planned date columns */}
           {showPlanned && (
             <>
-              <div style={{ width: dateColWidths.plnStart, minWidth: dateColWidths.plnStart }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+              <div style={{ width: dateColWidths.plnStart, minWidth: dateColWidths.plnStart, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0 px-1">
                 <span className="text-xs font-bold text-gray-600">Pln. Start</span>
-                <ColResizeButton id="plnStart" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.plnStart}
-                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
-                  onSelect={v => setDateColWidths(w => ({ ...w, plnStart: v }))} />
+                <DragResizeHandle onMouseDown={e => startColDrag(e, dateColWidths.plnStart, v => setDateColWidths(w => ({ ...w, plnStart: v })), 60)} />
               </div>
-              <div style={{ width: dateColWidths.plnEnd, minWidth: dateColWidths.plnEnd }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+              <div style={{ width: dateColWidths.plnEnd, minWidth: dateColWidths.plnEnd, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0 px-1">
                 <span className="text-xs font-bold text-gray-600">Pln. End</span>
-                <ColResizeButton id="plnEnd" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.plnEnd}
-                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
-                  onSelect={v => setDateColWidths(w => ({ ...w, plnEnd: v }))} />
+                <DragResizeHandle onMouseDown={e => startColDrag(e, dateColWidths.plnEnd, v => setDateColWidths(w => ({ ...w, plnEnd: v })), 60)} />
               </div>
             </>
           )}
           {/* Actual date columns */}
           {showActual && (
             <>
-              <div style={{ width: dateColWidths.actStart, minWidth: dateColWidths.actStart }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+              <div style={{ width: dateColWidths.actStart, minWidth: dateColWidths.actStart, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0 px-1">
                 <span className="text-xs font-bold text-gray-600">Act. Start</span>
-                <ColResizeButton id="actStart" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.actStart}
-                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
-                  onSelect={v => setDateColWidths(w => ({ ...w, actStart: v }))} />
+                <DragResizeHandle onMouseDown={e => startColDrag(e, dateColWidths.actStart, v => setDateColWidths(w => ({ ...w, actStart: v })), 60)} />
               </div>
-              <div style={{ width: dateColWidths.actEnd, minWidth: dateColWidths.actEnd }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+              <div style={{ width: dateColWidths.actEnd, minWidth: dateColWidths.actEnd, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0 px-1">
                 <span className="text-xs font-bold text-gray-600">Act. End</span>
-                <ColResizeButton id="actEnd" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.actEnd}
-                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
-                  onSelect={v => setDateColWidths(w => ({ ...w, actEnd: v }))} />
+                <DragResizeHandle onMouseDown={e => startColDrag(e, dateColWidths.actEnd, v => setDateColWidths(w => ({ ...w, actEnd: v })), 60)} />
               </div>
             </>
           )}
           {/* Projected date columns */}
           {showProjected && (
             <>
-              <div style={{ width: dateColWidths.projStart, minWidth: dateColWidths.projStart }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+              <div style={{ width: dateColWidths.projStart, minWidth: dateColWidths.projStart, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0 px-1">
                 <span className="text-xs font-bold text-gray-600">Proj. Start</span>
-                <ColResizeButton id="projStart" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.projStart}
-                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
-                  onSelect={v => setDateColWidths(w => ({ ...w, projStart: v }))} />
+                <DragResizeHandle onMouseDown={e => startColDrag(e, dateColWidths.projStart, v => setDateColWidths(w => ({ ...w, projStart: v })), 60)} />
               </div>
-              <div style={{ width: dateColWidths.projEnd, minWidth: dateColWidths.projEnd }} className="flex items-center justify-center gap-1 self-stretch border-r border-gray-300 flex-shrink-0 px-1">
+              <div style={{ width: dateColWidths.projEnd, minWidth: dateColWidths.projEnd, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-300 flex-shrink-0 px-1">
                 <span className="text-xs font-bold text-gray-600">Proj. End</span>
-                <ColResizeButton id="projEnd" activeId={activeResizeCol} onToggle={setActiveResizeCol} value={dateColWidths.projEnd}
-                  presets={[{ label: 'Narrow', v: 80 }, { label: 'Default', v: 100 }, { label: 'Wide', v: 130 }]}
-                  onSelect={v => setDateColWidths(w => ({ ...w, projEnd: v }))} />
+                <DragResizeHandle onMouseDown={e => startColDrag(e, dateColWidths.projEnd, v => setDateColWidths(w => ({ ...w, projEnd: v })), 60)} />
               </div>
             </>
           )}
@@ -1368,6 +1338,7 @@ function BaselineStartDateField({ startDate, isAutoMode, onSave }) {
 }
 
 export function GanttContent({ project, isAdmin = false, showToast = () => {} }) {
+  const { profile } = useProfile()
   const [labelW, setLabelW] = useState(() => window.innerWidth < 640 ? 160 : LABEL_W)
   const [baselines, setBaselines]     = useState([])
   const [activeBL, setActiveBL]       = useState(null)
@@ -1456,6 +1427,38 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
     }
     loadBaselines()
   }, [project.id])
+
+  // Load saved view from DB on mount — applies to all users
+  useEffect(() => {
+    supabase
+      .from('project_workprogram_view')
+      .select('settings')
+      .eq('project_id', project.id)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error || !data) return
+        const s = data.settings ?? {}
+        if (s.colVisibility !== undefined) setColVisibility(s.colVisibility)
+        if (s.barVisibility !== undefined) setBarVisibility(s.barVisibility)
+        if (s.barColors     !== undefined) setBarColors(s.barColors)
+        if (s.timeScale     !== undefined) setTimeScale(s.timeScale)
+        if (s.colPxMap      !== undefined) setColPxMap(s.colPxMap)
+        if (s.labelW        !== undefined) setLabelW(s.labelW)
+        if (s.fromMonth     !== undefined) setFromMonthRaw(s.fromMonth)
+        if (s.toMonth       !== undefined) setToMonthRaw(s.toMonth)
+      })
+  }, [project.id])
+
+  const [savingView, setSavingView] = useState(false)
+  const handleSaveView = async () => {
+    setSavingView(true)
+    const settings = { colVisibility, barVisibility, barColors, timeScale, colPxMap, labelW, fromMonth, toMonth }
+    const { error } = await supabase
+      .from('project_workprogram_view')
+      .upsert({ project_id: project.id, settings, updated_at: new Date().toISOString(), updated_by: profile?.id ?? null }, { onConflict: 'project_id' })
+    setSavingView(false)
+    if (error) { showToast('Failed to save view', 'error') } else { showToast('View saved for all users') }
+  }
 
   const loadMilestones = async (blId) => {
     setLoading(true)
@@ -2441,6 +2444,21 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {} })
                   ))}
                 </div>
               </div>
+
+              {/* -- Save view (admin only) -- */}
+              {isAdmin && (
+                <div className="px-4 py-3 border-b border-gray-100">
+                  <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">View</p>
+                  <button
+                    onClick={handleSaveView}
+                    disabled={savingView}
+                    className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-lg border border-[#ed6055]/40 text-[#ed6055] bg-[#ed6055]/5 hover:bg-[#ed6055]/10 transition active:scale-[0.97] disabled:opacity-50"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>
+                    {savingView ? 'Saving…' : 'Save view for all users'}
+                  </button>
+                </div>
+              )}
 
               {/* -- Baseline actions (admin only) -- */}
               {isAdmin && (

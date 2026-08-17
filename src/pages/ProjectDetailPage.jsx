@@ -77,6 +77,7 @@ export default function ProjectDetailPage() {
   const [issuesActionsOpen,     setIssuesActionsOpen]     = useState(false)
   const [issuesShowAdd,         setIssuesShowAdd]         = useState(false)
   const issuesFnsRef     = useRef({})
+  const mainScrollRef    = useRef(null)
   const [expanded,    setExpanded]    = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const [showLabels,  setShowLabels]  = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const tooltipRef    = useRef(null)
@@ -155,6 +156,10 @@ export default function ProjectDetailPage() {
     document.title = `${project.name} -- D&C Dashboard`
     return () => { document.title = 'D&C Dashboard' }
   }, [project?.name])
+
+  useEffect(() => {
+    if (mainScrollRef.current) mainScrollRef.current.scrollTop = 0
+  }, [section])
 
   if (loading || profileLoading) return <LoadingScreen />
   if (!project) return <LoadingScreen />
@@ -379,7 +384,7 @@ export default function ProjectDetailPage() {
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main className="flex-1 overflow-y-auto">
+        <main ref={mainScrollRef} className="flex-1 overflow-y-auto">
 
           {/* Header */}
           <header className="flex items-center h-14 px-5 gap-4" style={{ background: 'transparent' }}>
