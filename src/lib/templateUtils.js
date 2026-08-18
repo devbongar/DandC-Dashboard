@@ -40,14 +40,15 @@ export async function copyTemplateToBaseline(baselineId, projectId, supabase) {
       baseline_id:    baselineId,
       project_id:     projectId,
       sort_order:     i + 1,
-      milestone_name: t.task_name,
+      milestone_name: t.milestone_name,
       phase:          t.phase,
       duration:       t.duration ?? null,
     }
   })
 
+  console.log('[templateUtils] inserting parentRows columns:', Object.keys(parentRows[0] ?? {}))
   const { error: pErr } = await supabase.from('workprogram_activities').insert(parentRows)
-  if (pErr) return { error: pErr.message }
+  if (pErr) { console.error('[templateUtils] parentRows insert error:', pErr); return { error: pErr.message } }
 
   if (children.length) {
     const childRows = children.map((t, i) => {
@@ -61,7 +62,7 @@ export async function copyTemplateToBaseline(baselineId, projectId, supabase) {
         baseline_id:    baselineId,
         project_id:     projectId,
         sort_order:     parents.length + i + 1,
-        milestone_name: t.task_name,
+        milestone_name: t.milestone_name,
         phase:          t.phase,
         duration:       t.duration ?? null,
         parent_id:      `${parentRawId}_${baselineId}`,
@@ -69,8 +70,9 @@ export async function copyTemplateToBaseline(baselineId, projectId, supabase) {
     }).filter(Boolean)
 
     if (childRows.length) {
+      console.log('[templateUtils] inserting childRows columns:', Object.keys(childRows[0] ?? {}))
       const { error: cErr } = await supabase.from('workprogram_activities').insert(childRows)
-      if (cErr) return { error: cErr.message }
+      if (cErr) { console.error('[templateUtils] childRows insert error:', cErr); return { error: cErr.message } }
     }
   }
 

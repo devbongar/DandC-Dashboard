@@ -1946,7 +1946,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
 
       if (!existingActs?.length) {
         const { error: copyErr } = await copyTemplateToBaseline(newBlId, project.id, supabase)
-        if (copyErr) { showToast(copyErr, 'error'); return }
+        if (copyErr) { console.error('[baseline] template copy error:', copyErr); showToast(copyErr, 'error'); return }
       } else {
         // Copy activities from most recent other baseline
         const srcBL = baselines.filter(b => b.id !== newBlId).slice(-1)[0]
@@ -1959,8 +1959,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
               id:          `${rest.task_id}_${newBlId}`,
               baseline_id: newBlId,
             }))
+            console.log('[baseline] copy columns:', Object.keys(copies[0]))
             const { error: copyErr } = await supabase.from('workprogram_activities').insert(copies)
-            if (copyErr) { showToast(copyErr.message, 'error'); return }
+            if (copyErr) { console.error('[baseline] copy error:', copyErr); showToast(copyErr.message, 'error'); return }
           }
         }
       }
@@ -1972,6 +1973,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         .order('created_at')
       if (newBLs) { setBaselines(newBLs); setActiveBL(newBlId) }
       setNewBLName('')
+      setShowNewBLModal(false)
       showToast('Baseline created.', 'success')
     } finally {
       setCreatingBL(false)
