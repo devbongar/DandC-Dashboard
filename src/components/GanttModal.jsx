@@ -486,13 +486,85 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, durColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false }) {
+function RemDurCell({ remDur, plannedStart, plannedEnd, projectedEnd, projectedStart, actualStart, hasChildren, isAdmin, onSave }) {
+  const [editing, setEditing] = useState(false)
+  const [value, setValue] = useState('')
+  const cancelRef = useRef(false)
+
+  // Compute display value: stored rem_dur, else derive from proj dates, else BL dur
+  const displayVal = (() => {
+    if (remDur != null) return remDur
+    const ps = projectedStart || actualStart
+    if (ps && projectedEnd) return Math.round((new Date(projectedEnd + 'T00:00:00') - new Date(ps + 'T00:00:00')) / 86400000)
+    if (plannedStart && plannedEnd) return Math.round((new Date(plannedEnd + 'T00:00:00') - new Date(plannedStart + 'T00:00:00')) / 86400000)
+    return null
+  })()
+
+  useEffect(() => {
+    if (!editing) setValue(displayVal != null ? String(displayVal) : '')
+  }, [displayVal, editing])
+
+  if (hasChildren) {
+    return <span className="text-xs tabular-nums text-gray-400">--</span>
+  }
+
+  if (!isAdmin) {
+    return <span className="text-xs tabular-nums text-gray-700">{displayVal != null ? displayVal : <span className="text-gray-200">--</span>}</span>
+  }
+
+  if (!editing) {
+    return (
+      <div
+        onClick={() => { setValue(displayVal != null ? String(displayVal) : ''); setEditing(true) }}
+        className="text-xs tabular-nums px-0.5 rounded cursor-text flex items-center justify-center hover:bg-blue-50 transition select-none w-full group"
+        title="Click to edit remaining duration (calendar days)"
+      >
+        {displayVal != null
+          ? <span className="text-gray-700 group-hover:text-blue-600 group-hover:underline group-hover:underline-offset-2 group-hover:decoration-dotted transition-colors">{displayVal}</span>
+          : <span className="text-gray-300 group-hover:text-blue-400 transition-colors text-[10px]">--</span>}
+      </div>
+    )
+  }
+
+  return (
+    <input
+      autoFocus
+      type="number"
+      min={0}
+      value={value}
+      onChange={e => setValue(e.target.value)}
+      onBlur={() => {
+        if (cancelRef.current) { cancelRef.current = false; return }
+        setEditing(false)
+        const parsed = value.trim() === '' ? null : parseInt(value, 10)
+        onSave(isNaN(parsed) ? null : parsed)
+      }}
+      onKeyDown={e => {
+        if (e.key === 'Enter')  { e.preventDefault(); cancelRef.current = true; setEditing(false); const parsed = value.trim() === '' ? null : parseInt(value, 10); onSave(isNaN(parsed) ? null : parsed) }
+        if (e.key === 'Escape') { cancelRef.current = true; setEditing(false); setValue(displayVal != null ? String(displayVal) : '') }
+      }}
+      className="text-xs px-1 py-0.5 rounded border border-[#ed6055] focus:outline-none w-full tabular-nums text-center"
+    />
+  )
+}
+
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '' }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
-  const bgBase     = '#ffffff'
+
+  const hasViolation = !!dataDate && (
+    (m.actual_start    && m.actual_start    > dataDate) ||
+    (m.actual_end      && m.actual_end      > dataDate) ||
+    (!m.actual_start   && m.projected_start && m.projected_start < dataDate) ||
+    (!m.actual_end     && m.projected_end   && m.projected_end   < dataDate)
+  )
+
+  const bgBase     = hasViolation ? '#fff1f2' : '#ffffff'
+  const bgHover    = hasViolation ? '#fecdd3' : '#e5e7eb'
 
   const frozenW = ROW_NUM_W + labelW
     + (showDuration ? durColW : 0)
+    + (showRemDur ? remDurColW : 0)
     + (showPredecessor ? predColW : 0)
     + (showPlanned ? dateColWidths.plnStart + dateColWidths.plnEnd : 0)
     + (showActual ? dateColWidths.actStart + dateColWidths.actEnd : 0)
@@ -507,8 +579,8 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
   return (
     <div
       className="flex items-center border-b border-gray-200 transition-colors group"
-      style={{ backgroundColor: bgBase }}
-      onMouseEnter={e => { e.currentTarget.style.backgroundColor = '#e5e7eb' }}
+      style={{ backgroundColor: bgBase, ...(hasViolation && { borderLeft: '3px solid #f43f5e' }) }}
+      onMouseEnter={e => { e.currentTarget.style.backgroundColor = bgHover }}
       onMouseLeave={e => { e.currentTarget.style.backgroundColor = bgBase }}
     >
       {/* Frozen panel: # col + label + optional columns */}
@@ -579,13 +651,31 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         {showDuration && (
           <div
             style={{ width: durColW, minWidth: durColW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
-            className="flex items-center flex-shrink-0 self-stretch px-1"
+            className="flex items-center justify-center flex-shrink-0 self-stretch px-1"
           >
-            <DurationCell
-              duration={m.duration ?? null}
+            {(() => {
+              if (!m.planned_start || !m.planned_end) return <span className="text-xs text-gray-200">--</span>
+              const days = Math.round((new Date(m.planned_end) - new Date(m.planned_start)) / 86400000)
+              return <span className="text-xs tabular-nums text-gray-700">{days}</span>
+            })()}
+          </div>
+        )}
+        {/* Rem. Dur. column */}
+        {showRemDur && (
+          <div
+            style={{ width: remDurColW, minWidth: remDurColW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+            className="flex items-center justify-center flex-shrink-0 self-stretch px-1"
+          >
+            <RemDurCell
+              remDur={m.rem_dur}
+              plannedStart={m.planned_start}
+              plannedEnd={m.planned_end}
+              projectedEnd={m.projected_end}
+              projectedStart={m.projected_start}
+              actualStart={m.actual_start}
               hasChildren={hasChildren}
-              onSave={onSaveDuration}
-              isAdmin={isAdmin && !hasActual && !isBLConfirmed}
+              isAdmin={isAdmin}
+              onSave={onSaveRemDur}
             />
           </div>
         )}
@@ -746,13 +836,17 @@ function computeParentDates(children) {
   if (!children.length) return {}
   const minStr = vals => vals.filter(Boolean).sort()[0] ?? null
   const maxStr = vals => vals.filter(Boolean).sort().at(-1) ?? null
+  // Recursively resolve each child's effective dates bottom-up before rolling up
+  const resolved = children.map(c =>
+    c.children?.length ? { ...c, ...computeParentDates(c.children) } : c
+  )
   return {
-    planned_start:   minStr(children.map(c => c.planned_start)),
-    planned_end:     maxStr(children.map(c => c.planned_end)),
-    actual_start:    minStr(children.map(c => c.actual_start)),
-    actual_end:      children.every(c => c.actual_end) ? maxStr(children.map(c => c.actual_end)) : null,
-    projected_start: minStr(children.map(c => c.actual_start ?? c.projected_start)),
-    projected_end:   maxStr(children.map(c => c.projected_end)),
+    planned_start:   minStr(resolved.map(c => c.planned_start)),
+    planned_end:     maxStr(resolved.map(c => c.planned_end)),
+    actual_start:    minStr(resolved.map(c => c.actual_start)),
+    actual_end:      resolved.every(c => c.actual_end) ? maxStr(resolved.map(c => c.actual_end)) : null,
+    projected_start: minStr(resolved.map(c => c.actual_start ?? c.projected_start)),
+    projected_end:   maxStr(resolved.map(c => c.projected_end)),
   }
 }
 
@@ -767,7 +861,7 @@ function ColsDropdown({ colVisibility, onChange }) {
   }, [open])
 
   const items = [
-    { key: 'duration',    label: 'Duration' },
+    { key: 'duration',    label: 'BL Duration' },
     { key: 'predecessor', label: 'Predecessors' },
     { key: 'planned',     label: 'Planned dates' },
     { key: 'actual',      label: 'Actual dates' },
@@ -928,9 +1022,10 @@ function DragResizeHandle({ onMouseDown }) {
   )
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, colVisibility = { duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {} }) {
-  const [durColW,  setDurColW]  = useState(DUR_COL_W)
-  const [predColW, setPredColW] = useState(PRED_COL_W)
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, colVisibility = { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {}, dataDate = '' }) {
+  const [durColW,    setDurColW]    = useState(DUR_COL_W)
+  const [remDurColW, setRemDurColW] = useState(DUR_COL_W)
+  const [predColW,   setPredColW]   = useState(PRED_COL_W)
   const [dateColWidths, setDateColWidths] = useState({ plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W })
   const dragRef = useRef(null)
   const startColDrag = (e, currentW, setter, minW = 40) => {
@@ -1006,12 +1101,18 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     : Math.max(480, ticks.length * COL_PX)
 
   const toPx       = (d) => ((d - minDate) / MS_PER_COL) * COL_PX
-  const todayPx    = toPx(today)
-  const showToday  = todayPx >= 0 && todayPx <= chartPxWidth
 
-  const { duration: showDuration, predecessor: showPredecessor, planned: showPlanned, actual: showActual, projected: showProjected, gantt: showGantt } = colVisibility
+  // Data date line — only shown when explicitly set; no today fallback
+  const refDateStr   = dataDate || todayStr
+  const refDate      = dataDate ? new Date(dataDate + 'T00:00:00') : null
+  const refDatePx    = refDate ? toPx(refDate) : -1
+  const showToday    = !!dataDate && refDatePx >= 0 && refDatePx <= chartPxWidth
+  const todayPx      = refDatePx
+
+  const { duration: showDuration, remDur: showRemDur, predecessor: showPredecessor, planned: showPlanned, actual: showActual, projected: showProjected, gantt: showGantt } = colVisibility
   const frozenW = ROW_NUM_W + labelW
     + (showDuration ? durColW : 0)
+    + (showRemDur ? remDurColW : 0)
     + (showPredecessor ? predColW : 0)
     + (showPlanned ? dateColWidths.plnStart + dateColWidths.plnEnd : 0)
     + (showActual ? dateColWidths.actStart + dateColWidths.actEnd : 0)
@@ -1047,8 +1148,14 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
           {/* Duration -- always its own column */}
           {showDuration && (
             <div style={{ width: durColW, minWidth: durColW, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0 px-1">
-              <span className="text-xs font-bold text-gray-300">Dur.</span>
+              <span className="text-xs font-bold text-gray-300">BL Dur.</span>
               <DragResizeHandle onMouseDown={e => startColDrag(e, durColW, setDurColW, 40)} />
+            </div>
+          )}
+          {showRemDur && (
+            <div style={{ width: remDurColW, minWidth: remDurColW, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0 px-1">
+              <span className="text-xs font-bold text-gray-300">Rem. Dur.</span>
+              <DragResizeHandle onMouseDown={e => startColDrag(e, remDurColW, setRemDurColW, 40)} />
             </div>
           )}
           {/* Predecessors -- always its own column */}
@@ -1163,17 +1270,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                     </div>
                   )
                 })}
-                {showToday && (
-                  <div className="absolute flex items-center justify-center" style={{ left: todayPx, top: 14, transform: 'translateX(-50%)' }}>
-                    <span className="text-[10px] font-bold text-[#ed6055] whitespace-nowrap">today</span>
-                  </div>
-                )}
               </>
-            )}
-            {timeScale === 'month' && showToday && (
-              <div className="absolute flex items-center justify-center" style={{ left: todayPx, top: 14, transform: 'translateX(-50%)' }}>
-                <span className="text-[10px] font-bold text-[#ed6055] whitespace-nowrap">today</span>
-              </div>
             )}
           </div>
         </div>}
@@ -1203,9 +1300,9 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         onToggleCollapse,
         onAddChild: isAdmin ? (form) => onSetInlineAdd(form) : null,
         toPx, chartPxWidth: showGantt ? chartPxWidth : 0, gridDates,
-        todayPx, showToday, todayStr,
+        todayPx, showToday, todayStr: refDateStr,
         isChild: node.depth > 0, isLastChild: false,
-        labelW, durColW, predColW, dateColWidths, showDuration, showPredecessor, showPlanned, showActual, showProjected,
+        labelW, durColW, remDurColW, predColW, dateColWidths, showDuration, showRemDur, showPredecessor, showPlanned, showActual, showProjected,
         showPlannedBar: barVisibility.planned, showActualBar: barVisibility.actual, showProjectedBar: barVisibility.projected, showBarLabels,
         draftName: drafts[node.id] ?? displayM.milestone_name,
         onDraftChange: (v) => setDrafts(p => ({ ...p, [node.id]: v })),
@@ -1215,7 +1312,9 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         isBLConfirmed,
         onSaveDuration: (dur) => onSaveDuration(node.id, dur),
         onSaveDate: (field, value) => onSaveDate(node.id, field, value),
+        onSaveRemDur: (remDur) => onSaveRemDur(node.id, remDur),
         barColors,
+        dataDate,
       }
       const items = [<SortableMilestoneRow key={node.id} id={node.id} isAdmin={isAdmin} isSelected={selectedId === node.id} onSelect={onSelect} {...rowProps} />]
       if (inlineAdd?.parentId === node.id) {
@@ -1429,15 +1528,17 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     else sessionStorage.removeItem(`gantt-drafts-${project.id}`)
   }, [drafts])
   const [deleteId, setDeleteId]   = useState(null)
-  const [colVisibility, setColVisibility] = useState({ duration: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true })
+  const [colVisibility, setColVisibility] = useState({ duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true })
   const [barVisibility, setBarVisibility] = useState({ planned: true, actual: true, projected: true })
   const [barColors, setBarColors]         = useState({ planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' })
   const [showBarLabels, setShowBarLabels] = useState(true)
+  const [dataDate, setDataDate]           = useState('')
   const [activeTab, setActiveTab]         = useState('gantt')
   const [showSettings, setShowSettings]   = useState(false)
   const [inlineAdd, setInlineAdd]       = useState(null)
   const [inlineAddName, setInlineAddName] = useState('')
   const [inlineAdding, setInlineAdding] = useState(false)
+  const [pendingEdits, setPendingEdits]  = useState({}) // milestoneId → { projected_start?, projected_end?, rem_dur? }
   const [orderDirty, setOrderDirty]     = useState(false)
   const [savingOrder, setSavingOrder]   = useState(false)
   const [selectedId,  setSelectedId]    = useState(null)
@@ -1479,7 +1580,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       .then(({ data, error }) => {
         if (error || !data) return
         const s = data.settings ?? {}
-        if (s.colVisibility  !== undefined) setColVisibility(s.colVisibility)
+        if (s.colVisibility  !== undefined) setColVisibility(prev => ({ ...prev, ...s.colVisibility }))
         if (s.barVisibility  !== undefined) setBarVisibility(s.barVisibility)
         if (s.barColors      !== undefined) setBarColors(s.barColors)
         if (s.showBarLabels  !== undefined) setShowBarLabels(s.showBarLabels)
@@ -1488,13 +1589,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         if (s.labelW        !== undefined) setLabelW(s.labelW)
         if (s.fromMonth     !== undefined) setFromMonthRaw(s.fromMonth)
         if (s.toMonth       !== undefined) setToMonthRaw(s.toMonth)
+        if (s.dataDate      !== undefined) setDataDate(s.dataDate ?? '')
       })
   }, [project.id])
 
   const [savingView, setSavingView] = useState(false)
   const handleSaveView = async () => {
     setSavingView(true)
-    const settings = { colVisibility, barVisibility, barColors, timeScale, colPxMap, labelW, fromMonth, toMonth, showBarLabels }
+    const settings = { colVisibility, barVisibility, barColors, timeScale, colPxMap, labelW, fromMonth, toMonth, showBarLabels, dataDate }
     const { error } = await supabase
       .from('project_workprogram_view')
       .upsert({ project_id: project.id, settings, updated_at: new Date().toISOString(), updated_by: profile?.id ?? null }, { onConflict: 'project_id' })
@@ -1535,6 +1637,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     const depRows = expandDependencies(tasks)
     setMilestones(tasks)
     setDependencies(depRows)
+    setPendingEdits({})
     setLoading(false)
   }
 
@@ -1572,7 +1675,47 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     loadMilestones()
   }
 
+  const computeProjStart = (milestoneId) => {
+    const m = milestones.find(x => x.id === milestoneId)
+    if (!m) return null
+    if (m.projected_start) return m.projected_start
+    if (m.actual_start) return m.actual_start
+    const preds = dependencies.filter(d => d.to_id === milestoneId)
+    if (preds.length) {
+      const predEnds = preds.map(d => {
+        const p = milestones.find(x => x.id === d.from_id)
+        return p?.projected_end ?? p?.actual_end ?? p?.planned_end ?? null
+      }).filter(Boolean)
+      if (predEnds.length) return predEnds.sort().at(-1)
+    }
+    return dataDate || null
+  }
+
+  const addDays = (dateStr, days) => {
+    const d = new Date(dateStr + 'T00:00:00')
+    d.setDate(d.getDate() + days)
+    return d.toISOString().slice(0, 10)
+  }
+
+  // Rem. Dur. and projected date edits are local-only — persisted on Update button click
+  const handleSaveRemDur = (milestoneId, remDur) => {
+    const projStart = computeProjStart(milestoneId)
+    const projEnd = (remDur != null && projStart) ? addDays(projStart, remDur) : undefined
+    setPendingEdits(prev => ({
+      ...prev,
+      [milestoneId]: { ...prev[milestoneId], rem_dur: remDur, ...(projEnd !== undefined && { projected_end: projEnd }) },
+    }))
+  }
+
   const handleSaveDate = async (milestoneId, field, value) => {
+    // Projected date edits are local-only
+    if (field === 'projected_start' || field === 'projected_end') {
+      setPendingEdits(prev => ({
+        ...prev,
+        [milestoneId]: { ...prev[milestoneId], [field]: value || null },
+      }))
+      return
+    }
     const updates = { [field]: value || null }
     // When actual start/end is set, sync projected if not already filled
     if (field === 'actual_start' && value) {
@@ -1585,13 +1728,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     }
     const { error } = await supabase.from('workprogram_activities').update(updates).eq('id', milestoneId)
     if (error) { showToast(error.message, 'error'); return }
-    if (field === 'actual_start' || field === 'actual_end') {
-      // loadMilestones will recalculate projected dates for all downstream tasks
-      loadMilestones()
-    } else if (isAutoMode && blStartDate) {
+    if (isAutoMode && blStartDate && field !== 'actual_start' && field !== 'actual_end') {
       await runScheduler()
     } else {
-      loadMilestones()
+      setMilestones(prev => prev.map(m => m.id === milestoneId ? { ...m, ...updates } : m))
     }
   }
 
@@ -2193,8 +2333,107 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     return () => document.removeEventListener('mousedown', handler)
   }, [showSettings])
 
+  const handleUpdate = async () => {
+    if (!dataDate || !activeBL) { showToast('Set a data date first.', 'error'); return }
+
+    // Leaf nodes = rows that are not a parent of any other row
+    const parentIds = new Set(milestones.map(m => m.parent_id).filter(Boolean))
+    const isLeaf = m => !parentIds.has(m.id)
+
+    // Build mutable working copy — merge pending local edits first
+    const proj = {}
+    for (const m of milestones) {
+      const p = pendingEdits[m.id] ?? {}
+      proj[m.id] = {
+        projected_start: p.projected_start !== undefined ? p.projected_start : m.projected_start,
+        projected_end:   p.projected_end   !== undefined ? p.projected_end   : m.projected_end,
+        rem_dur:         p.rem_dur         !== undefined ? p.rem_dur         : m.rem_dur,
+      }
+    }
+
+    const blDurDays = m => {
+      if (!m.planned_start || !m.planned_end) return null
+      return Math.round((new Date(m.planned_end + 'T00:00:00') - new Date(m.planned_start + 'T00:00:00')) / 86400000)
+    }
+
+    // Step 1a: unstarted leaf tasks — shift proj_start to dataDate, compute proj_end
+    for (const m of milestones) {
+      if (!isLeaf(m)) continue
+      if (m.actual_start) continue
+      if (proj[m.id].projected_start && proj[m.id].projected_start >= dataDate) continue
+      proj[m.id].projected_start = dataDate
+      const anchor = dataDate
+      if (proj[m.id].rem_dur != null) {
+        proj[m.id].projected_end = addDays(anchor, proj[m.id].rem_dur)
+      } else if (!proj[m.id].projected_end) {
+        const dur = blDurDays(m)
+        if (dur != null) proj[m.id].projected_end = addDays(anchor, dur)
+      }
+    }
+
+    // Step 1b: in-progress leaf tasks (actual_start set, no actual_end) — compute proj_end if missing
+    for (const m of milestones) {
+      if (!isLeaf(m)) continue
+      if (!m.actual_start || m.actual_end) continue
+      if (proj[m.id].projected_end) continue
+      const anchor = m.actual_start
+      let computed = null
+      if (proj[m.id].rem_dur != null) {
+        computed = addDays(anchor, proj[m.id].rem_dur)
+      } else {
+        const dur = blDurDays(m)
+        if (dur != null) computed = addDays(anchor, dur)
+      }
+      if (computed) proj[m.id].projected_end = computed < dataDate ? dataDate : computed
+    }
+
+    // Step 2: cascade forward through dependency chain (BFS)
+    const depsByFrom = {}
+    for (const d of dependencies) {
+      if (!depsByFrom[d.from_id]) depsByFrom[d.from_id] = []
+      depsByFrom[d.from_id].push(d.to_id)
+    }
+    const queue = milestones.filter(m => isLeaf(m) && !m.actual_start && m.projected_start && proj[m.id].projected_start !== m.projected_start).map(m => m.id)
+    const visited = new Set(queue)
+    while (queue.length) {
+      const fromId = queue.shift()
+      const fromEnd = proj[fromId].projected_end
+      if (!fromEnd) continue
+      for (const toId of (depsByFrom[fromId] ?? [])) {
+        const toM = milestones.find(x => x.id === toId)
+        if (!toM || toM.actual_start || !isLeaf(toM)) continue
+        const toStart = proj[toId].projected_start
+        if (toStart && toStart >= fromEnd) continue
+        proj[toId].projected_start = fromEnd
+        if (proj[toId].rem_dur != null) proj[toId].projected_end = addDays(fromEnd, proj[toId].rem_dur)
+        if (!visited.has(toId)) { visited.add(toId); queue.push(toId) }
+      }
+    }
+
+    // Step 3: save changed rows (projected dates + rem_dur from pending edits)
+    const changed = milestones.filter(m => {
+      const p = proj[m.id]
+      const pe = pendingEdits[m.id] ?? {}
+      return p.projected_start !== m.projected_start
+          || p.projected_end   !== m.projected_end
+          || (pe.rem_dur !== undefined && pe.rem_dur !== m.rem_dur)
+    })
+    if (!changed.length) { showToast('Nothing to update.'); return }
+
+    const results = await Promise.all(changed.map(m => {
+      const p = proj[m.id]
+      const pe = pendingEdits[m.id] ?? {}
+      const updates = { projected_start: p.projected_start, projected_end: p.projected_end }
+      if (pe.rem_dur !== undefined) updates.rem_dur = pe.rem_dur
+      return supabase.from('workprogram_activities').update(updates).eq('id', m.id)
+    }))
+    const failed = results.filter(r => r.error)
+    if (failed.length) { showToast('Update partially failed.', 'error') } else { showToast(`Updated ${changed.length} activit${changed.length === 1 ? 'y' : 'ies'}.`) }
+    loadMilestones()
+  }
+
   useEffect(() => {
-    onRegisterFns?.({ toggleSettings: () => setShowSettings(v => !v) })
+    onRegisterFns?.({ toggleSettings: () => setShowSettings(v => !v), update: handleUpdate })
   })
 
   useEffect(() => {
@@ -2401,7 +2640,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
                 <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">Columns</p>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                   {[
-                    { key: 'duration',    label: 'Duration' },
+                    { key: 'duration',    label: 'BL Duration' },
+                    { key: 'remDur',      label: 'Rem. Duration' },
                     { key: 'predecessor', label: 'Predecessors' },
                     { key: 'planned',     label: 'Planned' },
                     { key: 'actual',      label: 'Actual' },
@@ -2461,6 +2701,30 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
                     <span className="text-xs text-gray-700">Activity labels</span>
                   </label>
                 </div>
+              </div>
+
+              {/* -- Data Date -- */}
+              <div className="px-4 py-3 border-b border-gray-100">
+                <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">Data Date</p>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="date"
+                    value={dataDate}
+                    onChange={e => setDataDate(e.target.value)}
+                    className="flex-1 text-xs px-2 py-1.5 rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white"
+                  />
+                  {dataDate && (
+                    <button
+                      onClick={() => setDataDate('')}
+                      className="text-[11px] text-gray-400 hover:text-[#ed6055] transition-colors font-medium underline underline-offset-2 whitespace-nowrap"
+                    >
+                      clear
+                    </button>
+                  )}
+                </div>
+                {!dataDate && (
+                  <p className="text-[10px] text-gray-400 mt-1.5">Showing today's line. Set a date to override.</p>
+                )}
               </div>
 
               {/* -- Save view (admin only) -- */}
@@ -2607,7 +2871,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         ) : (
           <div className="relative flex-1 min-h-0 flex flex-col">
             <GanttChart
-              milestones={milestones}
+              milestones={milestones.map(m => pendingEdits[m.id] ? { ...m, ...pendingEdits[m.id] } : m)}
               overrideMin={overrideMin}
               overrideMax={overrideMax}
               timeScale={timeScale}
@@ -2640,9 +2904,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
               isBLConfirmed={isBLConfirmed}
               onSaveDuration={handleSaveDuration}
               onSaveDate={handleSaveDate}
+              onSaveRemDur={handleSaveRemDur}
               onReorder={handleReorder}
               selectedId={selectedId}
               onSelect={setSelectedId}
+              dataDate={dataDate}
             />
             {/* Floating legend card */}
             {[{ key: 'planned', label: 'Planned' }, { key: 'actual', label: 'Actual' }, { key: 'projected', label: 'Forecast' }].some(b => barVisibility[b.key]) && (

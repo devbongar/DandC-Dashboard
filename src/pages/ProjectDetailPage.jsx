@@ -676,6 +676,13 @@ export default function ProjectDetailPage() {
 
             {/* Work Program controls — only visible on Work Program tab */}
             {section === 'Work Program' && (
+              <div className="flex items-center gap-2 flex-shrink-0">
+                <button
+                  onClick={() => ganttFnsRef.current.update?.()}
+                  className="flex items-center gap-1.5 h-8 px-3 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-gray-50 hover:bg-gray-100 transition active:scale-[0.97]"
+                >
+                  Update
+                </button>
               <div className="relative flex-shrink-0" ref={ganttActionsRef}>
                 <button
                   onClick={() => setGanttActionsOpen(v => !v)}
@@ -717,6 +724,7 @@ export default function ProjectDetailPage() {
                     </div>
                   </div>
                 )}
+              </div>
               </div>
             )}
 
