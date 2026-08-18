@@ -1067,11 +1067,11 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
           {showPlanned && (
             <>
               <div style={{ width: dateColWidths.plnStart, minWidth: dateColWidths.plnStart, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0 px-1">
-                <span className="text-xs font-bold text-gray-300">Pln. Start</span>
+                <span className="text-xs font-bold text-gray-300">BL Start</span>
                 <DragResizeHandle onMouseDown={e => startColDrag(e, dateColWidths.plnStart, v => setDateColWidths(w => ({ ...w, plnStart: v })), 60)} />
               </div>
               <div style={{ width: dateColWidths.plnEnd, minWidth: dateColWidths.plnEnd, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0 px-1">
-                <span className="text-xs font-bold text-gray-300">Pln. End</span>
+                <span className="text-xs font-bold text-gray-300">BL End</span>
                 <DragResizeHandle onMouseDown={e => startColDrag(e, dateColWidths.plnEnd, v => setDateColWidths(w => ({ ...w, plnEnd: v })), 60)} />
               </div>
             </>
