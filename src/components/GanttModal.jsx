@@ -1593,6 +1593,18 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       })
   }, [project.id])
 
+  const dataDateInitialized = useRef(false)
+  useEffect(() => {
+    if (!dataDateInitialized.current) { dataDateInitialized.current = true; return }
+    const t = setTimeout(() => {
+      const settings = { colVisibility, barVisibility, barColors, timeScale, colPxMap, labelW, fromMonth, toMonth, showBarLabels, dataDate }
+      supabase
+        .from('project_workprogram_view')
+        .upsert({ project_id: project.id, settings, updated_at: new Date().toISOString() }, { onConflict: 'project_id' })
+    }, 600)
+    return () => clearTimeout(t)
+  }, [dataDate])
+
   const [savingView, setSavingView] = useState(false)
   const handleSaveView = async () => {
     setSavingView(true)
