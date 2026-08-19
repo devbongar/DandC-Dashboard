@@ -692,13 +692,11 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         {/* Date columns -- each individually toggled */}
         {(showPlanned || showActual || showProjected) && (
           <div className="flex self-stretch">
-            {showPlanned && dateCell(isAutoMode || hasActual || isBLConfirmed
-              ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.planned_start)}</span>
-              : <DateCell value={m.planned_start} onSave={v => onSaveDate('planned_start', v)} isAdmin={isAdmin} max={m.planned_end || undefined} />
+            {showPlanned && dateCell(
+              <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.planned_start)}</span>
             , dateColWidths.plnStart)}
-            {showPlanned && dateCell(isAutoMode || hasActual || isBLConfirmed
-              ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
-              : <DateCell value={m.planned_end} onSave={v => onSaveDate('planned_end', v)} isAdmin={isAdmin} min={m.planned_start || undefined} />
+            {showPlanned && dateCell(
+              <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
             , dateColWidths.plnEnd)}
             {showActual && dateCell(
               <DateCell value={m.actual_start} onSave={v => onSaveDate('actual_start', v)} isAdmin={isAdmin} max={m.actual_end || undefined} />
@@ -1350,17 +1348,15 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     <div className="gantt-scroll h-full overflow-auto" style={{ scrollbarWidth: 'none' }}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div style={{ width: totalW, minWidth: totalW, position: 'relative' }}>
-          {/* Sticky axis header -- only when there are dates to show */}
-          {allDates.length > 0 && (
-            <div className="sticky top-0 z-40" style={{ backgroundColor: '#4b5563' }}>
-              {axisHeader}
-            </div>
-          )}
+          {/* Sticky axis header */}
+          <div className="sticky top-0 z-40" style={{ backgroundColor: '#4b5563' }}>
+            {axisHeader}
+          </div>
           {/* Rows -- phase headers and sortable milestone rows (single SortableContext spans all phases for correct cross-phase collision detection) */}
           <SortableContext items={allSortableIds} strategy={verticalListSortingStrategy}>
             {milestoneRows}
           </SortableContext>
-          {isAdmin && activeBL && !isBLConfirmed && !inlineAdd && (
+          {isAdmin && activeBL && !isBLConfirmed && (
             <button
               onClick={() => onSetInlineAdd({ phase: 'execution_monitoring', parentId: null, depth: 0 })}
               style={{ width: totalW, minWidth: totalW, height: TASK_ROW_H }}
@@ -1704,9 +1700,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   }
 
   const addDays = (dateStr, days) => {
-    const d = new Date(dateStr + 'T00:00:00')
-    d.setDate(d.getDate() + days)
-    return d.toISOString().slice(0, 10)
+    const [y, m, d] = dateStr.split('-').map(Number)
+    const date = new Date(Date.UTC(y, m - 1, d))
+    date.setUTCDate(date.getUTCDate() + days)
+    return date.toISOString().slice(0, 10)
   }
 
   // Rem. Dur. and projected date edits are local-only — persisted on Update button click
@@ -1747,13 +1744,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     }
   }
 
-  const handleInlineSave = async () => {
-    if (!activeBL || !inlineAddName.trim()) {
-      setInlineAdd(null); setInlineAddName(''); return
-    }
+  const handleAddActivity = async ({ parentId = null, phase = 'execution_monitoring' } = {}) => {
+    if (!activeBL) return
     setInlineAdding(true)
     try {
-      const parentId = inlineAdd?.parentId ?? null
+      // Sort order within the parent context
       let sort_order = 0
       if (parentId) {
         const { data: sibs } = await supabase
@@ -1768,24 +1763,33 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           .order('sort_order', { ascending: false }).limit(1)
         sort_order = sibs?.length ? (sibs[0].sort_order ?? 0) + 1 : 0
       }
+      // Global N for default name: max sort_order across all activities in this baseline + 1
+      const { data: allActs } = await supabase
+        .from('workprogram_activities').select('sort_order')
+        .eq('project_id', project.id).eq('baseline_id', activeBL)
+        .order('sort_order', { ascending: false }).limit(1)
+      const N = allActs?.length ? (allActs[0].sort_order ?? 0) + 1 : 1
       const rawTaskId = crypto.randomUUID()
       const { error } = await supabase.from('workprogram_activities').insert({
         id:             `${rawTaskId}_${activeBL}`,
         task_id:        rawTaskId,
         baseline_id:    activeBL,
         project_id:     project.id,
-        phase:          inlineAdd?.phase ?? 'execution_monitoring',
+        phase,
         parent_id:      parentId,
-        milestone_name: inlineAddName.trim(),
+        milestone_name: `Activity ${N}`,
         sort_order,
       })
       if (error) { showToast(error.message, 'error'); return }
-      setInlineAdd(null); setInlineAddName('')
       showToast('Activity added.', 'success')
       await loadMilestones()
     } finally {
       setInlineAdding(false)
     }
+  }
+
+  const handleInlineSave = async () => {
+    setInlineAdd(null); setInlineAddName('')
   }
 
   const handleInlineCancel = () => { setInlineAdd(null); setInlineAddName('') }
@@ -2213,22 +2217,18 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       const { error } = await supabase.from('workprogram_dependencies').insert(depRows)
       if (error) { showToast(error.message, 'error'); return }
     }
+    const newDeps = parsed.map(d => ({ id: d.fromId, type: d.type, lag: d.lagDays ?? 0 }))
+    const updatedMilestones = milestones.map(m => m.id === milestoneId ? { ...m, dependencies: newDeps } : m)
+    setMilestones(updatedMilestones)
+    setDependencies(expandDependencies(updatedMilestones))
+    showToast('Predecessors updated.', 'success')
     if (isAutoMode && blStartDate) {
       await runScheduler()
     } else if (!isBLConfirmed) {
-      // Manual mode, unconfirmed BL -- cascade planned dates just like a duration change
       const schedStart = blStartDate
         || milestones.map(m => m.planned_start).filter(Boolean).sort()[0]
         || null
-      if (schedStart) {
-        await runScheduler(schedStart)
-      } else {
-        await loadMilestones(activeBL)
-        showToast('Predecessors updated.', 'success')
-      }
-    } else {
-      await loadMilestones(activeBL)
-      showToast('Predecessors updated.', 'success')
+      if (schedStart) await runScheduler(schedStart)
     }
   }
 
@@ -2370,18 +2370,23 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       return Math.round((new Date(m.planned_end + 'T00:00:00') - new Date(m.planned_start + 'T00:00:00')) / 86400000)
     }
 
-    // Step 1a: unstarted leaf tasks — shift proj_start to dataDate, compute proj_end
+    // Step 1a: unstarted leaf tasks — ensure proj_start >= dataDate, fill in proj_end if missing
     for (const m of milestones) {
       if (!isLeaf(m)) continue
       if (m.actual_start) continue
-      if (proj[m.id].projected_start && proj[m.id].projected_start >= dataDate) continue
-      proj[m.id].projected_start = dataDate
-      const anchor = dataDate
-      if (proj[m.id].rem_dur != null) {
-        proj[m.id].projected_end = addDays(anchor, proj[m.id].rem_dur)
-      } else if (!proj[m.id].projected_end) {
-        const dur = blDurDays(m)
-        if (dur != null) proj[m.id].projected_end = addDays(anchor, dur)
+      // Push projected_start forward to dataDate if it's in the past or unset
+      if (!proj[m.id].projected_start || proj[m.id].projected_start < dataDate) {
+        proj[m.id].projected_start = dataDate
+      }
+      // Always fill in projected_end if missing (needed so BFS can cascade from this task)
+      if (!proj[m.id].projected_end) {
+        const anchor = proj[m.id].projected_start
+        if (proj[m.id].rem_dur != null) {
+          proj[m.id].projected_end = addDays(anchor, proj[m.id].rem_dur)
+        } else {
+          const dur = blDurDays(m)
+          if (dur != null) proj[m.id].projected_end = addDays(anchor, dur)
+        }
       }
     }
 
@@ -2402,24 +2407,52 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     }
 
     // Step 2: cascade forward through dependency chain (BFS)
+    // Store full dep objects (not just to_id) so lag can be applied.
     const depsByFrom = {}
     for (const d of dependencies) {
       if (!depsByFrom[d.from_id]) depsByFrom[d.from_id] = []
-      depsByFrom[d.from_id].push(d.to_id)
+      depsByFrom[d.from_id].push(d)
     }
-    const queue = milestones.filter(m => isLeaf(m) && !m.actual_start && m.projected_start && proj[m.id].projected_start !== m.projected_start).map(m => m.id)
+    // Seed from ALL leaf tasks that have a projected_end (not just ones modified in Step 1a)
+    // so every predecessor constraint is evaluated, not only constraints downstream of Step 1a changes.
+    const queue = milestones
+      .filter(m => isLeaf(m) && (proj[m.id].projected_start || proj[m.id].projected_end || m.actual_start || m.actual_end))
+      .map(m => m.id)
     const visited = new Set(queue)
     while (queue.length) {
       const fromId = queue.shift()
-      const fromEnd = proj[fromId].projected_end
-      if (!fromEnd) continue
-      for (const toId of (depsByFrom[fromId] ?? [])) {
+      const fromM = milestones.find(x => x.id === fromId)
+      const fromStart = proj[fromId].projected_start || fromM?.actual_start
+      const fromEnd   = proj[fromId].projected_end   || fromM?.actual_end
+      for (const dep of (depsByFrom[fromId] ?? [])) {
+        const toId = dep.to_id
+        const lag = dep.lag ?? 0
+        const type = dep.type ?? 'FS'
+        // Compute constraint date based on dependency type
+        let constraintDate
+        if (type === 'SS') {
+          if (!fromStart) continue
+          constraintDate = addDays(fromStart, lag)
+        } else if (type === 'FF') {
+          if (!fromEnd) continue
+          // FF constrains successor END, not start — skip start scheduling here
+          continue
+        } else {
+          // FS (default) and SF
+          if (!fromEnd) continue
+          constraintDate = addDays(fromEnd, lag)
+        }
         const toM = milestones.find(x => x.id === toId)
         if (!toM || toM.actual_start || !isLeaf(toM)) continue
-        const toStart = proj[toId].projected_start
-        if (toStart && toStart >= fromEnd) continue
-        proj[toId].projected_start = fromEnd
-        if (proj[toId].rem_dur != null) proj[toId].projected_end = addDays(fromEnd, proj[toId].rem_dur)
+        const newStart = constraintDate >= dataDate ? constraintDate : dataDate
+        proj[toId].projected_start = newStart
+        // Recompute projected_end to maintain duration
+        if (proj[toId].rem_dur != null) {
+          proj[toId].projected_end = addDays(newStart, proj[toId].rem_dur)
+        } else {
+          const dur = blDurDays(toM)
+          if (dur != null) proj[toId].projected_end = addDays(newStart, dur)
+        }
         if (!visited.has(toId)) { visited.add(toId); queue.push(toId) }
       }
     }
@@ -2908,7 +2941,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
               onInlineSave={handleInlineSave}
               onInlineCancel={handleInlineCancel}
               inlineAdding={inlineAdding}
-              onSetInlineAdd={setInlineAdd}
+              onSetInlineAdd={({ parentId, phase }) => handleAddActivity({ parentId, phase })}
               activeBL={activeBL}
               collapsedIds={collapsedIds}
               onToggleCollapse={handleToggleCollapse}

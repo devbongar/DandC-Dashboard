@@ -152,7 +152,8 @@ export function formatPredecessors(deps, idToRowNum) {
     .map(d => {
       const rowNum = idToRowNum.get(d.from_id)
       if (rowNum == null) return null
-      const lag = (d.lag_days ?? 0) > 0 ? `+${d.lag_days}` : ''
+      const lagVal = d.lag ?? d.lag_days ?? 0
+      const lag = lagVal > 0 ? `+${lagVal}` : lagVal < 0 ? `${lagVal}` : ''
       return `${rowNum}${d.type ?? 'FS'}${lag}`
     })
     .filter(Boolean)
