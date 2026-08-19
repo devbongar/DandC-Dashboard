@@ -2388,6 +2388,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           if (dur != null) proj[m.id].projected_end = addDays(anchor, dur)
         }
       }
+      // Clamp: end must not be before start
+      if (proj[m.id].projected_end && proj[m.id].projected_end < proj[m.id].projected_start) {
+        proj[m.id].projected_end = proj[m.id].projected_start
+      }
     }
 
     // Step 1b: in-progress leaf tasks (actual_start set, no actual_end) — compute proj_end if missing
@@ -2445,6 +2449,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         const toM = milestones.find(x => x.id === toId)
         if (!toM || toM.actual_start || !isLeaf(toM)) continue
         const newStart = constraintDate >= dataDate ? constraintDate : dataDate
+        // Multiple predecessors: latest constraint governs — only update if this pushes date later
+        if (proj[toId].projected_start && newStart <= proj[toId].projected_start) continue
         proj[toId].projected_start = newStart
         // Recompute projected_end to maintain duration
         if (proj[toId].rem_dur != null) {
@@ -2453,7 +2459,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           const dur = blDurDays(toM)
           if (dur != null) proj[toId].projected_end = addDays(newStart, dur)
         }
-        if (!visited.has(toId)) { visited.add(toId); queue.push(toId) }
+        // Clamp: end must not be before start (e.g. stale projected_end with no duration info)
+        if (proj[toId].projected_end && proj[toId].projected_end < newStart) {
+          proj[toId].projected_end = newStart
+        }
+        // Always re-queue successor (even if visited) so downstream tasks cascade correctly
+        // when a later predecessor pushes this task further out
+        visited.add(toId)
+        queue.push(toId)
       }
     }
 

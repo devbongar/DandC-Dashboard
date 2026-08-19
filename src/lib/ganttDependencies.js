@@ -131,7 +131,7 @@ export function parsePredecessors(text, rowNumToId) {
   const tokens = text.split(',').map(s => s.trim()).filter(Boolean)
   const result = []
   for (const token of tokens) {
-    const m = token.match(/^(\d+)(FS|SS|FF|SF)?(\+(\d+))?$/i)
+    const m = token.match(/^(\d+)(FS|SS|FF|SF)?(([+-]\d+))?$/i)
     if (!m) return null
     const rowNum  = parseInt(m[1], 10)
     const type    = m[2]?.toUpperCase() ?? 'FS'
