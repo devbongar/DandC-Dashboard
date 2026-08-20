@@ -41,6 +41,7 @@ const CARDS = [
   { label: 'With Issues', key: 'withIssues', filterKey: 'with-issues', color: '#fb923c' },
 ]
 
+
 const INPUT = 'w-full px-3 py-2.5 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40'
 
 export default function PermitsTab({ project, isAdmin, isHead, isReporter, isViewer, currentUserId, showToast, search = '', onSearchChange, filterStatus = 'all', onFilterStatusChange, creating = false, onCreatingChange }) {

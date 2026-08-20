@@ -4348,7 +4348,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
 
 // -- Photos Gallery ------------------------------------------------------------
 
-function PhotosTab({ project, isAdmin, showToast, search = '', onSearchChange, filterTags = [], onFilterTagsChange, filterMonth = '', onFilterMonthChange, sortOrder = 'newest', onSortOrderChange, showUpload = false, onShowUploadChange }) {
+function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearchChange, filterTags = [], onFilterTagsChange, filterMonth = '', onFilterMonthChange, sortOrder = 'newest', onSortOrderChange, showUpload = false, onShowUploadChange }) {
   const [photos, setPhotos]               = useState([])
   const [loading, setLoading]             = useState(true)
   const [lightbox, setLightbox]           = useState(null)
@@ -4500,7 +4500,7 @@ function PhotosTab({ project, isAdmin, showToast, search = '', onSearchChange, f
                       <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end">
                         <p className="px-2 pb-2 text-[10px] text-white font-medium opacity-0 group-hover:opacity-100 transition truncate w-full drop-shadow">{fixEncoding(photo.file_name)}</p>
                       </div>
-                      {isAdmin && (
+                      {(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
                         <button onClick={e => handleDelete(photo, e)}
                           className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-500"
                           title="Delete photo">
@@ -4576,7 +4576,7 @@ function PhotosTab({ project, isAdmin, showToast, search = '', onSearchChange, f
               <span className="text-xs text-white/70 max-w-[200px] truncate">{fixEncoding(filteredPhotos[lightbox].file_name)}</span>
               <span className="text-xs text-white/40">·</span>
               <span className="text-xs text-white/50">{lightbox + 1} / {filteredPhotos.length}</span>
-              {isAdmin && (
+              {(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
                 <>
                   <span className="text-xs text-white/40">·</span>
                   <button onClick={e => handleDelete(filteredPhotos[lightbox], e)}
@@ -4600,7 +4600,8 @@ function PhotosTab({ project, isAdmin, showToast, search = '', onSearchChange, f
   )
 }
 
-function CompletionTab({ project, isAdmin, showToast }) {
+function CompletionTab({ project, isAdmin, profile, showToast }) {
+  const canEdit = isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'
   const [buildingId, setBuildingId]                 = useState(null)
   const [floors, setFloors]                         = useState([])
   const [completions, setCompletions]               = useState([])
@@ -5011,7 +5012,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
       {/* Residential floors */}
       {(!productType || productType === 'unit') && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <SectionHeader title="Residential Units" action={isAdmin && (
+          <SectionHeader title="Residential Units" action={(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
             <div className="flex items-center gap-2">
               {multiSelectMode && (
                 <>
@@ -5034,7 +5035,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             </div>
           )} />
           <UnitGrid floorList={floors} cMap={completionMap} maxU={maxUnits} type="unit" emptyMsg="No unit floors defined yet. Add them in the Development tab."
-            isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
+            isAdmin={canEdit} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
             onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
         </div>
       )}
@@ -5042,7 +5043,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
       {/* Parking floors */}
       {(!productType || productType === 'parking') && (
         <div className="bg-white rounded-xl border border-gray-200 p-4">
-          <SectionHeader title="Parking Slots" action={isAdmin && (
+          <SectionHeader title="Parking Slots" action={(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
             <div className="flex items-center gap-2">
               {multiSelectMode && (
                 <>
@@ -5065,7 +5066,7 @@ function CompletionTab({ project, isAdmin, showToast }) {
             </div>
           )} />
           <UnitGrid floorList={parkingFloors} cMap={parkingCompletionMap} maxU={maxParkingUnits} type="parking" emptyMsg="No parking floors defined yet. Add them in the Development tab."
-            isAdmin={isAdmin} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
+            isAdmin={canEdit} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
             onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
         </div>
       )}
@@ -5458,7 +5459,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           </div>
         ) : activeSection === 'Photos' ? (
           <div key="Photos" className="section-slide-in">
-            <PhotosTab project={project} isAdmin={isAdmin} showToast={showToast} search={photosSearch} onSearchChange={onPhotosSearchChange} filterTags={photosFilterTags} onFilterTagsChange={onPhotosFilterTagsChange} filterMonth={photosFilterMonth} onFilterMonthChange={onPhotosFilterMonthChange} sortOrder={photosSortOrder} onSortOrderChange={onPhotosSortOrderChange} showUpload={photosShowUpload} onShowUploadChange={onPhotosShowUploadChange} />
+            <PhotosTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} search={photosSearch} onSearchChange={onPhotosSearchChange} filterTags={photosFilterTags} onFilterTagsChange={onPhotosFilterTagsChange} filterMonth={photosFilterMonth} onFilterMonthChange={onPhotosFilterMonthChange} sortOrder={photosSortOrder} onSortOrderChange={onPhotosSortOrderChange} showUpload={photosShowUpload} onShowUploadChange={onPhotosShowUploadChange} />
           </div>
         ) : activeSection === 'Issues & Concerns' ? (
           <div key="Issues & Concerns" className="section-slide-in">
@@ -5466,7 +5467,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           </div>
         ) : activeSection === 'Unit Completion' ? (
           <div key="Unit Completion" className="section-slide-in">
-            <CompletionTab project={project} isAdmin={isAdmin} showToast={showToast} />
+            <CompletionTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} />
           </div>
         ) : (
           <div
