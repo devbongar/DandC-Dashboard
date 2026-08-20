@@ -3616,6 +3616,7 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
   const [deleteId, setDeleteId] = useState(null)
   const [importing, setImporting]             = useState(false)
   const [importErrors, setImportErrors]       = useState([])
+  const [agingFilter, setAgingFilter]         = useState(null)  // null | 15 | 30
 
   const handleExport = async () => {
     await downloadWorkbook([{
@@ -3749,9 +3750,11 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
     const matchStatus    = filterStatus    === 'all' || r.status           === filterStatus
     const matchGroup     = filterGroup     === 'all' || r.issue_group      === filterGroup
     const matchMgmtLevel = filterMgmtLevel === 'all' || r.management_level === filterMgmtLevel
+    const aging          = issueAgingDays(r.date_presented)
+    const matchAging     = agingFilter === null || (aging !== null && aging >= agingFilter)
     const q = search.toLowerCase()
     const matchSearch = !q || (r.details ?? '').toLowerCase().includes(q) || (r.caused_by ?? '').toLowerCase().includes(q) || (r.action_steps ?? '').toLowerCase().includes(q)
-    return matchStatus && matchGroup && matchMgmtLevel && matchSearch
+    return matchStatus && matchGroup && matchMgmtLevel && matchAging && matchSearch
   })
   const activeFilterCount = [filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel !== 'all'].filter(Boolean).length
   const hasFilter = activeFilterCount > 0 || search !== ''
@@ -3761,8 +3764,69 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
   const fCls = 'flex-1 min-w-[110px] px-2.5 py-1.5 rounded-lg border border-gray-200 text-xs text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055]'
   const isForm = modal === 'add' || modal === 'edit'
 
+  const total = rows.length
+  const countOpen    = rows.filter(r => r.status === 'open').length
+  const countClose   = rows.filter(r => r.status === 'close').length
+  const countHold    = rows.filter(r => r.status === 'hold').length
+  const countAging15 = rows.filter(r => { const d = issueAgingDays(r.date_presented); return d !== null && d >= 15 }).length
+  const countAging30 = rows.filter(r => { const d = issueAgingDays(r.date_presented); return d !== null && d >= 30 }).length
+
+  const ISSUE_CARDS = [
+    { label: 'Open',      value: countOpen,    color: '#f87171', filterKey: 'open'  },
+    { label: 'Closed',    value: countClose,   color: '#34d399', filterKey: 'close' },
+    { label: 'On Hold',   value: countHold,    color: '#fbbf24', filterKey: 'hold'  },
+    { label: '> 15 Days', value: countAging15, color: '#fb923c', filterKey: 'aging15' },
+    { label: '> 30 Days', value: countAging30, color: '#f87171', filterKey: 'aging30' },
+  ]
+
   return (
     <div className="pt-4 px-3 sm:px-6">
+      {/* Summary cards */}
+      {!loading && rows.length > 0 && (
+        <div className="relative -mx-3 sm:mx-0 mb-4 max-w-7xl sm:mx-auto">
+          <div className="flex gap-3 overflow-x-auto py-2 px-3 sm:grid sm:grid-cols-5 sm:overflow-visible sm:py-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+            {ISSUE_CARDS.map(({ label, value, color, filterKey }) => {
+              const pct  = total > 0 ? Math.round((value / total) * 100) : 0
+              const size = 52, sw = 4, r = (size - sw) / 2
+              const circ = 2 * Math.PI * r
+              const dash = (pct / 100) * circ
+              const isAging  = filterKey === 'aging15' || filterKey === 'aging30'
+              const agingVal = filterKey === 'aging15' ? 15 : filterKey === 'aging30' ? 30 : null
+              const active   = isAging ? agingFilter === agingVal : filterKey && filterStatus === filterKey
+              return (
+                <button
+                  key={label}
+                  onClick={() => {
+                    if (isAging) setAgingFilter(active ? null : agingVal)
+                    else if (filterKey) onFilterStatusChange?.(active ? 'all' : filterKey)
+                  }}
+                  className={`flex-none w-36 sm:w-auto text-left rounded-xl border p-4 transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${
+                    active
+                      ? 'bg-white border-transparent ring-2 ring-[#ed6055] shadow-xl'
+                      : 'bg-white border-gray-100 shadow-md hover:shadow-xl hover:-translate-y-1'
+                  }`}
+                >
+                  <div className="flex items-center justify-between gap-2">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{label}</p>
+                      <p className="text-2xl font-bold tabular-nums text-gray-900">{value}</p>
+                    </div>
+                    <svg width={size} height={size} style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
+                      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#f3f4f6" strokeWidth={sw} />
+                      <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={color} strokeWidth={sw}
+                        strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" />
+                      <text x={size/2} y={size/2} dominantBaseline="middle" textAnchor="middle"
+                        style={{ transform: `rotate(90deg)`, transformOrigin: `${size/2}px ${size/2}px`, fontSize: 10, fontWeight: 700, fill: color }}>
+                        {pct}%
+                      </text>
+                    </svg>
+                  </div>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 max-w-7xl mx-auto">
         {importErrors.length > 0 && (
           <div className="px-4 pt-3 pb-0 border-b border-gray-100">
