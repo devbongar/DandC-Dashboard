@@ -28,6 +28,7 @@ export default function Dashboard() {
         .eq('id', session.user.id)
         .single()
 
+      if (profile?.team === 'site') { navigate('/projects', { replace: true }); return }
       navigate(DESTINATIONS[profile?.role] ?? '/viewer/dashboard', { replace: true })
     }
     redirect()

@@ -123,6 +123,12 @@ export default function ProjectsPage() {
   const navigate = useNavigate()
   const { profile, loading: profileLoading } = useProfile()
   const isAdmin = profile?.role === 'admin'
+  const isSite  = profile?.team === 'site'
+
+  const SITE_ONLY_PATHS = new Set(['/projects'])
+  const navGroups = NAV_GROUPS.map(group =>
+    group.filter(item => !isSite || SITE_ONLY_PATHS.has(item.path))
+  ).filter(group => group.length > 0)
 
   const [expanded,   setExpanded]   = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const [showLabels, setShowLabels] = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
@@ -181,15 +187,30 @@ export default function ProjectsPage() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  useEffect(() => { fetchProjects() }, [])
+  useEffect(() => { if (!profileLoading && profile?.id) fetchProjects() }, [profileLoading, profile?.id])
 
   const fetchProjects = async () => {
     setLoading(true)
-    const { data, error } = await supabase
-      .from('projects')
-      .select('*')
-      .order('created_at', { ascending: false })
-    if (!error && data) setProjects(data)
+    if (profile?.team === 'site') {
+      const { data: memberships } = await supabase
+        .from('project_members')
+        .select('project_id')
+        .eq('user_id', profile.id)
+      const ids = (memberships ?? []).map(m => m.project_id)
+      if (!ids.length) { setProjects([]); setLoading(false); return }
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .in('id', ids)
+        .order('created_at', { ascending: false })
+      if (!error && data) setProjects(data)
+    } else {
+      const { data, error } = await supabase
+        .from('projects')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (!error && data) setProjects(data)
+    }
     setLoading(false)
   }
 
@@ -359,7 +380,7 @@ export default function ProjectsPage() {
 
       {/* -- Sidebar -- */}
       <aside
-        className={`fixed sm:relative inset-y-0 left-0 z-40 sm:z-auto flex-shrink-0 flex flex-col py-3 gap-1 overflow-y-auto transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0`}
+        className={`fixed sm:relative inset-y-0 left-0 z-40 sm:z-auto flex-shrink-0 flex flex-col py-3 gap-1 transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0`}
         style={{
           width: expanded ? 240 : 80,
           background: 'rgba(18,18,18,0.92)',
@@ -372,9 +393,11 @@ export default function ProjectsPage() {
         {/* Logo */}
         <div
           className="flex items-center h-14 flex-shrink-0 border-b border-white/5 mb-1"
-          style={{ paddingLeft: expanded ? 16 : 0, justifyContent: expanded ? 'flex-start' : 'center' }}
+          style={{ paddingLeft: expanded ? 16 : 0, justifyContent: expanded ? 'flex-start' : 'center', overflow: 'hidden' }}
         >
-          <Logo size="md" variant="white" />
+          <div style={{ flexShrink: 0, overflow: 'hidden', maxWidth: expanded ? 'none' : 56 }}>
+            <Logo size="md" variant="white" />
+          </div>
           {showLabels && (
             <span className="ml-3 text-white font-bold text-base tracking-wide whitespace-nowrap overflow-hidden">D&amp;C Dashboard</span>
           )}
@@ -382,7 +405,7 @@ export default function ProjectsPage() {
 
         {/* Nav */}
         <nav className="flex flex-col flex-1 w-full px-2 gap-0.5">
-          {NAV_GROUPS.map((group, gi) => (
+          {navGroups.map((group, gi) => (
             <div key={gi} className="flex flex-col gap-0.5">
               {gi > 0 && (
                 <div className="my-2 mx-1" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
@@ -464,8 +487,8 @@ export default function ProjectsPage() {
 
           {/* Settings + collapse pinned to bottom */}
           <div className="flex-1" />
-          <div className="my-1 mx-1" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
-          <div className="relative group">
+          {isAdmin && <div className="my-1 mx-1" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />}
+          {isAdmin && <div className="relative group">
             <NavLink
               to="/admin/settings"
               className={({ isActive }) => [
@@ -483,7 +506,7 @@ export default function ProjectsPage() {
               )}
             </NavLink>
             {!showLabels && <SidebarTooltip label="Settings" />}
-          </div>
+          </div>}
 
           {/* Expand / collapse toggle */}
           <div className="mt-1 relative group">

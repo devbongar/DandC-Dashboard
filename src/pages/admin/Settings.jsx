@@ -44,9 +44,10 @@ export default function Settings() {
     if (upErr) { setUpl(false); setLogoStatus('error'); setTimeout(() => setLogoStatus(null), 3000); return }
 
     const { data: { publicUrl } } = supabase.storage.from('app-assets').getPublicUrl(storagePath)
+    const urlWithBust = `${publicUrl}?t=${Date.now()}`
 
     const { error: dbErr } = await supabase.from('app_settings')
-      .upsert({ key: settingKey, value: publicUrl }, { onConflict: 'key' })
+      .upsert({ key: settingKey, value: urlWithBust }, { onConflict: 'key' })
 
     setUpl(false)
     if (dbErr) { setLogoStatus('error'); } else { setLogoStatus('saved'); refreshSettings() }

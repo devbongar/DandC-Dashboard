@@ -1,4 +1,5 @@
 export const ROLES = ['admin', 'head', 'reviewer', 'endorser', 'reporter', 'viewer', 'approver', 'updater']
+export const SITE_ROLES = ['viewer', 'reporter', 'endorser']
 export const TEAMS = ['ho', 'site']
 
 export const ROLE_LABELS = {

@@ -3606,7 +3606,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
 const ISSUE_STATUS_MAP_OUT = { open: 'Open', close: 'Close', hold: 'Hold' }
 const ISSUE_STATUS_MAP_IN  = { Open: 'open', Close: 'close', Hold: 'hold' }
 
-function IssuesTab({ project, isAdmin, showToast, search = '', onSearchChange, filterStatus = 'all', onFilterStatusChange, filterGroup = 'all', onFilterGroupChange, filterMgmtLevel = 'all', onFilterMgmtLevelChange, showAdd = false, onShowAddChange, onRegisterFns }) {
+function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearchChange, filterStatus = 'all', onFilterStatusChange, filterGroup = 'all', onFilterGroupChange, filterMgmtLevel = 'all', onFilterMgmtLevelChange, showAdd = false, onShowAddChange, onRegisterFns }) {
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal]     = useState(null)   // 'view' | 'add' | 'edit' | 'delete'
@@ -3828,11 +3828,11 @@ function IssuesTab({ project, isAdmin, showToast, search = '', onSearchChange, f
       {modal === 'view' && active && (() => {
         const sc    = ISSUE_STATUS_CONFIG[active.status] ?? ISSUE_STATUS_CONFIG.open
         const aging = issueAgingDays(active.date_presented)
-        return (
+        return createPortal(
           <div className="fixed inset-0 z-[60] flex items-end sm:items-center justify-center bg-black/10 backdrop-blur-sm sm:p-4" onClick={close}>
             <div
               className="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-4xl flex flex-col overflow-hidden"
-              style={{ maxHeight: '92dvh', borderTop: '4px solid #ed6055' }}
+              style={{ maxHeight: '78dvh', borderTop: '4px solid #ed6055' }}
               onClick={e => e.stopPropagation()}
             >
               {/* Header */}
@@ -3889,7 +3889,7 @@ function IssuesTab({ project, isAdmin, showToast, search = '', onSearchChange, f
               {/* Footer */}
               <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between flex-shrink-0">
                 <div className="flex gap-2">
-                  {isAdmin && (
+                  {(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
                     <>
                       <button onClick={() => { openEdit(active) }}
                         className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:scale-[0.97] transition">
@@ -3909,13 +3909,13 @@ function IssuesTab({ project, isAdmin, showToast, search = '', onSearchChange, f
               </div>
             </div>
           </div>
-        )
+        , document.body)
       })()}
 
       {/* Add / Edit modal */}
-      {isForm && (
+      {isForm && createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[92vh] overflow-hidden"
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl flex flex-col max-h-[78vh] overflow-hidden"
             style={{ borderTop: '4px solid #ed6055' }}>
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
               <h3 className="text-sm font-bold text-black">{modal === 'add' ? 'Add Issue' : 'Edit Issue'}</h3>
@@ -3978,7 +3978,7 @@ function IssuesTab({ project, isAdmin, showToast, search = '', onSearchChange, f
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Delete confirm */}
       {deleteId !== null && (
@@ -5398,7 +5398,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           </div>
         ) : activeSection === 'Issues & Concerns' ? (
           <div key="Issues & Concerns" className="section-slide-in">
-            <IssuesTab project={project} isAdmin={isAdmin} showToast={showToast} search={issuesSearch} onSearchChange={onIssuesSearchChange} filterStatus={issuesFilterStatus} onFilterStatusChange={onIssuesFilterStatusChange} filterGroup={issuesFilterGroup} onFilterGroupChange={onIssuesFilterGroupChange} filterMgmtLevel={issuesFilterMgmtLevel} onFilterMgmtLevelChange={onIssuesFilterMgmtLevelChange} showAdd={issuesShowAdd} onShowAddChange={onIssuesShowAddChange} onRegisterFns={onIssuesRegisterFns} />
+            <IssuesTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} search={issuesSearch} onSearchChange={onIssuesSearchChange} filterStatus={issuesFilterStatus} onFilterStatusChange={onIssuesFilterStatusChange} filterGroup={issuesFilterGroup} onFilterGroupChange={onIssuesFilterGroupChange} filterMgmtLevel={issuesFilterMgmtLevel} onFilterMgmtLevelChange={onIssuesFilterMgmtLevelChange} showAdd={issuesShowAdd} onShowAddChange={onIssuesShowAddChange} onRegisterFns={onIssuesRegisterFns} />
           </div>
         ) : activeSection === 'Unit Completion' ? (
           <div key="Unit Completion" className="section-slide-in">

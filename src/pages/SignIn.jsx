@@ -59,10 +59,11 @@ export default function SignIn() {
 
     const { data: prof } = await supabase
       .from('profiles')
-      .select('role')
+      .select('role, team')
       .eq('id', signInData.user.id)
       .single()
 
+    if (prof?.team === 'site') { navigate('/projects', { replace: true }); return }
     navigate('/admin/dashboard')
   }
 

@@ -9,7 +9,7 @@ export default function Logo({ size = 'md', variant = 'light' }) {
   const h = heights[size] ?? heights.md
 
   const lightSrc = logoUrl      || ph1Logo
-  const whiteSrc = logoWhiteUrl || logoUrl || ph1LogoWhite
+  const whiteSrc = logoWhiteUrl || ph1LogoWhite
 
   if (variant === 'white') {
     return (

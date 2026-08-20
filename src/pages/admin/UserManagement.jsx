@@ -4,7 +4,7 @@ import DashboardLayout from '../../components/DashboardLayout'
 import useProfile from '../../hooks/useProfile'
 import LoadingScreen from '../../components/LoadingScreen'
 import useMinLoading from '../../hooks/useMinLoading'
-import { ROLES, ROLE_LABELS, ROLE_COLORS } from '../../lib/roles'
+import { ROLES, SITE_ROLES, ROLE_LABELS, ROLE_COLORS } from '../../lib/roles'
 
 function RoleBadge({ role }) {
   if (!role) return <span className="text-gray-400 text-xs italic">No role</span>
@@ -458,11 +458,25 @@ export default function UserManagement() {
                   ) : (
                     /* Site user */
                     <>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Site User</span>
-                        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 text-gray-500 font-medium">
-                          No global role
-                        </span>
+                      <div className="mb-4">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Site Role</label>
+                        <div className="flex items-center gap-3">
+                          <select
+                            value={selectedUser.role ?? ''}
+                            onChange={e => updateRole(e.target.value)}
+                            disabled={savingRole}
+                            className="text-sm border border-gray-200 rounded-lg px-3 py-2.5 text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent disabled:opacity-50 transition"
+                          >
+                            <option value="">-- select --</option>
+                            {SITE_ROLES.map(r => (
+                              <option key={r} value={r}>{r}</option>
+                            ))}
+                          </select>
+                          {savingRole && (
+                            <span className="w-4 h-4 border-2 border-[#ed6055] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                          )}
+                          <RoleBadge role={selectedUser.role} />
+                        </div>
                       </div>
 
                       {/* Project assignments */}

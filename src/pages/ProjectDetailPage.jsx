@@ -49,6 +49,10 @@ export default function ProjectDetailPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const { profile, loading: profileLoading } = useProfile()
   const isAdmin = profile?.role === 'admin'
+  const isSite  = profile?.team === 'site'
+  const navGroups = NAV_GROUPS.map(group =>
+    group.filter(item => !isSite || item.path === '/projects')
+  ).filter(group => group.length > 0)
 
   const [project,   setProject]   = useState(null)
   const [loading,   setLoading]   = useState(true)
@@ -201,7 +205,7 @@ export default function ProjectDetailPage() {
         {/* Nav */}
         <nav className="flex flex-col flex-1 w-full px-2 gap-0.5 overflow-y-auto [&::-webkit-scrollbar]:hidden">
           {/* Main app nav */}
-          {NAV_GROUPS.map((group, gi) => (
+          {navGroups.map((group, gi) => (
             <div key={gi} className="flex flex-col gap-0.5">
               {gi > 0 && (
                 <div className="my-2 mx-1" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
@@ -319,31 +323,33 @@ export default function ProjectDetailPage() {
               </div>
             )
           })}
-          <div className="my-2 mx-1" style={{ height: 1, minHeight: 1, flexShrink: 0, background: 'rgba(255,255,255,0.2)' }} />
+          {isAdmin && <div className="my-2 mx-1" style={{ height: 1, minHeight: 1, flexShrink: 0, background: 'rgba(255,255,255,0.2)' }} />}
 
           {/* Settings + collapse pinned to bottom */}
           <div className="flex-1" />
-          <div className="relative group"
-            onMouseEnter={(e) => showTooltip(e, 'Settings')}
-            onMouseLeave={hideTooltip}
-          >
-            <NavLink
-              to="/admin/settings"
-              className={({ isActive }) => [
-                'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
-              ].join(' ')}
-              style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+          {isAdmin && (
+            <div className="relative group"
+              onMouseEnter={(e) => showTooltip(e, 'Settings')}
+              onMouseLeave={hideTooltip}
             >
-              {({ isActive }) => (
-                <>
-                  {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 20, background: '#ed6055' }} />}
-                  <SettingsIcon className="w-[18px] h-[18px] flex-shrink-0" />
-                  {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Settings</span>}
-                </>
-              )}
-            </NavLink>
-          </div>
+              <NavLink
+                to="/admin/settings"
+                className={({ isActive }) => [
+                  'flex items-center w-full h-11 rounded-lg transition-all duration-150',
+                  isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                ].join(' ')}
+                style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+              >
+                {({ isActive }) => (
+                  <>
+                    {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 20, background: '#ed6055' }} />}
+                    <SettingsIcon className="w-[18px] h-[18px] flex-shrink-0" />
+                    {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Settings</span>}
+                  </>
+                )}
+              </NavLink>
+            </div>
+          )}
 
           {/* Expand / collapse toggle */}
           <div className="mt-1 relative group"
@@ -493,7 +499,7 @@ export default function ProjectDetailPage() {
                 {photosActionsOpen && (
                   <div className="absolute right-0 top-full mt-2 z-50 bg-white border border-gray-200 rounded-xl shadow-lg overflow-hidden" style={{ width: 180, animation: 'ph1-dropdown 0.15s ease-out both' }}>
                     <div className="p-1.5 space-y-0.5">
-                      {isAdmin && (
+                      {(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
                         <button onClick={() => { setPhotosShowUpload(true); setPhotosActionsOpen(false) }}
                           className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs text-gray-700 hover:bg-gray-50 transition text-left">
                           <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -545,7 +551,7 @@ export default function ProjectDetailPage() {
                 <div ref={issuesFilterPopRef} className="relative flex-shrink-0">
                   <button
                     onClick={() => setIssuesFiltersOpen(v => !v)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
+                    className="relative flex items-center justify-center w-8 h-8 rounded-lg border transition-all flex-shrink-0"
                     style={{
                       background: issuesFiltersOpen || issuesFilterStatus !== 'all' || issuesFilterGroup !== 'all' || issuesFilterMgmtLevel !== 'all' ? '#fff' : '#f9fafb',
                       borderColor: (issuesFilterStatus !== 'all' || issuesFilterGroup !== 'all' || issuesFilterMgmtLevel !== 'all') ? '#ed6055' : issuesFiltersOpen ? '#ed6055' : '#e5e7eb',
@@ -556,9 +562,8 @@ export default function ProjectDetailPage() {
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
                     </svg>
-                    Filters
                     {[issuesFilterStatus !== 'all', issuesFilterGroup !== 'all', issuesFilterMgmtLevel !== 'all'].filter(Boolean).length > 0 && (
-                      <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+                      <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#ed6055] text-white text-[9px] font-bold flex items-center justify-center leading-none">
                         {[issuesFilterStatus !== 'all', issuesFilterGroup !== 'all', issuesFilterMgmtLevel !== 'all'].filter(Boolean).length}
                       </span>
                     )}
@@ -646,7 +651,7 @@ export default function ProjectDetailPage() {
                           Import from Excel
                           <input type="file" accept=".xlsx,.xls" className="hidden" onChange={e => { if (e.target.files?.[0]) { issuesFnsRef.current.import?.(e.target.files[0]); setIssuesActionsOpen(false); e.target.value = '' } }} />
                         </label>
-                        {isAdmin && (
+                        {(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
                           <>
                             <div className="h-px bg-gray-100 mx-2 my-1" />
                             <button onClick={() => { setIssuesShowAdd(true); setIssuesActionsOpen(false) }}

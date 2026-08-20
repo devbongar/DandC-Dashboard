@@ -17,7 +17,7 @@ export default function useProfile() {
 
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, email, role, team, avatar_url, user_code')
+        .select('id, full_name, email, role, team, avatar_url, user_code')
         .eq('id', session.user.id)
         .single()
 
