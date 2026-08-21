@@ -1661,26 +1661,33 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               <div className="flex flex-col gap-2 h-[400px]">
               {cards.map(card => (
                 <div key={card.label}
-                  className="flex-1 bg-white rounded-xl border border-gray-200 px-2.5 py-2 flex flex-col justify-center gap-1.5 overflow-hidden"
-                  style={{ borderLeft: `3px solid ${card.accent}` }}
+                  className="flex-1 rounded-xl border px-2.5 py-2 flex flex-col justify-center gap-1.5 overflow-hidden"
+                  style={{
+                    borderColor: card.accent + '60',
+                    borderLeftColor: card.accent,
+                    borderLeftWidth: 3,
+                    background: `linear-gradient(145deg, ${card.accent}70, ${card.accent}45)`,
+                    backdropFilter: 'blur(14px)',
+                    WebkitBackdropFilter: 'blur(14px)',
+                    boxShadow: `0 6px 24px ${card.accent}50, inset 0 1px 0 rgba(255,255,255,0.25)`,
+                  }}
                 >
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 leading-none">{card.label}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest leading-none" style={{ color: 'rgba(255,255,255,0.7)' }}>{card.label}</span>
                   <div className="flex items-baseline gap-1">
                     {card.semantic && card.value != null && (
                       <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
-                        style={{ color: card.accent }} fill="currentColor">
+                        style={{ color: 'rgba(255,255,255,0.9)' }} fill="currentColor">
                         {card.value >= 0
                           ? <polygon points="5,1 9,9 1,9" />
                           : <polygon points="5,9 9,1 1,1" />}
                       </svg>
                     )}
-                    <span className="text-2xl font-bold tabular-nums leading-tight"
-                      style={{ color: card.semantic ? card.accent : '#111827' }}>
+                    <span className="text-2xl font-bold tabular-nums leading-tight" style={{ color: 'rgba(255,255,255,0.95)' }}>
                       {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '--'}
                     </span>
                   </div>
                   {card.sublabel && (
-                    <span className="text-[10px] text-gray-500 leading-tight">{card.sublabel}</span>
+                    <span className="text-[10px] leading-tight" style={{ color: 'rgba(255,255,255,0.6)' }}>{card.sublabel}</span>
                   )}
                 </div>
               ))}

@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import { createPortal } from 'react-dom'
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import { useNavigate } from 'react-router-dom'
 import { supabase, fetchAll } from '../lib/supabaseClient'
 import { downloadWorkbook, parseWorkbook, toDateStr, toFloat, toInt } from '../lib/excelUtils'
@@ -53,7 +56,7 @@ const ISSUE_STATUS_CONFIG = {
   hold:  { label: 'Hold',  cls: 'bg-amber-50 text-amber-600' },
 }
 const ISSUE_GROUPS = ['Commercial', 'Design', 'Construction', 'Compliance']
-const MANAGEMENT_LEVELS = ['ESA', 'Management Committee']
+const MANAGEMENT_LEVELS = ['ESA', 'Management Committee', 'D&C Head']
 const issueAgingDays = (d) => d ? Math.max(0, Math.floor((new Date() - new Date(d)) / 86400000)) : null
 const fmtIssueDate = (d) => d ? new Date(d).toLocaleDateString('en-PH', { year: 'numeric', month: 'long', day: 'numeric' }) : '--'
 const ISSUE_EMPTY = { issue_group: '', management_level: '', status: 'open', date_presented: '', date_bad: false, details: '', caused_by: '', action_steps: '' }
@@ -2361,6 +2364,26 @@ function AddGroupModal({ onConfirm, onCancel }) {
   )
 }
 
+function SortableFloorRow({ id, disabled, children }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id, disabled })
+  return (
+    <tr
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      className="hover:bg-gray-50/50"
+    >
+      <td className="px-1 py-1.5 text-center w-6">
+        {!disabled && (
+          <span className="cursor-grab active:cursor-grabbing text-gray-300 hover:text-gray-500 inline-flex" {...listeners} {...attributes}>
+            <GripIcon />
+          </span>
+        )}
+      </td>
+      {children}
+    </tr>
+  )
+}
+
 function LocationGroupSchedule({ group, projectId, buildingId, isAdmin, profile, showToast, refreshKey = 0, onSummaryChange, onGroupDeleted, onGroupRenamed }) {
   const [rows, setRows]           = useState([])
   const [adding, setAdding]       = useState(false)
@@ -2409,12 +2432,13 @@ function LocationGroupSchedule({ group, projectId, buildingId, isAdmin, profile,
   }
   const saveNew = async () => {
     if (!validate(newForm)) return
-    const { error } = await supabase.from('project_location_floors').insert({ ...toPayload(newForm), sort_order: rows.length })
+    const nextSort = rows.reduce((mx, r) => Math.max(mx, r.sort_order ?? 0), -1) + 1
+    const { error } = await supabase.from('project_location_floors').insert({ ...toPayload(newForm), sort_order: nextSort })
     if (error) { showToast(error.message, 'error'); return }
     showToast('Added.', 'success'); setAdding(false); setNewForm({}); load()
   }
   const bulkSave = async (floors) => {
-    const base = rows.length
+    const base = rows.reduce((mx, r) => Math.max(mx, r.sort_order ?? 0), -1) + 1
     const inserts = floors.map((f, i) => ({ ...f, project_id: projectId, building_id: buildingId ?? null, group_id: group.id, sort_order: base + i }))
     const { error } = await supabase.from('project_location_floors').insert(inserts)
     if (error) { showToast(error.message, 'error'); return }
@@ -2444,6 +2468,16 @@ function LocationGroupSchedule({ group, projectId, buildingId, isAdmin, profile,
   const canEdit = isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'
   const accent  = group.type === 'residential' ? '#f59e0b' : group.type === 'parking' ? '#3b82f6' : '#6b7280'
   const unitLabel = group.type === 'parking' ? 'Spaces' : 'Units'
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const handleDragEnd = async ({ active, over }) => {
+    if (!over || active.id === over.id) return
+    const oldIndex = rows.findIndex(r => r.id === active.id)
+    const newIndex = rows.findIndex(r => r.id === over.id)
+    const reordered = arrayMove(rows, oldIndex, newIndex)
+    setRows(reordered)
+    await Promise.all(reordered.map((r, i) => supabase.from('project_location_floors').update({ sort_order: i }).eq('id', r.id)))
+  }
 
   const titleEl = editingName ? (
     <input
@@ -2481,89 +2515,97 @@ function LocationGroupSchedule({ group, projectId, buildingId, isAdmin, profile,
         )
       )} />
       <div className="overflow-x-auto">
-        <div className={`bg-white rounded-xl border overflow-hidden transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
-          <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100" style={{ tableLayout: 'fixed' }}>
-            <colgroup>
-              <col style={{ width: 56 }} />
-              <col style={{ width: 40 }} />
-              <col style={{ width: 80 }} />
-              <col style={{ width: 80 }} />
-              <col style={{ width: 80 }} />
-              <col style={{ width: 80 }} />
-              {isAdmin && <col style={{ width: 40 }} />}
-            </colgroup>
-            <thead>
-              <tr className="bg-gray-50/80 border-b border-gray-200">
-                <th className="text-left px-2 py-2 font-semibold text-gray-600 leading-tight">Phys.<br/>Level</th>
-                <th className="text-left px-1 py-2 font-semibold text-gray-600">{unitLabel}</th>
-                <th className="text-center px-1 py-2 font-semibold text-gray-600" colSpan={2}>
-                  <div>M4 Planned</div>
-                  <div className="flex justify-around mt-0.5 font-medium text-[10px] text-gray-400"><span>Start Date</span><span>End Date</span></div>
-                </th>
-                <th className="text-center px-1 py-2 font-semibold text-gray-600" colSpan={2}>
-                  <div>M5 Planned</div>
-                  <div className="flex justify-around mt-0.5 font-medium text-[10px] text-gray-400"><span>Start Date</span><span>End Date</span></div>
-                </th>
-                {isAdmin && <th />}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {rows.map(row => editMode ? (
-                <tr key={row.id}>
-                  {(() => {
-                    const f = editForms[row.id] ?? {}
-                    const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
-                    const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
-                    const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
-                    const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
-                    const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
-                    const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
-                    return <>
-                      <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setEF(row.id, 'physical_level', v)} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setEF(row.id, 'num_units', v)} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setEF2(row.id, 'm4_planned_start', v, 'm4_start_bad', !!bad)} error={m4StartErr || m4OrderErr} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm4_planned_end',   v, 'm4_end_bad',   !!bad)} error={m4EndErr   || m4OrderErr} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setEF2(row.id, 'm5_planned_start', v, 'm5_start_bad', !!bad)} error={m5StartErr || m5OrderErr} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm5_planned_end',   v, 'm5_end_bad',   !!bad)} error={m5EndErr   || m5OrderErr} /></td>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <div className={`bg-white rounded-xl border overflow-hidden transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
+            <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100" style={{ tableLayout: 'fixed' }}>
+              <colgroup>
+                {canEdit && <col style={{ width: 24 }} />}
+                <col style={{ width: 56 }} />
+                <col style={{ width: 40 }} />
+                <col style={{ width: 80 }} />
+                <col style={{ width: 80 }} />
+                <col style={{ width: 80 }} />
+                <col style={{ width: 80 }} />
+                {isAdmin && <col style={{ width: 40 }} />}
+              </colgroup>
+              <thead>
+                <tr className="bg-gray-50/80 border-b border-gray-200">
+                  {canEdit && <th />}
+                  <th className="text-left px-2 py-2 font-semibold text-gray-600 leading-tight">Phys.<br/>Level</th>
+                  <th className="text-left px-1 py-2 font-semibold text-gray-600">{unitLabel}</th>
+                  <th className="text-center px-1 py-2 font-semibold text-gray-600" colSpan={2}>
+                    <div>M4 Planned</div>
+                    <div className="flex justify-around mt-0.5 font-medium text-[10px] text-gray-400"><span>Start Date</span><span>End Date</span></div>
+                  </th>
+                  <th className="text-center px-1 py-2 font-semibold text-gray-600" colSpan={2}>
+                    <div>M5 Planned</div>
+                    <div className="flex justify-around mt-0.5 font-medium text-[10px] text-gray-400"><span>Start Date</span><span>End Date</span></div>
+                  </th>
+                  {isAdmin && <th />}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                <SortableContext items={rows.map(r => r.id)} strategy={verticalListSortingStrategy}>
+                  {rows.map(row => editMode ? (
+                    <tr key={row.id}>
+                      {canEdit && <td className="px-1 py-1.5 w-6" />}
+                      {(() => {
+                        const f = editForms[row.id] ?? {}
+                        const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
+                        const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
+                        const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
+                        const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
+                        const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
+                        const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
+                        return <>
+                          <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setEF(row.id, 'physical_level', v)} /></td>
+                          <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setEF(row.id, 'num_units', v)} /></td>
+                          <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setEF2(row.id, 'm4_planned_start', v, 'm4_start_bad', !!bad)} error={m4StartErr || m4OrderErr} /></td>
+                          <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm4_planned_end',   v, 'm4_end_bad',   !!bad)} error={m4EndErr   || m4OrderErr} /></td>
+                          <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setEF2(row.id, 'm5_planned_start', v, 'm5_start_bad', !!bad)} error={m5StartErr || m5OrderErr} /></td>
+                          <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm5_planned_end',   v, 'm5_end_bad',   !!bad)} error={m5EndErr   || m5OrderErr} /></td>
+                          {isAdmin && <td />}
+                        </>
+                      })()}
+                    </tr>
+                  ) : (
+                    <SortableFloorRow key={row.id} id={row.id} disabled={isEditing}>
+                      <td className="px-2 py-1.5 font-semibold text-black">{row.physical_level}</td>
+                      <td className="px-2 py-1.5 text-gray-600">{row.num_units ?? '--'}</td>
+                      <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_start)}</td>
+                      <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_end)}</td>
+                      <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_start)}</td>
+                      <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_end)}</td>
+                      {isAdmin && <td className="px-2 py-1.5"><button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button></td>}
+                    </SortableFloorRow>
+                  ))}
+                </SortableContext>
+                {adding && (() => {
+                  const f = newForm
+                  const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
+                  const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
+                  const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
+                  const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
+                  const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
+                  const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
+                  return (
+                    <tr>
+                      {canEdit && <td className="px-1 py-1.5 w-6" />}
+                      <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setNewForm(p => ({ ...p, physical_level: v }))} placeholder="e.g. 1 or Outdoor" /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setNewForm(p => ({ ...p, num_units: v }))} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_start: v, m5_start_bad: !!bad }))} error={m5StartErr || m5OrderErr} /></td>
+                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_end:   v, m5_end_bad:   !!bad }))} error={m5EndErr   || m5OrderErr} /></td>
                       {isAdmin && <td />}
-                    </>
-                  })()}
-                </tr>
-              ) : (
-                <tr key={row.id} className="hover:bg-gray-50/50">
-                  <td className="px-2 py-1.5 font-semibold text-black">{row.physical_level}</td>
-                  <td className="px-2 py-1.5 text-gray-600">{row.num_units ?? '--'}</td>
-                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_start)}</td>
-                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_end)}</td>
-                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_start)}</td>
-                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_end)}</td>
-                  {isAdmin && <td className="px-2 py-1.5"><button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button></td>}
-                </tr>
-              ))}
-              {adding && (() => {
-                const f = newForm
-                const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
-                const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
-                const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
-                const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
-                const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
-                const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
-                return (
-                  <tr>
-                    <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setNewForm(p => ({ ...p, physical_level: v }))} placeholder="e.g. 1 or Outdoor" /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setNewForm(p => ({ ...p, num_units: v }))} /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_start: v, m5_start_bad: !!bad }))} error={m5StartErr || m5OrderErr} /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_end:   v, m5_end_bad:   !!bad }))} error={m5EndErr   || m5OrderErr} /></td>
-                    {isAdmin && <td />}
-                  </tr>
-                )
-              })()}
-              {rows.length === 0 && !adding && <EmptyRow cols={isAdmin ? 8 : 7} message={`No ${group.name.toLowerCase()} floors added yet.`} />}
-            </tbody>
-          </table>
-        </div>
+                    </tr>
+                  )
+                })()}
+                {rows.length === 0 && !adding && <EmptyRow cols={(isAdmin ? 8 : 7) + (canEdit ? 1 : 0)} message={`No ${group.name.toLowerCase()} floors added yet.`} />}
+              </tbody>
+            </table>
+          </div>
+        </DndContext>
       </div>
       {deleteId !== null && createPortal(<ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />, document.body)}
       {deleteGroup && createPortal(
@@ -3741,10 +3783,15 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
   const close = () => { setModal(null); setActive(null) }
 
   const save = async () => {
-    if (!form.details.trim()) return
-    if (form.date_bad || (form.date_presented && !isValidDate(form.date_presented))) {
+    if (!form.issue_group)         { showToast('Group is required.', 'error'); return }
+    if (!form.management_level)    { showToast('Management Level is required.', 'error'); return }
+    if (!form.date_presented)      { showToast('Date Presented is required.', 'error'); return }
+    if (form.date_bad || !isValidDate(form.date_presented)) {
       showToast('Date Presented is not a valid calendar date.', 'error'); return
     }
+    if (!form.details.trim())      { showToast('Issue description is required.', 'error'); return }
+    if (!form.caused_by.trim())    { showToast('Caused By is required.', 'error'); return }
+    if (!form.action_steps.trim()) { showToast('Action Steps is required.', 'error'); return }
     setSaving(true)
     const payload = {
       project_id:        project.id,
@@ -4015,7 +4062,7 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
             </div>
             <div className="px-5 py-4 space-y-3 overflow-y-auto flex-1">
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Group</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Group <span className="text-[#ed6055]">*</span></label>
                 <SelectDropdown
                   options={[{ value: '', label: '-- Select Group --' }, ...ISSUE_GROUPS.map(g => ({ value: g, label: g }))]}
                   value={form.issue_group}
@@ -4024,7 +4071,7 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
                 />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Management Level</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Management Level <span className="text-[#ed6055]">*</span></label>
                 <SelectDropdown
                   options={[{ value: '', label: '-- Select Level --' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))]}
                   value={form.management_level}
@@ -4043,7 +4090,7 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
                   />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Date Presented</label>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Date Presented <span className="text-[#ed6055]">*</span></label>
                   <input type="date" value={form.date_presented} onChange={e => setForm(f => ({ ...f, date_presented: e.target.value, date_bad: e.target.validity.badInput }))} className={`${iCls} ${(form.date_bad || (form.date_presented && !isValidDate(form.date_presented))) ? 'border-red-400 bg-red-50 text-red-600 focus:ring-red-400 focus:border-transparent' : ''}`} />
                   {(form.date_bad || (form.date_presented && !isValidDate(form.date_presented))) && <p className="text-xs text-red-500 mt-1">This date does not exist in the calendar.</p>}
                 </div>
@@ -4053,17 +4100,17 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
                 <textarea value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issue…" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Caused By</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Caused By <span className="text-[#ed6055]">*</span></label>
                 <textarea value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root cause…" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Action Steps</label>
+                <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Action Steps <span className="text-[#ed6055]">*</span></label>
                 <textarea value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or planned…" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
             </div>
             <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
               <button onClick={close} className="px-4 py-2 text-sm text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50 transition">Cancel</button>
-              <button onClick={save} disabled={saving || !form.details.trim()}
+              <button onClick={save} disabled={saving || !form.issue_group || !form.management_level || !form.date_presented || !form.details.trim() || !form.caused_by.trim() || !form.action_steps.trim()}
                 className="px-5 py-2 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 disabled:cursor-not-allowed transition">
                 {saving ? 'Saving…' : modal === 'add' ? 'Add Issue' : 'Save Changes'}
               </button>
@@ -4650,7 +4697,8 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
   const [floorModalDateBad, setFloorModalDateBad]   = useState(false)
   const [floorModalSaving, setFloorModalSaving]     = useState(false)
   const [productType, setProductType]               = useState(null)  // null=both, 'unit', 'parking'
-  const [sortAsc, setSortAsc]                       = useState(true)
+  const [unitSortAsc, setUnitSortAsc]               = useState(true)
+  const [parkingSortAsc, setParkingSortAsc]         = useState(true)
 
   const loadAll = async () => {
     setLoading(true)
@@ -4689,9 +4737,8 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
     return map
   }, [parkingCompletions])
 
-  const applySort = arr => [...arr].sort((a, b) => sortAsc ? (a.sort_order ?? 0) - (b.sort_order ?? 0) : (b.sort_order ?? 0) - (a.sort_order ?? 0))
-  const displayFloors        = useMemo(() => applySort(floors),        [floors, sortAsc])
-  const displayParkingFloors = useMemo(() => applySort(parkingFloors), [parkingFloors, sortAsc])
+  const displayFloors        = useMemo(() => [...floors].sort((a, b)        => unitSortAsc    ? (a.sort_order ?? 0) - (b.sort_order ?? 0) : (b.sort_order ?? 0) - (a.sort_order ?? 0)), [floors, unitSortAsc])
+  const displayParkingFloors = useMemo(() => [...parkingFloors].sort((a, b) => parkingSortAsc ? (a.sort_order ?? 0) - (b.sort_order ?? 0) : (b.sort_order ?? 0) - (a.sort_order ?? 0)), [parkingFloors, parkingSortAsc])
 
   const maxUnits        = useMemo(() => floors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [floors])
   const maxParkingUnits = useMemo(() => parkingFloors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [parkingFloors])
@@ -5065,11 +5112,11 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
                 </button>
               )}
               <button
-                onClick={() => setSortAsc(v => !v)}
-                title={sortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
+                onClick={() => setUnitSortAsc(v => !v)}
+                title={unitSortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
                 className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
               >
-                {sortAsc ? '↑' : '↓'}
+                {unitSortAsc ? '↑' : '↓'}
               </button>
             </div>
           )} />
@@ -5103,11 +5150,11 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
                 </button>
               )}
               <button
-                onClick={() => setSortAsc(v => !v)}
-                title={sortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
+                onClick={() => setParkingSortAsc(v => !v)}
+                title={parkingSortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
                 className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
               >
-                {sortAsc ? '↑' : '↓'}
+                {parkingSortAsc ? '↑' : '↓'}
               </button>
             </div>
           )} />
@@ -5624,6 +5671,13 @@ const PencilIcon = () => (
 const TrashIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+  </svg>
+)
+const GripIcon = () => (
+  <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
+    <circle cx="7" cy="4" r="1.5"/><circle cx="13" cy="4" r="1.5"/>
+    <circle cx="7" cy="10" r="1.5"/><circle cx="13" cy="10" r="1.5"/>
+    <circle cx="7" cy="16" r="1.5"/><circle cx="13" cy="16" r="1.5"/>
   </svg>
 )
 const CameraIcon = () => (
