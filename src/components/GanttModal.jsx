@@ -1972,10 +1972,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           if (srcActs?.length) {
             const copies = srcActs.map(({ id: _id, ...rest }) => ({
               ...rest,
-              id:          `${rest.task_id}_${newBlId}`,
-              baseline_id: newBlId,
+              id:            `${rest.task_id}_${newBlId}`,
+              baseline_id:   newBlId,
+              planned_start: rest.projected_start ?? rest.planned_start,
+              planned_end:   rest.projected_end   ?? rest.planned_end,
             }))
-            console.log('[baseline] copy columns:', Object.keys(copies[0]))
             const { error: copyErr } = await supabase.from('workprogram_activities').insert(copies)
             if (copyErr) { console.error('[baseline] copy error:', copyErr); showToast(copyErr.message, 'error'); return }
           }

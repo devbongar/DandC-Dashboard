@@ -2881,7 +2881,7 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
             <div className="w-1 h-4 rounded-full bg-[#ed6055]" />
             <h3 className="text-sm font-bold text-gray-900">Towers / Locations</h3>
           </div>
-          <ExcelButtons onExport={onExport} onImport={onImport} importing={importing} />
+          <ExcelButtons onExport={onExport} onImport={onImport} importing={importing} canImport={isAdmin} />
         </div>
         <BuildingSelector
           projectId={project.id}
@@ -5516,7 +5516,7 @@ const PlusIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
   </svg>
 )
-function ExcelButtons({ onExport, onImport, importing = false }) {
+function ExcelButtons({ onExport, onImport, importing = false, canImport = true }) {
   const ref = useRef(null)
   return (
     <div className="flex items-center gap-1">
@@ -5527,21 +5527,25 @@ function ExcelButtons({ onExport, onImport, importing = false }) {
       >
         <DownloadIcon /> Export
       </button>
-      <button
-        onClick={() => ref.current?.click()}
-        disabled={importing}
-        title="Import from Excel"
-        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
-      >
-        <UploadIcon /> {importing ? 'Importing…' : 'Import'}
-      </button>
-      <input
-        ref={ref}
-        type="file"
-        accept=".xlsx,.xls"
-        className="hidden"
-        onChange={e => { const f = e.target.files[0]; if (f) onImport(f); e.target.value = '' }}
-      />
+      {canImport && (
+        <>
+          <button
+            onClick={() => ref.current?.click()}
+            disabled={importing}
+            title="Import from Excel"
+            className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
+          >
+            <UploadIcon /> {importing ? 'Importing…' : 'Import'}
+          </button>
+          <input
+            ref={ref}
+            type="file"
+            accept=".xlsx,.xls"
+            className="hidden"
+            onChange={e => { const f = e.target.files[0]; if (f) onImport(f); e.target.value = '' }}
+          />
+        </>
+      )}
     </div>
   )
 }
