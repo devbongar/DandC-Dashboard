@@ -241,8 +241,16 @@ export default function UnitCompletionChart({
         setFloors([]); setCompletions([]); setLoading(false); return
       }
 
+      const { data: resGroups } = await supabase
+        .from('project_location_groups')
+        .select('id')
+        .in('project_id', filteredIds)
+        .eq('type', 'residential')
+      const resGroupIds = (resGroups ?? []).map(g => g.id)
       const [fData, cData] = await Promise.all([
-        fetchAll(() => supabase.from('project_floors').select('project_id, num_units, m4_planned_end, m5_planned_end').in('project_id', filteredIds)),
+        resGroupIds.length
+          ? fetchAll(() => supabase.from('project_location_floors').select('project_id, num_units, m4_planned_end, m5_planned_end').in('group_id', resGroupIds))
+          : Promise.resolve([]),
         fetchAll(() => supabase.from('project_unit_completion').select('project_id, m4_date, m5_date').in('project_id', filteredIds)),
       ])
 

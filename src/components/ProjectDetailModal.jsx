@@ -346,7 +346,7 @@ function ImportErrorPanel({ errors, onDismiss }) {
 
 function ConfirmDeleteModal({ onConfirm, onCancel }) {
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" style={{ animation: 'fade-in 200ms ease-out forwards' }} onClick={onCancel}>
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/20 backdrop-blur-sm" style={{ animation: 'fade-in 200ms ease-out forwards' }} onClick={onCancel}>
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" style={{ animation: 'modal-in 200ms ease-out forwards' }} onClick={e => e.stopPropagation()}>
         <h3 className="text-base font-bold text-black mb-1">Delete this entry?</h3>
         <p className="text-sm text-gray-500 mb-5">This action cannot be undone.</p>
@@ -423,7 +423,7 @@ function InlineInput({ value, onChange, type = 'text', placeholder = '', min, ma
       min={resolvedMin}
       max={max}
       disabled={disabled}
-      className={`w-full px-2 py-1.5 text-xs rounded border focus:outline-none focus:ring-1 bg-white transition ${
+      className={`w-full px-2 py-1.5 text-xs rounded border focus:outline-none focus:ring-1 bg-white transition [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
         disabled
           ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
           : showError
@@ -1633,8 +1633,6 @@ function BulkDeleteTowersModal({ buildings, projectId, onDone, onCancel }) {
     setSaving(true)
     try {
       for (const id of selected) {
-        await supabase.from('project_floors').delete().eq('building_id', id)
-        await supabase.from('project_parking_floors').delete().eq('building_id', id)
         await supabase.from('project_buildings').delete().eq('id', id)
       }
       onDone([...selected])
@@ -1680,11 +1678,9 @@ function BulkDeleteTowersModal({ buildings, projectId, onDone, onCancel }) {
 }
 
 function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
-  const [destIds, setDestIds]   = useState(new Set())
-  const [copyRes, setCopyRes]   = useState(true)
-  const [copyPark, setCopyPark] = useState(true)
-  const [saving, setSaving]     = useState(false)
-  const [err, setErr]           = useState('')
+  const [destIds, setDestIds] = useState(new Set())
+  const [saving, setSaving]   = useState(false)
+  const [err, setErr]         = useState('')
 
   const sourceName = buildings.find(b => b.id === sourceId)?.name ?? ''
   const targets    = buildings.filter(b => b.id !== sourceId)
@@ -1697,26 +1693,40 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
 
   const handle = async () => {
     if (destIds.size === 0) { setErr('Select at least one destination tower.'); return }
-    if (!copyRes && !copyPark) { setErr('Select at least one section to copy.'); return }
     setSaving(true)
     try {
-      let srcFloors = null, srcPark = null
-      if (copyRes) {
-        const { data } = await supabase.from('project_floors').select('*').eq('project_id', projectId).eq('building_id', sourceId)
-        srcFloors = data ?? []
-      }
-      if (copyPark) {
-        const { data } = await supabase.from('project_parking_floors').select('*').eq('project_id', projectId).eq('building_id', sourceId)
-        srcPark = data ?? []
-      }
+      const { data: srcGroups } = await supabase
+        .from('project_location_groups')
+        .select('*')
+        .eq('project_id', projectId)
+        .eq('building_id', sourceId)
+        .order('sort_order')
+
       for (const did of destIds) {
-        if (copyRes) {
-          await supabase.from('project_floors').delete().eq('project_id', projectId).eq('building_id', did)
-          if (srcFloors.length > 0) await supabase.from('project_floors').insert(srcFloors.map(({ id: _id, building_id: _bid, ...rest }) => ({ ...rest, building_id: did })))
-        }
-        if (copyPark) {
-          await supabase.from('project_parking_floors').delete().eq('project_id', projectId).eq('building_id', did)
-          if (srcPark.length > 0) await supabase.from('project_parking_floors').insert(srcPark.map(({ id: _id, building_id: _bid, ...rest }) => ({ ...rest, building_id: did })))
+        // Delete existing groups for dest (cascade deletes floors)
+        await supabase.from('project_location_groups').delete().eq('project_id', projectId).eq('building_id', did)
+
+        if ((srcGroups ?? []).length > 0) {
+          for (const srcGroup of srcGroups) {
+            const { data: newGroup } = await supabase
+              .from('project_location_groups')
+              .insert({ project_id: projectId, building_id: did, name: srcGroup.name, type: srcGroup.type, sort_order: srcGroup.sort_order })
+              .select('id').single()
+
+            if (newGroup) {
+              const { data: srcFloors } = await supabase
+                .from('project_location_floors')
+                .select('*')
+                .eq('group_id', srcGroup.id)
+              if ((srcFloors ?? []).length > 0) {
+                await supabase.from('project_location_floors').insert(
+                  srcFloors.map(({ id: _id, building_id: _bid, group_id: _gid, ...rest }) => ({
+                    ...rest, building_id: did, group_id: newGroup.id,
+                  }))
+                )
+              }
+            }
+          }
         }
       }
       onDone()
@@ -1731,7 +1741,7 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
     <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/10 backdrop-blur-sm">
       <div className="bg-white rounded-2xl shadow-2xl w-full max-w-sm mx-4 p-6">
         <h3 className="text-sm font-bold text-gray-900 mb-1">Copy Configuration</h3>
-        <p className="text-xs text-gray-500 mb-4">Copy floor schedule from <span className="font-semibold text-gray-700">{sourceName}</span> to one or more towers.</p>
+        <p className="text-xs text-gray-500 mb-4">Copy all location groups and floors from <span className="font-semibold text-gray-700">{sourceName}</span> to one or more towers.</p>
         <div className="space-y-3">
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Copy to</label>
@@ -1744,20 +1754,9 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
               ))}
             </div>
           </div>
-          <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-gray-600">What to copy</label>
-            <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-              <input type="checkbox" checked={copyRes} onChange={e => setCopyRes(e.target.checked)} className="accent-[#ed6055]" />
-              Residential Floors
-            </label>
-            <label className="flex items-center gap-2 text-xs text-gray-700 cursor-pointer">
-              <input type="checkbox" checked={copyPark} onChange={e => setCopyPark(e.target.checked)} className="accent-[#ed6055]" />
-              Parking Floors
-            </label>
-          </div>
           {destIds.size > 0 && (
             <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
-              Existing floors in the selected tower{destIds.size > 1 ? 's' : ''} will be replaced.
+              Existing location groups in the selected tower{destIds.size > 1 ? 's' : ''} will be replaced.
             </p>
           )}
           {err && <p className="text-xs text-red-500">{err}</p>}
@@ -1797,8 +1796,6 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
   }
 
   const deleteBuilding = async (id) => {
-    await supabase.from('project_floors').delete().eq('building_id', id)
-    await supabase.from('project_parking_floors').delete().eq('building_id', id)
     await supabase.from('project_buildings').delete().eq('id', id)
     const remaining = buildings.filter(b => b.id !== id)
     setBuildings(remaining)
@@ -1893,7 +1890,7 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
         />
       )}
 
-      {bulkAdding && (
+      {bulkAdding && createPortal(
         <BulkAddTowersModal
           projectId={projectId}
           existingNames={buildings.map(b => b.name)}
@@ -1904,7 +1901,8 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
             setBulkAdding(false)
           }}
           onCancel={() => setBulkAdding(false)}
-        />
+        />,
+        document.body
       )}
 
       {bulkDeleting && (
@@ -1958,7 +1956,6 @@ function buildTowerFloorRows(from, to, prefix, count, projectId, buildingId) {
     project_id: projectId,
     building_id: buildingId,
     physical_level: prefix ? `${prefix}${f + i}` : String(f + i),
-    marketing_level: null,
     num_units: count !== '' && !isNaN(parseInt(count)) ? parseInt(count) : null,
     m4_planned_start: null, m4_planned_end: null,
     m5_planned_start: null, m5_planned_end: null,
@@ -1977,26 +1974,60 @@ function AddTowerModal({ projectId, existingCount, onDone, onCancel }) {
   const [pkTo, setPkTo]             = useState('')
   const [pkPrefix, setPkPrefix]     = useState('')
   const [pkSpaces, setPkSpaces]     = useState('')
+  const [customGroups, setCustomGroups] = useState([])
   const [submitting, setSubmitting] = useState(false)
   const [err, setErr]               = useState('')
+
+  const addCustomGroup = () =>
+    setCustomGroups(prev => [...prev, { id: Date.now(), name: '', from: '', to: '', prefix: '', units: '', hasFloors: false }])
+
+  const updateCustomGroup = (id, patch) =>
+    setCustomGroups(prev => prev.map(g => g.id === id ? { ...g, ...patch } : g))
+
+  const removeCustomGroup = (id) =>
+    setCustomGroups(prev => prev.filter(g => g.id !== id))
 
   const handleSubmit = async () => {
     const trimName = name.trim()
     if (!trimName) { setErr('Tower name is required.'); return }
+    const badCustom = customGroups.find(g => !g.name.trim())
+    if (badCustom) { setErr('All custom groups need a name.'); return }
     setSubmitting(true); setErr('')
     const { data: building, error } = await supabase
       .from('project_buildings')
       .insert({ project_id: projectId, name: trimName, sort_order: existingCount })
       .select('*').single()
     if (error) { setErr(error.message); setSubmitting(false); return }
+    // Always create Residential group for new tower
+    const { data: resGroup } = await supabase
+      .from('project_location_groups')
+      .insert({ project_id: projectId, building_id: building.id, name: 'Residential', type: 'residential', sort_order: 0 })
+      .select('*').single()
     const ops = []
-    if (hasRes) {
+    if (hasRes && resGroup) {
       const rows = buildTowerFloorRows(reFrom, reTo, rePrefix, reUnits, projectId, building.id)
-      if (rows.length > 0) ops.push(supabase.from('project_floors').insert(rows))
+      if (rows.length > 0) ops.push(supabase.from('project_location_floors').insert(rows.map((r, i) => ({ ...r, group_id: resGroup.id, sort_order: i }))))
     }
+    let nextSortOrder = 1
     if (hasPark) {
-      const rows = buildTowerFloorRows(pkFrom, pkTo, pkPrefix, pkSpaces, projectId, building.id)
-      if (rows.length > 0) ops.push(supabase.from('project_parking_floors').insert(rows))
+      const { data: parkGroup } = await supabase
+        .from('project_location_groups')
+        .insert({ project_id: projectId, building_id: building.id, name: 'Parking', type: 'parking', sort_order: nextSortOrder++ })
+        .select('*').single()
+      if (parkGroup) {
+        const rows = buildTowerFloorRows(pkFrom, pkTo, pkPrefix, pkSpaces, projectId, building.id)
+        if (rows.length > 0) ops.push(supabase.from('project_location_floors').insert(rows.map((r, i) => ({ ...r, group_id: parkGroup.id, sort_order: i }))))
+      }
+    }
+    for (const cg of customGroups) {
+      const { data: cgGroup } = await supabase
+        .from('project_location_groups')
+        .insert({ project_id: projectId, building_id: building.id, name: cg.name.trim(), type: 'custom', sort_order: nextSortOrder++ })
+        .select('*').single()
+      if (cgGroup && cg.hasFloors) {
+        const rows = buildTowerFloorRows(cg.from, cg.to, cg.prefix, cg.units, projectId, building.id)
+        if (rows.length > 0) ops.push(supabase.from('project_location_floors').insert(rows.map((r, i) => ({ ...r, group_id: cgGroup.id, sort_order: i }))))
+      }
     }
     await Promise.all(ops)
     onDone(building)
@@ -2032,6 +2063,42 @@ function AddTowerModal({ projectId, existingCount, onDone, onCancel }) {
             </label>
             {hasPark && <TowerFloorRangeFields from={pkFrom} setFrom={setPkFrom} to={pkTo} setTo={setPkTo} prefix={pkPrefix} setPrefix={setPkPrefix} count={pkSpaces} setCount={setPkSpaces} countLabel="Spaces" />}
           </div>
+
+          {customGroups.map(cg => (
+            <div key={cg.id} className="border border-gray-200 rounded-xl p-3 space-y-2">
+              <div className="flex items-center gap-2">
+                <input
+                  value={cg.name}
+                  onChange={e => updateCustomGroup(cg.id, { name: e.target.value })}
+                  placeholder="Group name (e.g. Podium, Commercial)"
+                  className="flex-1 border border-gray-200 rounded-lg px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40"
+                />
+                <button onClick={() => removeCustomGroup(cg.id)} className="text-gray-400 hover:text-red-500 transition p-1">
+                  <XMarkIcon className="w-4 h-4" />
+                </button>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer select-none">
+                <input type="checkbox" checked={cg.hasFloors} onChange={e => updateCustomGroup(cg.id, { hasFloors: e.target.checked })} className="w-4 h-4 rounded accent-[#ed6055]" />
+                <span className="text-xs text-gray-600">Add floor range</span>
+              </label>
+              {cg.hasFloors && (
+                <TowerFloorRangeFields
+                  from={cg.from} setFrom={v => updateCustomGroup(cg.id, { from: v })}
+                  to={cg.to}   setTo={v => updateCustomGroup(cg.id, { to: v })}
+                  prefix={cg.prefix} setPrefix={v => updateCustomGroup(cg.id, { prefix: v })}
+                  count={cg.units}   setCount={v => updateCustomGroup(cg.id, { units: v })}
+                  countLabel="Units"
+                />
+              )}
+            </div>
+          ))}
+
+          <button
+            onClick={addCustomGroup}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] rounded-lg transition w-full justify-center"
+          >
+            <PlusIcon /> Add custom group
+          </button>
         </div>
         {err && <p className="text-xs text-red-500 mb-3">{err}</p>}
         <div className="flex justify-end gap-2">
@@ -2064,9 +2131,12 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
 
   useEffect(() => {
     const load = async () => {
+      const { data: groups } = await supabase.from('project_location_groups').select('id, type').eq('building_id', building.id)
+      const resIds  = (groups ?? []).filter(g => g.type === 'residential').map(g => g.id)
+      const parkIds = (groups ?? []).filter(g => g.type === 'parking').map(g => g.id)
       const [rRes, pRes] = await Promise.all([
-        supabase.from('project_floors').select('num_units').eq('building_id', building.id),
-        supabase.from('project_parking_floors').select('num_units').eq('building_id', building.id),
+        resIds.length  ? supabase.from('project_location_floors').select('num_units').in('group_id', resIds)  : Promise.resolve({ data: [] }),
+        parkIds.length ? supabase.from('project_location_floors').select('num_units').in('group_id', parkIds) : Promise.resolve({ data: [] }),
       ])
       if (rRes.data) setResSummary({ floors: rRes.data.length, units: rRes.data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
       if (pRes.data) setPkSummary({ floors: pRes.data.length, units: pRes.data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
@@ -2082,11 +2152,31 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
     if (trimName !== building.name) ops.push(supabase.from('project_buildings').update({ name: trimName }).eq('id', building.id))
     if (addRes) {
       const rows = buildTowerFloorRows(reFrom, reTo, rePrefix, reUnits, projectId, building.id)
-      if (rows.length > 0) ops.push(supabase.from('project_floors').insert(rows))
+      if (rows.length > 0) {
+        let { data: resGroup } = await supabase.from('project_location_groups').select('id').eq('building_id', building.id).eq('type', 'residential').single()
+        if (!resGroup) {
+          const { data: created } = await supabase.from('project_location_groups').insert({ project_id: projectId, building_id: building.id, name: 'Residential', type: 'residential', sort_order: 0 }).select('id').single()
+          resGroup = created
+        }
+        if (resGroup) {
+          const base = resSummary.floors
+          ops.push(supabase.from('project_location_floors').insert(rows.map((r, i) => ({ ...r, group_id: resGroup.id, sort_order: base + i }))))
+        }
+      }
     }
     if (addPark) {
       const rows = buildTowerFloorRows(pkFrom, pkTo, pkPrefix, pkSpaces, projectId, building.id)
-      if (rows.length > 0) ops.push(supabase.from('project_parking_floors').insert(rows))
+      if (rows.length > 0) {
+        let { data: parkGroup } = await supabase.from('project_location_groups').select('id').eq('building_id', building.id).eq('type', 'parking').single()
+        if (!parkGroup) {
+          const { data: created } = await supabase.from('project_location_groups').insert({ project_id: projectId, building_id: building.id, name: 'Parking', type: 'parking', sort_order: 1 }).select('id').single()
+          parkGroup = created
+        }
+        if (parkGroup) {
+          const base = pkSummary.floors
+          ops.push(supabase.from('project_location_floors').insert(rows.map((r, i) => ({ ...r, group_id: parkGroup.id, sort_order: base + i }))))
+        }
+      }
     }
     await Promise.all(ops)
     onDone({ ...building, name: trimName })
@@ -2180,7 +2270,7 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
     for (let i = f; i <= t; i++) {
       floors.push({
         physical_level:   prefix ? `${prefix}${i}` : String(i),
-        marketing_level:  null,
+
         num_units:        numUnits !== '' ? parseInt(numUnits) || null : null,
         m4_planned_start: null,
         m4_planned_end:   null,
@@ -2238,28 +2328,64 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
   )
 }
 
-function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToast, refreshKey = 0, onSummaryChange }) {
-  const [rows, setRows] = useState([])
-  const [adding, setAdding] = useState(false)
-  const [bulkAdding, setBulkAdding] = useState(false)
-  const [editMode, setEditMode] = useState(false)
-  const [editForms, setEditForms] = useState({})
-  const [newForm, setNewForm] = useState({})
-  const [deleteId, setDeleteId] = useState(null)
+function AddGroupModal({ onConfirm, onCancel }) {
+  const [name, setName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const handle = async () => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setSaving(true)
+    await onConfirm(trimmed)
+    setSaving(false)
+  }
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/10 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xs mx-4 p-6">
+        <h3 className="text-sm font-bold text-gray-900 mb-4">Add Location Group</h3>
+        <input
+          autoFocus
+          value={name}
+          onChange={e => setName(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') handle(); if (e.key === 'Escape') onCancel() }}
+          placeholder="e.g. Podium, Commercial, Retail"
+          className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40 mb-4"
+        />
+        <div className="flex justify-end gap-2">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
+          <button onClick={handle} disabled={saving || !name.trim()} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
+            {saving ? 'Adding…' : 'Add Group'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
 
-  useEffect(() => { load() }, [projectId, buildingId, refreshKey])
+function LocationGroupSchedule({ group, projectId, buildingId, isAdmin, profile, showToast, refreshKey = 0, onSummaryChange, onGroupDeleted, onGroupRenamed }) {
+  const [rows, setRows]           = useState([])
+  const [adding, setAdding]       = useState(false)
+  const [bulkAdding, setBulkAdding] = useState(false)
+  const [editMode, setEditMode]   = useState(false)
+  const [editForms, setEditForms] = useState({})
+  const [newForm, setNewForm]     = useState({})
+  const [deleteId, setDeleteId]   = useState(null)
+  const [deleteGroup, setDeleteGroup] = useState(false)
+  const [editingName, setEditingName] = useState(false)
+  const [groupName, setGroupName] = useState(group.name)
+
+  useEffect(() => { setGroupName(group.name) }, [group.name])
+  useEffect(() => { load() }, [group.id, refreshKey])
+
   const load = async () => {
-    let q = supabase.from('project_floors').select('*').eq('project_id', projectId)
-    if (buildingId) q = q.eq('building_id', buildingId)
-    const { data } = await q
+    const { data } = await supabase.from('project_location_floors').select('*').eq('group_id', group.id).order('sort_order')
     if (data) {
-      data.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       setRows(data)
       onSummaryChange?.({ floors: data.length, units: data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
     }
   }
-  const blank = () => ({ physical_level: '', marketing_level: '', num_units: '', m4_planned_start: '', m4_planned_end: '', m5_planned_start: '', m5_planned_end: '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false })
-  const toPayload = (f) => ({ project_id: projectId, building_id: buildingId ?? null, physical_level: f.physical_level?.trim(), marketing_level: f.marketing_level?.trim() || null, num_units: f.num_units !== '' ? parseInt(f.num_units) : null, m4_planned_start: f.m4_planned_start || null, m4_planned_end: f.m4_planned_end || null, m5_planned_start: f.m5_planned_start || null, m5_planned_end: f.m5_planned_end || null })
+
+  const blank = () => ({ physical_level: '', num_units: '', m4_planned_start: '', m4_planned_end: '', m5_planned_start: '', m5_planned_end: '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false })
+  const toPayload = (f) => ({ project_id: projectId, building_id: buildingId ?? null, group_id: group.id, physical_level: f.physical_level?.trim(), num_units: f.num_units !== '' ? parseInt(f.num_units) : null, m4_planned_start: f.m4_planned_start || null, m4_planned_end: f.m4_planned_end || null, m5_planned_start: f.m5_planned_start || null, m5_planned_end: f.m5_planned_end || null })
   const validate = (f, label = '') => {
     const p = toPayload(f); const pfx = label ? `${label}: ` : ''
     if (!p.physical_level) { showToast(`${pfx}Physical level is required.`, 'error'); return false }
@@ -2276,37 +2402,68 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
     for (const row of rows) {
       const f = editForms[row.id] ?? {}
       if (!validate(f, row.physical_level)) return
-      const { error } = await supabase.from('project_floors').update(toPayload(f)).eq('id', row.id)
+      const { error } = await supabase.from('project_location_floors').update(toPayload(f)).eq('id', row.id)
       if (error) { showToast(error.message, 'error'); return }
     }
     showToast('Updated.', 'success'); setEditMode(false); setEditForms({}); load()
   }
   const saveNew = async () => {
     if (!validate(newForm)) return
-    const { error } = await supabase.from('project_floors').insert({ ...toPayload(newForm), sort_order: rows.length })
+    const { error } = await supabase.from('project_location_floors').insert({ ...toPayload(newForm), sort_order: rows.length })
     if (error) { showToast(error.message, 'error'); return }
     showToast('Added.', 'success'); setAdding(false); setNewForm({}); load()
   }
   const bulkSave = async (floors) => {
     const base = rows.length
-    const inserts = floors.map((f, i) => ({ ...f, project_id: projectId, building_id: buildingId ?? null, sort_order: base + i }))
-    const { error } = await supabase.from('project_floors').insert(inserts)
+    const inserts = floors.map((f, i) => ({ ...f, project_id: projectId, building_id: buildingId ?? null, group_id: group.id, sort_order: base + i }))
+    const { error } = await supabase.from('project_location_floors').insert(inserts)
     if (error) { showToast(error.message, 'error'); return }
     showToast(`${floors.length} floor${floors.length !== 1 ? 's' : ''} added.`, 'success')
     setBulkAdding(false); load()
   }
-  const del = async (id) => { await supabase.from('project_floors').delete().eq('id', id); load() }
-  const enterEdit = () => { setEditForms(Object.fromEntries(rows.map(r => [r.id, { physical_level: r.physical_level, marketing_level: r.marketing_level ?? '', num_units: r.num_units ?? '', m4_planned_start: r.m4_planned_start ?? '', m4_planned_end: r.m4_planned_end ?? '', m5_planned_start: r.m5_planned_start ?? '', m5_planned_end: r.m5_planned_end ?? '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false }]))); setEditMode(true) }
+  const del = async (id) => { await supabase.from('project_location_floors').delete().eq('id', id); load() }
+  const enterEdit = () => { setEditForms(Object.fromEntries(rows.map(r => [r.id, { physical_level: r.physical_level, num_units: r.num_units ?? '', m4_planned_start: r.m4_planned_start ?? '', m4_planned_end: r.m4_planned_end ?? '', m5_planned_start: r.m5_planned_start ?? '', m5_planned_end: r.m5_planned_end ?? '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false }]))); setEditMode(true) }
   const cancelEdit = () => { setEditMode(false); setEditForms({}); setAdding(false); setNewForm({}) }
-  const setEF = (id, k, v) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k]: v } }))
+  const setEF  = (id, k, v) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k]: v } }))
   const setEF2 = (id, k1, v1, k2, v2) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k1]: v1, [k2]: v2 } }))
+
+  const saveName = async () => {
+    const trimmed = groupName.trim()
+    if (!trimmed) { setGroupName(group.name); setEditingName(false); return }
+    await supabase.from('project_location_groups').update({ name: trimmed }).eq('id', group.id)
+    setEditingName(false)
+    onGroupRenamed?.()
+  }
+
+  const handleDeleteGroup = async () => {
+    await supabase.from('project_location_groups').delete().eq('id', group.id)
+    onGroupDeleted?.()
+  }
 
   const isEditing = editMode || adding
   const canEdit = isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'
+  const accent  = group.type === 'residential' ? '#f59e0b' : group.type === 'parking' ? '#3b82f6' : '#6b7280'
+  const unitLabel = group.type === 'parking' ? 'Spaces' : 'Units'
+
+  const titleEl = editingName ? (
+    <input
+      autoFocus
+      value={groupName}
+      onChange={e => setGroupName(e.target.value)}
+      onBlur={saveName}
+      onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setGroupName(group.name); setEditingName(false) } }}
+      className="text-sm font-bold text-black bg-transparent border-b border-gray-300 focus:outline-none focus:border-[#ed6055] w-40"
+    />
+  ) : (
+    <span
+      onClick={isAdmin ? () => setEditingName(true) : undefined}
+      className={isAdmin ? 'cursor-pointer hover:text-[#ed6055] transition' : ''}
+    >{group.name}</span>
+  )
 
   return (
     <div className="mb-6">
-      <SectionHeader title="Residential Units" accent="#f59e0b" action={canEdit && (
+      <SectionHeader title={titleEl} accent={accent} action={canEdit && (
         isEditing ? (
           <div className="flex gap-1.5">
             <button onClick={cancelEdit} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition">Cancel</button>
@@ -2318,6 +2475,7 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
             <MenuButton items={[
               { label: 'Bulk Add', icon: <PlusIcon />, onClick: () => setBulkAdding(true) },
               ...(rows.length > 0 ? [{ label: 'Edit Rows', icon: <PencilIcon />, onClick: enterEdit }] : []),
+              ...(isAdmin ? [{ label: 'Delete Group', icon: <TrashIcon />, onClick: () => setDeleteGroup(true) }] : []),
             ]} />
           </div>
         )
@@ -2326,7 +2484,6 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
         <div className={`bg-white rounded-xl border overflow-hidden transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
           <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100" style={{ tableLayout: 'fixed' }}>
             <colgroup>
-              <col style={{ width: 56 }} />
               <col style={{ width: 56 }} />
               <col style={{ width: 40 }} />
               <col style={{ width: 80 }} />
@@ -2338,8 +2495,7 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
             <thead>
               <tr className="bg-gray-50/80 border-b border-gray-200">
                 <th className="text-left px-2 py-2 font-semibold text-gray-600 leading-tight">Phys.<br/>Level</th>
-                <th className="text-left px-2 py-2 font-semibold text-gray-600 leading-tight">Mktg.<br/>Level</th>
-                <th className="text-left px-1 py-2 font-semibold text-gray-600">Units</th>
+                <th className="text-left px-1 py-2 font-semibold text-gray-600">{unitLabel}</th>
                 <th className="text-center px-1 py-2 font-semibold text-gray-600" colSpan={2}>
                   <div>M4 Planned</div>
                   <div className="flex justify-around mt-0.5 font-medium text-[10px] text-gray-400"><span>Start Date</span><span>End Date</span></div>
@@ -2364,7 +2520,6 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
                     const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
                     return <>
                       <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setEF(row.id, 'physical_level', v)} /></td>
-                      <td className="px-2 py-1.5"><InlineInput value={f.marketing_level} onChange={v => setEF(row.id, 'marketing_level', v)} /></td>
                       <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setEF(row.id, 'num_units', v)} /></td>
                       <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setEF2(row.id, 'm4_planned_start', v, 'm4_start_bad', !!bad)} error={m4StartErr || m4OrderErr} /></td>
                       <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm4_planned_end',   v, 'm4_end_bad',   !!bad)} error={m4EndErr   || m4OrderErr} /></td>
@@ -2377,7 +2532,6 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
               ) : (
                 <tr key={row.id} className="hover:bg-gray-50/50">
                   <td className="px-2 py-1.5 font-semibold text-black">{row.physical_level}</td>
-                  <td className="px-2 py-1.5 text-gray-600">{row.marketing_level || '--'}</td>
                   <td className="px-2 py-1.5 text-gray-600">{row.num_units ?? '--'}</td>
                   <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_start)}</td>
                   <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_end)}</td>
@@ -2397,7 +2551,6 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
                 return (
                   <tr>
                     <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setNewForm(p => ({ ...p, physical_level: v }))} placeholder="e.g. 1 or Outdoor" /></td>
-                    <td className="px-2 py-1.5"><InlineInput value={f.marketing_level} onChange={v => setNewForm(p => ({ ...p, marketing_level: v }))} placeholder="RD" /></td>
                     <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setNewForm(p => ({ ...p, num_units: v }))} /></td>
                     <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
                     <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
@@ -2407,193 +2560,26 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
                   </tr>
                 )
               })()}
-              {rows.length === 0 && !adding && <EmptyRow cols={isAdmin ? 8 : 7} message="No floors added yet." />}
+              {rows.length === 0 && !adding && <EmptyRow cols={isAdmin ? 8 : 7} message={`No ${group.name.toLowerCase()} floors added yet.`} />}
             </tbody>
           </table>
         </div>
       </div>
-      {deleteId !== null && <ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />}
-      {bulkAdding && <BulkAddFloorsModal unitLabel="Units" onConfirm={bulkSave} onCancel={() => setBulkAdding(false)} />}
-    </div>
-  )
-}
-
-function ParkingFloorSchedule({ projectId, buildingId, isAdmin, profile, showToast, refreshKey = 0, onSummaryChange }) {
-  const [rows, setRows] = useState([])
-  const [adding, setAdding] = useState(false)
-  const [bulkAdding, setBulkAdding] = useState(false)
-  const [editMode, setEditMode] = useState(false)
-  const [editForms, setEditForms] = useState({})
-  const [newForm, setNewForm] = useState({})
-  const [deleteId, setDeleteId] = useState(null)
-
-  useEffect(() => { load() }, [projectId, buildingId, refreshKey])
-  const load = async () => {
-    let q = supabase.from('project_parking_floors').select('*').eq('project_id', projectId)
-    if (buildingId) q = q.eq('building_id', buildingId)
-    const { data } = await q
-    if (data) {
-      data.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      setRows(data)
-      onSummaryChange?.({ floors: data.length, units: data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
-    }
-  }
-  const blank = () => ({ physical_level: '', marketing_level: '', num_units: '', m4_planned_start: '', m4_planned_end: '', m5_planned_start: '', m5_planned_end: '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false })
-  const toPayload = (f) => ({ project_id: projectId, building_id: buildingId ?? null, physical_level: f.physical_level?.trim(), marketing_level: f.marketing_level?.trim() || null, num_units: f.num_units !== '' ? parseInt(f.num_units) : null, m4_planned_start: f.m4_planned_start || null, m4_planned_end: f.m4_planned_end || null, m5_planned_start: f.m5_planned_start || null, m5_planned_end: f.m5_planned_end || null })
-  const validate = (f, label = '') => {
-    const p = toPayload(f); const pfx = label ? `${label}: ` : ''
-    if (!p.physical_level) { showToast(`${pfx}Physical level is required.`, 'error'); return false }
-    if (noNeg(p.num_units)) { showToast(`${pfx}Values cannot be negative.`, 'error'); return false }
-    if (f.m4_start_bad || (f.m4_planned_start && !isValidDate(f.m4_planned_start))) { showToast(`${pfx}M4 Start Date is not a valid calendar date.`, 'error'); return false }
-    if (f.m4_end_bad   || (f.m4_planned_end   && !isValidDate(f.m4_planned_end)))   { showToast(`${pfx}M4 End Date is not a valid calendar date.`, 'error'); return false }
-    if (f.m5_start_bad || (f.m5_planned_start && !isValidDate(f.m5_planned_start))) { showToast(`${pfx}M5 Start Date is not a valid calendar date.`, 'error'); return false }
-    if (f.m5_end_bad   || (f.m5_planned_end   && !isValidDate(f.m5_planned_end)))   { showToast(`${pfx}M5 End Date is not a valid calendar date.`, 'error'); return false }
-    if (p.m4_planned_start && p.m4_planned_end && p.m4_planned_end < p.m4_planned_start) { showToast(`${pfx}M4 End Date cannot be earlier than M4 Start Date.`, 'error'); return false }
-    if (p.m5_planned_start && p.m5_planned_end && p.m5_planned_end < p.m5_planned_start) { showToast(`${pfx}M5 End Date cannot be earlier than M5 Start Date.`, 'error'); return false }
-    return true
-  }
-  const saveAll = async () => {
-    for (const row of rows) {
-      const f = editForms[row.id] ?? {}
-      if (!validate(f, row.physical_level)) return
-      const { error } = await supabase.from('project_parking_floors').update(toPayload(f)).eq('id', row.id)
-      if (error) { showToast(error.message, 'error'); return }
-    }
-    showToast('Updated.', 'success'); setEditMode(false); setEditForms({}); load()
-  }
-  const saveNew = async () => {
-    if (!validate(newForm)) return
-    const { error } = await supabase.from('project_parking_floors').insert({ ...toPayload(newForm), sort_order: rows.length })
-    if (error) { showToast(error.message, 'error'); return }
-    showToast('Added.', 'success'); setAdding(false); setNewForm({}); load()
-  }
-  const bulkSave = async (floors) => {
-    const base = rows.length
-    const inserts = floors.map((f, i) => ({ ...f, project_id: projectId, building_id: buildingId ?? null, sort_order: base + i }))
-    const { error } = await supabase.from('project_parking_floors').insert(inserts)
-    if (error) { showToast(error.message, 'error'); return }
-    showToast(`${floors.length} parking floor${floors.length !== 1 ? 's' : ''} added.`, 'success')
-    setBulkAdding(false); load()
-  }
-  const del = async (id) => { await supabase.from('project_parking_floors').delete().eq('id', id); load() }
-  const enterEdit = () => { setEditForms(Object.fromEntries(rows.map(r => [r.id, { physical_level: r.physical_level, marketing_level: r.marketing_level ?? '', num_units: r.num_units ?? '', m4_planned_start: r.m4_planned_start ?? '', m4_planned_end: r.m4_planned_end ?? '', m5_planned_start: r.m5_planned_start ?? '', m5_planned_end: r.m5_planned_end ?? '', m4_start_bad: false, m4_end_bad: false, m5_start_bad: false, m5_end_bad: false }]))); setEditMode(true) }
-  const cancelEdit = () => { setEditMode(false); setEditForms({}); setAdding(false); setNewForm({}) }
-  const setEF = (id, k, v) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k]: v } }))
-  const setEF2 = (id, k1, v1, k2, v2) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k1]: v1, [k2]: v2 } }))
-
-  const isEditing = editMode || adding
-  const canEdit = isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'
-
-  return (
-    <div>
-      <SectionHeader title="Parking Units" accent="#3b82f6" action={canEdit && (
-        isEditing ? (
-          <div className="flex gap-1.5">
-            <button onClick={cancelEdit} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition">Cancel</button>
-            <button onClick={() => editMode ? saveAll() : saveNew()} className="text-xs font-semibold px-2.5 py-1 bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition">Save</button>
+      {deleteId !== null && createPortal(<ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />, document.body)}
+      {deleteGroup && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/20 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4">
+            <h3 className="text-base font-bold text-black mb-1">Delete "{group.name}" group?</h3>
+            <p className="text-sm text-gray-500 mb-5">All floors in this group will be permanently deleted. This cannot be undone.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteGroup(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+              <button onClick={handleDeleteGroup} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors">Delete</button>
+            </div>
           </div>
-        ) : (
-          <div className="flex gap-1.5 items-center">
-            <button onClick={() => { setNewForm(blank()); setAdding(true) }} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-700 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"><PlusIcon /> Add Row</button>
-            <MenuButton items={[
-              { label: 'Bulk Add', icon: <PlusIcon />, onClick: () => setBulkAdding(true) },
-              ...(rows.length > 0 ? [{ label: 'Edit Rows', icon: <PencilIcon />, onClick: enterEdit }] : []),
-            ]} />
-          </div>
-        )
-      )} />
-      <div className="overflow-x-auto">
-        <div className={`bg-white rounded-xl border overflow-hidden transition-colors ${editMode ? 'border-blue-300 ring-2 ring-blue-100' : 'border-gray-200'}`}>
-          <table className="w-full text-xs [&_th:not(:last-child)]:border-r [&_th:not(:last-child)]:border-gray-200 [&_td:not(:last-child)]:border-r [&_td:not(:last-child)]:border-gray-100" style={{ tableLayout: 'fixed' }}>
-            <colgroup>
-              <col style={{ width: 56 }} />
-              <col style={{ width: 56 }} />
-              <col style={{ width: 40 }} />
-              <col style={{ width: 80 }} />
-              <col style={{ width: 80 }} />
-              <col style={{ width: 80 }} />
-              <col style={{ width: 80 }} />
-              {isAdmin && <col style={{ width: 40 }} />}
-            </colgroup>
-            <thead>
-              <tr className="bg-gray-50/80 border-b border-gray-200">
-                <th className="text-left px-2 py-2 font-semibold text-gray-600 uppercase tracking-wider leading-tight">Phys.<br/>Level</th>
-                <th className="text-left px-2 py-2 font-semibold text-gray-600 uppercase tracking-wider leading-tight">Mktg.<br/>Level</th>
-                <th className="text-left px-1 py-2 font-semibold text-gray-600">Spaces</th>
-                <th className="text-center px-1 py-2 font-semibold text-amber-500 uppercase tracking-wider" colSpan={2}>
-                  <div>M4 Planned</div>
-                  <div className="flex justify-around mt-0.5 normal-case tracking-normal font-medium text-[10px] text-amber-400"><span>Start Date</span><span>End Date</span></div>
-                </th>
-                <th className="text-center px-1 py-2 font-semibold text-green-600 uppercase tracking-wider" colSpan={2}>
-                  <div>M5 Planned</div>
-                  <div className="flex justify-around mt-0.5 normal-case tracking-normal font-medium text-[10px] text-green-500"><span>Start Date</span><span>End Date</span></div>
-                </th>
-                {isAdmin && <th />}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {rows.map(row => editMode ? (
-                <tr key={row.id}>
-                  {(() => {
-                    const f = editForms[row.id] ?? {}
-                    const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
-                    const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
-                    const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
-                    const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
-                    const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
-                    const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
-                    return <>
-                      <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setEF(row.id, 'physical_level', v)} /></td>
-                      <td className="px-2 py-1.5"><InlineInput value={f.marketing_level} onChange={v => setEF(row.id, 'marketing_level', v)} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setEF(row.id, 'num_units', v)} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setEF2(row.id, 'm4_planned_start', v, 'm4_start_bad', !!bad)} error={m4StartErr || m4OrderErr} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm4_planned_end',   v, 'm4_end_bad',   !!bad)} error={m4EndErr   || m4OrderErr} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setEF2(row.id, 'm5_planned_start', v, 'm5_start_bad', !!bad)} error={m5StartErr || m5OrderErr} /></td>
-                      <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setEF2(row.id, 'm5_planned_end',   v, 'm5_end_bad',   !!bad)} error={m5EndErr   || m5OrderErr} /></td>
-                      {isAdmin && <td />}
-                    </>
-                  })()}
-                </tr>
-              ) : (
-                <tr key={row.id} className="hover:bg-gray-50/50">
-                  <td className="px-2 py-1.5 font-semibold text-black">{row.physical_level}</td>
-                  <td className="px-2 py-1.5 text-gray-600">{row.marketing_level || '--'}</td>
-                  <td className="px-2 py-1.5 text-gray-600">{row.num_units ?? '--'}</td>
-                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_start)}</td>
-                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m4_planned_end)}</td>
-                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_start)}</td>
-                  <td className="px-1 py-1.5 text-gray-500 truncate">{fmt(row.m5_planned_end)}</td>
-                  {isAdmin && <td className="px-2 py-1.5"><button onClick={() => setDeleteId(row.id)} className="p-0.5 text-gray-400 hover:text-red-500"><TrashIcon /></button></td>}
-                </tr>
-              ))}
-              {adding && (() => {
-                const f = newForm
-                const m4StartErr = f.m4_start_bad || !!(f.m4_planned_start && !isValidDate(f.m4_planned_start))
-                const m4EndErr   = f.m4_end_bad   || !!(f.m4_planned_end   && !isValidDate(f.m4_planned_end))
-                const m5StartErr = f.m5_start_bad || !!(f.m5_planned_start && !isValidDate(f.m5_planned_start))
-                const m5EndErr   = f.m5_end_bad   || !!(f.m5_planned_end   && !isValidDate(f.m5_planned_end))
-                const m4OrderErr = !m4StartErr && !m4EndErr && !!(f.m4_planned_start && f.m4_planned_end && f.m4_planned_end < f.m4_planned_start)
-                const m5OrderErr = !m5StartErr && !m5EndErr && !!(f.m5_planned_start && f.m5_planned_end && f.m5_planned_end < f.m5_planned_start)
-                return (
-                  <tr>
-                    <td className="px-2 py-1.5"><InlineInput value={f.physical_level} onChange={v => setNewForm(p => ({ ...p, physical_level: v }))} placeholder="e.g. B1 or Roof Deck" /></td>
-                    <td className="px-2 py-1.5"><InlineInput value={f.marketing_level} onChange={v => setNewForm(p => ({ ...p, marketing_level: v }))} /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="number" value={f.num_units} onChange={v => setNewForm(p => ({ ...p, num_units: v }))} /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_start: v, m4_start_bad: !!bad }))} error={m4StartErr || m4OrderErr} /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m4_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m4_planned_end:   v, m4_end_bad:   !!bad }))} error={m4EndErr   || m4OrderErr} /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_start} onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_start: v, m5_start_bad: !!bad }))} error={m5StartErr || m5OrderErr} /></td>
-                    <td className="px-2 py-1.5"><InlineInput type="date" value={f.m5_planned_end}   onChange={(v, bad) => setNewForm(p => ({ ...p, m5_planned_end:   v, m5_end_bad:   !!bad }))} error={m5EndErr   || m5OrderErr} /></td>
-                    {isAdmin && <td />}
-                  </tr>
-                )
-              })()}
-              {rows.length === 0 && !adding && <EmptyRow cols={isAdmin ? 8 : 7} message="No parking floors added yet." />}
-            </tbody>
-          </table>
-        </div>
-      </div>
-      {deleteId !== null && <ConfirmDeleteModal onConfirm={() => { del(deleteId); setDeleteId(null) }} onCancel={() => setDeleteId(null)} />}
-      {bulkAdding && <BulkAddFloorsModal unitLabel="Spaces" onConfirm={bulkSave} onCancel={() => setBulkAdding(false)} />}
+        </div>,
+        document.body
+      )}
+      {bulkAdding && createPortal(<BulkAddFloorsModal unitLabel={unitLabel} onConfirm={bulkSave} onCancel={() => setBulkAdding(false)} />, document.body)}
     </div>
   )
 }
@@ -2601,7 +2587,7 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
 const DEV_UNIT_COLS    = [{ key: 'unit_type', header: 'Unit Type' }, { key: 'quantity', header: 'Quantity' }, { key: 'cfa_sqm', header: 'CFA (sqm)' }, { key: 'saleable_area_sqm', header: 'Saleable Area (sqm)' }]
 const DEV_PARKING_COLS = [{ key: 'parking_type', header: 'Parking Type' }, { key: 'quantity', header: 'Quantity' }, { key: 'cfa_sqm', header: 'CFA (sqm)' }, { key: 'saleable_area_sqm', header: 'Saleable Area (sqm)' }]
 const DEV_AMENITY_COLS = [{ key: 'amenity_name', header: 'Amenity Name' }, { key: 'cfa_sqm', header: 'CFA (sqm)' }, { key: 'floor_area_sqm', header: 'Floor Area (sqm)' }]
-const DEV_FLOOR_COLS   = [{ key: 'building_name', header: 'Building' }, { key: 'physical_level', header: 'Physical Level' }, { key: 'marketing_level', header: 'Marketing Level' }, { key: 'num_units', header: 'Units' }, { key: 'm4_planned_start', header: 'M4 Planned Start' }, { key: 'm4_planned_end', header: 'M4 Planned End' }, { key: 'm5_planned_start', header: 'M5 Planned Start' }, { key: 'm5_planned_end', header: 'M5 Planned End' }]
+const DEV_FLOOR_COLS   = [{ key: 'building_name', header: 'Building' }, { key: 'group_name', header: 'Group' }, { key: 'physical_level', header: 'Physical Level' }, { key: 'num_units', header: 'Units' }, { key: 'm4_planned_start', header: 'M4 Planned Start' }, { key: 'm4_planned_end', header: 'M4 Planned End' }, { key: 'm5_planned_start', header: 'M5 Planned Start' }, { key: 'm5_planned_end', header: 'M5 Planned End' }]
 
 function DevelopmentTab({ project, isAdmin, profile, showToast }) {
   const [devRefreshKey, setDevRefreshKey] = useState(0)
@@ -2610,25 +2596,24 @@ function DevelopmentTab({ project, isAdmin, profile, showToast }) {
 
   const handleExport = async () => {
     const pid = project.id
-    const [flRes, pfRes, blRes] = await Promise.all([
-      supabase.from('project_floors').select('*').eq('project_id', pid),
-      supabase.from('project_parking_floors').select('*').eq('project_id', pid),
+    const [flRes, grRes, blRes] = await Promise.all([
+      supabase.from('project_location_floors').select('*').eq('project_id', pid),
+      supabase.from('project_location_groups').select('id, name, building_id').eq('project_id', pid),
       supabase.from('project_buildings').select('id, name').eq('project_id', pid),
     ])
     const buildingMap = Object.fromEntries((blRes.data ?? []).map(b => [b.id, b.name]))
-    const sort = rows => [...(rows ?? [])].sort((a, b) => {
-      const ba = buildingMap[a.building_id] ?? '', bb = buildingMap[b.building_id] ?? ''
-      if (ba !== bb) return ba.localeCompare(bb)
+    const groupMap    = Object.fromEntries((grRes.data ?? []).map(g => [g.id, { name: g.name, building_id: g.building_id }]))
+    const withNames   = (flRes.data ?? []).map(r => {
+      const grp = groupMap[r.group_id] ?? {}
+      return { ...r, building_name: buildingMap[grp.building_id ?? r.building_id] ?? '', group_name: grp.name ?? '' }
+    }).sort((a, b) => {
+      if (a.building_name !== b.building_name) return a.building_name.localeCompare(b.building_name)
+      if (a.group_name !== b.group_name) return a.group_name.localeCompare(b.group_name)
       const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
       if (!isNaN(na) && !isNaN(nb)) return na - nb
       return a.physical_level.localeCompare(b.physical_level)
     })
-    const withBuildingName = rows => sort(rows).map(r => ({ ...r, building_name: buildingMap[r.building_id] ?? '' }))
-    const sheets = [
-      { sheetName: 'Floor Schedule',         rows: withBuildingName(flRes.data), columns: DEV_FLOOR_COLS },
-      { sheetName: 'Parking Floor Schedule', rows: withBuildingName(pfRes.data), columns: DEV_FLOOR_COLS },
-    ]
-    await downloadWorkbook(sheets, `${project.name}_development.xlsx`)
+    await downloadWorkbook([{ sheetName: 'Floor Schedule', rows: withNames, columns: DEV_FLOOR_COLS }], `${project.name}_development.xlsx`)
   }
 
   const handleImport = async (file) => {
@@ -2639,24 +2624,28 @@ function DevelopmentTab({ project, isAdmin, profile, showToast }) {
       const sheets  = await parseWorkbook(file)
       const pid     = project.id
 
-      // -- 1. Build raw floor rows (building_id resolved after upsert) ----------
+      // -- 1. Build raw floor rows -------------------------------------------------
       const mapFloor = r => ({
         project_id: pid,
         building_name: String(r['Building'] ?? '').trim(),
+        group_name: String(r['Group'] ?? 'Residential').trim() || 'Residential',
         physical_level: String(r['Physical Level'] ?? '').trim(),
-        marketing_level: String(r['Marketing Level'] ?? '').trim() || null,
         num_units: toInt(r['Units']),
         m4_planned_start: toDateStr(r['M4 Planned Start']),
         m4_planned_end:   toDateStr(r['M4 Planned End']),
         m5_planned_start: toDateStr(r['M5 Planned Start']),
         m5_planned_end:   toDateStr(r['M5 Planned End']),
       })
-      const flRows = (sheets['Floor Schedule'] ?? []).map(mapFloor).filter(r => r.physical_level)
-      const pfRows = (sheets['Parking Floor Schedule'] ?? []).map(mapFloor).filter(r => r.physical_level)
+      // Support old two-sheet format for backward compat
+      const oldParkingRows = (sheets['Parking Floor Schedule'] ?? []).map(r => ({ ...mapFloor(r), group_name: 'Parking' })).filter(r => r.physical_level)
+      const flRows = [
+        ...(sheets['Floor Schedule'] ?? []).map(mapFloor).filter(r => r.physical_level),
+        ...oldParkingRows,
+      ]
 
       // -- 2. Validate -----------------------------------------------------------
       const errors = []
-      const validateFloorSheet = (rawSheet, rows, sheetLabel) => {
+      const validateFloorSheet = (rawSheet, sheetLabel, groupNameOverride = null) => {
         rawSheet.forEach((raw, i) => {
           const level = String(raw['Physical Level'] ?? '').trim()
           if (!level) return
@@ -2678,38 +2667,58 @@ function DevelopmentTab({ project, isAdmin, profile, showToast }) {
             if (s && e && e < s) errors.push(`${lbl}: M5 Planned End cannot be before M5 Planned Start.`)
           }
         })
-        rows.forEach((r, i) => {
+        const rowsForSheet = (rawSheet ?? []).map(r => mapFloor(r)).filter(r => r.physical_level)
+        rowsForSheet.forEach((r, i) => {
           if (r.num_units !== null && r.num_units < 0)
             errors.push(`${sheetLabel} row ${i + 2} (${r.physical_level}): Units cannot be negative.`)
         })
       }
-      validateFloorSheet(sheets['Floor Schedule'] ?? [], flRows, 'Floor Schedule')
-      validateFloorSheet(sheets['Parking Floor Schedule'] ?? [], pfRows, 'Parking Floor Schedule')
+      validateFloorSheet(sheets['Floor Schedule'] ?? [], 'Floor Schedule')
+      validateFloorSheet(sheets['Parking Floor Schedule'] ?? [], 'Parking Floor Schedule')
       if (errors.length > 0) { setImportErrors(errors); return }
 
       // -- 3. Upsert buildings, build name→id map --------------------------------
-      const allNames = [...new Set([...flRows, ...pfRows].map(r => r.building_name).filter(Boolean))]
+      const allBuildingNames = [...new Set(flRows.map(r => r.building_name).filter(Boolean))]
       const { data: existingBuildings } = await supabase.from('project_buildings').select('id, name').eq('project_id', pid)
       const existingByName = Object.fromEntries((existingBuildings ?? []).map(b => [b.name.trim().toLowerCase(), b.id]))
-      const missingNames = allNames.filter(n => !existingByName[n.toLowerCase()])
-      if (missingNames.length > 0) {
+      const missingBuildingNames = allBuildingNames.filter(n => !existingByName[n.toLowerCase()])
+      if (missingBuildingNames.length > 0) {
         const { data: created } = await supabase.from('project_buildings').insert(
-          missingNames.map((name, i) => ({ project_id: pid, name, sort_order: (existingBuildings?.length ?? 0) + i }))
+          missingBuildingNames.map((name, i) => ({ project_id: pid, name, sort_order: (existingBuildings?.length ?? 0) + i }))
         ).select('id, name')
         ;(created ?? []).forEach(b => { existingByName[b.name.trim().toLowerCase()] = b.id })
       }
       const resolveBuildingId = name => existingByName[name.trim().toLowerCase()] ?? null
 
-      // -- 4. Commit -------------------------------------------------------------
-      await Promise.all([
-        supabase.from('project_floors').delete().eq('project_id', pid),
-        supabase.from('project_parking_floors').delete().eq('project_id', pid),
-      ])
-      const toDbRow = (r, i) => ({ project_id: r.project_id, building_id: resolveBuildingId(r.building_name), physical_level: r.physical_level, marketing_level: r.marketing_level, num_units: r.num_units, m4_planned_start: r.m4_planned_start, m4_planned_end: r.m4_planned_end, m5_planned_start: r.m5_planned_start, m5_planned_end: r.m5_planned_end, sort_order: i })
-      await Promise.all([
-        flRows.length > 0 && supabase.from('project_floors').insert(flRows.map(toDbRow)),
-        pfRows.length > 0 && supabase.from('project_parking_floors').insert(pfRows.map(toDbRow)),
-      ].filter(Boolean))
+      // -- 4. Commit: delete existing floors/groups, rebuild ---------------------
+      await supabase.from('project_location_groups').delete().eq('project_id', pid)
+      // Group rows by building+groupName, create groups, then insert floors
+      const groupKey = r => `${r.building_name}|||${r.group_name}`
+      const groupedKeys = [...new Set(flRows.map(groupKey))]
+      const groupNameToType = name => {
+        const n = name.trim().toLowerCase()
+        if (n === 'residential') return 'residential'
+        if (n === 'parking') return 'parking'
+        return 'custom'
+      }
+      const groupIdMap = {}
+      for (let gi = 0; gi < groupedKeys.length; gi++) {
+        const key = groupedKeys[gi]
+        const [bName, gName] = key.split('|||')
+        const bid = resolveBuildingId(bName)
+        if (!bid) continue
+        const { data: newGroup } = await supabase.from('project_location_groups').insert({
+          project_id: pid, building_id: bid, name: gName, type: groupNameToType(gName), sort_order: gi,
+        }).select('id').single()
+        if (newGroup) groupIdMap[key] = { id: newGroup.id, building_id: bid }
+      }
+      const toDbRow = (r, i) => {
+        const grp = groupIdMap[groupKey(r)]
+        if (!grp) return null
+        return { project_id: pid, building_id: grp.building_id, group_id: grp.id, physical_level: r.physical_level, num_units: r.num_units, m4_planned_start: r.m4_planned_start, m4_planned_end: r.m4_planned_end, m5_planned_start: r.m5_planned_start, m5_planned_end: r.m5_planned_end, sort_order: i }
+      }
+      const dbRows = flRows.map(toDbRow).filter(Boolean)
+      if (dbRows.length > 0) await supabase.from('project_location_floors').insert(dbRows)
 
       setDevRefreshKey(k => k + 1)
       showToast('Development data imported.', 'success')
@@ -2856,16 +2865,34 @@ function ProjectPlansSection({ projectId, isAdmin, editing = false, showToast })
 }
 
 function CondominiumDevelopmentTab({ project, isAdmin, profile, showToast, devRefreshKey = 0, onExport, onImport, importing, importErrors = [], onDismissImportErrors }) {
-  const [floorRefreshKey, setFloorRefreshKey]       = useState(0)
-  const [buildingId, setBuildingId]                 = useState(null)
-  const [resSummary, setResSummary]                 = useState({ floors: 0, units: 0 })
-  const [parkSummary, setParkSummary]               = useState({ floors: 0, units: 0 })
-  const [forceShowParking, setForceShowParking]     = useState(false)
+  const [floorRefreshKey, setFloorRefreshKey] = useState(0)
+  const [buildingId, setBuildingId]           = useState(null)
+  const [groups, setGroups]                   = useState([])
+  const [summaries, setSummaries]             = useState({})
+  const [addingGroup, setAddingGroup]         = useState(false)
 
-  useEffect(() => { setForceShowParking(false) }, [buildingId])
-  useEffect(() => { if (parkSummary.floors > 0) setForceShowParking(true) }, [parkSummary.floors])
+  useEffect(() => { if (buildingId) loadGroups(); else setGroups([]) }, [buildingId])
 
-  const showParking = parkSummary.floors > 0 || forceShowParking
+  const loadGroups = async () => {
+    if (!buildingId) return
+    const { data } = await supabase
+      .from('project_location_groups')
+      .select('*')
+      .eq('building_id', buildingId)
+      .order('sort_order')
+    setGroups(data ?? [])
+  }
+
+  const handleAddGroup = async (name) => {
+    const { error } = await supabase.from('project_location_groups').insert({
+      project_id: project.id, building_id: buildingId, name, type: 'custom', sort_order: groups.length,
+    })
+    if (error) { showToast(error.message, 'error'); return }
+    setAddingGroup(false)
+    loadGroups()
+  }
+
+  const groupColors = { residential: 'bg-amber-50 border-amber-100 text-amber-400', parking: 'bg-blue-50 border-blue-100 text-blue-400', custom: 'bg-gray-50 border-gray-200 text-gray-400' }
 
   return (
     <div className="max-w-3xl mx-auto pt-4">
@@ -2883,56 +2910,61 @@ function CondominiumDevelopmentTab({ project, isAdmin, profile, showToast, devRe
           projectId={project.id}
           isAdmin={isAdmin}
           buildingId={buildingId}
-          onChange={id => { setBuildingId(id); setResSummary({ floors: 0, units: 0 }); setParkSummary({ floors: 0, units: 0 }) }}
-          onCopyDone={() => { setResSummary({ floors: 0, units: 0 }); setParkSummary({ floors: 0, units: 0 }); setFloorRefreshKey(k => k + 1) }}
+          onChange={id => { setBuildingId(id); setSummaries({}) }}
+          onCopyDone={() => { setSummaries({}); setFloorRefreshKey(k => k + 1); loadGroups() }}
         />
       </div>
 
-      {buildingId && (resSummary.floors > 0 || parkSummary.floors > 0) && (
+      {buildingId && Object.values(summaries).some(s => s.floors > 0) && (
         <div className="flex flex-wrap gap-3 mb-5">
-          {resSummary.floors > 0 && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-50 border border-amber-100 text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-amber-400 flex-shrink-0" />
-              <span className="text-gray-500">Residential</span>
-              <span className="text-gray-300">·</span>
-              <span className="font-semibold text-gray-800">{resSummary.floors} floor{resSummary.floors !== 1 ? 's' : ''}</span>
-              <span className="text-gray-300">·</span>
-              <span className="font-semibold text-gray-800">{resSummary.units} unit{resSummary.units !== 1 ? 's' : ''}</span>
-            </div>
-          )}
-          {parkSummary.floors > 0 && (
-            <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-blue-50 border border-blue-100 text-xs">
-              <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
-              <span className="text-gray-500">Parking</span>
-              <span className="text-gray-300">·</span>
-              <span className="font-semibold text-gray-800">{parkSummary.floors} floor{parkSummary.floors !== 1 ? 's' : ''}</span>
-              <span className="text-gray-300">·</span>
-              <span className="font-semibold text-gray-800">{parkSummary.units} space{parkSummary.units !== 1 ? 's' : ''}</span>
-            </div>
-          )}
+          {groups.map(g => {
+            const s = summaries[g.id]
+            if (!s || s.floors === 0) return null
+            const colorCls = groupColors[g.type] ?? groupColors.custom
+            const dotCls   = g.type === 'residential' ? 'bg-amber-400' : g.type === 'parking' ? 'bg-blue-400' : 'bg-gray-400'
+            const unitWord = g.type === 'parking' ? 'space' : 'unit'
+            return (
+              <div key={g.id} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs ${colorCls}`}>
+                <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
+                <span className="text-gray-500">{g.name}</span>
+                <span className="text-gray-300">·</span>
+                <span className="font-semibold text-gray-800">{s.floors} floor{s.floors !== 1 ? 's' : ''}</span>
+                <span className="text-gray-300">·</span>
+                <span className="font-semibold text-gray-800">{s.units} {unitWord}{s.units !== 1 ? 's' : ''}</span>
+              </div>
+            )
+          })}
         </div>
       )}
 
-      {buildingId && <ProjectFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} profile={profile} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setResSummary} />}
+      {buildingId && groups.map(g => (
+        <LocationGroupSchedule
+          key={g.id}
+          group={g}
+          projectId={project.id}
+          buildingId={buildingId}
+          isAdmin={isAdmin}
+          profile={profile}
+          showToast={showToast}
+          refreshKey={Math.max(floorRefreshKey, devRefreshKey)}
+          onSummaryChange={s => setSummaries(p => ({ ...p, [g.id]: s }))}
+          onGroupDeleted={() => { loadGroups(); setSummaries(p => { const n = { ...p }; delete n[g.id]; return n }) }}
+          onGroupRenamed={loadGroups}
+        />
+      ))}
 
-      {/* Always render ParkingFloorSchedule so onSummaryChange fires; hide via CSS when not relevant */}
-      {buildingId && (
-        <div className={showParking ? '' : 'hidden'}>
-          <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} profile={profile} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setParkSummary} />
-        </div>
-      )}
-
-      {buildingId && !showParking && isAdmin && (
+      {buildingId && isAdmin && (
         <div className="mt-2">
           <button
-            onClick={() => setForceShowParking(true)}
-            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-dashed border-gray-300 text-gray-400 hover:border-blue-400 hover:text-blue-500 rounded-lg transition"
+            onClick={() => setAddingGroup(true)}
+            className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold border border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] rounded-lg transition"
           >
-            <PlusIcon /> Add Parking Floors
+            <PlusIcon /> Add Group
           </button>
         </div>
       )}
 
+      {addingGroup && <AddGroupModal onConfirm={handleAddGroup} onCancel={() => setAddingGroup(false)} />}
     </div>
   )
 }
@@ -4127,7 +4159,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
               {Array.from({ length: maxU }, (_, i) => {
                 const unitNum = i + 1
                 if (unitNum > (floor.num_units ?? 0)) {
-                  return <td key={i} className="p-0 border border-gray-100 bg-gray-100/40" style={{ width: 44, height: 44 }} />
+                  return <td key={i} className="p-0 bg-gray-500" style={{ width: 44, height: 44 }} />
                 }
                 const c = cMap[`${floor.id}-${unitNum}`]
                 const status = c?.status ?? 'none'
@@ -4618,27 +4650,27 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
   const [floorModalDateBad, setFloorModalDateBad]   = useState(false)
   const [floorModalSaving, setFloorModalSaving]     = useState(false)
   const [productType, setProductType]               = useState(null)  // null=both, 'unit', 'parking'
-
-  const sortFloors = arr =>[...(arr ?? [])].sort((a, b) => {
-    const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
-    if (!isNaN(na) && !isNaN(nb)) return na - nb
-    return a.physical_level.localeCompare(b.physical_level)
-  })
+  const [sortAsc, setSortAsc]                       = useState(true)
 
   const loadAll = async () => {
     setLoading(true)
-    let fq  = supabase.from('project_floors').select('*').eq('project_id', project.id)
-    let pfq = supabase.from('project_parking_floors').select('*').eq('project_id', project.id)
-    if (buildingId) { fq = fq.eq('building_id', buildingId); pfq = pfq.eq('building_id', buildingId) }
+    // Fetch residential and parking group IDs for this project (optionally scoped to building)
+    let gq = supabase.from('project_location_groups').select('id, type').eq('project_id', project.id)
+    if (buildingId) gq = gq.eq('building_id', buildingId)
+    const { data: gData } = await gq
+    const resGroupIds  = (gData ?? []).filter(g => g.type === 'residential').map(g => g.id)
+    const parkGroupIds = (gData ?? []).filter(g => g.type === 'parking').map(g => g.id)
+    const resFloorQ  = resGroupIds.length  ? fetchAll(() => supabase.from('project_location_floors').select('*').in('group_id', resGroupIds))  : Promise.resolve([])
+    const parkFloorQ = parkGroupIds.length ? fetchAll(() => supabase.from('project_location_floors').select('*').in('group_id', parkGroupIds)) : Promise.resolve([])
     const [fData, cData, pfData, pcData] = await Promise.all([
-      fetchAll(() => fq),
+      resFloorQ,
       fetchAll(() => supabase.from('project_unit_completion').select('*').eq('project_id', project.id)),
-      fetchAll(() => pfq),
+      parkFloorQ,
       fetchAll(() => supabase.from('project_parking_unit_completion').select('*').eq('project_id', project.id)),
     ])
-    setFloors(sortFloors(fData))
+    setFloors(fData ?? [])
     setCompletions(cData)
-    setParkingFloors(sortFloors(pfData))
+    setParkingFloors(pfData ?? [])
     setParkingCompletions(pcData)
     setLoading(false)
   }
@@ -4656,6 +4688,10 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
     parkingCompletions.forEach(c => { map[`${c.floor_id}-${c.unit_number}`] = c })
     return map
   }, [parkingCompletions])
+
+  const applySort = arr => [...arr].sort((a, b) => sortAsc ? (a.sort_order ?? 0) - (b.sort_order ?? 0) : (b.sort_order ?? 0) - (a.sort_order ?? 0))
+  const displayFloors        = useMemo(() => applySort(floors),        [floors, sortAsc])
+  const displayParkingFloors = useMemo(() => applySort(parkingFloors), [parkingFloors, sortAsc])
 
   const maxUnits        = useMemo(() => floors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [floors])
   const maxParkingUnits = useMemo(() => parkingFloors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [parkingFloors])
@@ -5028,9 +5064,16 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
                   Multi-select
                 </button>
               )}
+              <button
+                onClick={() => setSortAsc(v => !v)}
+                title={sortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
+                className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
+              >
+                {sortAsc ? '↑' : '↓'}
+              </button>
             </div>
           )} />
-          <UnitGrid floorList={floors} cMap={completionMap} maxU={maxUnits} type="unit" emptyMsg="No unit floors defined yet. Add them in the Development tab."
+          <UnitGrid floorList={displayFloors} cMap={completionMap} maxU={maxUnits} type="unit" emptyMsg="No unit floors defined yet. Add them in the Development tab."
             isAdmin={canEdit} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
             onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
         </div>
@@ -5059,9 +5102,16 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
                   Multi-select
                 </button>
               )}
+              <button
+                onClick={() => setSortAsc(v => !v)}
+                title={sortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
+                className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
+              >
+                {sortAsc ? '↑' : '↓'}
+              </button>
             </div>
           )} />
-          <UnitGrid floorList={parkingFloors} cMap={parkingCompletionMap} maxU={maxParkingUnits} type="parking" emptyMsg="No parking floors defined yet. Add them in the Development tab."
+          <UnitGrid floorList={displayParkingFloors} cMap={parkingCompletionMap} maxU={maxParkingUnits} type="parking" emptyMsg="No parking floors defined yet. Add them in the Development tab."
             isAdmin={canEdit} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
             onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
         </div>
@@ -5510,6 +5560,11 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 const PlusIcon = () => (
   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
     <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+  </svg>
+)
+const XMarkIcon = ({ className = 'w-3.5 h-3.5' }) => (
+  <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 )
 function ExcelButtons({ onExport, onImport, importing = false, canImport = true }) {

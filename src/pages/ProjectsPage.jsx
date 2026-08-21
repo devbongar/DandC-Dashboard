@@ -259,13 +259,6 @@ export default function ProjectsPage() {
       showToast('Unexpected project ID format returned from server. Check that the migration and trigger are applied.', 'error')
       return
     }
-    if (payload.development_type === 'condominium' && payload.num_floors > 0) {
-      const floorRows = Array.from({ length: payload.num_floors }, (_, i) => ({
-        project_id: inserted.id,
-        physical_level: String(i + 1),
-      }))
-      await supabase.from('project_floors').insert(floorRows)
-    }
     showToast('Project added.', 'success')
     setShowForm(false)
     fetchProjects()
@@ -331,13 +324,6 @@ export default function ProjectsPage() {
           errors.push({ name: payload.name, reason: 'Server returned unexpected ID format. Check migration.' })
         } else {
           added.push(payload.name)
-          if (payload.development_type === 'condominium' && payload.num_floors > 0) {
-            const floorRows = Array.from({ length: payload.num_floors }, (_, i) => ({
-              project_id: inserted.id,
-              physical_level: String(i + 1),
-            }))
-            await supabase.from('project_floors').insert(floorRows)
-          }
         }
       }
       setImportResults({ added, skipped, errors })

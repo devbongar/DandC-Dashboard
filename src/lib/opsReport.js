@@ -165,7 +165,7 @@ export async function generateOpsReport(data, scopeLabel) {
         rows.push({
           project_name: proj.name ?? '',
           project_code: proj.project_code ?? '',
-          floor_label:  floor.marketing_level ?? floor.physical_level ?? '',
+          floor_label:  floor.physical_level ?? '',
           total_units:  total,
           m4_units:     m4,
           m4_pct:       total ? Math.round((m4 / total) * 100) : 0,

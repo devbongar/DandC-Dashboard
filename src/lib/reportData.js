@@ -39,9 +39,19 @@ export async function fetchReportData(projectIds) {
       .then(r => r.data ?? []),
 
     // Use fetchAll -- projects can have thousands of floors (e.g. 2958 floors for large developments)
-    fetchAll(() => supabase.from('project_floors')
-      .select('id, project_id, building_id, physical_level, marketing_level, num_units')
-      .in('project_id', ids)),
+    (async () => {
+      const { data: groups } = await supabase
+        .from('project_location_groups')
+        .select('id')
+        .in('project_id', ids)
+        .eq('type', 'residential')
+      const resGroupIds = (groups ?? []).map(g => g.id)
+      if (!resGroupIds.length) return []
+      return fetchAll(() => supabase
+        .from('project_location_floors')
+        .select('id, project_id, building_id, physical_level, num_units')
+        .in('group_id', resGroupIds))
+    })(),
 
     // Only fetch records where m4_date is set (non-null) -- avoids scanning millions of blank rows.
     // Using gte('1900-01-01') instead of .not('is',null) to avoid PostgREST null-filter edge cases.
