@@ -548,7 +548,7 @@ function RemDurCell({ remDur, plannedStart, plannedEnd, projectedEnd, projectedS
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '' }) {
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '' }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
 
@@ -674,7 +674,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
               projectedStart={m.projected_start}
               actualStart={m.actual_start}
               hasChildren={hasChildren}
-              isAdmin={isAdmin}
+              isAdmin={canEdit}
               onSave={onSaveRemDur}
             />
           </div>
@@ -685,7 +685,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
             style={{ width: predColW, minWidth: predColW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
             className="flex items-center flex-shrink-0 self-stretch px-1"
           >
-            <PredecessorsCell predText={predText} onSave={onSavePreds} isAdmin={isAdmin && !hasActual && !isBLConfirmed} />
+            <PredecessorsCell predText={predText} onSave={onSavePreds} isAdmin={canEdit && !hasActual && !isBLConfirmed} />
           </div>
         )}
 
@@ -699,18 +699,18 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
               <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.planned_end)}</span>
             , dateColWidths.plnEnd)}
             {showActual && dateCell(
-              <DateCell value={m.actual_start} onSave={v => onSaveDate('actual_start', v)} isAdmin={isAdmin} max={m.actual_end || undefined} />
+              <DateCell value={m.actual_start} onSave={v => onSaveDate('actual_start', v)} isAdmin={canEdit} max={m.actual_end || undefined} />
             , dateColWidths.actStart)}
             {showActual && dateCell(
-              <DateCell value={m.actual_end} onSave={v => onSaveDate('actual_end', v)} isAdmin={isAdmin} min={m.actual_start || undefined} />
+              <DateCell value={m.actual_end} onSave={v => onSaveDate('actual_end', v)} isAdmin={canEdit} min={m.actual_start || undefined} />
             , dateColWidths.actEnd)}
             {showProjected && dateCell(m.actual_start
               ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start)}</span>
-              : <DateCell value={m.projected_start} onSave={v => onSaveDate('projected_start', v)} isAdmin={isAdmin} max={m.projected_end || undefined} />
+              : <DateCell value={m.projected_start} onSave={v => onSaveDate('projected_start', v)} isAdmin={canEdit} max={m.projected_end || undefined} />
             , dateColWidths.projStart)}
             {showProjected && dateCell(m.actual_end
               ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end)}</span>
-              : <DateCell value={m.projected_end} onSave={v => onSaveDate('projected_end', v)} isAdmin={isAdmin} min={m.projected_start || undefined} />
+              : <DateCell value={m.projected_end} onSave={v => onSaveDate('projected_end', v)} isAdmin={canEdit} min={m.projected_start || undefined} />
             , dateColWidths.projEnd)}
           </div>
         )}
@@ -784,7 +784,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
 // Memoized so SortableMilestoneRow re-renders (from useSortable) don't cascade into the expensive row content
 const MilestoneRowMemo = memo(MilestoneRow)
 
-function SortableMilestoneRow({ id, isAdmin, isSelected, onSelect, ...props }) {
+function SortableMilestoneRow({ id, isAdmin, canEdit, isSelected, onSelect, ...props }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   return (
     <div
@@ -802,7 +802,7 @@ function SortableMilestoneRow({ id, isAdmin, isSelected, onSelect, ...props }) {
       {...(isAdmin ? attributes : {})}
       onClick={() => onSelect?.(id)}
     >
-      <MilestoneRowMemo {...props} isAdmin={isAdmin} showDragHandle={isAdmin} />
+      <MilestoneRowMemo {...props} isAdmin={isAdmin} canEdit={canEdit} showDragHandle={isAdmin} />
     </div>
   )
 }
@@ -1020,7 +1020,7 @@ function DragResizeHandle({ onMouseDown }) {
   )
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, colVisibility = { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {}, dataDate = '' }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, colVisibility = { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {}, dataDate = '' }) {
   const [durColW,    setDurColW]    = useState(DUR_COL_W)
   const [remDurColW, setRemDurColW] = useState(DUR_COL_W)
   const [predColW,   setPredColW]   = useState(PRED_COL_W)
@@ -1306,6 +1306,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         onDraftChange: (v) => setDrafts(p => ({ ...p, [node.id]: v })),
         onDelete,
         isAdmin,
+        canEdit,
         isAutoMode,
         isBLConfirmed,
         onSaveDuration: (dur) => onSaveDuration(node.id, dur),
@@ -2948,6 +2949,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
               onSave={handleSave}
               onDelete={(id) => setDeleteId(id)}
               isAdmin={isAdmin}
+              canEdit={isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'}
               showToast={showToast}
               inlineAdd={inlineAdd}
               inlineAddName={inlineAddName}
