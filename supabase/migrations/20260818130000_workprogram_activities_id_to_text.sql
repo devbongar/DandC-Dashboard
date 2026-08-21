@@ -14,6 +14,8 @@ ALTER TABLE workprogram_activities
 -- 3. Drop primary key (no CASCADE needed now that FKs are gone)
 ALTER TABLE workprogram_activities
   DROP CONSTRAINT IF EXISTS project_milestones_pkey;
+ALTER TABLE workprogram_activities
+  DROP CONSTRAINT IF EXISTS workprogram_activities_pkey;
 
 -- 4. Convert id to text
 ALTER TABLE workprogram_activities

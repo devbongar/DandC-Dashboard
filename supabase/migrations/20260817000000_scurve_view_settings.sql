@@ -8,13 +8,15 @@ create table if not exists project_scurve_view (
 
 alter table project_scurve_view enable row level security;
 
--- Any authenticated user can read
+drop policy if exists "Authenticated users can read scurve view"   on project_scurve_view;
+drop policy if exists "Authenticated users can upsert scurve view" on project_scurve_view;
+drop policy if exists "Authenticated users can update scurve view" on project_scurve_view;
+
 create policy "Authenticated users can read scurve view"
   on project_scurve_view for select
   to authenticated
   using (true);
 
--- Any authenticated user can upsert
 create policy "Authenticated users can upsert scurve view"
   on project_scurve_view for insert
   to authenticated

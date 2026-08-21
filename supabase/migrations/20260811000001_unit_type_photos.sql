@@ -12,11 +12,14 @@ create index if not exists project_unit_type_photos_unit_type_id_idx
 
 alter table project_unit_type_photos enable row level security;
 
--- authenticated users can read
+drop policy if exists "unit_type_photos_select" on project_unit_type_photos;
+drop policy if exists "unit_type_photos_insert" on project_unit_type_photos;
+drop policy if exists "unit_type_photos_update" on project_unit_type_photos;
+drop policy if exists "unit_type_photos_delete" on project_unit_type_photos;
+
 create policy "unit_type_photos_select" on project_unit_type_photos
   for select using (auth.role() = 'authenticated');
 
--- admins can insert/update/delete (same pattern as other project tables)
 create policy "unit_type_photos_insert" on project_unit_type_photos
   for insert with check (auth.role() = 'authenticated');
 

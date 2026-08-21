@@ -12,6 +12,11 @@ create index if not exists project_pdf_plans_project_id_idx
 
 alter table project_pdf_plans enable row level security;
 
+drop policy if exists "pdf_plans_select" on project_pdf_plans;
+drop policy if exists "pdf_plans_insert" on project_pdf_plans;
+drop policy if exists "pdf_plans_update" on project_pdf_plans;
+drop policy if exists "pdf_plans_delete" on project_pdf_plans;
+
 create policy "pdf_plans_select" on project_pdf_plans
   for select using (auth.role() = 'authenticated');
 

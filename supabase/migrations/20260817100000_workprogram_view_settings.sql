@@ -7,6 +7,10 @@ create table if not exists project_workprogram_view (
 
 alter table project_workprogram_view enable row level security;
 
+drop policy if exists "Authenticated users can read workprogram view"   on project_workprogram_view;
+drop policy if exists "Authenticated users can insert workprogram view" on project_workprogram_view;
+drop policy if exists "Authenticated users can update workprogram view" on project_workprogram_view;
+
 create policy "Authenticated users can read workprogram view"
   on project_workprogram_view for select
   to authenticated
