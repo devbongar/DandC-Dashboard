@@ -2238,7 +2238,7 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
   )
 }
 
-function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refreshKey = 0, onSummaryChange }) {
+function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToast, refreshKey = 0, onSummaryChange }) {
   const [rows, setRows] = useState([])
   const [adding, setAdding] = useState(false)
   const [bulkAdding, setBulkAdding] = useState(false)
@@ -2305,10 +2305,11 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
   const setEF2 = (id, k1, v1, k2, v2) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k1]: v1, [k2]: v2 } }))
 
   const isEditing = editMode || adding
+  const canEdit = isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'
 
   return (
     <div className="mb-6">
-      <SectionHeader title="Residential Units" accent="#f59e0b" action={isAdmin && (
+      <SectionHeader title="Residential Units" accent="#f59e0b" action={canEdit && (
         isEditing ? (
           <div className="flex gap-1.5">
             <button onClick={cancelEdit} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition">Cancel</button>
@@ -2420,7 +2421,7 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
   )
 }
 
-function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refreshKey = 0, onSummaryChange }) {
+function ParkingFloorSchedule({ projectId, buildingId, isAdmin, profile, showToast, refreshKey = 0, onSummaryChange }) {
   const [rows, setRows] = useState([])
   const [adding, setAdding] = useState(false)
   const [bulkAdding, setBulkAdding] = useState(false)
@@ -2487,10 +2488,11 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, showToast, refre
   const setEF2 = (id, k1, v1, k2, v2) => setEditForms(p => ({ ...p, [id]: { ...p[id], [k1]: v1, [k2]: v2 } }))
 
   const isEditing = editMode || adding
+  const canEdit = isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'
 
   return (
     <div>
-      <SectionHeader title="Parking Units" accent="#3b82f6" action={isAdmin && (
+      <SectionHeader title="Parking Units" accent="#3b82f6" action={canEdit && (
         isEditing ? (
           <div className="flex gap-1.5">
             <button onClick={cancelEdit} className="text-xs font-semibold px-2.5 py-1 bg-white border border-gray-200 text-gray-500 rounded-lg hover:bg-gray-50 transition">Cancel</button>
@@ -2607,7 +2609,7 @@ const DEV_PARKING_COLS = [{ key: 'parking_type', header: 'Parking Type' }, { key
 const DEV_AMENITY_COLS = [{ key: 'amenity_name', header: 'Amenity Name' }, { key: 'cfa_sqm', header: 'CFA (sqm)' }, { key: 'floor_area_sqm', header: 'Floor Area (sqm)' }]
 const DEV_FLOOR_COLS   = [{ key: 'building_name', header: 'Building' }, { key: 'physical_level', header: 'Physical Level' }, { key: 'marketing_level', header: 'Marketing Level' }, { key: 'num_units', header: 'Units' }, { key: 'm4_planned_start', header: 'M4 Planned Start' }, { key: 'm4_planned_end', header: 'M4 Planned End' }, { key: 'm5_planned_start', header: 'M5 Planned Start' }, { key: 'm5_planned_end', header: 'M5 Planned End' }]
 
-function DevelopmentTab({ project, isAdmin, showToast }) {
+function DevelopmentTab({ project, isAdmin, profile, showToast }) {
   const [devRefreshKey, setDevRefreshKey] = useState(0)
   const [importing, setImporting]         = useState(false)
   const [importErrors, setImportErrors]   = useState([])
@@ -2725,7 +2727,7 @@ function DevelopmentTab({ project, isAdmin, showToast }) {
   }
 
   return (
-    <CondominiumDevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} devRefreshKey={devRefreshKey} onExport={handleExport} onImport={handleImport} importing={importing} importErrors={importErrors} onDismissImportErrors={() => setImportErrors([])} />
+    <CondominiumDevelopmentTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} devRefreshKey={devRefreshKey} onExport={handleExport} onImport={handleImport} importing={importing} importErrors={importErrors} onDismissImportErrors={() => setImportErrors([])} />
   )
 }
 
@@ -2859,7 +2861,7 @@ function ProjectPlansSection({ projectId, isAdmin, editing = false, showToast })
   )
 }
 
-function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey = 0, onExport, onImport, importing, importErrors = [], onDismissImportErrors }) {
+function CondominiumDevelopmentTab({ project, isAdmin, profile, showToast, devRefreshKey = 0, onExport, onImport, importing, importErrors = [], onDismissImportErrors }) {
   const [floorRefreshKey, setFloorRefreshKey]       = useState(0)
   const [buildingId, setBuildingId]                 = useState(null)
   const [resSummary, setResSummary]                 = useState({ floors: 0, units: 0 })
@@ -2917,12 +2919,12 @@ function CondominiumDevelopmentTab({ project, isAdmin, showToast, devRefreshKey 
         </div>
       )}
 
-      {buildingId && <ProjectFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setResSummary} />}
+      {buildingId && <ProjectFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} profile={profile} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setResSummary} />}
 
       {/* Always render ParkingFloorSchedule so onSummaryChange fires; hide via CSS when not relevant */}
       {buildingId && (
         <div className={showParking ? '' : 'hidden'}>
-          <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setParkSummary} />
+          <ParkingFloorSchedule projectId={project.id} buildingId={buildingId} isAdmin={isAdmin} profile={profile} showToast={showToast} refreshKey={Math.max(floorRefreshKey, devRefreshKey)} onSummaryChange={setParkSummary} />
         </div>
       )}
 
@@ -5474,7 +5476,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             key={activeSection}
             className={`section-slide-in flex-1 bg-[#e4e7ec] ${activeSection === 'S-Curve' ? 'overflow-hidden' : 'overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'}`}
           >
-            {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} showToast={showToast} />}
+            {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} />}
             {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} showToast={showToast} />}
           </div>
         )}

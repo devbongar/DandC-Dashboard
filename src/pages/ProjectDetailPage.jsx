@@ -23,7 +23,6 @@ const NAV_GROUPS = [
 const PROJECT_NAV = [
   { key: null,               label: 'Project Info',      Icon: InfoIcon },
   { key: 'Work Program',     label: 'Work Program',      Icon: WorkProgramIcon },
-  { key: 'Planned M4/M5',   label: 'Planned M4/M5',     Icon: CalendarIcon },
   { key: 'Permits',          label: 'Permits',            Icon: PermitsIcon },
   { key: 'S-Curve',          label: 'S-Curve',            Icon: SCurveIcon },
   { key: 'Unit Completion',  label: 'Unit Completion',    Icon: UnitCompletionIcon },
@@ -830,7 +829,7 @@ export default function ProjectDetailPage() {
                           </svg>
                           Report
                         </button>
-                        {(isAdmin || profile?.role === 'reporter') && (
+                        {isAdmin && (
                           <>
                             <div className="my-1 border-t border-gray-100" />
                             <button
@@ -849,6 +848,21 @@ export default function ProjectDetailPage() {
                   )}
                 </div>
               </>
+            )}
+
+            {/* Setup button — Unit Completion tab only, opens Planned M4/M5 */}
+            {section === 'Unit Completion' && (
+              <button
+                onClick={() => setSection('Planned M4/M5')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
+                style={{ background: '#f9fafb', borderColor: '#e5e7eb', color: '#6b7280', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+              >
+                <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
+                  <circle cx="12" cy="12" r="3"/>
+                </svg>
+                Setup
+              </button>
             )}
 
             {/* Report button — hidden on Permits/Photos/Issues/Work Program tabs (lives inside Actions dropdown there) */}
