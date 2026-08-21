@@ -2253,11 +2253,7 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
     if (buildingId) q = q.eq('building_id', buildingId)
     const { data } = await q
     if (data) {
-      data.sort((a, b) => {
-        const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
-        if (!isNaN(na) && !isNaN(nb)) return na - nb
-        return a.physical_level.localeCompare(b.physical_level)
-      })
+      data.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       setRows(data)
       onSummaryChange?.({ floors: data.length, units: data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
     }
@@ -2287,13 +2283,14 @@ function ProjectFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
   }
   const saveNew = async () => {
     if (!validate(newForm)) return
-    const { error } = await supabase.from('project_floors').insert(toPayload(newForm))
+    const { error } = await supabase.from('project_floors').insert({ ...toPayload(newForm), sort_order: rows.length })
     if (error) { showToast(error.message, 'error'); return }
     showToast('Added.', 'success'); setAdding(false); setNewForm({}); load()
   }
   const bulkSave = async (floors) => {
-    const rows = floors.map(f => ({ ...f, project_id: projectId, building_id: buildingId ?? null }))
-    const { error } = await supabase.from('project_floors').insert(rows)
+    const base = rows.length
+    const inserts = floors.map((f, i) => ({ ...f, project_id: projectId, building_id: buildingId ?? null, sort_order: base + i }))
+    const { error } = await supabase.from('project_floors').insert(inserts)
     if (error) { showToast(error.message, 'error'); return }
     showToast(`${floors.length} floor${floors.length !== 1 ? 's' : ''} added.`, 'success')
     setBulkAdding(false); load()
@@ -2436,11 +2433,7 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
     if (buildingId) q = q.eq('building_id', buildingId)
     const { data } = await q
     if (data) {
-      data.sort((a, b) => {
-        const na = parseFloat(a.physical_level), nb = parseFloat(b.physical_level)
-        if (!isNaN(na) && !isNaN(nb)) return na - nb
-        return a.physical_level.localeCompare(b.physical_level)
-      })
+      data.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       setRows(data)
       onSummaryChange?.({ floors: data.length, units: data.reduce((s, r) => s + (r.num_units ?? 0), 0) })
     }
@@ -2470,13 +2463,14 @@ function ParkingFloorSchedule({ projectId, buildingId, isAdmin, profile, showToa
   }
   const saveNew = async () => {
     if (!validate(newForm)) return
-    const { error } = await supabase.from('project_parking_floors').insert(toPayload(newForm))
+    const { error } = await supabase.from('project_parking_floors').insert({ ...toPayload(newForm), sort_order: rows.length })
     if (error) { showToast(error.message, 'error'); return }
     showToast('Added.', 'success'); setAdding(false); setNewForm({}); load()
   }
   const bulkSave = async (floors) => {
-    const rows = floors.map(f => ({ ...f, project_id: projectId, building_id: buildingId ?? null }))
-    const { error } = await supabase.from('project_parking_floors').insert(rows)
+    const base = rows.length
+    const inserts = floors.map((f, i) => ({ ...f, project_id: projectId, building_id: buildingId ?? null, sort_order: base + i }))
+    const { error } = await supabase.from('project_parking_floors').insert(inserts)
     if (error) { showToast(error.message, 'error'); return }
     showToast(`${floors.length} parking floor${floors.length !== 1 ? 's' : ''} added.`, 'success')
     setBulkAdding(false); load()
@@ -2711,7 +2705,7 @@ function DevelopmentTab({ project, isAdmin, profile, showToast }) {
         supabase.from('project_floors').delete().eq('project_id', pid),
         supabase.from('project_parking_floors').delete().eq('project_id', pid),
       ])
-      const toDbRow = r => ({ project_id: r.project_id, building_id: resolveBuildingId(r.building_name), physical_level: r.physical_level, marketing_level: r.marketing_level, num_units: r.num_units, m4_planned_start: r.m4_planned_start, m4_planned_end: r.m4_planned_end, m5_planned_start: r.m5_planned_start, m5_planned_end: r.m5_planned_end })
+      const toDbRow = (r, i) => ({ project_id: r.project_id, building_id: resolveBuildingId(r.building_name), physical_level: r.physical_level, marketing_level: r.marketing_level, num_units: r.num_units, m4_planned_start: r.m4_planned_start, m4_planned_end: r.m4_planned_end, m5_planned_start: r.m5_planned_start, m5_planned_end: r.m5_planned_end, sort_order: i })
       await Promise.all([
         flRows.length > 0 && supabase.from('project_floors').insert(flRows.map(toDbRow)),
         pfRows.length > 0 && supabase.from('project_parking_floors').insert(pfRows.map(toDbRow)),
