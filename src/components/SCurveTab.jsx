@@ -532,8 +532,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   const [selectedBuildingId,   setSelectedBuildingId]   = useState(_sv.selectedBuildingId ?? null)
   const [colWidth,             setColWidth]             = useState(_sv.colWidth ?? COL_W)
   const [showTable,            setShowTable]            = useState(_sv.showTable ?? true)
-  const [forecastColor,        setForecastColor]        = useState(_sv.forecastColor ?? '#fde047')
-  const [actualColor,          setActualColor]          = useState(_sv.actualColor   ?? '#86efac')
+  const forecastColor = '#ed6055'
+  const actualColor   = '#ed6055'
   const [baselineColors,       setBaselineColors]       = useState(_sv.baselineColors ?? {})
   const [showLabelBaselinesMap, setShowLabelBaselinesMap] = useState(_sv.showLabelBaselinesMap ?? {})
   const [showLabelActual,      setShowLabelActual]      = useState(_sv.showLabelActual    ?? true)
@@ -580,8 +580,6 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         if (s.selectedBuildingId !== undefined) setSelectedBuildingId(s.selectedBuildingId)
         if (s.colWidth          !== undefined) setColWidth(s.colWidth)
         if (s.showTable         !== undefined) setShowTable(s.showTable)
-        if (s.forecastColor     !== undefined) setForecastColor(s.forecastColor)
-        if (s.actualColor       !== undefined) setActualColor(s.actualColor)
         if (s.baselineColors    !== undefined) setBaselineColors(s.baselineColors)
         if (s.showLabelBaselinesMap !== undefined) setShowLabelBaselinesMap(s.showLabelBaselinesMap)
         if (s.showLabelActual   !== undefined) setShowLabelActual(s.showLabelActual)
@@ -759,8 +757,6 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
       selectedBuildingId,
       colWidth,
       showTable,
-      forecastColor,
-      actualColor,
       baselineColors,
       showLabelBaselinesMap,
       showLabelActual,
@@ -1260,20 +1256,16 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               )
             })}
             {showActual && (
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <span className="w-5 h-5 rounded-full border border-white shadow-sm flex-shrink-0 focus-within:ring-2 focus-within:ring-[#ed6055] focus-within:ring-offset-1" style={{ backgroundColor: actualColor }}>
-                  <input type="color" className="sr-only" value={actualColor} onChange={e => setActualColor(e.target.value)} />
-                </span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full border border-white shadow-sm flex-shrink-0" style={{ backgroundColor: actualColor }} />
                 <span className="text-[10px] text-gray-500">Actual</span>
-              </label>
+              </div>
             )}
             {showForecast && (
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <span className="w-5 h-5 rounded-full border border-white shadow-sm flex-shrink-0 focus-within:ring-2 focus-within:ring-[#ed6055] focus-within:ring-offset-1" style={{ backgroundColor: forecastColor }}>
-                  <input type="color" className="sr-only" value={forecastColor} onChange={e => setForecastColor(e.target.value)} />
-                </span>
+              <div className="flex items-center gap-1.5">
+                <span className="w-5 h-5 rounded-full border border-white shadow-sm flex-shrink-0" style={{ backgroundColor: forecastColor }} />
                 <span className="text-[10px] text-gray-500">Forecast</span>
-              </label>
+              </div>
             )}
           </div>
           {/* Labels row */}
