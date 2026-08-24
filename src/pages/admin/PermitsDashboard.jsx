@@ -7,6 +7,7 @@ import PermitDetail from '../../components/PermitDetail'
 import { computePermitStatus, STATUS_BADGE } from '../../lib/permitUtils'
 import SearchDropdown from '../../components/SearchDropdown'
 import Logo from '../../components/Logo'
+import PermitsGanttView from '../../components/PermitsGanttView'
 import NotificationBell from '../../components/NotificationBell'
 import { ROLE_LABELS } from '../../lib/roles'
 import useMinLoading from '../../hooks/useMinLoading'
@@ -72,6 +73,7 @@ export default function PermitsDashboard() {
   const [filterStatus,   setFilterStatus]   = useState('all')
   const [search,         setSearch]         = useState('')
   const [selected,       setSelected]       = useState(null)
+  const [view,           setView]           = useState('card')
 
   const menuRef      = useRef(null)
   const filterRef    = useRef(null)
@@ -510,7 +512,38 @@ export default function PermitsDashboard() {
             </div>
 
 
-            {/* Mobile card list */}
+            {/* View toggle */}
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={() => setView('card')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'card' ? 'bg-white shadow border border-gray-200 text-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-white/60'}`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                </svg>
+                Card
+              </button>
+              <button
+                onClick={() => setView('gantt')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'gantt' ? 'bg-white shadow border border-gray-200 text-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-white/60'}`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25" />
+                </svg>
+                Gantt
+              </button>
+            </div>
+
+            {/* Gantt view */}
+            {view === 'gantt' && (
+              <div style={{ position: 'sticky', top: 24, height: 'calc(100dvh - 24px)' }}>
+                <PermitsGanttView permits={rows} onSelectPermit={setSelected} />
+              </div>
+            )}
+
+            {/* Card view: mobile list + desktop table */}
+            {view === 'card' && (
+            <>
             <div className="md:hidden space-y-2">
               {rows.length === 0 && (
                 <div className="py-12 text-center bg-white rounded-xl border border-gray-200">
@@ -576,6 +609,7 @@ export default function PermitsDashboard() {
             </div>
 
             {/* Desktop cards */}
+
             <div className="hidden md:block space-y-6">
               {rows.length === 0 && (
                 <div className="py-16 text-center bg-white rounded-xl border border-gray-200">
@@ -697,6 +731,9 @@ export default function PermitsDashboard() {
                 ))
               })()}
             </div>
+
+            </>
+            )}
 
           </div>
         </div>

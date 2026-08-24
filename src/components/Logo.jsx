@@ -5,8 +5,10 @@ import { useAppSettings } from '../contexts/AppSettingsContext'
 const heights = { sm: 30, md: 44, lg: 88 }
 
 export default function Logo({ size = 'md', variant = 'light' }) {
-  const { logoUrl, logoWhiteUrl } = useAppSettings()
+  const { logoUrl, logoWhiteUrl, isLoading } = useAppSettings()
   const h = heights[size] ?? heights.md
+
+  if (isLoading) return <div style={{ height: h, width: 'auto' }} />
 
   const lightSrc = logoUrl      || ph1Logo
   const whiteSrc = logoWhiteUrl || ph1LogoWhite

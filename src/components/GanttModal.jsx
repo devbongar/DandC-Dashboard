@@ -154,12 +154,12 @@ function GExcelButtons({ onExport, onImport, importing = false }) {
   )
 }
 
-function parseDate(str) {
+export function parseDate(str) {
   const [y, m, d] = str.split('-').map(Number)
   return new Date(y, m - 1, d)
 }
 
-const BAR_BORDER = {
+export const BAR_BORDER = {
   '#9ca3af': '#6b7280',
   '#22c55e': '#16a34a',
   '#fde047': '#eab308',
@@ -242,7 +242,7 @@ function InlineAddRow({ depth = 0, name, onChange, onSave, onCancel, adding, tot
   )
 }
 
-function GanttBar({ start, end, color, toPx }) {
+export function GanttBar({ start, end, color, toPx }) {
   if (!start || !end) return null
   const s    = parseDate(start)
   const e    = parseDate(end)

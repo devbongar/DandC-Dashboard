@@ -196,23 +196,57 @@ function Combobox({ options = [], value, onChange, placeholder, disabled = false
   )
 }
 
-function SelectDropdown({ options = [], value, onChange, placeholder = '-- Select --' }) {
-  const [open, setOpen]   = useState(false)
-  const [dropUp, setDropUp] = useState(false)
-  const containerRef      = useRef(null)
+function SelectDropdown({ options = [], value, onChange, placeholder = '-- Select --', usePortal = false }) {
+  const [open, setOpen]       = useState(false)
+  const [dropUp, setDropUp]   = useState(false)
+  const [menuStyle, setMenuStyle] = useState({})
+  const containerRef          = useRef(null)
 
-  const checkFlip = () => {
+  const calcPosition = () => {
     if (!containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
-    setDropUp(window.innerHeight - rect.bottom < 240)
+    const up   = window.innerHeight - rect.bottom < 240
+    setDropUp(up)
+    if (usePortal) {
+      setMenuStyle({
+        position: 'fixed',
+        left:  rect.left,
+        width: rect.width,
+        ...(up ? { bottom: window.innerHeight - rect.top + 6 } : { top: rect.bottom + 6 }),
+      })
+    }
   }
 
-  const handleToggle = () => { checkFlip(); setOpen(o => !o) }
+  const handleToggle = () => { calcPosition(); setOpen(o => !o) }
   const handleBlur   = (e) => { if (!containerRef.current?.contains(e.relatedTarget)) setOpen(false) }
 
   const dropdownShadow = { boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06)' }
 
   const selected = options.find(o => o.value === value)
+
+  const menu = open && (
+    <div
+      className={`${usePortal ? 'z-[9999]' : `absolute z-[80] w-full ${dropUp ? 'bottom-full mb-1.5' : 'mt-1.5'}`} bg-white border border-gray-100 rounded-2xl overflow-hidden`}
+      style={{ animation: `${dropUp ? 'menu-in-up' : 'menu-in'} 150ms ease-out forwards`, ...dropdownShadow, ...(usePortal ? menuStyle : {}) }}
+    >
+      <ul className="max-h-52 overflow-y-auto p-1.5 text-sm">
+        {options.map(opt => (
+          <li
+            key={opt.value}
+            onMouseDown={() => { onChange(opt.value); setOpen(false) }}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors duration-100 ${opt.value === value ? 'bg-[#ed6055]/10 text-[#ed6055] font-medium' : 'text-gray-800 hover:bg-gray-50'}`}
+          >
+            <span className="flex-1 truncate">{opt.label}</span>
+            {opt.value === value && (
+              <svg className="w-3.5 h-3.5 flex-shrink-0 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
 
   return (
     <div ref={containerRef} className="relative" onBlur={handleBlur}>
@@ -226,29 +260,7 @@ function SelectDropdown({ options = [], value, onChange, placeholder = '-- Selec
           <path strokeLinecap="round" strokeLinejoin="round" d={open ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
         </svg>
       </button>
-      {open && (
-        <div
-          className={`absolute z-[80] w-full bg-white border border-gray-100 rounded-2xl overflow-hidden ${dropUp ? 'bottom-full mb-1.5' : 'mt-1.5'}`}
-          style={{ animation: `${dropUp ? 'menu-in-up' : 'menu-in'} 150ms ease-out forwards`, ...dropdownShadow }}
-        >
-          <ul className="max-h-52 overflow-y-auto p-1.5 text-sm">
-            {options.map(opt => (
-              <li
-                key={opt.value}
-                onMouseDown={() => { onChange(opt.value); setOpen(false) }}
-                className={`flex items-center gap-2 px-3 py-2.5 rounded-xl cursor-pointer transition-colors duration-100 ${opt.value === value ? 'bg-[#ed6055]/10 text-[#ed6055] font-medium' : 'text-gray-800 hover:bg-gray-50'}`}
-              >
-                <span className="flex-1 truncate">{opt.label}</span>
-                {opt.value === value && (
-                  <svg className="w-3.5 h-3.5 flex-shrink-0 text-[#ed6055]" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-                  </svg>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+      {usePortal ? createPortal(menu, document.body) : menu}
     </div>
   )
 }
@@ -1775,7 +1787,7 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
   )
 }
 
-function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = true, onCopyDone }) {
+function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = true, onCopyDone, usePortalDropdown = false }) {
   const [buildings, setBuildings]           = useState([])
   const [showAddModal, setShowAddModal]     = useState(false)
   const [editingBuilding, setEditingBuilding] = useState(null)
@@ -1818,6 +1830,7 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
             value={buildingId}
             onChange={onChange}
             placeholder="Select tower…"
+            usePortal={usePortalDropdown}
           />
         </div>
         {isAdmin && selectedBuilding && (
@@ -5017,7 +5030,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Building</span>
           </div>
           <div className="flex-1 flex items-center">
-            <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} />
+            <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} usePortalDropdown />
           </div>
         </div>
 
