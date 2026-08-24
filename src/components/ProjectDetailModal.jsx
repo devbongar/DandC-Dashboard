@@ -4829,9 +4829,19 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
       m5_date: cellForm.status === 'm5' ? (cellForm.m5_date || null) : null,
       updated_at: new Date().toISOString()
     }
-    const { error } = existing
-      ? await supabase.from(table).update(payload).eq('id', existing.id)
-      : await supabase.from(table).insert(payload)
+    let error
+    if (existing) {
+      ;({ error } = await supabase.from(table).update(payload).eq('id', existing.id))
+    } else {
+      const ins = await supabase.from(table).insert(payload)
+      if (ins.error?.code === '23505') {
+        // Row exists but wasn't in local state — update by natural key
+        ;({ error } = await supabase.from(table).update(payload)
+          .eq('project_id', project.id).eq('floor_id', floor.id).eq('unit_number', unitNum))
+      } else {
+        error = ins.error
+      }
+    }
     setSaving(false)
     if (error) { showToast('Failed to save: ' + error.message, 'error'); return }
     showToast('Saved.', 'success')
