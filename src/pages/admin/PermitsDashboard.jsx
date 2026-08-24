@@ -69,7 +69,8 @@ export default function PermitsDashboard() {
   const [permits,        setPermits]        = useState([])
   const [projects,       setProjects]       = useState([])
   const [dataLoading,    setDataLoading]    = useState(true)
-  const [filterProject,  setFilterProject]  = useState('all')
+  const [filterProjects,  setFilterProjects]  = useState(new Set())
+  const [projectSearch,   setProjectSearch]   = useState('')
   const [filterStatus,   setFilterStatus]   = useState('all')
   const [search,         setSearch]         = useState('')
   const [selected,       setSelected]       = useState(null)
@@ -130,7 +131,7 @@ export default function PermitsDashboard() {
   const rows = permits.filter(p => {
     const effectiveStatus = computePermitStatus(p)
     const hasIssue = (p.permit_issues ?? []).some(i => i.status === 'open')
-    const matchProject = filterProject === 'all' || p.project_id === filterProject
+    const matchProject = filterProjects.size === 0 || filterProjects.has(p.project_id)
     const matchStatus  = filterStatus === 'all' ? true
       : filterStatus === 'with-issues' ? hasIssue
       : effectiveStatus === filterStatus
@@ -151,12 +152,20 @@ export default function PermitsDashboard() {
     withIssues: rows.filter(p => (p.permit_issues ?? []).some(i => i.status === 'open')).length,
   }
 
-  const hasActiveFilter = filterStatus !== 'all' || filterProject !== 'all' || search !== ''
+  const hasActiveFilter = filterStatus !== 'all' || filterProjects.size > 0 || search !== ''
 
   function clearFilters() {
     setFilterStatus('all')
-    setFilterProject('all')
+    setFilterProjects(new Set())
     setSearch('')
+  }
+
+  function toggleFilterProject(id) {
+    setFilterProjects(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
   }
 
   if (showLoading) return <LoadingScreen />
@@ -347,18 +356,18 @@ export default function PermitsDashboard() {
               onClick={() => setFilterOpen(v => !v)}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
               style={{
-                background: filterOpen || filterStatus !== 'all' || filterProject !== 'all' ? '#fff' : '#f9fafb',
-                borderColor: filterStatus !== 'all' || filterProject !== 'all' ? '#ed6055' : filterOpen ? '#ed6055' : '#e5e7eb',
-                color: filterStatus !== 'all' || filterProject !== 'all' ? '#ed6055' : '#6b7280',
+                background: filterOpen || filterStatus !== 'all' || filterProjects.size > 0 ? '#fff' : '#f9fafb',
+                borderColor: filterStatus !== 'all' || filterProjects.size > 0 ? '#ed6055' : filterOpen ? '#ed6055' : '#e5e7eb',
+                color: filterStatus !== 'all' || filterProjects.size > 0 ? '#ed6055' : '#6b7280',
                 boxShadow: filterOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
               }}
             >
               <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
               </svg>
-              {(filterStatus !== 'all' || filterProject !== 'all') && (
+              {(filterStatus !== 'all' || filterProjects.size > 0) && (
                 <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                  {[filterStatus !== 'all', filterProject !== 'all'].filter(Boolean).length}
+                  {[filterStatus !== 'all', filterProjects.size > 0].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -378,15 +387,47 @@ export default function PermitsDashboard() {
                   </div>
                 </div>
                 <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Project</p>
-                  <SearchDropdown fluid
-                    options={projects.map(p => ({ value: p.id, label: p.name }))}
-                    value={filterProject} onChange={setFilterProject}
-                    emptyValue="all" emptyLabel="All Projects" placeholder="Search projects…"
-                    icon="M2.25 21l.75-9m4.5 0l.75 9M9.75 3h4.5M12 3v18M4.5 12H3m18 0h-1.5M6.75 6.75h10.5"
-                  />
+                  <div className="flex items-center justify-between mb-1.5">
+                    <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Project</p>
+                    {filterProjects.size > 0 && (
+                      <button onClick={() => setFilterProjects(new Set())} className="text-[10px] text-[#ed6055] hover:underline">Clear</button>
+                    )}
+                  </div>
+                  <div className="relative mb-1.5">
+                    <svg className="absolute left-2 top-1/2 -translate-y-1/2 w-3 h-3 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Search…"
+                      value={projectSearch}
+                      onChange={e => setProjectSearch(e.target.value)}
+                      className="w-full pl-6 pr-2 py-1 text-xs rounded-lg bg-gray-100 border-none outline-none focus:ring-1 focus:ring-[#ed6055]"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-0.5 max-h-36 overflow-y-auto">
+                    {projects.filter(proj => proj.name.toLowerCase().includes(projectSearch.toLowerCase())).map(proj => {
+                      const checked = filterProjects.has(proj.id)
+                      return (
+                        <button
+                          key={proj.id}
+                          onClick={() => toggleFilterProject(proj.id)}
+                          className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors text-left w-full"
+                        >
+                          <div className={`w-3.5 h-3.5 rounded flex-shrink-0 border flex items-center justify-center transition-colors ${checked ? 'bg-[#ed6055] border-[#ed6055]' : 'border-gray-300'}`}>
+                            {checked && (
+                              <svg className="w-2.5 h-2.5 text-white" viewBox="0 0 12 12" fill="none">
+                                <path d="M2 6l3 3 5-5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="text-xs text-gray-700 truncate">{proj.name}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-                {(filterStatus !== 'all' || filterProject !== 'all') && (
+                {(filterStatus !== 'all' || filterProjects.size > 0) && (
                   <button onClick={clearFilters}
                     className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors">
                     Clear all filters

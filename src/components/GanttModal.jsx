@@ -160,9 +160,9 @@ export function parseDate(str) {
 }
 
 export const BAR_BORDER = {
-  '#9ca3af': '#6b7280',
-  '#22c55e': '#16a34a',
-  '#fde047': '#eab308',
+  '#9ca3af': '#d1d5db',
+  '#22c55e': '#86efac',
+  '#fde047': '#fef08a',
 }
 
 const BAR_PRESETS = {

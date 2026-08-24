@@ -1,5 +1,6 @@
-import { useMemo, useRef, useState } from 'react'
+import { useMemo, useRef } from 'react'
 import { GanttBar, parseDate, BAR_BORDER } from './GanttModal'
+import { computePermitStatus } from '../lib/permitUtils'
 
 const LABEL_W  = 280   // frozen left column px
 const ROW_H    = 52    // px per permit row
@@ -242,25 +243,59 @@ export default function PermitsGanttView({ permits, onSelectPermit }) {
                   {/* Group header row (empty, just height spacer) */}
                   <div style={{ height: GROUP_H }} className="border-b border-gray-200" />
 
-                  {g.rows.map(p => (
+                  {g.rows.map(p => {
+                    const status    = computePermitStatus(p)
+                    const reqs      = p.permit_requirements ?? []
+                    const reqDone   = reqs.filter(r => r.is_complete).length
+                    const reqTotal  = reqs.length
+                    const hasIssue  = (p.permit_issues ?? []).some(i => i.status === 'open')
+                    const isAcquired = status === 'acquired'
+                    const todayStr  = today.toISOString().slice(0, 10)
+                    const barEnds   = [
+                      p.planned_finish,
+                      p.actual_finish ?? (p.actual_start ? todayStr : null),
+                      !p.actual_finish ? p.forecast_finish : null,
+                    ].filter(Boolean).map(d => parseDate(d))
+                    const latestEnd  = barEnds.length ? new Date(Math.max(...barEnds)) : null
+                    const indicatorX = latestEnd ? toPx(latestEnd) + 8 : null
+                    return (
                     <button
                       key={p.id}
                       onClick={() => onSelectPermit(p)}
                       className="relative flex flex-col justify-center w-full border-b border-gray-100 hover:bg-gray-50/60 transition-colors"
                       style={{ height: ROW_H }}
                     >
-                      {/* 3 bars stacked vertically within row */}
-                      <div className="relative" style={{ height: 10, marginBottom: 2 }}>
+                      {/* Planned bar */}
+                      <div className="relative" style={{ height: 10, marginBottom: 10 }}>
                         <GanttBar start={p.planned_start}  end={p.planned_finish}  color={BAR_PLANNED}  toPx={toPx} />
                       </div>
-                      <div className="relative" style={{ height: 10, marginBottom: 2 }}>
-                        <GanttBar start={p.actual_start}   end={p.actual_finish}   color={BAR_ACTUAL}   toPx={toPx} />
-                      </div>
+                      {/* Actual + Forecast on same row */}
                       <div className="relative" style={{ height: 10 }}>
-                        <GanttBar start={p.forecast_start} end={p.forecast_finish} color={BAR_FORECAST} toPx={toPx} />
+                        {!p.actual_finish && <GanttBar start={todayStr} end={p.forecast_finish} color={BAR_FORECAST} toPx={toPx} />}
+                        <GanttBar start={p.actual_start} end={p.actual_finish ?? todayStr} color={BAR_ACTUAL} toPx={toPx} />
                       </div>
+                      {/* Right-side indicator */}
+                      {indicatorX !== null && (
+                        <div className="absolute flex items-center gap-1" style={{ left: indicatorX, top: '50%', transform: 'translateY(-50%)' }}>
+                          {isAcquired ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">Acquired</span>
+                          ) : (
+                            <>
+                              {reqTotal > 0 && (
+                                <span className="text-[9px] font-semibold text-gray-400 whitespace-nowrap">{reqDone}/{reqTotal}</span>
+                              )}
+                              {hasIssue && (
+                                <svg className="w-3 h-3 text-amber-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                  <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                </svg>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
                     </button>
-                  ))}
+                    )
+                  })}
                 </div>
               ))}
             </div>
