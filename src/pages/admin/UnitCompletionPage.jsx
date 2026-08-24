@@ -17,6 +17,10 @@ const NAV_GROUPS = [
     { label: 'Permits Dashboard',path: '/permits',         Icon: ClipboardListIcon },
     { label: 'Projects',         path: '/projects',        Icon: FolderIcon },
   ],
+  [
+    { label: 'User Management', path: '/admin/users',    Icon: UsersIcon },
+    { label: 'Settings',        path: '/admin/settings', Icon: SettingsIcon },
+  ],
 ]
 
 export default function UnitCompletionPage() {
