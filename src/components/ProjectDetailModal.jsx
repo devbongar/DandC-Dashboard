@@ -5165,7 +5165,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
       )}
 
       {/* Floor status modal */}
-      {floorModal && (
+      {floorModal && createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setFloorModal(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-1">
@@ -5259,10 +5259,10 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Bulk status modal */}
-      {bulkModal && (
+      {bulkModal && createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setBulkModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-0.5">
@@ -5327,10 +5327,10 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
 
       {/* Shared cell edit modal */}
-      {selected && (
+      {selected && createPortal(
         <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setSelected(null)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <div className="flex items-start justify-between mb-0.5">
@@ -5413,7 +5413,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             </div>
           </div>
         </div>
-      )}
+      , document.body)}
     </div>
   )
 }
