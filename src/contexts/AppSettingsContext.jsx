@@ -17,8 +17,8 @@ export async function fetchAppSettings(client) {
 const AppSettingsContext = createContext({ logoUrl: null, logoWhiteUrl: null, isLoading: true, refresh: () => {} })
 
 export function AppSettingsProvider({ children }) {
-  const [logoUrl,      setLogoUrl]      = useState(null)
-  const [logoWhiteUrl, setLogoWhiteUrl] = useState(null)
+  const [logoUrl,      setLogoUrl]      = useState(() => localStorage.getItem('app_logo_url') || null)
+  const [logoWhiteUrl, setLogoWhiteUrl] = useState(() => localStorage.getItem('app_logo_white_url') || null)
   const [isLoading,    setIsLoading]    = useState(true)
 
   const FALLBACK = { logoUrl: null, logoWhiteUrl: null }
@@ -30,6 +30,8 @@ export function AppSettingsProvider({ children }) {
     ])
     setLogoUrl(result.logoUrl)
     setLogoWhiteUrl(result.logoWhiteUrl)
+    if (result.logoUrl)      localStorage.setItem('app_logo_url',       result.logoUrl)
+    if (result.logoWhiteUrl) localStorage.setItem('app_logo_white_url', result.logoWhiteUrl)
     setIsLoading(false)
   }
 

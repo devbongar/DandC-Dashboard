@@ -1,4 +1,5 @@
-import Logo from './Logo'
+import ph1LogoWhite from '../assets/ph1WorldWhite.png'
+const cachedWhiteLogo = localStorage.getItem('app_logo_white_url') || ph1LogoWhite
 
 const BG_TRIANGLES = [
   { size: 40, top: '8%',  left: '12%', anim: 'ph1-tri-b', dur: '16s', delay: '0s',   op: 0.06 },
@@ -35,9 +36,23 @@ export default function LoadingScreen() {
         />
       ))}
 
-      {/* Logo */}
-      <div style={{ animation: 'ph1-fade-up 0.6s ease-out 0.1s both' }}>
-        <Logo size="lg" variant="light" />
+      {/* Logo + glow wrapped together so glow centers on logo */}
+      <div style={{ position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', animation: 'ph1-fade-up 0.6s ease-out 0.1s both' }}>
+        <div
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            width: 300,
+            height: 300,
+            borderRadius: '50%',
+            background: 'radial-gradient(circle, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0.10) 45%, rgba(255,255,255,0.02) 65%, transparent 80%)',
+            pointerEvents: 'none',
+            animation: 'ph1-fade-in 0.8s ease-out 0.1s both',
+          }}
+        />
+        <img src={cachedWhiteLogo} alt="Logo" style={{ height: 88, width: 'auto', display: 'block', position: 'relative' }} draggable={false} />
       </div>
 
       {/* Tagline */}
