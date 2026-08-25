@@ -11,9 +11,9 @@ const MONTH_H  = 28
 const COL_PX   = 1    // px per day
 const PAD_DAYS = 14    // days padding on each side of date range
 
-const BAR_PLANNED   = '#9ca3af'
-const BAR_ACTUAL    = '#22c55e'
-const BAR_FORECAST  = '#fde047'
+const BAR_PLANNED   = '#bfccd9'
+const BAR_ACTUAL    = '#a8d5b5'
+const BAR_FORECAST  = '#f5e6a3'
 
 const MS_PER_DAY = 86400000
 

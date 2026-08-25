@@ -11,6 +11,8 @@ import PermitsGanttView from '../../components/PermitsGanttView'
 import NotificationBell from '../../components/NotificationBell'
 import { ROLE_LABELS } from '../../lib/roles'
 import useMinLoading from '../../hooks/useMinLoading'
+import * as XLSX from 'xlsx'
+import { exportPermitsToSheet, validatePermitImportSheet } from '../../lib/permitExcelUtils'
 
 const NAV_GROUPS = [
   [
@@ -75,6 +77,8 @@ export default function PermitsDashboard() {
   const [search,         setSearch]         = useState('')
   const [selected,       setSelected]       = useState(null)
   const [view,           setView]           = useState('card')
+  const [importPreview,  setImportPreview]  = useState(null) // { valid, skipped }
+  const [importing,      setImporting]      = useState(false)
 
   const menuRef      = useRef(null)
   const filterRef    = useRef(null)
@@ -166,6 +170,41 @@ export default function PermitsDashboard() {
       next.has(id) ? next.delete(id) : next.add(id)
       return next
     })
+  }
+
+  const importInputRef = useRef(null)
+
+  function handleExport() {
+    const sheetRows = exportPermitsToSheet(rows)
+    const ws = XLSX.utils.aoa_to_sheet(sheetRows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Permits')
+    XLSX.writeFile(wb, 'permits.xlsx')
+  }
+
+  async function handleImport(e) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ''
+    const buffer = await file.arrayBuffer()
+    const wb = XLSX.read(buffer, { cellDates: true })
+    const ws = wb.Sheets[wb.SheetNames[0]]
+    const sheetRows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' })
+    const existingIds = new Set(permits.map(p => p.id))
+    const preview = validatePermitImportSheet(sheetRows, existingIds)
+    if (!preview.valid.length && !preview.skipped.length) return
+    setImportPreview(preview)
+  }
+
+  async function confirmImport() {
+    if (!importPreview?.valid.length) { setImportPreview(null); return }
+    setImporting(true)
+    for (const { id, ...fields } of importPreview.valid) {
+      await supabase.from('permits').update(fields).eq('id', id)
+    }
+    setImportPreview(null)
+    setImporting(false)
+    await fetchAll()
   }
 
   if (showLoading) return <LoadingScreen />
@@ -436,6 +475,27 @@ export default function PermitsDashboard() {
               </div>
             )}
           </div>
+
+          {/* Export / Import */}
+          <button
+            onClick={handleExport}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all border-gray-200 text-gray-600 bg-gray-50 hover:bg-white hover:border-gray-300"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            Export
+          </button>
+          <button
+            onClick={() => importInputRef.current?.click()}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all border-gray-200 text-gray-600 bg-gray-50 hover:bg-white hover:border-gray-300"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 7.5m0 0L7.5 12M12 7.5V21" />
+            </svg>
+            Import
+          </button>
+          <input ref={importInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
 
           <NotificationBell userId={profile?.id} variant="light" />
 
@@ -793,6 +853,89 @@ export default function PermitsDashboard() {
           onClose={() => setSelected(null)}
           onUpdated={fetchAll}
         />
+      )}
+
+      {/* Import preview modal */}
+      {importPreview && (
+        <div className="fixed inset-0 z-[9998] flex items-center justify-center p-4" style={{ background: 'rgba(0,0,0,0.45)', backdropFilter: 'blur(4px)' }}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg flex flex-col max-h-[80vh]" style={{ animation: 'ph1-dropdown 0.15s ease-out both' }}>
+            {/* Header */}
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-gray-100 flex-shrink-0">
+              <div>
+                <h2 className="text-sm font-bold text-gray-800">Import Preview</h2>
+                <p className="text-xs text-gray-400 mt-0.5">Review before applying changes</p>
+              </div>
+              <button onClick={() => setImportPreview(null)} className="w-7 h-7 rounded-lg flex items-center justify-center hover:bg-gray-100 transition text-gray-400">
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Stats */}
+            <div className="flex gap-3 px-5 py-3 flex-shrink-0">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-50">
+                <div className="w-2 h-2 rounded-full bg-emerald-400" />
+                <span className="text-xs font-semibold text-emerald-700">{importPreview.valid.length} will import</span>
+              </div>
+              {importPreview.skipped.length > 0 && (
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-red-50">
+                  <div className="w-2 h-2 rounded-full bg-red-400" />
+                  <span className="text-xs font-semibold text-red-600">{importPreview.skipped.length} skipped</span>
+                </div>
+              )}
+            </div>
+
+            {/* Rows */}
+            <div className="overflow-y-auto flex-1 px-5 pb-3 flex flex-col gap-1.5">
+              {importPreview.valid.map((p, i) => (
+                <div key={i} className="flex items-center gap-3 px-3 py-2 rounded-lg bg-emerald-50 border border-emerald-100">
+                  <svg className="w-3.5 h-3.5 text-emerald-500 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />
+                  </svg>
+                  <span className="text-xs font-medium text-emerald-800 truncate">{p.id}</span>
+                </div>
+              ))}
+              {importPreview.skipped.map((p, i) => (
+                <div key={i} className="flex items-start gap-3 px-3 py-2 rounded-lg bg-red-50 border border-red-100">
+                  <svg className="w-3.5 h-3.5 text-red-400 flex-shrink-0 mt-px" viewBox="0 0 20 20" fill="currentColor">
+                    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
+                  </svg>
+                  <div className="min-w-0">
+                    <span className="text-xs font-medium text-red-700 truncate block">{p.permitId || '(no ID)'}{p.permitName ? ` — ${p.permitName}` : ''}</span>
+                    <span className="text-[10px] text-red-400">{p.reason}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 px-5 py-4 border-t border-gray-100 flex-shrink-0">
+              <button onClick={() => setImportPreview(null)} disabled={importing}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-40">
+                Cancel
+              </button>
+              <button
+                onClick={confirmImport}
+                disabled={!importPreview.valid.length || importing}
+                className="flex-1 py-2 rounded-lg text-xs font-semibold text-white transition disabled:opacity-40 flex items-center justify-center gap-2"
+                style={{ background: '#ed6055' }}
+              >
+                {importing ? (
+                  <>
+                    <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                    </svg>
+                    Importing…
+                  </>
+                ) : (
+                  <>Import {importPreview.valid.length} {importPreview.valid.length === 1 ? 'permit' : 'permits'}</>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

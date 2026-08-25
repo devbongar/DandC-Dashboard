@@ -163,6 +163,9 @@ export const BAR_BORDER = {
   '#9ca3af': '#d1d5db',
   '#22c55e': '#86efac',
   '#fde047': '#fef08a',
+  '#bfccd9': '#a8bbc9',
+  '#a8d5b5': '#86c49a',
+  '#f5e6a3': '#ead87a',
 }
 
 const BAR_PRESETS = {
