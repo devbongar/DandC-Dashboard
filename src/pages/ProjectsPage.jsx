@@ -2,7 +2,6 @@ import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { slugify } from './ProjectDetailPage'
 import { supabase } from '../lib/supabaseClient'
-import { isProjectCode } from '../lib/projectCode'
 import useProfile from '../hooks/useProfile'
 import LoadingScreen from '../components/LoadingScreen'
 import useMinLoading from '../hooks/useMinLoading'
@@ -184,7 +183,6 @@ export default function ProjectsPage() {
   useEffect(() => {
     const handler = (e) => {
       if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
-      if (actionsRef.current && !actionsRef.current.contains(e.target)) setShowActions(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -258,10 +256,6 @@ export default function ProjectsPage() {
     const { data: inserted, error } = await supabase.from('projects').insert(payload).select('id').single()
     setSubmitting(false)
     if (error) { showToast('Error: ' + error.message, 'error'); return }
-    if (!inserted?.id || !isProjectCode(inserted.id)) {
-      showToast('Unexpected project ID format returned from server. Check that the migration and trigger are applied.', 'error')
-      return
-    }
     showToast('Project added.', 'success')
     setShowForm(false)
     fetchProjects()
@@ -323,8 +317,6 @@ export default function ProjectsPage() {
         const { data: inserted, error } = await supabase.from('projects').insert(payload).select('id').single()
         if (error) {
           errors.push({ name: payload.name, reason: error.message })
-        } else if (!inserted?.id || !isProjectCode(inserted.id)) {
-          errors.push({ name: payload.name, reason: 'Server returned unexpected ID format. Check migration.' })
         } else {
           added.push(payload.name)
         }
