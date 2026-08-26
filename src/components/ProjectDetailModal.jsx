@@ -5591,7 +5591,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             className={`section-slide-in flex-1 bg-[#e4e7ec] ${activeSection === 'S-Curve' ? 'overflow-hidden' : 'overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'}`}
           >
             {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} />}
-            {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter'} showToast={showToast} />}
+            {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'} showToast={showToast} />}
           </div>
         )}
       </div>
