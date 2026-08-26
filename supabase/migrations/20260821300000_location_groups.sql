@@ -42,6 +42,7 @@ ON CONFLICT DO NOTHING;
 INSERT INTO project_location_groups (project_id, building_id, name, type, sort_order)
 SELECT DISTINCT f.project_id, f.building_id, 'Parking', 'parking', 1
 FROM project_parking_floors f
+WHERE f.building_id IS NOT NULL
 ON CONFLICT DO NOTHING;
 
 -- Migrate project_floors -> project_location_floors preserving UUIDs
@@ -64,6 +65,7 @@ SELECT f.id, f.project_id, f.building_id, g.id,
        f.sort_order
 FROM project_parking_floors f
 JOIN project_location_groups g ON g.building_id = f.building_id AND g.type = 'parking'
+WHERE f.building_id IS NOT NULL
 ON CONFLICT (id) DO NOTHING;
 
 -- RLS

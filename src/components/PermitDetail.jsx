@@ -299,6 +299,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
         .then(({ data: setting }) => {
           if (setting?.value) sendTeamsIssueNotification(newIssue, permit, assignedUser, setting.value)
         })
+        .catch(() => {})
     }
     setRaisingIssue(false)
   }
