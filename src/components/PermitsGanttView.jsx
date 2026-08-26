@@ -100,7 +100,12 @@ export default function PermitsGanttView({ permits, onSelectPermit }) {
     }))
   }, [months])
 
-  // Group permits by project
+  function finishSortKey(p) {
+    const dates = [p.actual_finish, p.forecast_finish].filter(Boolean).map(d => parseDate(d).getTime())
+    return dates.length ? Math.max(...dates) : Infinity
+  }
+
+  // Group permits by project, sorted within each group by earliest finish
   const groups = useMemo(() => {
     const map = new Map()
     permits.forEach(p => {
@@ -109,7 +114,10 @@ export default function PermitsGanttView({ permits, onSelectPermit }) {
       if (!map.has(key)) map.set(key, { label, rows: [] })
       map.get(key).rows.push(p)
     })
-    return [...map.values()]
+    return [...map.values()].map(g => ({
+      ...g,
+      rows: [...g.rows].sort((a, b) => finishSortKey(a) - finishSortKey(b)),
+    }))
   }, [permits])
 
   const today = new Date()
