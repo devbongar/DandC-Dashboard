@@ -2,6 +2,16 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Remove browser autofill white background on dark/glass inputs */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 1000px transparent inset !important;
+  box-shadow: 0 0 0 1000px transparent inset !important;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 /* Permit table row actions -- visible on row hover only */
 .permit-row .permit-actions { opacity: 0; transition: opacity 150ms; }
 .permit-row:hover .permit-actions { opacity: 1; }
