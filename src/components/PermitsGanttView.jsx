@@ -38,7 +38,7 @@ function monthsBetween(a, b) {
 
 const fmtMonthShort = d => d.toLocaleDateString('en-PH', { month: 'short' })
 
-export default function PermitsGanttView({ permits, onSelectPermit }) {
+export default function PermitsGanttView({ permits, onSelectPermit, hideGroupHeaders = false }) {
   const scrollRef      = useRef(null)
   const labelScrollRef = useRef(null)
   const axisInnerRef   = useRef(null)
@@ -197,13 +197,15 @@ export default function PermitsGanttView({ permits, onSelectPermit }) {
           >
             {groups.map((g, gi) => (
               <div key={gi}>
-                <div
-                  className="flex items-center px-3 gap-2 bg-gray-50 border-b border-gray-200"
-                  style={{ height: GROUP_H }}
-                >
-                  <div className="w-1 h-3.5 rounded-full bg-[#ed6055] flex-shrink-0" />
-                  <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide truncate">{g.label}</span>
-                </div>
+                {!hideGroupHeaders && (
+                  <div
+                    className="flex items-center px-3 gap-2 bg-gray-50 border-b border-gray-200"
+                    style={{ height: GROUP_H }}
+                  >
+                    <div className="w-1 h-3.5 rounded-full bg-[#ed6055] flex-shrink-0" />
+                    <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wide truncate">{g.label}</span>
+                  </div>
+                )}
                 {g.rows.map(p => (
                   <button
                     key={p.id}
@@ -249,7 +251,7 @@ export default function PermitsGanttView({ permits, onSelectPermit }) {
               {groups.map((g, gi) => (
                 <div key={gi}>
                   {/* Group header row (empty, just height spacer) */}
-                  <div style={{ height: GROUP_H }} className="border-b border-gray-200" />
+                  {!hideGroupHeaders && <div style={{ height: GROUP_H }} className="border-b border-gray-200" />}
 
                   {g.rows.map(p => {
                     const status    = computePermitStatus(p)

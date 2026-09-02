@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import PermitDetail from './PermitDetail'
+import PermitsGanttView from './PermitsGanttView'
 import { computePermitStatus, STATUS_BADGE } from '../lib/permitUtils'
 
 function IssueIcon() {
@@ -48,6 +49,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
   const [permits,      setPermits]      = useState([])
   const [loading,      setLoading]      = useState(true)
   const [selected,     setSelected]     = useState(null)
+  const [view,         setView]         = useState('card')
   const [form,         setForm]         = useState({ name: '', responsible_person: '', planned_start: '', planned_finish: '' })
   const [saving,       setSaving]       = useState(false)
   const cardScrollRef = useRef(null)
@@ -223,28 +225,58 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
           </div>
         )}
 
-        {/* Count label */}
+        {/* Count label + view toggle */}
         {permits.length > 0 && (
-          <div className="flex items-center gap-3">
-            <p className="text-sm font-semibold text-gray-500">
-              {rows.length} permit{rows.length !== 1 ? 's' : ''}
-              {hasActiveFilter && permits.length !== rows.length && (
-                <span className="text-gray-400 font-normal"> of {permits.length}</span>
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <p className="text-sm font-semibold text-gray-500">
+                {rows.length} permit{rows.length !== 1 ? 's' : ''}
+                {hasActiveFilter && permits.length !== rows.length && (
+                  <span className="text-gray-400 font-normal"> of {permits.length}</span>
+                )}
+              </p>
+              {hasActiveFilter && (
+                <button
+                  onClick={() => { onFilterStatusChange?.('all'); onSearchChange?.('') }}
+                  className="text-xs text-[#ed6055] hover:underline"
+                >
+                  Clear
+                </button>
               )}
-            </p>
-            {hasActiveFilter && (
+            </div>
+            {/* View toggle */}
+            <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
               <button
-                onClick={() => { onFilterStatusChange?.('all'); onSearchChange?.('') }}
-                className="text-xs text-[#ed6055] hover:underline"
+                onClick={() => setView('card')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'card' ? 'bg-white shadow border border-gray-200 text-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-white/60'}`}
               >
-                Clear
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
+                </svg>
+                Cards
               </button>
-            )}
+              <button
+                onClick={() => setView('gantt')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'gantt' ? 'bg-white shadow border border-gray-200 text-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-white/60'}`}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h12M3 12h8M3 18h16" />
+                </svg>
+                Gantt
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Gantt view */}
+        {rows.length > 0 && view === 'gantt' && (
+          <div style={{ height: 'calc(100dvh - 200px)', minHeight: 400 }}>
+            <PermitsGanttView permits={rows} onSelectPermit={setSelected} hideGroupHeaders />
           </div>
         )}
 
         {/* Mobile: list */}
-        {rows.length > 0 && (
+        {rows.length > 0 && view === 'card' && (
           <div className="md:hidden space-y-2">
             {rows.map(permit => {
               const status   = computePermitStatus(permit)
@@ -285,7 +317,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
         )}
 
         {/* Desktop: glass 2-col grid */}
-        {rows.length > 0 && (
+        {rows.length > 0 && view === 'card' && (
           <div className="hidden md:grid grid-cols-2 gap-3">
             {rows.map(permit => {
               const status   = computePermitStatus(permit)
