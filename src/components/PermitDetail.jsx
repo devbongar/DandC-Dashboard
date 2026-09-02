@@ -325,7 +325,6 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
     const { error } = await supabase.from('permits').update({ name: trimmed }).eq('id', permit.id)
     if (!error) {
       setPermit(p => ({ ...p, name: trimmed }))
-      if (onUpdated) onUpdated({ ...permit, name: trimmed })
     }
     setEditingName(false)
   }
@@ -527,18 +526,21 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
                 <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>
               </div>
               {editingName ? (
-                <input
-                  ref={nameInputRef}
-                  value={nameInput}
-                  onChange={e => setNameInput(e.target.value)}
-                  onBlur={savePermitName}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') { e.preventDefault(); savePermitName() }
-                    if (e.key === 'Escape') { setEditingName(false) }
-                  }}
-                  className="w-full text-base font-bold text-gray-900 dark:text-white leading-snug bg-transparent border-b-2 border-[#ed6055] focus:outline-none"
-                  autoFocus
-                />
+                <div className="flex items-center gap-2 mt-1">
+                  <input
+                    ref={nameInputRef}
+                    value={nameInput}
+                    onChange={e => setNameInput(e.target.value)}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') { e.preventDefault(); savePermitName() }
+                      if (e.key === 'Escape') { setEditingName(false) }
+                    }}
+                    className="flex-1 text-base font-bold text-gray-900 dark:text-white leading-snug bg-transparent border-b-2 border-[#ed6055] focus:outline-none"
+                    autoFocus
+                  />
+                  <button onClick={savePermitName} className="px-3 py-2 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] transition-colors flex-shrink-0">Save</button>
+                  <button onClick={() => setEditingName(false)} className="min-h-[36px] px-3 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-800 active:bg-gray-100 transition-colors flex-shrink-0">Cancel</button>
+                </div>
               ) : (
                 <h2 className="text-base font-bold text-gray-900 dark:text-white leading-snug break-words">{permit.name}</h2>
               )}
