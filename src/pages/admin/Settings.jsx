@@ -35,7 +35,7 @@ function Section({ title, description, children }) {
 
 export default function Settings() {
   const { profile, loading: profileLoading } = useProfile()
-  const { logoUrl, logoWhiteUrl, refresh: refreshSettings } = useAppSettings()
+  const { logoUrl, refresh: refreshSettings } = useAppSettings()
   const navigate = useNavigate()
 
   const [expanded,   setExpanded]   = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
@@ -69,42 +69,35 @@ export default function Settings() {
     navigate('/signin')
   }
 
-  const [logoUploading,      setLogoUploading]      = useState(false)
-  const [logoWhiteUploading, setLogoWhiteUploading] = useState(false)
-  const [logoStatus,         setLogoStatus]         = useState(null)
-  const lightInputRef = useRef(null)
-  const whiteInputRef = useRef(null)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [logoStatus,    setLogoStatus]    = useState(null)
+  const logoInputRef = useRef(null)
 
-  async function uploadLogo(file, variant) {
-    const isWhite     = variant === 'white'
-    const setUpl      = isWhite ? setLogoWhiteUploading : setLogoUploading
-    const settingKey  = isWhite ? 'logo_white_url' : 'logo_url'
-    const storagePath = `logos/logo-${variant}.${file.name.split('.').pop()}`
-
-    setUpl(true)
+  async function uploadLogo(file) {
+    const storagePath = `logos/logo.${file.name.split('.').pop()}`
+    setLogoUploading(true)
     setLogoStatus(null)
 
     const { error: upErr } = await supabase.storage
       .from('app-assets')
       .upload(storagePath, file, { upsert: true, contentType: file.type })
 
-    if (upErr) { setUpl(false); setLogoStatus('error'); setTimeout(() => setLogoStatus(null), 3000); return }
+    if (upErr) { setLogoUploading(false); setLogoStatus('error'); setTimeout(() => setLogoStatus(null), 3000); return }
 
     const { data: { publicUrl } } = supabase.storage.from('app-assets').getPublicUrl(storagePath)
     const urlWithBust = `${publicUrl}?t=${Date.now()}`
 
     const { error: dbErr } = await supabase.from('app_settings')
-      .upsert({ key: settingKey, value: urlWithBust }, { onConflict: 'key' })
+      .upsert({ key: 'logo_url', value: urlWithBust }, { onConflict: 'key' })
 
-    setUpl(false)
+    setLogoUploading(false)
     if (dbErr) { setLogoStatus('error') } else { setLogoStatus('saved'); refreshSettings() }
     setTimeout(() => setLogoStatus(null), 3000)
   }
 
-  async function removeLogo(variant) {
-    const isWhite    = variant === 'white'
-    const settingKey = isWhite ? 'logo_white_url' : 'logo_url'
-    await supabase.from('app_settings').delete().eq('key', settingKey)
+  async function removeLogo() {
+    await supabase.from('app_settings').delete().eq('key', 'logo_url')
+    localStorage.removeItem('app_logo_url')
     refreshSettings()
   }
 
@@ -195,7 +188,7 @@ export default function Settings() {
           className="flex items-center h-14 flex-shrink-0 border-b border-white/5 mb-1"
           style={{ paddingLeft: expanded ? 16 : 0, justifyContent: expanded ? 'flex-start' : 'center' }}
         >
-          <Logo size="md" variant="white" />
+          <Logo size="md" />
           {showLabels && (
             <span className="ml-3 text-white font-bold text-base tracking-wide whitespace-nowrap overflow-hidden">D&amp;C Dashboard</span>
           )}
@@ -302,7 +295,7 @@ export default function Settings() {
 
           <div className="flex-1" />
 
-          <NotificationBell userId={profile?.id} variant="light" />
+          <NotificationBell userId={profile?.id} />
 
           {/* User menu */}
           <div className="relative flex-shrink-0" ref={menuRef}>
@@ -370,52 +363,44 @@ export default function Settings() {
           <div className="max-w-2xl mx-auto space-y-6">
 
             {/* App Branding */}
-            <Section title="App Branding" description="Upload custom logos. Light logo for light backgrounds; white logo for the dark sidebar and topbar.">
+            <Section title="App Branding" description="Upload your logo. Used everywhere in the app.">
               <div className="space-y-5">
-                {[
-                  { variant: 'light', label: 'Light Logo', desc: 'Used on white/light backgrounds', current: logoUrl,      uploading: logoUploading,      inputRef: lightInputRef },
-                  { variant: 'white', label: 'White Logo',  desc: 'Used on dark sidebar and topbar',  current: logoWhiteUrl, uploading: logoWhiteUploading, inputRef: whiteInputRef },
-                ].map(({ variant, label, desc, current, uploading, inputRef }) => (
-                  <div key={variant} className="flex items-center gap-4">
-                    <div
-                      className="w-28 h-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-200"
-                      style={{ background: variant === 'white' ? '#2d2d2d' : '#f9fafb' }}
-                    >
-                      {current
-                        ? <img src={current} alt={label} className="max-h-10 max-w-[90px] object-contain" />
-                        : <span className="text-[10px] text-gray-400">No logo</span>
-                      }
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-semibold text-gray-800">{label}</p>
-                      <p className="text-[11px] text-gray-400 mb-2">{desc}</p>
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <input
-                          ref={inputRef}
-                          type="file"
-                          accept="image/*"
-                          className="hidden"
-                          onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f, variant); e.target.value = '' }}
-                        />
+                <div className="flex items-center gap-4">
+                  <div className="w-28 h-16 rounded-xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-gray-200 bg-gray-50">
+                    {logoUrl
+                      ? <img src={logoUrl} alt="Logo" className="max-h-10 max-w-[90px] object-contain" />
+                      : <span className="text-[10px] text-gray-400">No logo</span>
+                    }
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-gray-800">App Logo</p>
+                    <p className="text-[11px] text-gray-400 mb-2">Used on all pages — header, sidebar, and auth screens.</p>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <input
+                        ref={logoInputRef}
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) uploadLogo(f); e.target.value = '' }}
+                      />
+                      <button
+                        onClick={() => logoInputRef.current?.click()}
+                        disabled={logoUploading}
+                        className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors"
+                      >
+                        {logoUploading ? 'Uploading…' : logoUrl ? 'Replace' : 'Upload'}
+                      </button>
+                      {logoUrl && (
                         <button
-                          onClick={() => inputRef.current?.click()}
-                          disabled={uploading}
-                          className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors"
+                          onClick={removeLogo}
+                          className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
                         >
-                          {uploading ? 'Uploading…' : current ? 'Replace' : 'Upload'}
+                          Remove
                         </button>
-                        {current && (
-                          <button
-                            onClick={() => removeLogo(variant)}
-                            className="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition-colors"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   </div>
-                ))}
+                </div>
 
                 {logoStatus && (
                   <p className={`text-xs font-medium px-2.5 py-1 rounded-lg w-fit ${

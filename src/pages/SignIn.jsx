@@ -71,7 +71,7 @@ export default function SignIn() {
 
         {/* Logo top-left */}
         <div className="absolute top-10 left-14">
-          <Logo size="md" variant="light" />
+          <Logo size="md" />
         </div>
 
         {/* Bottom text */}
@@ -106,7 +106,7 @@ export default function SignIn() {
         >
           {/* Mobile logo */}
           <div className="mb-10 lg:hidden flex justify-center -mt-6">
-            <Logo size="md" variant="light" />
+            <Logo size="md" />
           </div>
 
           {/* Title */}

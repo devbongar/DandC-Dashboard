@@ -50,7 +50,7 @@ export default function SignUp() {
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-end px-14 pb-16 relative z-10">
         {/* Logo top-left */}
         <div className="absolute top-10 left-14">
-          <Logo size="md" variant="light" />
+          <Logo size="md" />
         </div>
 
         {/* Bottom text */}
@@ -83,7 +83,7 @@ export default function SignUp() {
         >
           {/* Mobile logo */}
           <div className="mb-6 lg:hidden flex justify-center">
-            <Logo size="md" variant="light" />
+            <Logo size="md" />
           </div>
 
           {/* Title */}

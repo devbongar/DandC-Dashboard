@@ -198,7 +198,7 @@ export default function ProjectDetailPage() {
           className="flex items-center h-14 flex-shrink-0 border-b border-white/5 mb-1"
           style={{ paddingLeft: expanded ? 16 : 0, justifyContent: expanded ? 'flex-start' : 'center' }}
         >
-          <Logo size="md" variant="white" />
+          <Logo size="md" />
           {showLabels && (
             <span className="ml-3 text-white font-bold text-base tracking-wide whitespace-nowrap overflow-hidden">D&amp;C Dashboard</span>
           )}
@@ -883,7 +883,7 @@ export default function ProjectDetailPage() {
               </button>
             )}
 
-            <NotificationBell userId={profile?.id} variant="light" />
+            <NotificationBell userId={profile?.id} />
 
             {/* User menu */}
             <div className="relative flex-shrink-0">

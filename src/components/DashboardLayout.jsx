@@ -70,7 +70,7 @@ export default function DashboardLayout({ profile, children, navOverride, action
 
         {/* Logo -- desktop only; on mobile it lives inside the sidebar drawer */}
         <div className="px-2 sm:px-3 hidden sm:flex items-center flex-shrink-0">
-          <Logo size="md" variant="white" />
+          <Logo size="md" />
         </div>
 
         {/* Divider -- desktop only */}

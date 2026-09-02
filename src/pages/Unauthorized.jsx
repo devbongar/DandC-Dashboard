@@ -13,7 +13,7 @@ export default function Unauthorized() {
   return (
     <div className="min-h-screen bg-white flex flex-col items-center justify-center px-6">
       <div className="mb-8">
-        <Logo size="md" variant="dark" />
+        <Logo size="md" />
       </div>
 
       <div className="w-20 h-20 rounded-full bg-[#ed6055]/10 flex items-center justify-center mb-6">

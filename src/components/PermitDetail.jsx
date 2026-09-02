@@ -70,6 +70,10 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
   const [addingRemark,    setAddingRemark]    = useState(false)
   const [currentUserName, setCurrentUserName] = useState('')
 
+  const [editingName,  setEditingName]  = useState(false)
+  const [nameInput,    setNameInput]    = useState('')
+  const nameInputRef = useRef(null)
+
   const [issueText,    setIssueText]    = useState('')
   const [issueDesc,    setIssueDesc]    = useState('')
   const [assignedToId, setAssignedToId] = useState('')
@@ -306,6 +310,25 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
 
   const status = computePermitStatus(permit)
   const canManage = isAdmin || isHead || isReporter
+
+  const canEditName = isAdmin || isHead
+
+  function startEditName() {
+    setNameInput(permit.name)
+    setEditingName(true)
+    setTimeout(() => { nameInputRef.current?.select() }, 0)
+  }
+
+  async function savePermitName() {
+    const trimmed = nameInput.trim()
+    if (!trimmed || trimmed === permit.name) { setEditingName(false); return }
+    const { error } = await supabase.from('permits').update({ name: trimmed }).eq('id', permit.id)
+    if (!error) {
+      setPermit(p => ({ ...p, name: trimmed }))
+      if (onUpdated) onUpdated({ ...permit, name: trimmed })
+    }
+    setEditingName(false)
+  }
   const reqDone = requirements.filter(r => r.is_complete).length
   const openIssues = issues.filter(i => i.status === 'open').length
 
@@ -503,9 +526,27 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
                 <span className="font-mono text-[11px] text-gray-400 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 px-1.5 py-0.5 rounded">{permit.id}</span>
                 <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>
               </div>
-              <h2 className="text-base font-bold text-gray-900 dark:text-white leading-snug break-words">{permit.name}</h2>
+              {editingName ? (
+                <input
+                  ref={nameInputRef}
+                  value={nameInput}
+                  onChange={e => setNameInput(e.target.value)}
+                  onBlur={savePermitName}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); savePermitName() }
+                    if (e.key === 'Escape') { setEditingName(false) }
+                  }}
+                  className="w-full text-base font-bold text-gray-900 dark:text-white leading-snug bg-transparent border-b-2 border-[#ed6055] focus:outline-none"
+                  autoFocus
+                />
+              ) : (
+                <h2 className="text-base font-bold text-gray-900 dark:text-white leading-snug break-words">{permit.name}</h2>
+              )}
             </div>
             <div className="flex items-center gap-1 flex-shrink-0">
+              {canEditName && !editingName && (
+                <button onClick={startEditName} className={BTN_GHOST}>Edit</button>
+              )}
               {isAdmin && (
                 <button
                   onClick={() => setConfirmDelete(true)}

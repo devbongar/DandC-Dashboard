@@ -112,7 +112,7 @@ export default function ProfilePage() {
           style={{ paddingLeft: expanded ? 16 : 0, justifyContent: expanded ? 'flex-start' : 'center', overflow: 'hidden' }}
         >
           <div style={{ flexShrink: 0, overflow: 'hidden', maxWidth: expanded ? 'none' : 56 }}>
-            <Logo size="md" variant="white" />
+            <Logo size="md" />
           </div>
           {showLabels && (
             <span className="ml-3 text-white font-bold text-base tracking-wide whitespace-nowrap overflow-hidden">D&amp;C Dashboard</span>
@@ -229,7 +229,7 @@ export default function ProfilePage() {
         >
           <span className="text-lg font-bold text-gray-800 tracking-wide">My Profile</span>
           <div className="flex-1" />
-          <NotificationBell userId={profile?.id} variant="light" />
+          <NotificationBell userId={profile?.id} />
 
           {/* User menu */}
           <div className="relative flex-shrink-0" ref={menuRef}>

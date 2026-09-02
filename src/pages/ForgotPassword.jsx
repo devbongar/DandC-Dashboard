@@ -62,7 +62,7 @@ export default function ForgotPassword() {
       {/* ── Left panel ── */}
       <div className="hidden lg:flex lg:w-1/2 flex-col justify-end px-14 pb-16 relative z-10">
         <div className="absolute top-10 left-14">
-          <Logo size="md" variant="light" />
+          <Logo size="md" />
         </div>
         <div className="relative z-10">
           <h1 className="text-4xl font-bold text-white leading-tight mb-3">
@@ -93,7 +93,7 @@ export default function ForgotPassword() {
         >
           {/* Mobile logo */}
           <div className="mb-6 lg:hidden flex justify-center">
-            <Logo size="md" variant="light" />
+            <Logo size="md" />
           </div>
 
           {step === 'email' ? (

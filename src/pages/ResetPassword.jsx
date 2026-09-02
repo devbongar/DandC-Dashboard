@@ -73,7 +73,7 @@ export default function ResetPassword() {
           }} />
         ))}
         <div style={{ animation: 'ph1-fade-up 0.7s ease-out 0.1s both' }}>
-          <Logo size="lg" variant="light" />
+          <Logo size="lg" />
           <p className="mt-6 text-white/50 text-sm text-center max-w-xs leading-relaxed">
             Building tomorrow's infrastructure,<br />one project at a time.
           </p>
@@ -85,7 +85,7 @@ export default function ResetPassword() {
         <div className="w-full max-w-md">
 
           <div className="flex justify-center mb-8 lg:hidden" style={{ animation: 'ph1-fade-up 0.5s ease-out both' }}>
-            <Logo size="md" variant="dark" />
+            <Logo size="md" />
           </div>
 
           <div style={{ animation: 'ph1-fade-up 0.5s ease-out both' }}>
