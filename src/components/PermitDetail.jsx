@@ -51,6 +51,20 @@ const ICON_CHAT = 'M7.5 8.25h9m-9 3H12m-9.75 1.51c0 1.6 1.123 2.994 2.707 3.227 
 const ICON_CLIPBOARD = 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4'
 const ICON_WARNING = 'M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z'
 
+function renderRemark(text) {
+  const escaped = text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+  const html = escaped
+    .replace(/\*\*([\s\S]*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/~~([\s\S]*?)~~/g,     '<s>$1</s>')
+    .replace(/__([\s\S]*?)__/g,     '<u>$1</u>')
+    .replace(/\*([^*\n]+?)\*/g,     '<em>$1</em>')
+    .replace(/\n/g, '<br/>')
+  return { __html: html }
+}
+
 function CloseIcon() {
   return (
     <svg className="w-5 h-5" viewBox="0 0 20 20" fill="currentColor">
@@ -642,14 +656,14 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
                 )}
               />
               {editingSchedule ? (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {[
                     { key: 'planned_start',   label: 'Planned Start',   variant: 'planned'  },
                     { key: 'planned_finish',  label: 'Planned Finish',  variant: 'planned'  },
-                    { key: 'forecast_start',  label: 'Forecast Start',  variant: 'forecast' },
-                    { key: 'forecast_finish', label: 'Forecast Finish', variant: 'forecast' },
                     { key: 'actual_start',    label: 'Actual Start',    variant: 'actual'   },
                     { key: 'actual_finish',   label: 'Actual Finish',   variant: 'actual'   },
+                    { key: 'forecast_start',  label: 'Forecast Start',  variant: 'forecast' },
+                    { key: 'forecast_finish', label: 'Forecast Finish', variant: 'forecast' },
                   ].map(({ key, label, variant }) => (
                     <div key={key} className={`${DATE_CARD_BG[variant]} rounded-lg px-3 py-2`}>
                       <p className={`text-[10px] font-semibold ${DATE_LABEL_COLOR[variant]} uppercase tracking-wider mb-1`}>{label}</p>
@@ -663,13 +677,13 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
                   ))}
                 </div>
               ) : (
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   <DateCard label="Planned Start"    value={permit.planned_start}   variant="planned" />
                   <DateCard label="Planned Finish"   value={permit.planned_finish}  variant="planned" />
-                  <DateCard label="Forecast Start"   value={permit.forecast_start}  variant="forecast" />
-                  <DateCard label="Forecast Finish"  value={permit.forecast_finish} variant="forecast" />
                   <DateCard label="Actual Start"     value={permit.actual_start}    variant="actual" />
                   <DateCard label="Actual Finish"    value={permit.actual_finish}   variant="actual" />
+                  <DateCard label="Forecast Start"   value={permit.forecast_start}  variant="forecast" />
+                  <DateCard label="Forecast Finish"  value={permit.forecast_finish} variant="forecast" />
                 </div>
               )}
             </section>
@@ -678,51 +692,96 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
 
             {/* Remarks */}
             <section>
-              <SectionHeader title="Remarks" icon={ICON_CHAT} />
-              <div className="space-y-3">
-                {remarks.length === 0 && (
-                  <p className="text-sm italic text-gray-400">No remarks yet.</p>
-                )}
-                {remarks.map(r => {
-                  const name = r.profile?.full_name ?? 'Unknown'
-                  const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-                  const ts = new Date(r.created_at).toLocaleString('en-US', {
-                    month: 'short', day: 'numeric', year: 'numeric',
-                    hour: 'numeric', minute: '2-digit', hour12: true,
-                    timeZone: 'Asia/Manila',
-                  })
-                  return (
-                    <div key={r.id} className="flex gap-2.5">
-                      <div className="w-7 h-7 rounded-full bg-[#ed6055] flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-[10px] font-bold text-white">{initials}</span>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-baseline gap-2 flex-wrap">
-                          <span className="text-xs font-semibold text-gray-900 dark:text-white">{name}</span>
-                          <span className="text-[11px] text-gray-400">{ts}</span>
+              {/* Card */}
+              <div
+                className="w-full bg-white dark:bg-gray-800 overflow-hidden"
+                style={{
+                  borderRadius: '17px 17px 27px 27px',
+                  boxShadow: '0px 47px 47px rgba(0,0,0,0.05), 0px 12px 26px rgba(0,0,0,0.07), 0px 0px 0px rgba(0,0,0,0.1)',
+                }}
+              >
+                {/* Title bar */}
+                <div
+                  className="relative flex items-center h-[50px] pl-5 border-b border-gray-100 dark:border-gray-700"
+                  style={{ fontWeight: 700, fontSize: 13, color: '#47484b' }}
+                >
+                  <span className="dark:text-gray-200">Remarks</span>
+                  {/* underline accent */}
+                  <span
+                    className="absolute bottom-[-1px] left-5 h-[1px] bg-[#47484b] dark:bg-gray-200"
+                    style={{ width: '8ch' }}
+                  />
+                </div>
+
+                {/* Comment list */}
+                <div className="flex flex-col gap-5 px-5 pt-5" style={{ paddingBottom: remarks.length ? 20 : 8 }}>
+                  {remarks.length === 0 && (
+                    <p className="text-sm italic text-gray-400">No remarks yet.</p>
+                  )}
+                  {remarks.map(r => {
+                    const name = r.profile?.full_name ?? 'Unknown'
+                    const initials = name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                    const ts = new Date(r.created_at).toLocaleString('en-US', {
+                      month: 'short', day: 'numeric', year: 'numeric',
+                      hour: 'numeric', minute: '2-digit', hour12: true,
+                      timeZone: 'Asia/Manila',
+                    })
+                    return (
+                      <div key={r.id} className="flex flex-col gap-[10px]">
+                        {/* User row */}
+                        <div className="grid gap-[10px]" style={{ gridTemplateColumns: '40px 1fr' }}>
+                          {/* Avatar */}
+                          <div className="relative w-10 h-10 rounded-full bg-[#ed6055] flex items-center justify-center flex-shrink-0">
+                            <span className="text-[11px] font-bold text-white">{initials}</span>
+                            <span
+                              className="absolute right-0 bottom-0 w-[9px] h-[9px] rounded-full bg-[#0fc45a] border-2 border-white dark:border-gray-800"
+                            />
+                          </div>
+                          {/* Name + time */}
+                          <div className="flex flex-col justify-center gap-[3px]">
+                            <span style={{ fontWeight: 700, fontSize: 12, color: '#47484b' }} className="dark:text-gray-200">{name}</span>
+                            <p style={{ fontWeight: 600, fontSize: 10, color: '#acaeb4' }}>{ts}</p>
+                          </div>
                         </div>
-                        <p className="text-sm text-gray-700 dark:text-gray-300 whitespace-pre-wrap leading-relaxed mt-0.5 break-words">{r.body}</p>
+                        {/* Body */}
+                        <p style={{ fontSize: 12, lineHeight: '16px', fontWeight: 600, color: '#5f6064' }} className="dark:text-gray-300 break-words" dangerouslySetInnerHTML={renderRemark(r.body)} />
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Input box */}
+                {!isViewer && (
+                  <div className="bg-gray-100 dark:bg-gray-700 p-2 mt-1">
+                    <div className="bg-white dark:bg-gray-800 rounded-[8px_8px_21px_21px] p-2">
+                      <textarea
+                        value={newRemark}
+                        onChange={e => setNewRemark(e.target.value)}
+                        rows={2}
+                        placeholder="Add a remark..."
+                        className="w-full resize-none border-0 rounded-md px-3 py-2.5 text-[13px] outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 caret-[#0a84ff]"
+                        onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addRemark() }}
+                      />
+                      <div className="flex items-center justify-end pt-1">
+                        <button
+                          onClick={addRemark}
+                          disabled={addingRemark || !newRemark.trim()}
+                          className="w-[30px] h-[30px] rounded-full bg-[#ed6055] hover:bg-[#d94f45] flex items-center justify-center disabled:opacity-40 active:scale-[0.93] [transition:background-color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)]"
+                          aria-label="Send remark"
+                        >
+                          {addingRemark ? (
+                            <svg className="w-3.5 h-3.5 animate-spin text-white" fill="none" viewBox="0 0 24 24">
+                              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                              <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"/>
+                            </svg>
+                          ) : (
+                            <svg className="w-3.5 h-3.5 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M22 2L11 13"/><path d="M22 2L15 22l-4-9-9-4 20-7z"/>
+                            </svg>
+                          )}
+                        </button>
                       </div>
                     </div>
-                  )
-                })}
-                {!isViewer && (
-                  <div className="pt-1 space-y-2">
-                    <textarea
-                      value={newRemark}
-                      onChange={e => setNewRemark(e.target.value)}
-                      rows={3}
-                      placeholder="Add a remark..."
-                      className={`${INPUT_CLS} resize-none`}
-                      onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addRemark() }}
-                    />
-                    <button
-                      onClick={addRemark}
-                      disabled={addingRemark || !newRemark.trim()}
-                      className="px-4 py-1.5 text-sm font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] active:scale-[0.97] disabled:opacity-50 [transition:background-color_150ms_ease,transform_100ms_cubic-bezier(0.23,1,0.32,1)]"
-                    >
-                      {addingRemark ? 'Adding...' : 'Add Remark'}
-                    </button>
                   </div>
                 )}
               </div>
