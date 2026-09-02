@@ -4,6 +4,12 @@ import { supabase } from '../lib/supabaseClient'
 import { computePermitStatus, STATUS_BADGE } from '../lib/permitUtils'
 import { sendIssueNotification, sendTeamsIssueNotification, sendTeamsPermitAcquired } from '../lib/notifications'
 import SearchDropdown from './SearchDropdown'
+import DatePicker from 'react-datepicker'
+import 'react-datepicker/dist/react-datepicker.css'
+
+// helpers: YYYY-MM-DD <-> Date
+function strToDate(s) { if (!s) return null; const [y,m,d] = s.split('-').map(Number); return new Date(y, m - 1, d) }
+function dateToStr(d) { if (!d) return ''; return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
 
 const DATE_CARD_BG = {
   planned:  'bg-gray-50 dark:bg-gray-800/60',
@@ -667,11 +673,14 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
                   ].map(({ key, label, variant }) => (
                     <div key={key} className={`${DATE_CARD_BG[variant]} rounded-lg px-3 py-2`}>
                       <p className={`text-[10px] font-semibold ${DATE_LABEL_COLOR[variant]} uppercase tracking-wider mb-1`}>{label}</p>
-                      <input
-                        type="date"
-                        value={scheduleDraft[key]}
-                        onChange={e => setScheduleDraft(prev => ({ ...prev, [key]: e.target.value }))}
-                        className="w-full text-sm font-medium text-gray-900 dark:text-white bg-transparent outline-none [color-scheme:light] dark:[color-scheme:dark]"
+                      <DatePicker
+                        selected={strToDate(scheduleDraft[key])}
+                        onChange={d => setScheduleDraft(prev => ({ ...prev, [key]: dateToStr(d) }))}
+                        dateFormat="MM/dd/yyyy"
+                        placeholderText="MM/DD/YYYY"
+                        isClearable
+                        popperPlacement="bottom-start"
+                        className="w-full text-sm font-medium text-gray-900 dark:text-white bg-transparent outline-none cursor-pointer"
                       />
                     </div>
                   ))}
@@ -714,7 +723,7 @@ export default function PermitDetail({ permit: initialPermit, isAdmin, isHead, i
                 </div>
 
                 {/* Comment list */}
-                <div className="flex flex-col gap-5 px-5 pt-5" style={{ paddingBottom: remarks.length ? 20 : 8 }}>
+                <div className="flex flex-col gap-5 px-5 pt-5 overflow-y-auto" style={{ paddingBottom: remarks.length ? 20 : 8, maxHeight: 320 }}>
                   {remarks.length === 0 && (
                     <p className="text-sm italic text-gray-400">No remarks yet.</p>
                   )}
