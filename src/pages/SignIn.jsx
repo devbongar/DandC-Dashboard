@@ -105,7 +105,7 @@ export default function SignIn() {
           }}
         >
           {/* Mobile logo */}
-          <div className="mb-6 lg:hidden flex justify-center">
+          <div className="mb-10 lg:hidden flex justify-center -mt-6">
             <Logo size="md" variant="light" />
           </div>
 
@@ -195,18 +195,11 @@ export default function SignIn() {
                 {loading ? 'Signing in…' : 'Sign In'} &nbsp;&rsaquo;
               </button>
 
-              {/* Mobile: link to signup */}
-              <Link
-                to="/signup"
-                className="text-sm text-white/45 hover:text-white/70 transition-colors lg:hidden"
-              >
-                Create account
-              </Link>
             </div>
           </form>
 
-          {/* Desktop: footer link */}
-          <p className="mt-8 text-sm text-white/35 hidden lg:block">
+          {/* Footer link — all screen sizes */}
+          <p className="mt-6 text-sm text-white/35">
             Don't have an account?{' '}
             <Link to="/signup" className="text-white/65 hover:text-white transition-colors font-medium">
               Sign Up

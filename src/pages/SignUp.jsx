@@ -158,16 +158,10 @@ export default function SignUp() {
             </div>
 
             {/* Submit row */}
-            <div className="flex items-center justify-between pt-1">
-              <Link
-                to="/signin"
-                className="text-sm text-white/45 hover:text-white/70 transition-colors lg:hidden"
-              >
-                Have an account?
-              </Link>
+            <div className="flex justify-end pt-1">
               <button
                 type="submit" disabled={loading}
-                className="flex items-center gap-2 px-7 py-3 rounded-full border border-white/40 text-white text-base font-semibold hover:bg-white/10 hover:border-white/60 transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed ml-auto"
+                className="flex items-center gap-2 px-7 py-3 rounded-full border border-white/40 text-white text-base font-semibold hover:bg-white/10 hover:border-white/60 transition-all duration-200 active:scale-[0.97] disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {loading && (
                   <svg className="w-3.5 h-3.5 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -180,8 +174,8 @@ export default function SignUp() {
             </div>
           </form>
 
-          {/* Desktop footer */}
-          <p className="mt-8 text-sm text-white/35 hidden lg:block">
+          {/* Footer — all screen sizes */}
+          <p className="mt-6 text-sm text-white/35">
             Already have an account?{' '}
             <Link to="/signin" className="text-white/65 hover:text-white transition-colors font-medium">
               Sign In
