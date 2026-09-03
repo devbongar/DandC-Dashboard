@@ -63,7 +63,6 @@ export default function ProjectDetailPage() {
     { label: 'Unit Completion',  path: '/unit-completion', Icon: ChartBarIcon },
     { label: 'Permits Dashboard',path: '/permits',         Icon: ClipboardListIcon },
     { label: 'Projects',         path: '/projects',        Icon: FolderIcon },
-    { label: 'Settings',         path: '/admin/settings',  Icon: SettingsIcon },
   ]
   const mobileBottomNav = MOBILE_BOTTOM_NAV_ALL.filter(item =>
     !isSite || item.path === '/projects'
@@ -1108,7 +1107,7 @@ export default function ProjectDetailPage() {
         </main>
       </div>
 
-      {/* Mobile bottom nav — project tab shortcuts */}
+      {/* Mobile bottom nav — app-level navigation */}
       <nav
         className="sm:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around"
         style={{
@@ -1122,23 +1121,19 @@ export default function ProjectDetailPage() {
         }}
       >
         <div className="flex items-center justify-around w-full px-2">
-          {PROJECT_BOTTOM_NAV.map(item => {
-            const isActive = section === item.key
-            return (
-              <button
-                key={String(item.key)}
-                aria-label={item.label}
-                onClick={() => {
-                  setSection(item.key)
-                  setSearchParams({ tab: item.key ?? 'Project Info' })
-                }}
-                className={`flex items-center justify-center rounded-full transition-all duration-300 hover:-translate-y-1 active:scale-95 focus-visible:ring-2 focus-visible:ring-black/20 ${isActive ? 'bg-[#ed6055]/10' : ''}`}
-                style={{ width: 44, height: 44, color: isActive ? '#ed6055' : 'rgba(0,0,0,0.35)', flexShrink: 0, border: 'none', background: isActive ? 'rgba(237,96,85,0.10)' : 'transparent', cursor: 'pointer' }}
-              >
-                <item.Icon className="w-5 h-5" />
-              </button>
-            )
-          })}
+          {mobileBottomNav.map(item => (
+            <NavLink
+              key={item.path}
+              to={item.path}
+              aria-label={item.label}
+              className={({ isActive }) =>
+                `flex items-center justify-center rounded-full transition-all duration-300 hover:-translate-y-1 active:scale-95 focus-visible:ring-2 focus-visible:ring-black/20 ${isActive ? 'bg-[#ed6055]/10' : ''}`
+              }
+              style={({ isActive }) => ({ width: 44, height: 44, color: isActive ? '#ed6055' : 'rgba(0,0,0,0.35)', flexShrink: 0, border: 'none' })}
+            >
+              <item.Icon className="w-5 h-5" />
+            </NavLink>
+          ))}
         </div>
       </nav>
     </div>

@@ -678,7 +678,16 @@ function OverviewDetailItem({ label, value, icon }) {
 
 // -- Overview Tab -------------------------------------------------------------
 
-function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false }) {
+const OVERVIEW_TABS = [
+  { key: 'Work Program',      label: 'Work Program',      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg> },
+  { key: 'Permits',           label: 'Permits',            icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> },
+  { key: 'S-Curve',           label: 'S-Curve',            icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M7 12c0-2.5 2-4 4-2s4 .5 4-2M3 20h18M3 4h18" /></svg> },
+  { key: 'Unit Completion',   label: 'Unit Completion',    icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg> },
+  { key: 'Photos',            label: 'Photos',             icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> },
+  { key: 'Issues & Concerns', label: 'Issues & Concerns',  icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> },
+]
+
+function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false, onSectionChange }) {
   const navigate = useNavigate()
   const buildForm = () => ({
     name:             project.name ?? '',
@@ -1015,7 +1024,27 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           </div>
         )}
 
-        {/* Spacer so edit/delete buttons clear mobile bottom nav */}
+        {/* Tab shortcuts */}
+        {onSectionChange && (
+          <div className="px-8 py-5 border-t border-gray-100">
+            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">Sections</p>
+            <div className="grid grid-cols-2 gap-2">
+              {OVERVIEW_TABS.map(tab => (
+                <button
+                  key={tab.key}
+                  onClick={() => onSectionChange(tab.key)}
+                  className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-gray-50 hover:bg-red-50 hover:text-[#ed6055] border border-gray-100 hover:border-red-100 text-gray-600 transition-colors duration-150 active:scale-[0.97]"
+                  style={{ height: 88 }}
+                >
+                  {tab.icon}
+                  <span className="text-xs font-semibold leading-tight text-center">{tab.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Spacer so content clears mobile bottom nav */}
         <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
 
         {/* Confirm delete project */}
@@ -5567,7 +5596,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         {/* Content */}
         {activeSection === null ? (
           <div key="home" className={`flex-1 overflow-hidden ${asPage ? '-mt-14 sm:mt-0' : ''}`} style={{ animation: 'fade-in 180ms ease-out both' }}>
-            <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} />
+            <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} onSectionChange={asPage ? navigate : undefined} />
           </div>
         ) : activeSection === 'Work Program' ? (
           <div key="Work Program" className="flex-1 overflow-hidden flex flex-col section-slide-in">
