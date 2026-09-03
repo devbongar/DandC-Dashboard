@@ -157,6 +157,8 @@ export default function ProjectsPage() {
   const [showFilters, setShowFilters]   = useState(false)
   const [showActions, setShowActions]   = useState(false)
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
+  const sidebarExpanded  = mobileSidebarOpen || expanded
+  const sidebarShowLabels = mobileSidebarOpen || showLabels
 
   const menuRef    = useRef(null)
   const actionsRef = useRef(null)
@@ -361,25 +363,25 @@ export default function ProjectsPage() {
 
       {/* -- Sidebar -- */}
       <aside
-        className={`fixed sm:relative inset-y-0 left-0 z-40 sm:z-auto flex-shrink-0 flex flex-col py-3 gap-1 transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0`}
+        className={`${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} sm:relative sm:flex sm:z-auto flex-shrink-0 flex-col py-3 gap-1`}
         style={{
-          width: expanded ? 240 : 80,
+          width: sidebarExpanded ? 240 : 80,
           background: 'rgba(18,18,18,0.92)',
           backdropFilter: 'blur(20px)',
           WebkitBackdropFilter: 'blur(20px)',
           borderRight: '1px solid rgba(255,255,255,0.08)',
-          transition: 'transform 220ms cubic-bezier(0.4,0,0.2,1), width 220ms cubic-bezier(0.4,0,0.2,1)',
+          transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
         }}
       >
         {/* Logo */}
         <div
           className="flex items-center h-14 flex-shrink-0 border-b border-white/5 mb-1"
-          style={{ paddingLeft: expanded ? 16 : 0, justifyContent: expanded ? 'flex-start' : 'center', overflow: 'hidden' }}
+          style={{ paddingLeft: sidebarExpanded ? 16 : 0, justifyContent: sidebarExpanded ? 'flex-start' : 'center', overflow: 'hidden' }}
         >
-          <div style={{ flexShrink: 0, overflow: 'hidden', maxWidth: expanded ? 'none' : 56 }}>
+          <div style={{ flexShrink: 0, overflow: 'hidden', maxWidth: sidebarExpanded ? 'none' : 56 }}>
             <Logo size="md" />
           </div>
-          {showLabels && (
+          {sidebarShowLabels && (
             <span className="ml-3 text-white font-bold text-base tracking-wide whitespace-nowrap overflow-hidden">D&amp;C Dashboard</span>
           )}
         </div>
@@ -403,7 +405,7 @@ export default function ProjectsPage() {
                           'flex items-center w-full h-11 rounded-lg transition-all duration-150',
                           isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
                         ].join(' ')}
-                        style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+                        style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
                       >
                         {({ isActive }) => (
                           <>
@@ -414,11 +416,11 @@ export default function ProjectsPage() {
                               />
                             )}
                             <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-                            {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
+                            {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
                           </>
                         )}
                       </NavLink>
-                      {!showLabels && <SidebarTooltip label={item.label} />}
+                      {!sidebarShowLabels && <SidebarTooltip label={item.label} />}
                     </div>
                     {item.children?.map(child => {
                       const CIcon = child.Icon
@@ -427,12 +429,12 @@ export default function ProjectsPage() {
                           <div key={child.path} className="relative group">
                             <div
                               className="flex items-center w-full h-9 rounded-lg cursor-default"
-                              style={{ color: 'rgba(255,255,255,0.18)', justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 28 : 0 }}
+                              style={{ color: 'rgba(255,255,255,0.18)', justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 28 : 0 }}
                             >
                               <CIcon className="w-[15px] h-[15px] flex-shrink-0" />
-                              {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
+                              {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
                             </div>
-                            {!showLabels && <SidebarTooltip label={`${child.label} (Soon)`} />}
+                            {!sidebarShowLabels && <SidebarTooltip label={`${child.label} (Soon)`} />}
                           </div>
                         )
                       }
@@ -444,7 +446,7 @@ export default function ProjectsPage() {
                               'flex items-center w-full h-9 rounded-lg transition-all duration-150',
                               isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
                             ].join(' ')}
-                            style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 28 : 0 }}
+                            style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 28 : 0 }}
                           >
                             {({ isActive }) => (
                               <>
@@ -452,11 +454,11 @@ export default function ProjectsPage() {
                                   <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 16, background: '#ed6055' }} />
                                 )}
                                 <CIcon className="w-[15px] h-[15px] flex-shrink-0" />
-                                {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
+                                {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
                               </>
                             )}
                           </NavLink>
-                          {!showLabels && <SidebarTooltip label={child.label} />}
+                          {!sidebarShowLabels && <SidebarTooltip label={child.label} />}
                         </div>
                       )
                     })}
@@ -476,25 +478,25 @@ export default function ProjectsPage() {
                 'flex items-center w-full h-11 rounded-lg transition-all duration-150',
                 isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
               ].join(' ')}
-              style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+              style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
             >
               {({ isActive }) => (
                 <>
                   {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 20, background: '#ed6055' }} />}
                   <SettingsIcon className="w-[18px] h-[18px] flex-shrink-0" />
-                  {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Settings</span>}
+                  {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Settings</span>}
                 </>
               )}
             </NavLink>
-            {!showLabels && <SidebarTooltip label="Settings" />}
+            {!sidebarShowLabels && <SidebarTooltip label="Settings" />}
           </div>}
 
-          {/* Expand / collapse toggle */}
-          <div className="mt-1 relative group">
+          {/* Expand / collapse toggle — hidden on mobile sidebar */}
+          <div className={`mt-1 relative group ${mobileSidebarOpen ? 'hidden' : ''}`}>
             <button
               onClick={toggleSidebar}
               className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
-              style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
+              style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
             >
               <svg
                 className="w-[18px] h-[18px] flex-shrink-0"
@@ -503,9 +505,9 @@ export default function ProjectsPage() {
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
               </svg>
-              {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Collapse</span>}
+              {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Collapse</span>}
             </button>
-            {!showLabels && <SidebarTooltip label="Expand" />}
+            {!sidebarShowLabels && <SidebarTooltip label="Expand" />}
           </div>
         </nav>
       </aside>
@@ -515,7 +517,7 @@ export default function ProjectsPage() {
         <button
           className="sm:hidden fixed z-50 flex items-center justify-center w-9 h-9 rounded-xl shadow-lg transition-all"
           style={{ top: 110, left: 12, background: 'rgba(240,240,240,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}
-          onClick={() => setMobileSidebarOpen(v => !v)}
+          onClick={() => setMobileSidebarOpen(true)}
           aria-label="Open menu"
         >
           <svg style={{ width: 18, height: 18 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-600">
@@ -646,10 +648,6 @@ export default function ProjectsPage() {
                     : <span className="text-xs font-bold text-[#ed6055]">{initial}</span>
                   }
                 </div>
-                <svg className={`w-3 h-3 text-gray-400 flex-shrink-0 transition-transform ${menuOpen ? 'rotate-180' : ''}`}
-                  fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-                </svg>
               </button>
               {menuOpen && (
                 <div

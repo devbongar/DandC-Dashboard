@@ -113,7 +113,6 @@ export default function DashboardLayout({ profile, children, navOverride, action
               }
             </div>
 
-            <ChevronIcon open={menuOpen} />
           </button>
 
           {/* Dropdown */}
