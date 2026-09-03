@@ -33,6 +33,8 @@ const PROJECT_NAV = [
   { key: 'Issues & Concerns',label: 'Issues & Concerns',  Icon: IssuesIcon },
 ]
 
+const PROJECT_BOTTOM_NAV = PROJECT_NAV
+
 function SidebarTooltip({ label }) {
   return (
     <div
@@ -55,6 +57,17 @@ export default function ProjectDetailPage() {
   const navGroups = NAV_GROUPS.map(group =>
     group.filter(item => !isSite || item.path === '/projects')
   ).filter(group => group.length > 0)
+
+  const MOBILE_BOTTOM_NAV_ALL = [
+    { label: 'Dashboard',        path: '/admin/dashboard', Icon: HomeIcon },
+    { label: 'Unit Completion',  path: '/unit-completion', Icon: ChartBarIcon },
+    { label: 'Permits Dashboard',path: '/permits',         Icon: ClipboardListIcon },
+    { label: 'Projects',         path: '/projects',        Icon: FolderIcon },
+    { label: 'Settings',         path: '/admin/settings',  Icon: SettingsIcon },
+  ]
+  const mobileBottomNav = MOBILE_BOTTOM_NAV_ALL.filter(item =>
+    !isSite || item.path === '/projects'
+  )
 
   const [project,   setProject]   = useState(null)
   const [loading,   setLoading]   = useState(true)
@@ -405,23 +418,10 @@ export default function ProjectDetailPage() {
         transition: 'opacity 100ms',
       }} />
 
-      {/* -- Floating hamburger (mobile only) -- */}
-      {!mobileSidebarOpen && (
-        <button
-          className="sm:hidden fixed z-50 flex items-center justify-center w-9 h-9 rounded-xl shadow-lg"
-          style={{ top: 110, left: 12, background: 'rgba(240,240,240,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}
-          onClick={() => setMobileSidebarOpen(true)}
-          aria-label="Open menu"
-        >
-          <svg style={{ width: 18, height: 18 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-600">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-          </svg>
-        </button>
-      )}
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col pb-20 sm:pb-0 ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
 
           {/* Header */}
           <header className="flex items-center h-14 px-5 gap-4" style={{ background: 'transparent' }}>
@@ -1098,6 +1098,40 @@ export default function ProjectDetailPage() {
             />
         </main>
       </div>
+
+      {/* Mobile bottom nav — project tab shortcuts (5 items max) */}
+      <nav
+        className="sm:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around"
+        style={{
+          background: 'rgba(255,255,255,0.95)',
+          backdropFilter: 'blur(20px)',
+          WebkitBackdropFilter: 'blur(20px)',
+          height: 'calc(64px + env(safe-area-inset-bottom))',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          borderTop: '1px solid rgba(0,0,0,0.08)',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+        }}
+      >
+        <div className="flex items-center justify-around w-full px-2">
+          {PROJECT_BOTTOM_NAV.map(item => {
+            const isActive = section === item.key
+            return (
+              <button
+                key={String(item.key)}
+                aria-label={item.label}
+                onClick={() => {
+                  setSection(item.key)
+                  setSearchParams({ tab: item.key ?? 'Project Info' })
+                }}
+                className={`flex items-center justify-center rounded-full transition-all duration-300 hover:-translate-y-1 active:scale-95 focus-visible:ring-2 focus-visible:ring-black/20 ${isActive ? 'bg-[#ed6055]/10' : ''}`}
+                style={{ width: 44, height: 44, color: isActive ? '#ed6055' : 'rgba(0,0,0,0.35)', flexShrink: 0, border: 'none', background: isActive ? 'rgba(237,96,85,0.10)' : 'transparent', cursor: 'pointer' }}
+              >
+                <item.Icon className="w-5 h-5" />
+              </button>
+            )
+          })}
+        </div>
+      </nav>
     </div>
   )
 }
