@@ -421,11 +421,16 @@ export default function ProjectDetailPage() {
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col pb-20 sm:pb-0 ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
 
-          {/* Header */}
-          <header className="flex items-center h-14 px-5 gap-4" style={{ background: 'transparent' }}>
-            <span className="text-lg font-bold text-gray-800 tracking-wide truncate">{project.name}</span>
+          {/* Header — transparent + sticky on Project Info so cover photo shows through */}
+          <header
+            className={`flex items-center h-14 px-5 gap-4 ${section === null ? 'sticky top-0 z-10 sm:static sm:z-auto' : ''}`}
+            style={{ background: 'transparent' }}
+          >
+            {section !== null && (
+              <span className="text-lg font-bold text-gray-800 tracking-wide truncate">{project.name}</span>
+            )}
             {activeLabel !== 'Project Info' && (
               <span className="text-sm text-gray-400 hidden sm:flex flex-shrink-0 items-center gap-1.5">
                 / {activeLabel}
@@ -1096,10 +1101,14 @@ export default function ProjectDetailPage() {
               onGanttRegisterFns={fns => { ganttFnsRef.current = fns }}
               onGanttActiveBLChange={setGanttBLName}
             />
+          {/* Spacer so content clears mobile bottom nav */}
+          {section !== 'Work Program' && (
+            <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
+          )}
         </main>
       </div>
 
-      {/* Mobile bottom nav — project tab shortcuts (5 items max) */}
+      {/* Mobile bottom nav — project tab shortcuts */}
       <nav
         className="sm:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around"
         style={{

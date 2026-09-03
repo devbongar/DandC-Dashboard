@@ -525,7 +525,7 @@ export default function ProjectsPage() {
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none pb-20 sm:pb-0">
+        <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none">
 
           {/* Header */}
           <header
@@ -917,6 +917,8 @@ export default function ProjectsPage() {
               )}
             </div>
           </div>
+          {/* Spacer so content clears mobile bottom nav */}
+          <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
         </main>
       </div>
 

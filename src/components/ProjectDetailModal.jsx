@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
+﻿import { useState, useEffect, useRef, useMemo, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -351,7 +351,7 @@ function ImportErrorPanel({ errors, onDismiss }) {
       <ul className="space-y-1">
         {errors.map((e, i) => (
           <li key={i} className="text-xs text-red-600 flex items-start gap-1.5">
-            <span className="flex-shrink-0 mt-0.5">•</span><span>{e}</span>
+            <span className="flex-shrink-0 mt-0.5">â€¢</span><span>{e}</span>
           </li>
         ))}
       </ul>
@@ -416,9 +416,9 @@ function FloorUploadCell({ value, onChange, showToast }) {
     <div className="flex items-center gap-1.5">
       <input ref={ref} type="file" accept="image/*,.pdf" className="hidden" onChange={upload} />
       {uploading
-        ? <span className="text-[10px] text-gray-400 italic">Uploading…</span>
+        ? <span className="text-[10px] text-gray-400 italic">Uploadingâ€¦</span>
         : <button type="button" onClick={() => ref.current?.click()} className="text-[10px] px-2 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition whitespace-nowrap">
-            {value ? '✓ Change' : '↑ Upload'}
+            {value ? 'âœ“ Change' : 'â†‘ Upload'}
           </button>
       }
     </div>
@@ -522,7 +522,7 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
               <img
                 src={url}
                 alt={`${project.name} cover photo`}
-                className="w-full h-full object-contain cover-reveal"
+                className="w-full h-full object-cover cover-reveal"
               />
             </button>
 
@@ -782,7 +782,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }))
 
   if (editing) return (
-    <div className="h-full flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div className="min-h-full flex flex-col sm:h-full sm:flex-row sm:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Cover photo: top on mobile, left half on desktop */}
       <div className="w-full h-52 flex-shrink-0 overflow-hidden sm:h-full sm:w-1/2">
         <CoverPhotoPanel
@@ -809,7 +809,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         <div className="flex justify-end gap-2">
           <button onClick={cancelEdit} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors duration-200 active:scale-[0.97]">Cancel</button>
           <button onClick={save} disabled={saving || !form.name?.trim()} className="px-4 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-40 transition-colors duration-200 active:scale-[0.97]">
-            {saving ? 'Saving…' : 'Save Changes'}
+            {saving ? 'Savingâ€¦' : 'Save Changes'}
           </button>
         </div>
 
@@ -818,7 +818,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
             value={f('project_brief')}
             onChange={e => set('project_brief', e.target.value)}
             rows={4}
-            placeholder="Write a summary of the project -- scope, objectives, key details, stakeholders…"
+            placeholder="Write a summary of the project -- scope, objectives, key details, stakeholdersâ€¦"
             className={`${inputCls} resize-y rounded-xl`}
           />
         </IosCard>
@@ -866,7 +866,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
                 options={PH_PROVINCES}
                 value={f('province')}
                 onChange={v => { set('province', v); set('city', '') }}
-                placeholder="Type to search province…"
+                placeholder="Type to search provinceâ€¦"
               />
             </Field>
             <Field label="City / Municipality">
@@ -874,7 +874,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
                 options={PH_CITIES[f('province')] ?? []}
                 value={f('city')}
                 onChange={v => set('city', v)}
-                placeholder="Type to search city…"
+                placeholder="Type to search cityâ€¦"
                 disabled={!f('province')}
               />
             </Field>
@@ -916,14 +916,14 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 
   return (
-    <div className="h-full flex flex-col sm:flex-row overflow-y-auto sm:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div className="min-h-full flex flex-col sm:h-full sm:flex-row sm:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Cover photo: top on mobile, left half on desktop */}
-      <div className="w-full h-52 flex-shrink-0 overflow-hidden bg-gray-100 sm:h-full sm:w-1/2">
+      <div className="w-full h-[17rem] flex-shrink-0 overflow-hidden bg-gray-100 sm:h-full sm:w-1/2">
         <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} />
       </div>
 
       {/* Content panel: natural height on mobile, fill+scroll on desktop */}
-      <div className="flex-1 min-w-0 flex flex-col sm:overflow-y-auto bg-white relative z-10 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ boxShadow: '-16px 0 48px rgba(0,0,0,0.14)' }}>
+      <div className="flex-1 min-w-0 flex flex-col sm:overflow-y-auto bg-white relative z-10 rounded-t-3xl sm:rounded-none -mt-8 sm:mt-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ boxShadow: '-16px 0 48px rgba(0,0,0,0.14)' }}>
 
         {/* Hero: phase badge + project name + subtitle */}
         <div className="px-8 pt-8 pb-6 border-b border-gray-100" style={{ animation: 'fade-in-up 220ms ease-out both' }}>
@@ -937,7 +937,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           </h2>
           {(project.project_code || project.business_unit) && (
             <p className="mt-2 text-[11px] tracking-[0.14em] uppercase font-medium text-gray-400">
-              {[project.project_code, formatBU(project.business_unit)].filter(Boolean).join(' · ')}
+              {[project.project_code, formatBU(project.business_unit)].filter(Boolean).join(' Â· ')}
             </p>
           )}
         </div>
@@ -1015,6 +1015,9 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           </div>
         )}
 
+        {/* Spacer so edit/delete buttons clear mobile bottom nav */}
+        <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
+
         {/* Confirm delete project */}
         {confirmDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
@@ -1024,7 +1027,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
               <div className="flex gap-2">
                 <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
                 <button onClick={handleDeleteProject} disabled={deleting} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-60">
-                  {deleting ? 'Deleting…' : 'Delete'}
+                  {deleting ? 'Deletingâ€¦' : 'Delete'}
                 </button>
               </div>
             </div>
@@ -1119,8 +1122,8 @@ function UnitTypePhotoCarousel({ photos }) {
         </div>
         {filtered.length > 1 && (
           <>
-            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">‹</button>
-            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">›</button>
+            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">â€¹</button>
+            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">â€º</button>
             <div className="absolute bottom-3 right-3 flex gap-1">
               {filtered.map((_, i) => (
                 <button
@@ -1149,7 +1152,7 @@ function UnitTypePhotoCarousel({ photos }) {
             <button
               onClick={e => { e.stopPropagation(); prev() }}
               className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors text-xl leading-none active:scale-95"
-            >‹</button>
+            >â€¹</button>
           )}
           <img
             src={photo.url}
@@ -1161,7 +1164,7 @@ function UnitTypePhotoCarousel({ photos }) {
             <button
               onClick={e => { e.stopPropagation(); next() }}
               className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors text-xl leading-none active:scale-95"
-            >›</button>
+            >â€º</button>
           )}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
             <div className="px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm text-center">
@@ -1223,7 +1226,7 @@ function UnitTypePhotoManager({ unitTypeId, unitTypeName, showToast }) {
 
   return (
     <div className="px-4 py-3 bg-gray-50 border-t border-dashed border-gray-200">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Photos — {unitTypeName}</p>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Photos â€” {unitTypeName}</p>
       <div className="flex items-start gap-2 flex-wrap">
         {photos.map(p => (
           <div key={p.id} className="relative group w-24 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
@@ -1232,7 +1235,7 @@ function UnitTypePhotoManager({ unitTypeId, unitTypeName, showToast }) {
             <button
               onClick={() => deletePhoto(p.id)}
               className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] items-center justify-center hidden group-hover:flex leading-none"
-            >×</button>
+            >Ã—</button>
           </div>
         ))}
         <div className="flex items-center gap-1.5 flex-shrink-0">
@@ -1248,7 +1251,7 @@ function UnitTypePhotoManager({ unitTypeId, unitTypeName, showToast }) {
             disabled={uploading}
             className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 h-8 rounded-lg border border-gray-200 bg-white hover:border-[#ed6055] hover:text-[#ed6055] transition-colors disabled:opacity-50"
           >
-            {uploading ? 'Uploading…' : '+ Photo'}
+            {uploading ? 'Uploadingâ€¦' : '+ Photo'}
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={upload} />
         </div>
@@ -1626,7 +1629,7 @@ function BulkAddTowersModal({ projectId, existingNames, onDone, onCancel }) {
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Adding…' : 'Add Towers'}
+            {saving ? 'Addingâ€¦' : 'Add Towers'}
           </button>
         </div>
       </div>
@@ -1684,7 +1687,7 @@ function BulkDeleteTowersModal({ buildings, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Deleting…' : `Delete${selected.size > 0 ? ` (${selected.size})` : ''}`}
+            {saving ? 'Deletingâ€¦' : `Delete${selected.size > 0 ? ` (${selected.size})` : ''}`}
           </button>
         </div>
       </div>
@@ -1779,7 +1782,7 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Copying…' : 'Copy'}
+            {saving ? 'Copyingâ€¦' : 'Copy'}
           </button>
         </div>
       </div>
@@ -1829,7 +1832,7 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
             options={buildings.map(b => ({ value: b.id, label: b.name }))}
             value={buildingId}
             onChange={onChange}
-            placeholder="Select tower…"
+            placeholder="Select towerâ€¦"
             usePortal={usePortalDropdown}
           />
         </div>
@@ -2120,7 +2123,7 @@ function AddTowerModal({ projectId, existingCount, onDone, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium transition">Cancel</button>
           <button onClick={handleSubmit} disabled={submitting} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {submitting ? 'Adding…' : 'Add Tower'}
+            {submitting ? 'Addingâ€¦' : 'Add Tower'}
           </button>
         </div>
       </div>
@@ -2228,7 +2231,7 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
               </div>
             </div>
             <button onClick={() => setAddRes(v => !v)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] transition">
-              {addRes ? '− Hide' : '+ Add more floors'}
+              {addRes ? 'âˆ’ Hide' : '+ Add more floors'}
             </button>
             {addRes && <TowerFloorRangeFields from={reFrom} setFrom={setReFrom} to={reTo} setTo={setReTo} prefix={rePrefix} setPrefix={setRePrefix} count={reUnits} setCount={setReUnits} countLabel="Units" />}
           </div>
@@ -2241,7 +2244,7 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
               </div>
             </div>
             <button onClick={() => setAddPark(v => !v)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] transition">
-              {addPark ? '− Hide' : '+ Add parking floors'}
+              {addPark ? 'âˆ’ Hide' : '+ Add parking floors'}
             </button>
             {addPark && <TowerFloorRangeFields from={pkFrom} setFrom={setPkFrom} to={pkTo} setTo={setPkTo} prefix={pkPrefix} setPrefix={setPkPrefix} count={pkSpaces} setCount={setPkSpaces} countLabel="Spaces" />}
           </div>
@@ -2250,7 +2253,7 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium transition">Cancel</button>
           <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Savingâ€¦' : 'Save'}
           </button>
         </div>
       </div>
@@ -2276,11 +2279,11 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
     if (!rangeValid) return ''
     const labels = Array.from({ length: count }, (_, i) => prefix ? `${prefix}${f + i}` : String(f + i))
     if (labels.length <= 4) return labels.join(', ')
-    return `${labels[0]}, ${labels[1]} … ${labels[labels.length - 1]}`
+    return `${labels[0]}, ${labels[1]} â€¦ ${labels[labels.length - 1]}`
   }
 
   const handle = () => {
-    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be ≤ To.' : 'Maximum 100 floors at a time.'); return }
+    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be â‰¤ To.' : 'Maximum 100 floors at a time.'); return }
     setErr('')
     const floors = []
     for (let i = f; i <= t; i++) {
@@ -2369,7 +2372,7 @@ function AddGroupModal({ onConfirm, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving || !name.trim()} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Adding…' : 'Add Group'}
+            {saving ? 'Addingâ€¦' : 'Add Group'}
           </button>
         </div>
       </div>
@@ -2732,7 +2735,7 @@ function DevelopmentTab({ project, isAdmin, profile, showToast }) {
       validateFloorSheet(sheets['Parking Floor Schedule'] ?? [], 'Parking Floor Schedule')
       if (errors.length > 0) { setImportErrors(errors); return }
 
-      // -- 3. Upsert buildings, build name→id map --------------------------------
+      // -- 3. Upsert buildings, build nameâ†’id map --------------------------------
       const allBuildingNames = [...new Set(flRows.map(r => r.building_name).filter(Boolean))]
       const { data: existingBuildings } = await supabase.from('project_buildings').select('id, name').eq('project_id', pid)
       const existingByName = Object.fromEntries((existingBuildings ?? []).map(b => [b.name.trim().toLowerCase(), b.id]))
@@ -2862,7 +2865,7 @@ function ProjectPlansSection({ projectId, isAdmin, editing = false, showToast })
             disabled={uploading || !nameInput.trim()}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] transition disabled:opacity-50"
           >
-            {uploading ? 'Uploading…' : 'Choose PDF'}
+            {uploading ? 'Uploadingâ€¦' : 'Choose PDF'}
           </button>
           <button onClick={() => { setAdding(false); setNameInput('') }} className="text-xs text-gray-400 hover:text-gray-600 px-2">Cancel</button>
           <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={upload} />
@@ -2982,9 +2985,9 @@ function CondominiumDevelopmentTab({ project, isAdmin, profile, showToast, devRe
               <div key={g.id} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs ${colorCls}`}>
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
                 <span className="text-gray-500">{g.name}</span>
-                <span className="text-gray-300">·</span>
+                <span className="text-gray-300">Â·</span>
                 <span className="font-semibold text-gray-800">{s.floors} floor{s.floors !== 1 ? 's' : ''}</span>
-                <span className="text-gray-300">·</span>
+                <span className="text-gray-300">Â·</span>
                 <span className="font-semibold text-gray-800">{s.units} {unitWord}{s.units !== 1 ? 's' : ''}</span>
               </div>
             )
@@ -3331,7 +3334,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
   const COLS = isAdmin ? 4 : 3
 
   if (loading) {
-    return <TriangleLoader label={populating ? 'Setting up permits from standard list…' : 'Loading permits…'} />
+    return <TriangleLoader label={populating ? 'Setting up permits from standard listâ€¦' : 'Loading permitsâ€¦'} />
   }
 
   return (
@@ -3640,7 +3643,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                     <textarea
                       value={form.remarks ?? ''}
                       onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
-                      placeholder="Add any notes…"
+                      placeholder="Add any notesâ€¦"
                       rows={3}
                       className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black placeholder-gray-400 resize-y"
                     />
@@ -3925,7 +3928,7 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
         <div className="px-4 pt-3 pb-4">
 
       {loading ? (
-        <TriangleLoader label="Loading issues…" />
+        <TriangleLoader label="Loading issuesâ€¦" />
       ) : rows.length === 0 ? (
         <div className="text-center py-12 text-sm text-gray-400 italic">No issues recorded for this project.</div>
       ) : filtered.length === 0 ? (
@@ -4110,22 +4113,22 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Issue <span className="text-[#ed6055]">*</span></label>
-                <textarea value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issue…" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
+                <textarea value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issueâ€¦" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Caused By <span className="text-[#ed6055]">*</span></label>
-                <textarea value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root cause…" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
+                <textarea value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root causeâ€¦" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Action Steps <span className="text-[#ed6055]">*</span></label>
-                <textarea value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or planned…" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
+                <textarea value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or plannedâ€¦" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
             </div>
             <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
               <button onClick={close} className="px-4 py-2 text-sm text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={save} disabled={saving || !form.issue_group || !form.management_level || !form.date_presented || !form.details.trim() || !form.caused_by.trim() || !form.action_steps.trim()}
                 className="px-5 py-2 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 disabled:cursor-not-allowed transition">
-                {saving ? 'Saving…' : modal === 'add' ? 'Add Issue' : 'Save Changes'}
+                {saving ? 'Savingâ€¦' : modal === 'add' ? 'Add Issue' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -4230,7 +4233,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
                   <td key={i} className="p-0 border border-gray-200 relative" style={{ width: 44, height: 44 }}>
                     <button
                       onClick={isAdmin ? (multiSelectMode ? () => onToggleCell(type, floor, unitNum) : () => onOpenCell(type, floor, unitNum)) : undefined}
-                      title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} — ${cfg.label}`}
+                      title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} â€” ${cfg.label}`}
                       aria-label={`${type === 'parking' ? 'Parking' : 'Unit'} ${floor.physical_level}-${String(unitNum).padStart(2, '0')}: ${cfg.label}`}
                       className={`w-full h-full text-[10px] font-semibold tracking-wide transition-all duration-150 ease-out ${cfg.cell} ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'ring-2 ring-[#ed6055] ring-inset z-10 relative' : (isAdmin && !multiSelectMode ? 'hover:scale-[1.18] hover:shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:z-10 hover:relative' : '')}`}
                     >
@@ -4426,7 +4429,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
       <div className="mt-6 flex items-center gap-3">
         <button onClick={doUpload} disabled={!files.length || uploading}
           className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 transition">
-          {uploading ? 'Uploading…' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
+          {uploading ? 'Uploadingâ€¦' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
         </button>
         <button onClick={onBack} className="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 transition">Cancel</button>
       </div>
@@ -4517,7 +4520,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
     load()
   }
 
-  if (loading) return <TriangleLoader label="Loading photos…" />
+  if (loading) return <TriangleLoader label="Loading photosâ€¦" />
 
   if (showUploadScreen) return (
     <UploadScreen project={project} showToast={showToast}
@@ -4635,7 +4638,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
             </button>
           )}
           <div className="relative flex items-center justify-center max-w-[88vw] max-h-[80vh]" onClick={e => e.stopPropagation()}>
-            {/* Thumbnail placeholder — visible until full-size loads */}
+            {/* Thumbnail placeholder â€” visible until full-size loads */}
             {!lbLoaded && (
               <img
                 src={getThumbnailUrl(filteredPhotos[lightbox].storage_path)}
@@ -4662,11 +4665,11 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
             )}
             <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm">
               <span className="text-xs text-white/70 max-w-[200px] truncate">{fixEncoding(filteredPhotos[lightbox].file_name)}</span>
-              <span className="text-xs text-white/40">·</span>
+              <span className="text-xs text-white/40">Â·</span>
               <span className="text-xs text-white/50">{lightbox + 1} / {filteredPhotos.length}</span>
               {(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
                 <>
-                  <span className="text-xs text-white/40">·</span>
+                  <span className="text-xs text-white/40">Â·</span>
                   <button onClick={e => handleDelete(filteredPhotos[lightbox], e)}
                     className="text-xs text-red-400 hover:text-red-300 transition font-medium">Delete</button>
                 </>
@@ -4848,7 +4851,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
     } else {
       const ins = await supabase.from(table).insert(payload)
       if (ins.error?.code === '23505') {
-        // Row exists but wasn't in local state — update by natural key
+        // Row exists but wasn't in local state â€” update by natural key
         ;({ error } = await supabase.from(table).update(payload)
           .eq('project_id', project.id).eq('floor_id', floor.id).eq('unit_number', unitNum))
       } else {
@@ -5137,10 +5140,10 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
               )}
               <button
                 onClick={() => setUnitSortAsc(v => !v)}
-                title={unitSortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
+                title={unitSortAsc ? 'Sorted: low â†’ high. Click to reverse.' : 'Sorted: high â†’ low. Click to reverse.'}
                 className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
               >
-                {unitSortAsc ? '↑' : '↓'}
+                {unitSortAsc ? 'â†‘' : 'â†“'}
               </button>
             </div>
           )} />
@@ -5175,10 +5178,10 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
               )}
               <button
                 onClick={() => setParkingSortAsc(v => !v)}
-                title={parkingSortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
+                title={parkingSortAsc ? 'Sorted: low â†’ high. Click to reverse.' : 'Sorted: high â†’ low. Click to reverse.'}
                 className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
               >
-                {parkingSortAsc ? '↑' : '↓'}
+                {parkingSortAsc ? 'â†‘' : 'â†“'}
               </button>
             </div>
           )} />
@@ -5278,7 +5281,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setFloorModal(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveFloorModal} disabled={floorModalSaving || floorModalStatus === 'none'} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {floorModalSaving ? 'Saving…' : 'Apply'}
+                {floorModalSaving ? 'Savingâ€¦' : 'Apply'}
               </button>
             </div>
           </div>
@@ -5346,7 +5349,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setBulkModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveBulk} disabled={bulkSaving} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {bulkSaving ? 'Saving…' : `Apply to ${selectedCells.size}`}
+                {bulkSaving ? 'Savingâ€¦' : `Apply to ${selectedCells.size}`}
               </button>
             </div>
           </div>
@@ -5432,7 +5435,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setSelected(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveCell} disabled={saving} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {saving ? 'Saving…' : 'Save'}
+                {saving ? 'Savingâ€¦' : 'Save'}
               </button>
             </div>
           </div>
@@ -5548,7 +5551,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === null || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -5563,7 +5566,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 
         {/* Content */}
         {activeSection === null ? (
-          <div key="home" className="flex-1 overflow-hidden" style={{ animation: 'fade-in 180ms ease-out both' }}>
+          <div key="home" className={`flex-1 overflow-hidden ${asPage ? '-mt-14 sm:mt-0' : ''}`} style={{ animation: 'fade-in 180ms ease-out both' }}>
             <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} />
           </div>
         ) : activeSection === 'Work Program' ? (
@@ -5657,7 +5660,7 @@ function ExcelButtons({ onExport, onImport, importing = false, canImport = true 
             title="Import from Excel"
             className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
           >
-            <UploadIcon /> {importing ? 'Importing…' : 'Import'}
+            <UploadIcon /> {importing ? 'Importingâ€¦' : 'Import'}
           </button>
           <input
             ref={ref}
@@ -5715,4 +5718,5 @@ const XIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
   </svg>
 )
+
 
