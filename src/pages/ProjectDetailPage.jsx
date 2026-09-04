@@ -419,14 +419,17 @@ export default function ProjectDetailPage() {
 
 
       {/* -- Right column -- */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
 
           {/* Header — transparent + sticky on Project Info so cover photo shows through */}
           <header
-            className={`flex items-center h-14 px-5 gap-4 ${section === null || section === 'Permits' ? 'sticky top-0 z-10 sm:static sm:z-auto' : ''}`}
+            className={`flex flex-col ${section === null || section === 'Permits' ? 'sticky top-0 z-10 sm:static sm:z-auto' : ''}`}
             style={{ background: 'transparent' }}
           >
+            {/* Safe area spacer — pushes header content below iOS status bar on mobile */}
+            <div className="sm:hidden flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
+            <div className="flex items-center h-14 px-5 gap-4">
             {section !== null && (
               <span className={`text-lg font-bold text-gray-800 tracking-wide truncate ${section === 'Permits' ? 'hidden sm:block' : ''}`}>{project.name}</span>
             )}
@@ -1007,6 +1010,7 @@ export default function ProjectDetailPage() {
                 </div>
               )}
             </div>
+            </div>{/* end content row */}
           </header>
 
           {/* Mobile search expansion row */}

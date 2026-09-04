@@ -5728,7 +5728,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           </div>
         ) : activeSection === 'Permits' ? (
           <div key="Permits" className="section-slide-in permits-hero-pull">
-            <style>{`@media(max-width:639px){.permits-hero-pull{margin-top:-3.5rem}}`}</style>
+            <style>{`@media(max-width:639px){.permits-hero-pull{margin-top:calc(-3.5rem - env(safe-area-inset-top,0px))}}`}</style>
             <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} search={permitsSearch} onSearchChange={onPermitsSearchChange} filterStatus={permitsFilter} onFilterStatusChange={onPermitsFilterChange} creating={permitsCreating} onCreatingChange={onPermitsCreatingChange} />
           </div>
         ) : activeSection === 'Photos' ? (

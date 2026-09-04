@@ -121,7 +121,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
               <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 210, height: 210, top: '-30%', right: '-30%' }} />
               <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.25)', width: 100, height: 100, top: '10%',  right: '-8%'  }} />
               {/* Spacer: header (56px) + escaped p-4 (16px) + safe area */}
-              <div className="flex-shrink-0" style={{ height: 'calc(3.5rem + 1rem)' }} />
+              <div className="flex-shrink-0" style={{ height: 'calc(3.5rem + 1rem + env(safe-area-inset-top, 0px))' }} />
               <div className="relative flex items-center justify-between w-full" style={{ height: 135, overflow: 'hidden' }}>
               {/* Left */}
               <div className="flex flex-col justify-around h-full z-10 pl-5 py-4">
