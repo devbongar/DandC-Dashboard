@@ -832,8 +832,8 @@ export default function ProjectDetailPage() {
                   />
                 </div>
 
-                {/* Filter button + popover */}
-                <div className="relative flex-shrink-0" ref={filterPopRef}>
+                {/* Filter button + popover — desktop only; mobile filter lives in the content row */}
+                <div className="relative flex-shrink-0 hidden sm:block" ref={filterPopRef}>
                   <button
                     onClick={() => setPermitsFilterOpen(v => !v)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"

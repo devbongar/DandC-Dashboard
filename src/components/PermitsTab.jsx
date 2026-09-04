@@ -54,6 +54,16 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
   const [saving,       setSaving]       = useState(false)
   const cardScrollRef = useRef(null)
   const [cardScrollPos, setCardScrollPos] = useState(0)
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
+  const mobileFilterRef = useRef(null)
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (mobileFilterRef.current && !mobileFilterRef.current.contains(e.target)) setMobileFilterOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [])
 
   useEffect(() => { load() }, [project.id])
 
@@ -121,10 +131,10 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
               <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 210, height: 210, top: '-30%', right: '-30%' }} />
               <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.25)', width: 100, height: 100, top: '10%',  right: '-8%'  }} />
               {/* Spacer: header (56px) + escaped p-4 (16px) + safe area */}
-              <div className="flex-shrink-0" style={{ height: 'calc(3.5rem + 1rem + env(safe-area-inset-top, 0px))' }} />
+              <div className="flex-shrink-0" style={{ height: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }} />
               <div className="relative flex items-center justify-between w-full" style={{ height: 135, overflow: 'hidden' }}>
               {/* Left */}
-              <div className="flex flex-col justify-around h-full z-10 pl-5 py-4">
+              <div className="flex flex-col justify-around h-full z-10 pl-5 pt-0 pb-4">
                 <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Total Permits Acquired</span>
                 <div className="flex items-baseline gap-1">
                   <span className="text-5xl font-medium text-white leading-none tabular-nums">{counts.acquired}</span>
@@ -298,6 +308,58 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                 </button>
               )}
             </div>
+            {/* Right group: filter + divider + view toggle */}
+            <div className="flex items-center gap-1">
+            {/* Mobile filter button + popover */}
+            <div className="relative sm:hidden flex-shrink-0" ref={mobileFilterRef}>
+              <button
+                onClick={() => setMobileFilterOpen(v => !v)}
+                className="flex items-center justify-center w-8 h-8 rounded-lg border transition-all"
+                style={{
+                  background: mobileFilterOpen || filterStatus !== 'all' ? '#fff' : '#f9fafb',
+                  borderColor: filterStatus !== 'all' ? '#ed6055' : mobileFilterOpen ? '#ed6055' : '#e5e7eb',
+                  color: filterStatus !== 'all' ? '#ed6055' : '#6b7280',
+                  boxShadow: mobileFilterOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+                aria-label="Filter"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                </svg>
+                {filterStatus !== 'all' && (
+                  <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-[#ed6055] border-2 border-white" />
+                )}
+              </button>
+              {mobileFilterOpen && (
+                <div className="absolute top-full right-0 mt-2 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-48 flex flex-col gap-2" style={{ animation: 'ph1-dropdown 0.15s ease-out both' }}>
+                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Status</p>
+                  <div className="flex flex-wrap gap-1">
+                    {[
+                      { key: 'all',         label: 'All' },
+                      { key: 'pending',     label: 'Pending' },
+                      { key: 'in-progress', label: 'In Progress' },
+                      { key: 'acquired',    label: 'Acquired' },
+                      { key: 'overdue',     label: 'Overdue' },
+                      { key: 'with-issues', label: 'With Issues' },
+                    ].map(s => (
+                      <button key={s.key}
+                        onClick={() => { onFilterStatusChange?.(s.key); setMobileFilterOpen(false) }}
+                        className="px-2 py-1 rounded-lg text-xs font-semibold transition-all"
+                        style={filterStatus === s.key ? { background: '#ed6055', color: '#fff' } : { background: '#f3f4f6', color: '#6b7280' }}
+                      >{s.label}</button>
+                    ))}
+                  </div>
+                  {filterStatus !== 'all' && (
+                    <button onClick={() => { onFilterStatusChange?.('all'); setMobileFilterOpen(false) }}
+                      className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors">
+                      Clear filter
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+            {/* divider */}
+            <div className="sm:hidden w-px h-5 bg-gray-300 flex-shrink-0" />
             {/* View toggle */}
             <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
               <button
@@ -307,7 +369,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
                 </svg>
-                Cards
+                <span className="hidden sm:inline">Cards</span>
               </button>
               <button
                 onClick={() => setView('gantt')}
@@ -316,9 +378,10 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h12M3 12h8M3 18h16" />
                 </svg>
-                Gantt
+                <span className="hidden sm:inline">Gantt</span>
               </button>
             </div>
+            </div>{/* end right group */}
           </div>
         )}
 
