@@ -5727,7 +5727,8 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} onRegisterFns={onGanttRegisterFns} onActiveBLChange={onGanttActiveBLChange} />
           </div>
         ) : activeSection === 'Permits' ? (
-          <div key="Permits" className="section-slide-in">
+          <div key="Permits" className="section-slide-in permits-hero-pull">
+            <style>{`@media(max-width:639px){.permits-hero-pull{margin-top:-3.5rem}}`}</style>
             <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} search={permitsSearch} onSearchChange={onPermitsSearchChange} filterStatus={permitsFilter} onFilterStatusChange={onPermitsFilterChange} creating={permitsCreating} onCreatingChange={onPermitsCreatingChange} />
           </div>
         ) : activeSection === 'Photos' ? (

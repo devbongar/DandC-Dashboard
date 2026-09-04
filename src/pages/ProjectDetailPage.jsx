@@ -419,16 +419,16 @@ export default function ProjectDetailPage() {
 
 
       {/* -- Right column -- */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden" style={{ paddingTop: 'env(safe-area-inset-top, 0px)' }}>
         <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
 
           {/* Header — transparent + sticky on Project Info so cover photo shows through */}
           <header
-            className={`flex items-center h-14 px-5 gap-4 ${section === null ? 'sticky top-0 z-10 sm:static sm:z-auto' : ''}`}
+            className={`flex items-center h-14 px-5 gap-4 ${section === null || section === 'Permits' ? 'sticky top-0 z-10 sm:static sm:z-auto' : ''}`}
             style={{ background: 'transparent' }}
           >
             {section !== null && (
-              <span className="text-lg font-bold text-gray-800 tracking-wide truncate">{project.name}</span>
+              <span className={`text-lg font-bold text-gray-800 tracking-wide truncate ${section === 'Permits' ? 'hidden sm:block' : ''}`}>{project.name}</span>
             )}
             {activeLabel !== 'Project Info' && (
               <span className="text-sm text-gray-400 hidden sm:flex flex-shrink-0 items-center gap-1.5">

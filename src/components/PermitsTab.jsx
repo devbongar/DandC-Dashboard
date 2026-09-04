@@ -113,13 +113,16 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
 
         {/* Mobile permits summary card (weather-card style) */}
         {permits.length > 0 && (
-          <div className="sm:hidden rounded-3xl overflow-hidden" style={{ boxShadow: 'rgba(0,0,0,0.15) 2px 3px 8px' }}>
-            {/* Info section — 75% height */}
-            <div className="relative flex items-center justify-between w-full" style={{ height: 135, background: '#ed6055', overflow: 'hidden' }}>
-              {/* Circle decorations */}
-              <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 300, height: 300, top: '-80%', right: '-50%' }} />
-              <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 210, height: 210, top: '-70%', right: '-30%' }} />
-              <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.25)', width: 100, height: 100, top: '-35%', right: '-8%'  }} />
+          <div className="sm:hidden -mx-4 -mt-4 rounded-b-3xl overflow-hidden" style={{ boxShadow: 'rgba(0,0,0,0.15) 2px 3px 8px' }}>
+            {/* Info section — extends behind transparent header */}
+            <div className="relative flex flex-col w-full" style={{ background: '#ed6055', overflow: 'hidden' }}>
+              {/* Circle decorations span full info section height */}
+              <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 300, height: 300, top: '-40%', right: '-50%' }} />
+              <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 210, height: 210, top: '-30%', right: '-30%' }} />
+              <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.25)', width: 100, height: 100, top: '10%',  right: '-8%'  }} />
+              {/* Spacer: header (56px) + escaped p-4 (16px) + safe area */}
+              <div className="flex-shrink-0" style={{ height: 'calc(3.5rem + 1rem)' }} />
+              <div className="relative flex items-center justify-between w-full" style={{ height: 135, overflow: 'hidden' }}>
               {/* Left */}
               <div className="flex flex-col justify-around h-full z-10 pl-5 py-4">
                 <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Total Permits Acquired</span>
@@ -135,7 +138,8 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                 </span>
                 <span className="text-[10px] text-white/60 mt-1 uppercase tracking-widest">Acquired</span>
               </div>
-            </div>
+            </div>{/* end inner 135px row */}
+            </div>{/* end outer info section */}
             {/* Status buttons section — 25% height */}
             <div className="flex items-stretch w-full" style={{ height: 52, background: '#c94a3f', gap: 2 }}>
               {[
