@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+﻿import { useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import Logo from './Logo'
@@ -66,10 +66,18 @@ export default function Sidebar({ profile, open, onClose }) {
       {/* Drawer */}
       <aside
         className={[
-          'fixed inset-y-0 left-0 z-50 w-64 flex flex-col bg-[#2d2d2d]',
+          'sidebar-frost fixed inset-y-0 left-0 z-50 w-64 flex flex-col',
           'transition-transform duration-300 ease-in-out',
           open ? 'translate-x-0' : '-translate-x-full',
         ].join(' ')}
+        style={{
+          background: 'transparent',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRight: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
+          borderRadius: 16,
+        }}
       >
         {/* Safe-area spacer -- clears iOS status bar on PWA */}
         <div style={{ height: 'env(safe-area-inset-top, 0px)', flexShrink: 0 }} />
@@ -117,8 +125,8 @@ export default function Sidebar({ profile, open, onClose }) {
                       'flex items-center gap-3 px-3 py-2.5 rounded-lg',
                       'border-l-[3px] transition-all duration-150 group',
                       isActive
-                        ? 'bg-white/10 text-white border-[#ed6055]'
-                        : 'text-white/45 border-transparent hover:bg-white/[0.06] hover:text-white/80',
+                        ? 'bg-[#ed6055] text-white border-transparent'
+                        : 'text-white border-transparent hover:bg-white/[0.07]',
                     ].join(' ')}
                   >
                     <Icon className="w-[18px] h-[18px] flex-shrink-0 transition-transform duration-150 group-hover:scale-110" />
@@ -254,3 +262,9 @@ function ClipboardListIcon({ className }) {
     </svg>
   )
 }
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { NavLink, useParams, useNavigate, useSearchParams, useLocation } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import useProfile from '../hooks/useProfile'
@@ -204,13 +204,15 @@ export default function ProjectDetailPage() {
 
       {/* -- Sidebar -- */}
       <aside
-        className={`${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} sm:relative sm:flex sm:z-auto flex-shrink-0 flex-col py-3 gap-1`}
+        className={`sidebar-frost ${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} sm:relative sm:flex sm:z-auto flex-shrink-0 flex-col py-3 gap-1`}
         style={{
           width: sidebarExpanded ? 240 : 80,
-          background: 'rgba(18,18,18,0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
+          background: 'transparent',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRight: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
+          borderRadius: mobileSidebarOpen ? 0 : 16,
           transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
           zIndex: mobileSidebarOpen ? 40 : 1,
         }}
@@ -246,7 +248,7 @@ export default function ProjectDetailPage() {
                         to={item.path}
                         className={({ isActive }) => [
                           'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                          isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                          isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                         ].join(' ')}
                         style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
                       >
@@ -288,7 +290,7 @@ export default function ProjectDetailPage() {
                             to={child.path}
                             className={({ isActive }) => [
                               'flex items-center w-full h-9 rounded-lg transition-all duration-150',
-                              isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                              isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                             ].join(' ')}
                             style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 28 : 0 }}
                           >
@@ -334,13 +336,10 @@ export default function ProjectDetailPage() {
                   }}
                   className={[
                     'flex items-center w-full h-10 rounded-lg transition-all duration-150',
-                    isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                    isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                   ].join(' ')}
                   style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
                 >
-                  {isActive && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 16, background: '#ed6055' }} />
-                  )}
                   <Icon className="w-[16px] h-[16px] flex-shrink-0" />
                   {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
                 </button>
@@ -360,7 +359,7 @@ export default function ProjectDetailPage() {
                 to="/admin/settings"
                 className={({ isActive }) => [
                   'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                  isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                  isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                 ].join(' ')}
                 style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
               >
@@ -375,14 +374,14 @@ export default function ProjectDetailPage() {
             </div>
           )}
 
-          {/* Expand / collapse toggle — hidden on mobile */}
+          {/* Expand / collapse toggle â€” hidden on mobile */}
           <div className={`mt-1 relative group ${mobileSidebarOpen ? 'hidden' : ''}`}
             onMouseEnter={(e) => showTooltip(e, sidebarExpanded ? 'Collapse' : 'Expand')}
             onMouseLeave={hideTooltip}
           >
             <button
               onClick={toggleSidebar}
-              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
+              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white hover:bg-white/[0.07]"
               style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
             >
               <svg
@@ -422,15 +421,15 @@ export default function ProjectDetailPage() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
 
-          {/* Header — transparent + sticky on Project Info so cover photo shows through */}
+          {/* Header â€” transparent + sticky on Project Info so cover photo shows through */}
           <header
             className={`flex flex-col ${section === null || section === 'Permits' ? 'sticky top-0 z-10 sm:static sm:z-auto' : ''}`}
             style={{ background: 'transparent' }}
           >
-            {/* Safe area spacer — pushes header content below iOS status bar on mobile */}
+            {/* Safe area spacer â€” pushes header content below iOS status bar on mobile */}
             <div className="sm:hidden flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
             <div className="flex items-center h-14 px-5 gap-4">
-            {/* Back button — mobile only */}
+            {/* Back button â€” mobile only */}
             <button
               className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 text-white active:scale-90 transition-all"
               style={{ background: 'rgba(255,255,255,0.18)' }}
@@ -454,7 +453,7 @@ export default function ProjectDetailPage() {
             )}
             <div className="flex-1" />
 
-            {/* Photos controls — only visible on Photos tab */}
+            {/* Photos controls â€” only visible on Photos tab */}
             {section === 'Photos' && (
               <>
               {/* Mobile search toggle */}
@@ -480,7 +479,7 @@ export default function ProjectDetailPage() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search photos…"
+                  placeholder="Search photosâ€¦"
                   value={photosSearch}
                   onChange={e => setPhotosSearch(e.target.value)}
                   className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
@@ -591,7 +590,7 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Issues & Concerns controls — only visible on Issues tab */}
+            {/* Issues & Concerns controls â€” only visible on Issues tab */}
             {section === 'Issues & Concerns' && (
               <>
                 {/* Mobile search toggle */}
@@ -615,7 +614,7 @@ export default function ProjectDetailPage() {
                   </svg>
                   <input
                     type="text"
-                    placeholder="Search issues…"
+                    placeholder="Search issuesâ€¦"
                     value={issuesSearch}
                     onChange={e => setIssuesSearch(e.target.value)}
                     className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
@@ -754,7 +753,7 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Work Program controls — only visible on Work Program tab */}
+            {/* Work Program controls â€” only visible on Work Program tab */}
             {section === 'Work Program' && (
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
@@ -808,7 +807,7 @@ export default function ProjectDetailPage() {
               </div>
             )}
 
-            {/* Permits controls — only visible on Permits tab */}
+            {/* Permits controls â€” only visible on Permits tab */}
             {section === 'Permits' && (
               <>
                 {/* Mobile search toggle */}
@@ -832,14 +831,14 @@ export default function ProjectDetailPage() {
                   </svg>
                   <input
                     type="text"
-                    placeholder="Search permits…"
+                    placeholder="Search permitsâ€¦"
                     value={permitsSearch}
                     onChange={e => setPermitsSearch(e.target.value)}
                     className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
                   />
                 </div>
 
-                {/* Filter button + popover — desktop only; mobile filter lives in the content row */}
+                {/* Filter button + popover â€” desktop only; mobile filter lives in the content row */}
                 <div className="relative flex-shrink-0 hidden sm:block" ref={filterPopRef}>
                   <button
                     onClick={() => setPermitsFilterOpen(v => !v)}
@@ -938,7 +937,7 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Setup button — Unit Completion tab only, opens Planned M4/M5 */}
+            {/* Setup button â€” Unit Completion tab only, opens Planned M4/M5 */}
             {section === 'Unit Completion' && (
               <button
                 onClick={() => setSection('Planned M4/M5')}
@@ -953,7 +952,7 @@ export default function ProjectDetailPage() {
               </button>
             )}
 
-            {/* Report button — hidden on Permits/Photos/Issues/Work Program tabs (lives inside Actions dropdown there) */}
+            {/* Report button â€” hidden on Permits/Photos/Issues/Work Program tabs (lives inside Actions dropdown there) */}
             {section !== 'Permits' && section !== 'Photos' && section !== 'Issues & Concerns' && section !== 'Work Program' && (
               <button
                 onClick={() => setReportOpen(true)}
@@ -970,7 +969,7 @@ export default function ProjectDetailPage() {
 
             <NotificationBell userId={profile?.id} />
 
-            {/* User menu — hidden on mobile */}
+            {/* User menu â€” hidden on mobile */}
             <div className="relative flex-shrink-0 hidden sm:block">
               <button
                 onClick={() => setMenuOpen(v => !v)}
@@ -1028,7 +1027,7 @@ export default function ProjectDetailPage() {
                 <input
                   type="text"
                   autoFocus
-                  placeholder={section === 'Photos' ? 'Search photos…' : section === 'Issues & Concerns' ? 'Search issues…' : 'Search permits…'}
+                  placeholder={section === 'Photos' ? 'Search photosâ€¦' : section === 'Issues & Concerns' ? 'Search issuesâ€¦' : 'Search permitsâ€¦'}
                   value={section === 'Photos' ? photosSearch : section === 'Issues & Concerns' ? issuesSearch : permitsSearch}
                   onChange={e => {
                     const v = e.target.value
@@ -1116,13 +1115,13 @@ export default function ProjectDetailPage() {
         </main>
       </div>
 
-      {/* Mobile bottom nav — app-level navigation */}
+      {/* Mobile bottom nav â€” app-level navigation */}
       <nav
         className="sm:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around"
         style={{
           background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
           height: 'calc(64px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
           borderTop: '1px solid rgba(0,0,0,0.08)',
@@ -1220,3 +1219,9 @@ function PhotosIcon({ className }) {
 function IssuesIcon({ className }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
 }
+
+
+
+
+
+

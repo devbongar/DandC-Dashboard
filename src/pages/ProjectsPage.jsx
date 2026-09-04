@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { slugify } from './ProjectDetailPage'
 import { supabase } from '../lib/supabaseClient'
@@ -374,13 +374,15 @@ export default function ProjectsPage() {
 
       {/* -- Sidebar -- */}
       <aside
-        className={`${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} sm:relative sm:flex sm:z-auto flex-shrink-0 flex-col py-3 gap-1`}
+        className={`sidebar-frost ${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} sm:relative sm:flex sm:z-auto flex-shrink-0 flex-col py-3 gap-1`}
         style={{
           width: sidebarExpanded ? 240 : 80,
-          background: 'rgba(18,18,18,0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
+          background: 'transparent',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRight: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
+          borderRadius: 16,
           transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
         }}
       >
@@ -414,7 +416,7 @@ export default function ProjectsPage() {
                         onClick={() => setMobileSidebarOpen(false)}
                         className={({ isActive }) => [
                           'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                          isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                          isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                         ].join(' ')}
                         style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
                       >
@@ -455,7 +457,7 @@ export default function ProjectsPage() {
                             to={child.path}
                             className={({ isActive }) => [
                               'flex items-center w-full h-9 rounded-lg transition-all duration-150',
-                              isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                              isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                             ].join(' ')}
                             style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 28 : 0 }}
                           >
@@ -487,7 +489,7 @@ export default function ProjectsPage() {
               to="/admin/settings"
               className={({ isActive }) => [
                 'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
               ].join(' ')}
               style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
             >
@@ -502,11 +504,11 @@ export default function ProjectsPage() {
             {!sidebarShowLabels && <SidebarTooltip label="Settings" />}
           </div>}
 
-          {/* Expand / collapse toggle — hidden on mobile sidebar */}
+          {/* Expand / collapse toggle â€” hidden on mobile sidebar */}
           <div className={`mt-1 relative group ${mobileSidebarOpen ? 'hidden' : ''}`}>
             <button
               onClick={toggleSidebar}
-              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
+              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white hover:bg-white/[0.07]"
               style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
             >
               <svg
@@ -542,14 +544,14 @@ export default function ProjectsPage() {
               </svg>
               <input
                 type="text"
-                placeholder="Search projects…"
+                placeholder="Search projectsâ€¦"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
               />
             </div>
 
-            {/* Filter button — desktop only */}
+            {/* Filter button â€” desktop only */}
             <button
               onClick={() => setShowFilters(v => !v)}
               className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
@@ -578,7 +580,7 @@ export default function ProjectsPage() {
               </button>
             )}
 
-            {/* Actions dropdown — desktop only */}
+            {/* Actions dropdown â€” desktop only */}
             <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
             <div className="hidden sm:block relative flex-shrink-0" ref={actionsRef}>
               <button
@@ -613,7 +615,7 @@ export default function ProjectsPage() {
                     {isAdmin && (
                       <>
                         <button onClick={() => { importRef.current?.click(); setShowActions(false) }} disabled={importing} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50">
-                          <UploadIcon /> {importing ? 'Importing…' : 'Import'}
+                          <UploadIcon /> {importing ? 'Importingâ€¦' : 'Import'}
                         </button>
                         <div className="my-1 border-t border-gray-100" />
                         <button onClick={() => { openAdd(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition">
@@ -675,7 +677,7 @@ export default function ProjectsPage() {
             </div>
           </header>
 
-          {/* Mobile toolbar — search + filter + actions */}
+          {/* Mobile toolbar â€” search + filter + actions */}
           <div className="sm:hidden flex items-center gap-2 px-4 pb-3">
             {/* Search */}
             <div className="relative flex-1">
@@ -684,7 +686,7 @@ export default function ProjectsPage() {
               </svg>
               <input
                 type="text"
-                placeholder="Search projects…"
+                placeholder="Search projectsâ€¦"
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition"
@@ -742,7 +744,7 @@ export default function ProjectsPage() {
                     {isAdmin && (
                       <>
                         <button onClick={() => { importRef.current?.click(); setShowActions(false) }} disabled={importing} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50">
-                          <UploadIcon /> {importing ? 'Importing…' : 'Import'}
+                          <UploadIcon /> {importing ? 'Importingâ€¦' : 'Import'}
                         </button>
                         <div className="my-1 border-t border-gray-100" />
                         <button onClick={() => { openAdd(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition">
@@ -756,15 +758,15 @@ export default function ProjectsPage() {
             </div>
           </div>
 
-          {/* Filter panel — below header, above scroll */}
+          {/* Filter panel â€” below header, above scroll */}
           {showFilters && (
             <div className="px-5 pb-3">
               <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <SearchDropdown fluid options={PHASES.map(p => ({ value: p.key, label: p.label }))} value={phaseFilter} onChange={setPhaseFilter} emptyValue="all" emptyLabel="All Phases" placeholder="Search phases…" />
-                  <SearchDropdown fluid options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))} value={businessUnitFilter} onChange={setBusinessUnitFilter} emptyValue="all" emptyLabel="All Business Units" placeholder="Search units…" />
-                  <SearchDropdown fluid options={[{ value: 'housing', label: 'Housing' }, { value: 'condominium', label: 'Condominium' }]} value={devTypeFilter} onChange={setDevTypeFilter} emptyValue="all" emptyLabel="All Dev Types" placeholder="Search types…" />
-                  <SearchDropdown fluid options={[{ value: 'yes', label: '4PH' }, { value: 'no', label: 'Non-4PH' }]} value={is4phFilter} onChange={setIs4phFilter} emptyValue="all" emptyLabel="All Types" placeholder="Search…" />
+                  <SearchDropdown fluid options={PHASES.map(p => ({ value: p.key, label: p.label }))} value={phaseFilter} onChange={setPhaseFilter} emptyValue="all" emptyLabel="All Phases" placeholder="Search phasesâ€¦" />
+                  <SearchDropdown fluid options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))} value={businessUnitFilter} onChange={setBusinessUnitFilter} emptyValue="all" emptyLabel="All Business Units" placeholder="Search unitsâ€¦" />
+                  <SearchDropdown fluid options={[{ value: 'housing', label: 'Housing' }, { value: 'condominium', label: 'Condominium' }]} value={devTypeFilter} onChange={setDevTypeFilter} emptyValue="all" emptyLabel="All Dev Types" placeholder="Search typesâ€¦" />
+                  <SearchDropdown fluid options={[{ value: 'yes', label: '4PH' }, { value: 'no', label: 'Non-4PH' }]} value={is4phFilter} onChange={setIs4phFilter} emptyValue="all" emptyLabel="All Types" placeholder="Searchâ€¦" />
                 </div>
               </div>
             </div>
@@ -810,15 +812,15 @@ export default function ProjectsPage() {
                         <div
                           key={project.id}
                           onClick={() => navigate(`/projects/${slugify(project.project_code || project.name)}`, { state: { id: project.id } })}
-                          className="project-card group bg-white rounded-2xl border border-gray-100 overflow-hidden cursor-pointer flex flex-col select-none touch-manipulation relative"
+                          className="project-card group rounded-2xl overflow-hidden cursor-pointer flex flex-col select-none touch-manipulation relative hover:scale-[1.03] hover:z-10 border-[4px] border-white/30"
                           style={{
                             boxShadow: '0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05)',
                             transition: 'transform 220ms cubic-bezier(0.23,1,0.32,1), box-shadow 220ms cubic-bezier(0.23,1,0.32,1)',
                             animation: 'ph1-fade-up 0.35s cubic-bezier(0.23,1,0.32,1) both',
                             animationDelay: `${Math.min(idx, 8) * 50}ms`,
                           }}
-                          onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-4px)'; e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.14), 0 6px 16px rgba(0,0,0,0.08)' }}
-                          onMouseLeave={e => { e.currentTarget.style.transform = ''; e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05)' }}
+                          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 20px 40px rgba(0,0,0,0.18), 0 6px 16px rgba(0,0,0,0.10)' }}
+                          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 16px rgba(0,0,0,0.08), 0 1px 4px rgba(0,0,0,0.05)' }}
                         >
                           {/* Shine sweep overlay */}
                           <div className="card-shine absolute inset-0 z-10 pointer-events-none"
@@ -842,8 +844,8 @@ export default function ProjectsPage() {
                                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 ease-out"
                               />
                             )}
-                            <div className="absolute bottom-0 left-0 right-0 h-32 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.55) 0%, transparent 100%)' }} />
-                            <div className="absolute bottom-0 left-0 right-0 h-0.5" style={{ background: phaseColor }} />
+                            <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none" style={{ background: 'linear-gradient(to top, #1a1a1a 0%, transparent 100%)' }} />
+
                             {ph && (
                               <span className={`absolute top-3 right-3 text-[11px] font-semibold px-2.5 py-0.5 rounded-full border backdrop-blur-sm ${ph.badge}`}>
                                 {ph.label}
@@ -852,58 +854,58 @@ export default function ProjectsPage() {
                           </div>
 
                           {/* Card body */}
-                          <div className="flex flex-col gap-3 p-4 flex-1">
+                          <div className="flex flex-col gap-3 p-4 flex-1" style={{ background: '#1a1a1a' }}>
                             <div className="flex items-center gap-2.5">
-                              <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${phaseColor}15` }}>
+                              <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${phaseColor}25` }}>
                                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} style={{ color: phaseColor }}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21" />
                                 </svg>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="font-bold text-gray-900 text-sm leading-snug line-clamp-2">{project.name}</p>
+                                <p className="font-bold text-white text-sm leading-snug line-clamp-2">{project.name}</p>
                               </div>
                             </div>
 
                             <div className="flex items-center gap-2.5">
-                              <div className="flex-shrink-0 w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center">
-                                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                                <svg className="w-3.5 h-3.5 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
                                 </svg>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-sm text-gray-700 font-medium truncate">{project.business_unit || <span className="text-gray-300 italic font-normal">Not set</span>}</p>
+                                <p className="text-sm text-white/80 font-medium truncate">{project.business_unit || <span className="text-white/30 italic font-normal">Not set</span>}</p>
                               </div>
                             </div>
 
                             <div className="flex items-start gap-2.5">
-                              <div className="mt-0.5 flex-shrink-0 w-7 h-7 rounded-lg bg-gray-50 flex items-center justify-center">
-                                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                              <div className="mt-0.5 flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                                <svg className="w-3.5 h-3.5 text-white/50" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                   <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
                                 </svg>
                               </div>
                               <div className="flex-1 min-w-0">
-                                <p className="text-xs text-gray-500 line-clamp-4 leading-relaxed">
-                                  {project.project_brief || <span className="text-gray-300 italic">No brief added</span>}
+                                <p className="text-xs text-white/50 line-clamp-4 leading-relaxed">
+                                  {project.project_brief || <span className="text-white/25 italic">No brief added</span>}
                                 </p>
                               </div>
                             </div>
 
-                            <div className="mt-auto pt-3 border-t border-gray-50 flex flex-wrap gap-x-4 gap-y-1.5">
+                            <div className="mt-auto pt-3 border-t flex flex-wrap gap-x-4 gap-y-1.5" style={{ borderColor: 'rgba(255,255,255,0.08)' }}>
                               {project.lot_area && (
                                 <div className="flex items-center gap-1.5">
-                                  <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <svg className="w-3.5 h-3.5 text-white/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 3.75v4.5m0-4.5h4.5m-4.5 0L9 9M3.75 20.25v-4.5m0 4.5h4.5m-4.5 0L9 15M20.25 3.75h-4.5m4.5 0v4.5m0-4.5L15 9m5.25 11.25h-4.5m4.5 0v-4.5m0 4.5L15 15" />
                                   </svg>
-                                  <span className="text-xs text-gray-500">{Number(project.lot_area).toLocaleString()} sqm</span>
+                                  <span className="text-xs text-white/50">{Number(project.lot_area).toLocaleString()} sqm</span>
                                 </div>
                               )}
                               {location && (
                                 <div className="flex items-center gap-1.5">
-                                  <svg className="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                  <svg className="w-3.5 h-3.5 text-white/30 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
                                     <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
                                   </svg>
-                                  <span className="text-xs text-gray-500 truncate">{location}</span>
+                                  <span className="text-xs text-white/50 truncate">{location}</span>
                                 </div>
                               )}
                             </div>
@@ -943,7 +945,7 @@ export default function ProjectsPage() {
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setShowForm(false)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
                 <button type="submit" disabled={submitting || !form.name.trim()} className="px-3 py-1.5 rounded-lg bg-[#ed6055] hover:bg-[#d94f45] text-white text-sm font-semibold transition disabled:opacity-60">
-                  {submitting ? 'Adding…' : 'Add Project'}
+                  {submitting ? 'Addingâ€¦' : 'Add Project'}
                 </button>
               </div>
               <div className="bg-gray-50 rounded-xl px-4 py-4">
@@ -952,7 +954,7 @@ export default function ProjectsPage() {
                   value={form.project_brief}
                   onChange={e => setForm(f => ({ ...f, project_brief: e.target.value }))}
                   rows={4}
-                  placeholder="Write a summary of the project -- scope, objectives, key details, stakeholders…"
+                  placeholder="Write a summary of the project -- scope, objectives, key details, stakeholdersâ€¦"
                   className={`${inputCls} resize-y`}
                 />
               </div>
@@ -1043,7 +1045,7 @@ export default function ProjectsPage() {
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={confirmDelete} disabled={deleting} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-60">
-                {deleting ? 'Deleting…' : 'Delete'}
+                {deleting ? 'Deletingâ€¦' : 'Delete'}
               </button>
             </div>
           </div>
@@ -1102,8 +1104,8 @@ export default function ProjectsPage() {
         className="sm:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around"
         style={{
           background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
           height: 'calc(64px + env(safe-area-inset-bottom))',
           paddingBottom: 'env(safe-area-inset-bottom)',
           borderTop: '1px solid rgba(0,0,0,0.08)',
@@ -1230,3 +1232,12 @@ function SettingsIcon({ className }) {
     </svg>
   )
 }
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import useProfile from '../../hooks/useProfile'
@@ -172,13 +172,15 @@ export default function Settings() {
 
       {/* -- Sidebar -- */}
       <aside
-        className="flex-shrink-0 flex flex-col py-3 gap-1"
+        className="sidebar-frost flex-shrink-0 flex flex-col py-3 gap-1"
         style={{
           width: expanded ? 240 : 80,
-          background: 'rgba(18,18,18,0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
+          background: 'transparent',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRight: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
+          borderRadius: 16,
           transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
           zIndex: 1,
         }}
@@ -210,8 +212,8 @@ export default function Settings() {
                       className={({ isActive }) => [
                         'flex items-center w-full h-11 rounded-lg transition-all duration-150',
                         isActive
-                          ? 'bg-white/10 text-white'
-                          : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                          ? 'bg-[#ed6055] text-white'
+                          : 'text-white hover:bg-white/[0.07]',
                       ].join(' ')}
                       style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
                     >
@@ -243,7 +245,7 @@ export default function Settings() {
               to="/admin/settings"
               className={({ isActive }) => [
                 'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
               ].join(' ')}
               style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
             >
@@ -262,7 +264,7 @@ export default function Settings() {
           <div className="mt-1 relative group">
             <button
               onClick={toggleSidebar}
-              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
+              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white hover:bg-white/[0.07]"
               style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
             >
               <svg
@@ -374,7 +376,7 @@ export default function Settings() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-gray-800">App Logo</p>
-                    <p className="text-[11px] text-gray-400 mb-2">Used on all pages — header, sidebar, and auth screens.</p>
+                    <p className="text-[11px] text-gray-400 mb-2">Used on all pages â€” header, sidebar, and auth screens.</p>
                     <div className="flex items-center gap-2 flex-wrap">
                       <input
                         ref={logoInputRef}
@@ -388,7 +390,7 @@ export default function Settings() {
                         disabled={logoUploading}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors"
                       >
-                        {logoUploading ? 'Uploading…' : logoUrl ? 'Replace' : 'Upload'}
+                        {logoUploading ? 'Uploadingâ€¦' : logoUrl ? 'Replace' : 'Upload'}
                       </button>
                       {logoUrl && (
                         <button
@@ -406,7 +408,7 @@ export default function Settings() {
                   <p className={`text-xs font-medium px-2.5 py-1 rounded-lg w-fit ${
                     logoStatus === 'saved' ? 'bg-emerald-100 text-emerald-700' : 'bg-red-100 text-red-600'
                   }`}>
-                    {logoStatus === 'saved' ? '✓ Logo saved' : '✗ Upload failed'}
+                    {logoStatus === 'saved' ? 'âœ“ Logo saved' : 'âœ— Upload failed'}
                   </p>
                 )}
               </div>
@@ -422,7 +424,7 @@ export default function Settings() {
                   <p className="text-xs font-semibold text-blue-700">How to set up</p>
                   <ol className="text-xs text-blue-700 list-decimal list-inside space-y-0.5">
                     <li>Open the Teams channel where you want notifications</li>
-                    <li>Click ··· → Connectors → Incoming Webhook → Configure</li>
+                    <li>Click Â·Â·Â· â†’ Connectors â†’ Incoming Webhook â†’ Configure</li>
                     <li>Name it "DandC Dashboard", copy the webhook URL</li>
                     <li>Paste it below and save</li>
                   </ol>
@@ -461,10 +463,10 @@ export default function Settings() {
                       webhookStatus === 'error'     ? 'bg-red-100 text-red-600' :
                       webhookStatus === 'test-fail' ? 'bg-red-100 text-red-600' : ''
                     }`}>
-                      {webhookStatus === 'saved'     && '✓ Saved'}
-                      {webhookStatus === 'test-ok'   && '✓ Test message sent'}
-                      {webhookStatus === 'error'     && '✗ Failed to save'}
-                      {webhookStatus === 'test-fail' && '✗ Test failed -- check webhook URL'}
+                      {webhookStatus === 'saved'     && 'âœ“ Saved'}
+                      {webhookStatus === 'test-ok'   && 'âœ“ Test message sent'}
+                      {webhookStatus === 'error'     && 'âœ— Failed to save'}
+                      {webhookStatus === 'test-fail' && 'âœ— Test failed -- check webhook URL'}
                     </span>
                   )}
                 </div>
@@ -502,7 +504,7 @@ export default function Settings() {
                   <p className="text-xs font-semibold text-blue-700">How to set up</p>
                   <ol className="text-xs text-blue-700 list-decimal list-inside space-y-0.5">
                     <li>Open your Teams group chat</li>
-                    <li>Click ··· → Workflows → select "Post to a chat when a webhook request is received"</li>
+                    <li>Click Â·Â·Â· â†’ Workflows â†’ select "Post to a chat when a webhook request is received"</li>
                     <li>Name it "DandC Daily Digest", copy the webhook URL</li>
                     <li>Paste it below and save</li>
                     <li>Add <code className="font-mono bg-blue-100 px-1 rounded">SUPABASE_URL</code>, <code className="font-mono bg-blue-100 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code>, and <code className="font-mono bg-blue-100 px-1 rounded">CRON_SECRET</code> to Vercel environment variables</li>
@@ -542,10 +544,10 @@ export default function Settings() {
                       gcWebhookStatus === 'error'     ? 'bg-red-100 text-red-600' :
                       gcWebhookStatus === 'test-fail' ? 'bg-red-100 text-red-600' : ''
                     }`}>
-                      {gcWebhookStatus === 'saved'     && '✓ Saved'}
-                      {gcWebhookStatus === 'test-ok'   && '✓ Test message sent'}
-                      {gcWebhookStatus === 'error'     && '✗ Failed to save'}
-                      {gcWebhookStatus === 'test-fail' && '✗ Test failed -- check webhook URL'}
+                      {gcWebhookStatus === 'saved'     && 'âœ“ Saved'}
+                      {gcWebhookStatus === 'test-ok'   && 'âœ“ Test message sent'}
+                      {gcWebhookStatus === 'error'     && 'âœ— Failed to save'}
+                      {gcWebhookStatus === 'test-fail' && 'âœ— Test failed -- check webhook URL'}
                     </span>
                   )}
                 </div>
@@ -619,3 +621,13 @@ function SettingsIcon({ className }) {
     </svg>
   )
 }
+
+
+
+
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import useProfile from '../hooks/useProfile'
@@ -96,13 +96,15 @@ export default function ProfilePage() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed sm:relative inset-y-0 left-0 z-40 sm:z-auto flex-shrink-0 flex flex-col py-3 gap-1 transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0`}
+        className={`sidebar-frost fixed sm:relative inset-y-0 left-0 z-40 sm:z-auto flex-shrink-0 flex flex-col py-3 gap-1 transition-transform duration-[220ms] ease-[cubic-bezier(0.4,0,0.2,1)] ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0`}
         style={{
           width: expanded ? 240 : 80,
-          background: 'rgba(18,18,18,0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
+          background: 'transparent',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRight: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
+          borderRadius: 16,
           transition: 'transform 220ms cubic-bezier(0.4,0,0.2,1), width 220ms cubic-bezier(0.4,0,0.2,1)',
         }}
       >
@@ -135,7 +137,7 @@ export default function ProfilePage() {
                       onClick={() => setMobileSidebarOpen(false)}
                       className={({ isActive }) => [
                         'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                        isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                        isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                       ].join(' ')}
                       style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
                     >
@@ -168,7 +170,7 @@ export default function ProfilePage() {
                 to="/admin/settings"
                 className={({ isActive }) => [
                   'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                  isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                  isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                 ].join(' ')}
                 style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
               >
@@ -188,7 +190,7 @@ export default function ProfilePage() {
           <div className="mt-1 relative group">
             <button
               onClick={toggleSidebar}
-              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
+              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white hover:bg-white/[0.07]"
               style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
             >
               <svg
@@ -305,7 +307,7 @@ export default function ProfilePage() {
   )
 }
 
-// ─── Section components (unchanged) ──────────────────────────────────────────
+// â”€â”€â”€ Section components (unchanged) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function AvatarSection({ profile, showToast }) {
   const [avatarUrl, setAvatarUrl] = useState(profile?.avatar_url ?? null)
@@ -393,7 +395,7 @@ function AvatarSection({ profile, showToast }) {
               onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setEditingName(false); setName(profile?.full_name ?? '') } }}
             />
             <button onClick={saveName} disabled={savingName || !name.trim()} className="px-3 py-2 rounded-lg bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-              {savingName ? '…' : 'Save'}
+              {savingName ? 'â€¦' : 'Save'}
             </button>
             <button onClick={() => { setEditingName(false); setName(profile?.full_name ?? '') }} className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
               Cancel
@@ -477,14 +479,14 @@ function PasswordSection({ showToast }) {
           </div>
         </div>
         <button type="submit" disabled={disabled} className="w-full py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-          {saving ? 'Verifying…' : 'Update Password'}
+          {saving ? 'Verifyingâ€¦' : 'Update Password'}
         </button>
       </form>
     </div>
   )
 }
 
-// ─── Icons ────────────────────────────────────────────────────────────────────
+// â”€â”€â”€ Icons â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
 function HomeIcon({ className }) {
   return (
@@ -560,3 +562,13 @@ function EyeOffIcon() {
     </svg>
   )
 }
+
+
+
+
+
+
+
+
+
+

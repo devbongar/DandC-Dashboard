@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react'
+﻿import { useState, useRef, useEffect } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import useProfile from '../../hooks/useProfile'
 import ProjectPhasesBoard from '../../components/ProjectPhasesBoard'
@@ -67,13 +67,15 @@ export default function AdminDashboard() {
 
       {/* -- Sidebar -- */}
       <aside
-        className="flex-shrink-0 flex flex-col py-3 gap-1"
+        className="sidebar-frost flex-shrink-0 flex flex-col py-3 gap-1"
         style={{
           width: expanded ? 240 : 80,
-          background: 'rgba(18,18,18,0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
+          background: 'transparent',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRight: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
+          borderRadius: 16,
           transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
           zIndex: 1,
         }}
@@ -105,8 +107,8 @@ export default function AdminDashboard() {
                       className={({ isActive }) => [
                         'flex items-center w-full h-11 rounded-lg transition-all duration-150',
                         isActive
-                          ? 'bg-white/10 text-white'
-                          : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                          ? 'bg-[#ed6055] text-white'
+                          : 'text-white hover:bg-white/[0.07]',
                       ].join(' ')}
                       style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
                     >
@@ -138,7 +140,7 @@ export default function AdminDashboard() {
               to="/admin/settings"
               className={({ isActive }) => [
                 'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
               ].join(' ')}
               style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
             >
@@ -157,7 +159,7 @@ export default function AdminDashboard() {
           <div className="mt-1 relative group">
             <button
               onClick={toggleSidebar}
-              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
+              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white hover:bg-white/[0.07]"
               style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
             >
               <svg
@@ -325,3 +327,13 @@ function SettingsIcon({ className }) {
     </svg>
   )
 }
+
+
+
+
+
+
+
+
+
+

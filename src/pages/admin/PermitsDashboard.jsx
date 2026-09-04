@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+﻿import React, { useState, useEffect, useRef } from 'react'
 import { NavLink, useNavigate } from 'react-router-dom'
 import { supabase } from '../../lib/supabaseClient'
 import useProfile from '../../hooks/useProfile'
@@ -214,13 +214,15 @@ export default function PermitsDashboard() {
 
       {/* -- Sidebar -- */}
       <aside
-        className="flex-shrink-0 flex flex-col py-3 gap-1"
+        className="sidebar-frost flex-shrink-0 flex flex-col py-3 gap-1"
         style={{
           width: expanded ? 240 : 80,
-          background: 'rgba(18,18,18,0.92)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          borderRight: '1px solid rgba(255,255,255,0.08)',
+          background: 'transparent',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          borderRight: '1px solid rgba(255,255,255,0.18)',
+          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
+          borderRadius: 16,
           transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
           zIndex: 1,
         }}
@@ -252,7 +254,7 @@ export default function PermitsDashboard() {
                         to={item.path}
                         className={({ isActive }) => [
                           'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                          isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                          isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                         ].join(' ')}
                         style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
                       >
@@ -293,7 +295,7 @@ export default function PermitsDashboard() {
                             to={child.path}
                             className={({ isActive }) => [
                               'flex items-center w-full h-9 rounded-lg transition-all duration-150',
-                              isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                              isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
                             ].join(' ')}
                             style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 28 : 0 }}
                           >
@@ -325,7 +327,7 @@ export default function PermitsDashboard() {
               to="/admin/settings"
               className={({ isActive }) => [
                 'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                isActive ? 'bg-white/10 text-white' : 'text-white/40 hover:bg-white/[0.07] hover:text-white/75',
+                isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
               ].join(' ')}
               style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
             >
@@ -344,7 +346,7 @@ export default function PermitsDashboard() {
           <div className="mt-1 relative group">
             <button
               onClick={toggleSidebar}
-              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white/40 hover:bg-white/[0.07] hover:text-white/75"
+              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white hover:bg-white/[0.07]"
               style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
             >
               <svg
@@ -382,7 +384,7 @@ export default function PermitsDashboard() {
             </svg>
             <input
               type="text"
-              placeholder="Search permits or projects…"
+              placeholder="Search permits or projectsâ€¦"
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
@@ -438,7 +440,7 @@ export default function PermitsDashboard() {
                     </svg>
                     <input
                       type="text"
-                      placeholder="Search…"
+                      placeholder="Searchâ€¦"
                       value={projectSearch}
                       onChange={e => setProjectSearch(e.target.value)}
                       className="w-full pl-6 pr-2 py-1 text-xs rounded-lg bg-gray-100 border-none outline-none focus:ring-1 focus:ring-[#ed6055]"
@@ -902,7 +904,7 @@ export default function PermitsDashboard() {
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
                   </svg>
                   <div className="min-w-0">
-                    <span className="text-xs font-medium text-red-700 truncate block">{p.permitId || '(no ID)'}{p.permitName ? ` — ${p.permitName}` : ''}</span>
+                    <span className="text-xs font-medium text-red-700 truncate block">{p.permitId || '(no ID)'}{p.permitName ? ` â€” ${p.permitName}` : ''}</span>
                     <span className="text-[10px] text-red-400">{p.reason}</span>
                   </div>
                 </div>
@@ -927,7 +929,7 @@ export default function PermitsDashboard() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                    Importing…
+                    Importingâ€¦
                   </>
                 ) : (
                   <>Import {importPreview.valid.length} {importPreview.valid.length === 1 ? 'permit' : 'permits'}</>
@@ -1040,3 +1042,13 @@ function SettingsIcon({ className }) {
     </svg>
   )
 }
+
+
+
+
+
+
+
+
+
+
