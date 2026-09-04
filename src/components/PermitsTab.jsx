@@ -132,23 +132,25 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
               <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.25)', width: 100, height: 100, top: '10%',  right: '-8%'  }} />
               {/* Spacer: header (56px) + escaped p-4 (16px) + safe area */}
               <div className="flex-shrink-0" style={{ height: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }} />
-              <div className="relative flex items-center justify-between w-full" style={{ height: 135, overflow: 'hidden' }}>
-              {/* Left */}
-              <div className="flex flex-col justify-around h-full z-10 pl-5 pt-0 pb-4">
-                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Total Permits Acquired</span>
+              {/* Tab name */}
+              <div className="relative z-10 pl-5">
+                <span className="text-2xl font-bold text-white tracking-wide">Permits</span>
+              </div>
+              {/* Numbers row — aligned */}
+              <div className="relative flex items-baseline justify-between w-full z-10 pl-5 pr-5 pt-1 flex-1">
                 <div className="flex items-baseline gap-1">
                   <span className="text-5xl font-medium text-white leading-none tabular-nums">{counts.acquired}</span>
                   <span className="text-2xl font-medium text-white/60 leading-none tabular-nums">/ {permits.length}</span>
                 </div>
-              </div>
-              {/* Right */}
-              <div className="flex flex-col items-end justify-center h-full z-10 pr-5 py-4">
                 <span className="text-4xl font-medium text-white leading-none tabular-nums">
                   {permits.length > 0 ? Math.round((counts.acquired / permits.length) * 100) : 0}%
                 </span>
-                <span className="text-[10px] text-white/60 mt-1 uppercase tracking-widest">Acquired</span>
               </div>
-            </div>{/* end inner 135px row */}
+              {/* Label row — below numbers */}
+              <div className="relative flex items-center justify-between w-full z-10 pl-5 pr-5 pb-4 pt-1">
+                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Total Permits Acquired</span>
+                <span className="text-[10px] text-white/60 uppercase tracking-widest">Acquired</span>
+              </div>
             </div>{/* end outer info section */}
             {/* Status buttons section — 25% height */}
             <div className="flex items-stretch w-full" style={{ height: 52, background: '#c94a3f', gap: 2 }}>

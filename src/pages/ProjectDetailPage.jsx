@@ -430,6 +430,16 @@ export default function ProjectDetailPage() {
             {/* Safe area spacer — pushes header content below iOS status bar on mobile */}
             <div className="sm:hidden flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
             <div className="flex items-center h-14 px-5 gap-4">
+            {/* Back button — mobile only */}
+            <button
+              className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg flex-shrink-0 text-white hover:bg-white/10 active:scale-90 transition-all"
+              onClick={() => navigate('/projects')}
+              aria-label="Back"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
             {section !== null && (
               <span className={`text-lg font-bold text-gray-800 tracking-wide truncate ${section === 'Permits' ? 'hidden sm:block' : ''}`}>{project.name}</span>
             )}
@@ -585,12 +595,10 @@ export default function ProjectDetailPage() {
               <>
                 {/* Mobile search toggle */}
                 <button
-                  className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg border transition-all flex-shrink-0"
+                  className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg transition-all flex-shrink-0"
                   style={{
-                    background: mobileSearchOpen ? '#fff' : '#f9fafb',
-                    borderColor: mobileSearchOpen ? '#ed6055' : '#e5e7eb',
-                    color: mobileSearchOpen ? '#ed6055' : '#6b7280',
-                    boxShadow: mobileSearchOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                    background: mobileSearchOpen ? 'rgba(255,255,255,0.2)' : 'transparent',
+                    color: mobileSearchOpen ? '#fff' : 'rgba(255,255,255,0.75)',
                   }}
                   onClick={() => setMobileSearchOpen(v => !v)}
                   aria-label="Search"
@@ -804,12 +812,10 @@ export default function ProjectDetailPage() {
               <>
                 {/* Mobile search toggle */}
                 <button
-                  className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg border transition-all flex-shrink-0"
+                  className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg transition-all flex-shrink-0"
                   style={{
-                    background: mobileSearchOpen ? '#fff' : '#f9fafb',
-                    borderColor: mobileSearchOpen ? '#ed6055' : '#e5e7eb',
-                    color: mobileSearchOpen ? '#ed6055' : '#6b7280',
-                    boxShadow: mobileSearchOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                    background: mobileSearchOpen ? 'rgba(255,255,255,0.2)' : 'transparent',
+                    color: mobileSearchOpen ? '#fff' : 'rgba(255,255,255,0.75)',
                   }}
                   onClick={() => setMobileSearchOpen(v => !v)}
                   aria-label="Search"
@@ -886,12 +892,10 @@ export default function ProjectDetailPage() {
                 <div className="relative flex-shrink-0" ref={actionsPopRef}>
                   <button
                     onClick={() => setPermitsActionsOpen(v => !v)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                    className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
                     style={{
-                      background: permitsActionsOpen ? '#fff' : '#f9fafb',
-                      borderColor: permitsActionsOpen ? '#ed6055' : '#e5e7eb',
-                      color: permitsActionsOpen ? '#ed6055' : '#6b7280',
-                      boxShadow: permitsActionsOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+                      background: permitsActionsOpen ? 'rgba(255,255,255,0.2)' : 'transparent',
+                      color: permitsActionsOpen ? '#fff' : 'rgba(255,255,255,0.75)',
                     }}
                   >
                     <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -965,8 +969,8 @@ export default function ProjectDetailPage() {
 
             <NotificationBell userId={profile?.id} />
 
-            {/* User menu */}
-            <div className="relative flex-shrink-0">
+            {/* User menu — hidden on mobile */}
+            <div className="relative flex-shrink-0 hidden sm:block">
               <button
                 onClick={() => setMenuOpen(v => !v)}
                 className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-gray-100 transition"
