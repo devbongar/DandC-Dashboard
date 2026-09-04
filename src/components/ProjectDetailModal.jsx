@@ -681,7 +681,7 @@ function OverviewDetailItem({ label, value, icon }) {
 const OVERVIEW_TABS = [
   {
     key: 'Work Program', label: 'Work Program',
-    gradient: 'radial-gradient(circle at 78% 25%, rgba(255,255,255,.16), transparent 30%), linear-gradient(115deg, #a951d0 0%, #9842cf 45%, #7f39bd 100%)',
+    gradient: 'radial-gradient(circle at 78% 25%, rgba(255,255,255,.16), transparent 30%), linear-gradient(115deg, rgba(169,81,208,0.72) 0%, rgba(152,66,207,0.78) 45%, rgba(127,57,189,0.82) 100%)',
     deco: (
       <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
         <g transform="rotate(-8 170 150)">
@@ -697,7 +697,7 @@ const OVERVIEW_TABS = [
   },
   {
     key: 'Permits', label: 'Permits',
-    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.18), transparent 35%), linear-gradient(115deg, #2999df 0%, #168ce0 50%, #1775ce 100%)',
+    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.18), transparent 35%), linear-gradient(115deg, rgba(41,153,223,0.72) 0%, rgba(22,140,224,0.78) 50%, rgba(23,117,206,0.82) 100%)',
     deco: (
       <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
         <rect x="115" y="25" width="145" height="240" rx="14" fill="rgba(255,255,255,.35)"/>
@@ -712,7 +712,7 @@ const OVERVIEW_TABS = [
   },
   {
     key: 'S-Curve', label: 'S-Curve',
-    gradient: 'radial-gradient(circle at 85% 30%, rgba(255,255,255,.13), transparent 35%), linear-gradient(115deg, #32c89d 0%, #13b58d 50%, #11a57f 100%)',
+    gradient: 'radial-gradient(circle at 85% 30%, rgba(255,255,255,.13), transparent 35%), linear-gradient(115deg, rgba(50,200,157,0.72) 0%, rgba(19,181,141,0.78) 50%, rgba(17,165,127,0.82) 100%)',
     deco: (
       <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
         <g stroke="rgba(255,255,255,.35)" strokeWidth="2">
@@ -734,7 +734,7 @@ const OVERVIEW_TABS = [
   },
   {
     key: 'Unit Completion', label: 'Unit Completion',
-    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.18), transparent 35%), linear-gradient(115deg, #ffb52b 0%, #ffa817 50%, #ff9d0e 100%)',
+    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.18), transparent 35%), linear-gradient(115deg, rgba(255,181,43,0.72) 0%, rgba(255,168,23,0.78) 50%, rgba(255,157,14,0.82) 100%)',
     deco: (
       <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
         <rect x="55" y="55" width="120" height="245" rx="5" fill="rgba(255,255,255,.48)"/>
@@ -752,7 +752,7 @@ const OVERVIEW_TABS = [
   },
   {
     key: 'Photos', label: 'Photos',
-    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.14), transparent 35%), linear-gradient(115deg, #5790e8 0%, #3475dc 50%, #2864d0 100%)',
+    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.14), transparent 35%), linear-gradient(115deg, rgba(87,144,232,0.72) 0%, rgba(52,117,220,0.78) 50%, rgba(40,100,208,0.82) 100%)',
     deco: (
       <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
         <rect x="35" y="55" width="185" height="145" rx="16" fill="rgba(255,255,255,.25)" transform="rotate(-8 35 55)"/>
@@ -767,7 +767,7 @@ const OVERVIEW_TABS = [
   },
   {
     key: 'Issues & Concerns', label: 'Issues &\nConcerns',
-    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.15), transparent 35%), linear-gradient(115deg, #f85b91 0%, #f24983 50%, #ed3e76 100%)',
+    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.15), transparent 35%), linear-gradient(115deg, rgba(248,91,145,0.72) 0%, rgba(242,73,131,0.78) 50%, rgba(237,62,118,0.82) 100%)',
     deco: (
       <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
         <path d="M90 70 Q90 45 115 45 H250 Q275 45 275 70 V180 Q275 205 250 205 H170 L125 240 V205 H115 Q90 205 90 180 Z" fill="rgba(255,255,255,.2)"/>
@@ -1145,7 +1145,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
                   key={tab.key}
                   onClick={() => onSectionChange(tab.key)}
                   className="tab-card relative overflow-hidden rounded-2xl text-left"
-                  style={{ height: 120, background: tab.gradient, boxShadow: '0 8px 24px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset', animationDelay: `${i * 0.06}s` }}
+                  style={{ height: 120, background: tab.gradient, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: '1px solid rgba(255,255,255,0.25)', boxShadow: '0 8px 24px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset', animationDelay: `${i * 0.06}s` }}
                 >
                   {/* decorative lines */}
                   <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.18 }}>
