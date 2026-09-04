@@ -679,12 +679,104 @@ function OverviewDetailItem({ label, value, icon }) {
 // -- Overview Tab -------------------------------------------------------------
 
 const OVERVIEW_TABS = [
-  { key: 'Work Program',      label: 'Work Program',      icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg> },
-  { key: 'Permits',           label: 'Permits',            icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg> },
-  { key: 'S-Curve',           label: 'S-Curve',            icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M7 12c0-2.5 2-4 4-2s4 .5 4-2M3 20h18M3 4h18" /></svg> },
-  { key: 'Unit Completion',   label: 'Unit Completion',    icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg> },
-  { key: 'Photos',            label: 'Photos',             icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> },
-  { key: 'Issues & Concerns', label: 'Issues & Concerns',  icon: <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg> },
+  {
+    key: 'Work Program', label: 'Work Program',
+    gradient: 'radial-gradient(circle at 78% 25%, rgba(255,255,255,.16), transparent 30%), linear-gradient(115deg, #a951d0 0%, #9842cf 45%, #7f39bd 100%)',
+    deco: (
+      <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
+        <g transform="rotate(-8 170 150)">
+          <rect x="95" y="25" width="175" height="270" rx="16" fill="rgba(255,255,255,.85)"/>
+          <rect x="125" y="70" width="100" height="9" rx="5" fill="#9a4acb" opacity=".45"/>
+          <rect x="125" y="95" width="125" height="9" rx="5" fill="#9a4acb" opacity=".35"/>
+          <rect x="125" y="135" width="75" height="16" rx="7" fill="#9a4acb" opacity=".75"/>
+          <rect x="125" y="165" width="110" height="16" rx="7" fill="#9a4acb" opacity=".65"/>
+          <rect x="125" y="195" width="65" height="16" rx="7" fill="#9a4acb" opacity=".55"/>
+        </g>
+      </svg>
+    ),
+  },
+  {
+    key: 'Permits', label: 'Permits',
+    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.18), transparent 35%), linear-gradient(115deg, #2999df 0%, #168ce0 50%, #1775ce 100%)',
+    deco: (
+      <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
+        <rect x="115" y="25" width="145" height="240" rx="14" fill="rgba(255,255,255,.35)"/>
+        <rect x="140" y="65" width="80" height="8" rx="4" fill="rgba(255,255,255,.5)"/>
+        <rect x="140" y="88" width="100" height="8" rx="4" fill="rgba(255,255,255,.4)"/>
+        <rect x="140" y="111" width="70" height="8" rx="4" fill="rgba(255,255,255,.4)"/>
+        <path d="M150 80 L265 120 V190 C265 240 225 270 150 295 C75 270 35 240 35 190 V120 Z" fill="rgba(255,255,255,.78)"/>
+        <path d="M150 105 L240 135 V185 C240 220 210 242 150 265 C90 242 60 220 60 185 V135 Z" fill="rgba(255,255,255,.18)"/>
+        <path d="M85 175 L125 215 L215 125" fill="none" stroke="#268ad8" strokeWidth="16" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    key: 'S-Curve', label: 'S-Curve',
+    gradient: 'radial-gradient(circle at 85% 30%, rgba(255,255,255,.13), transparent 35%), linear-gradient(115deg, #32c89d 0%, #13b58d 50%, #11a57f 100%)',
+    deco: (
+      <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
+        <g stroke="rgba(255,255,255,.35)" strokeWidth="2">
+          <line x1="35" y1="40" x2="35" y2="260"/><line x1="75" y1="40" x2="75" y2="260"/>
+          <line x1="115" y1="40" x2="115" y2="260"/><line x1="155" y1="40" x2="155" y2="260"/>
+          <line x1="195" y1="40" x2="195" y2="260"/><line x1="235" y1="40" x2="235" y2="260"/>
+          <line x1="35" y1="50" x2="260" y2="50"/><line x1="35" y1="90" x2="260" y2="90"/>
+          <line x1="35" y1="130" x2="260" y2="130"/><line x1="35" y1="170" x2="260" y2="170"/>
+          <line x1="35" y1="210" x2="260" y2="210"/><line x1="35" y1="250" x2="260" y2="250"/>
+        </g>
+        <path d="M30 245 C65 240 80 220 105 195 C125 175 135 180 155 145 C175 110 195 100 215 95 C235 90 250 75 270 50" fill="none" stroke="rgba(255,255,255,.9)" strokeWidth="8" strokeLinecap="round"/>
+        <circle cx="30" cy="245" r="9" fill="white"/>
+        <circle cx="105" cy="195" r="9" fill="white"/>
+        <circle cx="155" cy="145" r="9" fill="white"/>
+        <circle cx="215" cy="95" r="9" fill="white"/>
+        <circle cx="270" cy="50" r="9" fill="white"/>
+      </svg>
+    ),
+  },
+  {
+    key: 'Unit Completion', label: 'Unit Completion',
+    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.18), transparent 35%), linear-gradient(115deg, #ffb52b 0%, #ffa817 50%, #ff9d0e 100%)',
+    deco: (
+      <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
+        <rect x="55" y="55" width="120" height="245" rx="5" fill="rgba(255,255,255,.48)"/>
+        <polygon points="175,55 225,75 225,300 175,300" fill="rgba(255,255,255,.28)"/>
+        <g fill="rgba(255,255,255,.6)">
+          <rect x="75" y="80" width="18" height="18"/><rect x="115" y="80" width="18" height="18"/>
+          <rect x="75" y="120" width="18" height="18"/><rect x="115" y="120" width="18" height="18"/>
+          <rect x="75" y="160" width="18" height="18"/><rect x="115" y="160" width="18" height="18"/>
+          <rect x="75" y="200" width="18" height="18"/><rect x="115" y="200" width="18" height="18"/>
+        </g>
+        <circle cx="210" cy="205" r="70" fill="rgba(255,255,255,.78)"/>
+        <path d="M170 205 L198 233 L250 170" fill="none" stroke="#f5a018" strokeWidth="15" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+    ),
+  },
+  {
+    key: 'Photos', label: 'Photos',
+    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.14), transparent 35%), linear-gradient(115deg, #5790e8 0%, #3475dc 50%, #2864d0 100%)',
+    deco: (
+      <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
+        <rect x="35" y="55" width="185" height="145" rx="16" fill="rgba(255,255,255,.25)" transform="rotate(-8 35 55)"/>
+        <rect x="55" y="70" width="190" height="155" rx="16" fill="rgba(255,255,255,.82)"/>
+        <path d="M65 195 L115 135 L150 165 L180 130 L230 195 Z" fill="#3975d5" opacity=".65"/>
+        <circle cx="195" cy="105" r="18" fill="#3975d5" opacity=".55"/>
+        <rect x="135" y="190" width="115" height="75" rx="18" fill="rgba(255,255,255,.95)"/>
+        <circle cx="193" cy="227" r="24" fill="#3975d5"/>
+        <rect x="165" y="180" width="35" height="15" rx="5" fill="white"/>
+      </svg>
+    ),
+  },
+  {
+    key: 'Issues & Concerns', label: 'Issues &\nConcerns',
+    gradient: 'radial-gradient(circle at 80% 30%, rgba(255,255,255,.15), transparent 35%), linear-gradient(115deg, #f85b91 0%, #f24983 50%, #ed3e76 100%)',
+    deco: (
+      <svg viewBox="0 0 300 300" className="absolute" style={{ right: 8, top: '50%', transform: 'translateY(-50%)', width: 80, height: 80, opacity: 0.78 }}>
+        <path d="M90 70 Q90 45 115 45 H250 Q275 45 275 70 V180 Q275 205 250 205 H170 L125 240 V205 H115 Q90 205 90 180 Z" fill="rgba(255,255,255,.2)"/>
+        <path d="M30 45 Q30 20 55 20 H220 Q245 20 245 45 V165 Q245 190 220 190 H125 L75 235 V190 H55 Q30 190 30 165 Z" fill="rgba(255,255,255,.76)"/>
+        <rect x="128" y="65" width="18" height="65" rx="9" fill="#e83f77"/>
+        <circle cx="137" cy="153" r="11" fill="#e83f77"/>
+      </svg>
+    ),
+  },
 ]
 
 function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false, onSectionChange }) {
@@ -1027,17 +1119,49 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         {/* Tab shortcuts */}
         {onSectionChange && (
           <div className="px-8 py-5 border-t border-gray-100">
+            <style>{`
+              @keyframes tabCardIn {
+                from { opacity: 0; transform: translateY(14px) scale(0.97); }
+                to   { opacity: 1; transform: translateY(0)   scale(1); }
+              }
+              .tab-card {
+                animation: tabCardIn 0.35s cubic-bezier(0.23,1,0.32,1) backwards;
+                transition: transform 0.22s cubic-bezier(0.23,1,0.32,1),
+                            box-shadow 0.22s cubic-bezier(0.23,1,0.32,1);
+              }
+              .tab-card:hover {
+                transform: translateY(-5px) scale(1.05);
+                box-shadow: 0 20px 48px rgba(0,0,0,0.32), 0 8px 16px rgba(0,0,0,0.12), 0 1px 0 rgba(255,255,255,0.4) inset, 0 -1px 0 rgba(0,0,0,0.2) inset !important;
+              }
+              .tab-card:active {
+                transform: translateY(-1px) scale(0.97) !important;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.15) inset !important;
+              }
+            `}</style>
             <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">Sections</p>
-            <div className="grid grid-cols-2 gap-2">
-              {OVERVIEW_TABS.map(tab => (
+            <div className="grid grid-cols-2 gap-3">
+              {OVERVIEW_TABS.map((tab, i) => (
                 <button
                   key={tab.key}
                   onClick={() => onSectionChange(tab.key)}
-                  className="flex flex-col items-center justify-center gap-2 rounded-2xl bg-gray-50 hover:bg-red-50 hover:text-[#ed6055] border border-gray-100 hover:border-red-100 text-gray-600 transition-colors duration-150 active:scale-[0.97]"
-                  style={{ height: 88 }}
+                  className="tab-card relative overflow-hidden rounded-2xl text-left"
+                  style={{ height: 120, background: tab.gradient, boxShadow: '0 8px 24px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset', animationDelay: `${i * 0.06}s` }}
                 >
-                  {tab.icon}
-                  <span className="text-xs font-semibold leading-tight text-center">{tab.label}</span>
+                  {/* decorative lines */}
+                  <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.18 }}>
+                    <div className="absolute bg-white rounded-lg" style={{ height: 5, width: 44, top: 16, left: 20 }} />
+                    <div className="absolute bg-white rounded-lg" style={{ height: 5, width: 112, top: 27, left: 20 }} />
+                    <div className="absolute bg-white rounded-lg" style={{ height: 5, width: 28, bottom: 20, left: 20 }} />
+                    <div className="absolute bg-white rounded-lg" style={{ height: 5, width: 68, bottom: 33, left: 52 }} />
+                  </div>
+                  {/* sparkle */}
+                  <span className="absolute text-white" style={{ opacity: 0.35, fontSize: 18, top: 16, right: 108 }}>✦</span>
+                  {/* title */}
+                  <div className="absolute inset-0 flex flex-col justify-center px-5" style={{ zIndex: 20 }}>
+                    <span className="text-white drop-shadow" style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.5px', maxWidth: '58%', whiteSpace: 'pre-line' }}>{tab.label}</span>
+                  </div>
+                  {/* illustration */}
+                  {tab.deco}
                 </button>
               ))}
             </div>
