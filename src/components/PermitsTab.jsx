@@ -111,9 +111,59 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
     <div className="bg-gray-200">
       <div className="p-4 sm:p-6 max-w-7xl mx-auto space-y-5">
 
+        {/* Mobile permits summary card (weather-card style) */}
+        {permits.length > 0 && (
+          <div className="sm:hidden rounded-3xl overflow-hidden" style={{ boxShadow: 'rgba(0,0,0,0.15) 2px 3px 8px' }}>
+            {/* Info section — 75% height */}
+            <div className="relative flex items-center justify-between w-full" style={{ height: 135, background: '#ed6055', overflow: 'hidden' }}>
+              {/* Circle decorations */}
+              <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 300, height: 300, top: '-80%', right: '-50%' }} />
+              <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 210, height: 210, top: '-70%', right: '-30%' }} />
+              <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.25)', width: 100, height: 100, top: '-35%', right: '-8%'  }} />
+              {/* Left */}
+              <div className="flex flex-col justify-around h-full z-10 pl-5 py-4">
+                <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Total Permits Acquired</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-5xl font-medium text-white leading-none tabular-nums">{counts.acquired}</span>
+                  <span className="text-2xl font-medium text-white/60 leading-none tabular-nums">/ {permits.length}</span>
+                </div>
+              </div>
+              {/* Right */}
+              <div className="flex flex-col items-end justify-center h-full z-10 pr-5 py-4">
+                <span className="text-4xl font-medium text-white leading-none tabular-nums">
+                  {permits.length > 0 ? Math.round((counts.acquired / permits.length) * 100) : 0}%
+                </span>
+                <span className="text-[10px] text-white/60 mt-1 uppercase tracking-widest">Acquired</span>
+              </div>
+            </div>
+            {/* Status buttons section — 25% height */}
+            <div className="flex items-stretch w-full" style={{ height: 52, background: '#c94a3f', gap: 2 }}>
+              {[
+                { label: 'Pending',     key: 'pending',    filterKey: 'pending'     },
+                { label: 'In Progress', key: 'inProgress', filterKey: 'in-progress' },
+                { label: 'Overdue',     key: 'overdue',    filterKey: 'overdue'     },
+                { label: 'With Issue',  key: 'withIssues', filterKey: 'with-issues' },
+              ].map(s => {
+                const active = filterStatus === s.filterKey
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => onFilterStatusChange?.(active ? 'all' : s.filterKey)}
+                    className="flex flex-col items-center justify-center flex-1 h-full transition-all duration-100 active:scale-90 active:rounded-xl"
+                    style={{ background: active ? '#9c3a30' : '#b8453a', boxShadow: 'inset 0px 2px 5px #c94a3f' }}
+                  >
+                    <span className="text-white font-bold leading-none tabular-nums" style={{ fontSize: 15 }}>{counts[s.key]}</span>
+                    <span className="text-white/70 font-medium leading-none mt-0.5" style={{ fontSize: 8 }}>{s.label}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Summary cards */}
         {permits.length > 0 && (
-          <div className="relative -mx-4 sm:mx-0">
+          <div className="hidden sm:block relative sm:-mx-0 -mx-4">
             <div
               ref={cardScrollRef}
               onScroll={() => setCardScrollPos(cardScrollRef.current?.scrollLeft ?? 0)}
