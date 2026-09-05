@@ -419,12 +419,12 @@ export default function ProjectDetailPage() {
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
 
           {/* Header â€” transparent + sticky on Project Info so cover photo shows through */}
           <header
-            className={`flex flex-col ${section === null || section === 'Permits' ? 'sticky top-0 z-10 sm:static sm:z-auto' : ''}`}
-            style={{ background: 'transparent' }}
+            className={`flex flex-col ${section === null ? 'sticky top-0 z-10 sm:fixed sm:top-0 sm:left-0 sm:right-0 sm:z-[15]' : section === 'Permits' ? 'sticky top-0 z-10 sm:sticky sm:top-0 sm:z-20' : ''}`}
+            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0) 100%)' }}
           >
             {/* Safe area spacer â€” pushes header content below iOS status bar on mobile */}
             <div className="sm:hidden flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
@@ -1016,6 +1016,9 @@ export default function ProjectDetailPage() {
             </div>
             </div>{/* end content row */}
           </header>
+
+          {/* Spacer for fixed header on Project Info desktop */}
+          {section === null && <div className="hidden sm:block flex-shrink-0 h-14" />}
 
           {/* Mobile search expansion row */}
           {mobileSearchOpen && (section === 'Photos' || section === 'Issues & Concerns' || section === 'Permits') && (

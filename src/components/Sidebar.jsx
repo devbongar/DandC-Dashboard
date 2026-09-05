@@ -77,6 +77,7 @@ export default function Sidebar({ profile, open, onClose }) {
           borderRight: '1px solid rgba(255,255,255,0.18)',
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
           borderRadius: 16,
+          isolation: 'isolate',
         }}
       >
         {/* Safe-area spacer -- clears iOS status bar on PWA */}

@@ -1017,31 +1017,54 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 
   return (
-    <div className="min-h-full flex flex-col sm:h-full sm:flex-row sm:overflow-hidden [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      {/* Cover photo: top on mobile, left half on desktop */}
-      <div className="w-full h-[17rem] flex-shrink-0 overflow-hidden bg-gray-100 sm:h-full sm:w-1/2">
+    <div className="relative min-h-full flex flex-col overflow-hidden rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      {/* Cover photo: full width on top, in front */}
+      <div className="w-full h-[70vh] flex-shrink-0 overflow-hidden bg-gray-100 relative z-0 rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-2xl">
         <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} />
-      </div>
-
-      {/* Content panel: natural height on mobile, fill+scroll on desktop */}
-      <div className="flex-1 min-w-0 flex flex-col sm:overflow-y-auto bg-white relative z-10 rounded-t-3xl sm:rounded-none -mt-8 sm:mt-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]" style={{ boxShadow: '-16px 0 48px rgba(0,0,0,0.14)' }}>
-
-        {/* Hero: phase badge + project name + subtitle */}
-        <div className="px-8 pt-8 pb-6 border-b border-gray-100" style={{ animation: 'fade-in-up 220ms ease-out both' }}>
+        {/* Dark gradient — top (header fade) */}
+        <div className="absolute inset-x-0 top-0 pointer-events-none" style={{ height: '8rem', background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)' }} />
+        {/* Dark gradient — bottom */}
+        <div className="absolute inset-x-0 bottom-0 pointer-events-none" style={{ height: '40vh', background: 'linear-gradient(to top, rgb(0,0,0) 0%, rgba(0,0,0,0.7) 40%, transparent 100%)' }} />
+        {/* Project name + phase badge — lower-left of photo */}
+        <div className="absolute bottom-0 left-0 px-8 pb-8 pointer-events-none" style={{ animation: 'fade-in-up 220ms ease-out both' }}>
           {project.phase && PHASE_MAP[project.phase] && (
-            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border transition-shadow duration-200 hover:shadow-sm ${PHASE_MAP[project.phase].badge}`}>
+            <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border mb-3 ${PHASE_MAP[project.phase].badge}`}>
               {PHASE_MAP[project.phase].label}
             </span>
           )}
-          <h2 className="mt-3 text-2xl sm:text-[28px] font-light tracking-[0.18em] uppercase leading-snug text-gray-900">
+          <h2 className="text-2xl sm:text-[28px] font-semibold tracking-[0.18em] uppercase leading-snug text-white drop-shadow-lg">
             {project.name || 'Untitled Project'}
           </h2>
           {(project.project_code || project.business_unit) && (
-            <p className="mt-2 text-[11px] tracking-[0.14em] uppercase font-medium text-gray-400">
-              {[project.project_code, formatBU(project.business_unit)].filter(Boolean).join(' Â· ')}
+            <p className="mt-2 text-[11px] tracking-[0.14em] uppercase font-medium text-white/60">
+              {[project.project_code, formatBU(project.business_unit)].filter(Boolean).join(' · ')}
             </p>
           )}
+          {/* Location · Dev Type · Lot Area · Developable Area — row 1 */}
+          {(() => {
+            const items = [
+              [project.city, project.province].filter(Boolean).join(', '),
+              project.development_type ? (project.development_type === 'housing' ? 'Housing' : 'Condominium') : null,
+              project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : null,
+              project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : null,
+            ].filter(Boolean)
+            return items.length > 0 ? (
+              <p className="mt-3 text-[11px] text-white/50 flex flex-wrap gap-x-3">
+                {items.map((item, i) => (
+                  <span key={i} className="flex items-center gap-x-3">
+                    {i > 0 && <span className="text-white/25">·</span>}
+                    {item}
+                  </span>
+                ))}
+              </p>
+            ) : null
+          })()}
         </div>
+      </div>
+
+      {/* Content panel: below cover photo */}
+      <div className="flex-1 flex flex-col bg-white relative z-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+
 
         {/* Brief */}
         {project.project_brief && (
@@ -1050,29 +1073,6 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           </div>
         )}
 
-        {/* Details grid */}
-        <div className="px-8 py-6 grid grid-cols-2 gap-x-8 gap-y-5" style={{ animation: 'fade-in-up 220ms 120ms ease-out both' }}>
-          <OverviewDetailItem
-            label="Location"
-            value={[project.city, project.province].filter(Boolean).join(', ')}
-            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>}
-          />
-          <OverviewDetailItem
-            label="Development Type"
-            value={project.development_type ? (project.development_type === 'housing' ? 'Housing' : 'Condominium') : null}
-            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>}
-          />
-          <OverviewDetailItem
-            label="Lot Area"
-            value={project.lot_area != null ? `${Number(project.lot_area).toLocaleString()} sqm` : null}
-            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>}
-          />
-          <OverviewDetailItem
-            label="Developable Area"
-            value={project.developable_area != null ? `${Number(project.developable_area).toLocaleString()} sqm` : null}
-            icon={<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>}
-          />
-        </div>
 
         {/* Development Scale */}
         {(project.num_towers != null || project.floors_per_tower != null || project.units_per_floor != null || project.total_units != null) && (() => {
@@ -1116,9 +1116,9 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           </div>
         )}
 
-        {/* Tab shortcuts */}
+        {/* Tab shortcuts — mobile only (desktop uses sidebar nav) */}
         {onSectionChange && (
-          <div className="px-8 py-5 border-t border-gray-100">
+          <div className="sm:hidden px-8 py-5 border-t border-gray-100">
             <style>{`
               @keyframes tabCardIn {
                 from { opacity: 0; transform: translateY(14px) scale(0.97); }
@@ -5719,8 +5719,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 
         {/* Content */}
         {activeSection === null ? (
-          <div key="home" className={`flex-1 overflow-hidden ${asPage ? '-mt-14 sm:mt-0' : ''}`} style={{ animation: 'fade-in 180ms ease-out both' }}>
-            <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} onSectionChange={asPage ? navigate : undefined} />
+          <div key="home" className={`flex-1 overflow-hidden flex flex-col items-center ${asPage ? '-mt-14 sm:-mt-14' : ''}`} style={{ animation: 'fade-in 180ms ease-out both' }}>
+            <div className="w-full max-w-6xl flex-1 flex flex-col min-h-0">
+              <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} onSectionChange={asPage ? navigate : undefined} />
+            </div>
           </div>
         ) : activeSection === 'Work Program' ? (
           <div key="Work Program" className="flex-1 overflow-hidden flex flex-col section-slide-in">
