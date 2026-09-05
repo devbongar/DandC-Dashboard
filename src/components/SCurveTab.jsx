@@ -1156,7 +1156,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     : null
 
   return (
-    <div ref={containerRef} className="h-full flex flex-col overflow-hidden px-4 sm:px-8 pt-3 sm:pt-4 pb-20 gap-3">
+    <div ref={containerRef} className="flex flex-col overflow-hidden px-4 sm:px-8 pt-3 sm:pt-4 pb-6 gap-3 min-h-[calc(100vh-60px)]">
 
       {/* Toolbar: hidden file inputs only */}
       <div className="flex-shrink-0 flex items-center gap-3 flex-wrap">
@@ -1180,8 +1180,22 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               </svg>
             </button>
           </div>
+          {/* Lines row */}
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Lines</span>
+            <BaselineMultiSelect
+              baselines={baselines}
+              selectedIds={selectedBaselineIds}
+              onChange={setSelectedBaselineIds}
+              colors={baselines.map((b, i) => blColor(b.id, i))}
+              extras={[
+                { label: 'Actual',   color: actualColor,   checked: showActual,   onToggle: () => setShowActual(v => !v)   },
+                { label: 'Forecast', color: forecastColor, checked: showForecast, onToggle: () => setShowForecast(v => !v) },
+              ]}
+            />
+          </div>
           {/* View controls row */}
-          <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex items-center gap-2 flex-wrap border-t border-gray-200 pt-3">
             <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mr-1">Display</span>
             {['monthly', 'quarterly'].map(mode => (
               <button key={mode} onClick={() => setViewMode(mode)}
@@ -1579,6 +1593,72 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         </div>
       )}
 
+      {/* Summary cards — top row */}
+      {(summaryActual != null || summaryPlanned != null) && (() => {
+        const varColor = summaryVariance == null ? '#9ca3af' : summaryVariance >= 0 ? '#16a34a' : '#dc2626'
+        const cards = [
+          {
+            label: 'Actual POC', value: summaryActual, accent: actualColor, sublabel: null,
+            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l4-4 4 4 4-6 4 2" /></svg>,
+          },
+          {
+            label: 'Planned POC', value: summaryPlanned, accent: blColor(refBaseline?.id, 0), sublabel: refBaseline?.name,
+            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><rect x="3" y="4" width="18" height="18" rx="2" /><path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" /></svg>,
+          },
+          {
+            label: 'Variance', value: summaryVariance, accent: varColor, sublabel: 'vs planned today', semantic: true,
+            icon: summaryVariance == null || summaryVariance >= 0
+              ? <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-5 4 4 9-9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 7h5v5" /></svg>
+              : <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7l5 5 4-4 9 9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5v-5" /></svg>,
+          },
+          {
+            label: '', value: null, accent: '#9ca3af', sublabel: null, placeholder: true,
+            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 8v4l3 3" /></svg>,
+          },
+        ]
+        return (
+          <div className="flex-shrink-0 flex flex-row gap-3">
+          {cards.map(card => (
+            <div key={card.label || 'placeholder'}
+              className="flex-1 rounded-xl border px-4 py-3 flex flex-row items-center gap-3 overflow-hidden"
+              style={{
+                borderColor: '#e5e7eb',
+                borderLeftColor: card.accent,
+                borderLeftWidth: 3,
+                background: '#ffffff',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+              }}
+            >
+              {/* Text content */}
+              <div className="flex flex-col justify-center gap-1.5 flex-1 min-w-0">
+                <span className="text-[10px] font-bold uppercase tracking-widest leading-none text-gray-400">{card.label}</span>
+                <div className="flex items-baseline gap-1">
+                  {card.semantic && card.value != null && (
+                    <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
+                      style={{ color: card.accent }} fill="currentColor">
+                      {card.value >= 0
+                        ? <polygon points="5,1 9,9 1,9" />
+                        : <polygon points="5,9 9,1 1,1" />}
+                    </svg>
+                  )}
+                  <span className="text-2xl font-bold tabular-nums leading-tight" style={{ color: card.accent }}>
+                    {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '--'}
+                  </span>
+                </div>
+                {card.sublabel && (
+                  <span className="text-[10px] leading-tight text-gray-400 truncate">{card.sublabel}</span>
+                )}
+              </div>
+              {/* Large icon */}
+              <div className="flex-shrink-0 opacity-[0.12]" style={{ color: card.accent }}>
+                {card.icon}
+              </div>
+            </div>
+          ))}
+          </div>
+        )
+      })()}
+
       {/* New baseline form */}
       {showNewBaseline && isAdmin && (
         <div className="flex-shrink-0">
@@ -1636,137 +1716,8 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         </div>
       )}
 
-      {/* Main content: cards left + chart right */}
+      {/* Main content: controls left + chart right */}
       <div className="flex-1 min-h-0 flex flex-row gap-3">
-
-      {/* Left column: summary cards + settings -- always visible for admin or when data exists */}
-      {(summaryActual != null || summaryPlanned != null || isAdmin || baselines.length > 0) && (
-        <div className="flex-shrink-0 flex flex-col gap-2 w-32 self-start">
-          {(summaryActual != null || summaryPlanned != null) && (() => {
-            const varColor = summaryVariance == null ? '#9ca3af' : summaryVariance >= 0 ? '#16a34a' : '#dc2626'
-            const cards = [
-              { label: 'Actual POC',  value: summaryActual,   accent: actualColor, sublabel: null },
-              { label: 'Planned POC', value: summaryPlanned,  accent: blColor(refBaseline?.id, 0), sublabel: refBaseline?.name },
-              { label: 'Variance',    value: summaryVariance, accent: varColor,    sublabel: 'vs planned today', semantic: true },
-            ]
-            return (
-              <div className="flex flex-col gap-2 h-[400px]">
-              {cards.map(card => (
-                <div key={card.label}
-                  className="flex-1 rounded-xl border px-2.5 py-2 flex flex-col justify-center gap-1.5 overflow-hidden"
-                  style={{
-                    borderColor: card.accent + '60',
-                    borderLeftColor: card.accent,
-                    borderLeftWidth: 3,
-                    background: `linear-gradient(145deg, ${card.accent}70, ${card.accent}45)`,
-                    backdropFilter: 'blur(14px)',
-                    WebkitBackdropFilter: 'blur(14px)',
-                    boxShadow: `0 6px 24px ${card.accent}50, inset 0 1px 0 rgba(255,255,255,0.25)`,
-                  }}
-                >
-                  <span className="text-[10px] font-bold uppercase tracking-widest leading-none" style={{ color: 'rgba(255,255,255,0.7)' }}>{card.label}</span>
-                  <div className="flex items-baseline gap-1">
-                    {card.semantic && card.value != null && (
-                      <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
-                        style={{ color: 'rgba(255,255,255,0.9)' }} fill="currentColor">
-                        {card.value >= 0
-                          ? <polygon points="5,1 9,9 1,9" />
-                          : <polygon points="5,9 9,1 1,1" />}
-                      </svg>
-                    )}
-                    <span className="text-2xl font-bold tabular-nums leading-tight" style={{ color: 'rgba(255,255,255,0.95)' }}>
-                      {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '--'}
-                    </span>
-                  </div>
-                  {card.sublabel && (
-                    <span className="text-[10px] leading-tight" style={{ color: 'rgba(255,255,255,0.6)' }}>{card.sublabel}</span>
-                  )}
-                </div>
-              ))}
-              </div>
-            )
-          })()}
-
-          {/* Tower scope selector */}
-          {buildings.length > 0 && (() => {
-            const scopeLabel = selectedBuildingId
-              ? (buildings.find(b => b.id === selectedBuildingId)?.name ?? 'Tower')
-              : 'Project'
-            const isProject = selectedBuildingId === null
-            return (
-              <div ref={scopeRef} className="relative">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setScopeOpen(v => !v)
-                    const handler = e => { if (scopeRef.current && !scopeRef.current.contains(e.target)) setScopeOpen(false) }
-                    document.addEventListener('mousedown', handler, { once: true })
-                  }}
-                  className="w-full flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-[#ed6055] transition"
-                >
-                  {!isProject && <span className="w-2 h-2 rounded-full bg-[#ed6055] flex-shrink-0" />}
-                  <span className="flex-1 text-left truncate">{scopeLabel}</span>
-                  <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {scopeOpen && (
-                  <div className="absolute bottom-full mb-1 left-0 z-30 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-44 max-h-64 overflow-y-auto">
-                    <button type="button"
-                      onClick={() => { switchScope(null); setScopeOpen(false) }}
-                      className={`w-full text-left px-4 py-2 text-xs font-semibold transition flex items-center gap-2 ${selectedBuildingId === null ? 'text-[#ed6055]' : 'text-gray-700 hover:bg-gray-50'}`}
-                    >
-                      {selectedBuildingId === null && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
-                      Project
-                    </button>
-                    {buildings.length > 0 && <div className="border-t border-gray-100 my-1" />}
-                    {buildings.map(b => (
-                      <button key={b.id} type="button"
-                        onClick={() => { switchScope(b.id); setScopeOpen(false) }}
-                        className={`w-full text-left px-4 py-2 text-xs transition flex items-center gap-2 ${selectedBuildingId === b.id ? 'text-[#ed6055] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
-                      >
-                        {selectedBuildingId === b.id && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
-                        {b.name}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          })()}
-
-          {/* Line selection + settings */}
-          <div className="border-t border-gray-200 pt-3 flex flex-col gap-2">
-            <BaselineMultiSelect
-              baselines={baselines}
-              selectedIds={selectedBaselineIds}
-              onChange={setSelectedBaselineIds}
-              colors={baselines.map((b, i) => blColor(b.id, i))}
-              extras={[
-                { label: 'Actual',   color: actualColor,   checked: showActual,   onToggle: () => setShowActual(v => !v)   },
-                { label: 'Forecast', color: forecastColor, checked: showForecast, onToggle: () => setShowForecast(v => !v) },
-              ]}
-              className="w-full !min-w-0"
-            />
-            {(() => {
-              const hasActiveFilters = selectedActivityIds.length > 0 || wpMarkerSelectedIds.length > 0
-              return (
-                <button
-                  onClick={() => setSettingsOpen(v => !v)}
-                  className={`w-full flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-lg border transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
-                >
-                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  Settings
-                  {hasActiveFilters && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
-                </button>
-              )
-            })()}
-          </div>
-        </div>
-      )}
 
       {/* Chart + tables */}
       {allPeriods.length > 0 && (() => {
@@ -1943,6 +1894,66 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                   <span className="text-[11px] font-medium text-gray-600 leading-none">Forecast</span>
                 </span>
               )}
+              <div className="ml-auto flex items-center gap-2">
+                {/* Tower scope selector */}
+                {buildings.length > 0 && (() => {
+                  const scopeLabel = selectedBuildingId
+                    ? (buildings.find(b => b.id === selectedBuildingId)?.name ?? 'Tower')
+                    : 'Project'
+                  const isProject = selectedBuildingId === null
+                  return (
+                    <div ref={scopeRef} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setScopeOpen(v => !v)
+                          const handler = e => { if (scopeRef.current && !scopeRef.current.contains(e.target)) setScopeOpen(false) }
+                          document.addEventListener('mousedown', handler, { once: true })
+                        }}
+                        className="flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-[#ed6055] transition"
+                      >
+                        {!isProject && <span className="w-2 h-2 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                        <span className="text-left truncate max-w-28">{scopeLabel}</span>
+                        <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
+                        </svg>
+                      </button>
+                      {scopeOpen && (
+                        <div className="absolute top-full mt-1 right-0 z-30 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-44 max-h-64 overflow-y-auto">
+                          <button type="button"
+                            onClick={() => { switchScope(null); setScopeOpen(false) }}
+                            className={`w-full text-left px-4 py-2 text-xs font-semibold transition flex items-center gap-2 ${selectedBuildingId === null ? 'text-[#ed6055]' : 'text-gray-700 hover:bg-gray-50'}`}
+                          >
+                            {selectedBuildingId === null && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                            Project
+                          </button>
+                          {buildings.length > 0 && <div className="border-t border-gray-100 my-1" />}
+                          {buildings.map(b => (
+                            <button key={b.id} type="button"
+                              onClick={() => { switchScope(b.id); setScopeOpen(false) }}
+                              className={`w-full text-left px-4 py-2 text-xs transition flex items-center gap-2 ${selectedBuildingId === b.id ? 'text-[#ed6055] font-semibold' : 'text-gray-700 hover:bg-gray-50'}`}
+                            >
+                              {selectedBuildingId === b.id && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                              {b.name}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+                {/* Settings button */}
+                <button
+                  onClick={() => setSettingsOpen(v => !v)}
+                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-semibold rounded-lg border transition-[color,border-color,background-color,transform] duration-150 ease-out active:scale-[0.97] ${settingsOpen ? 'border-[#ed6055] text-[#ed6055] bg-red-50' : 'border-gray-200 text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055]'}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  {(selectedActivityIds.length > 0 || wpMarkerSelectedIds.length > 0) && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
+                </button>
+              </div>
             </div>
             {/* flex row: sticky Y-axis panel (outside scroll) + scrollable chart+table area */}
             <div className="flex-1 min-h-0 flex overflow-hidden">
