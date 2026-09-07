@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabaseClient'
 import useProfile from '../hooks/useProfile'
 import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeFilter } from '../lib/scurveUtils'
@@ -250,13 +251,28 @@ function NewBaselineForm({ actuals, onSave, onCancel }) {
 
 function BaselineMultiSelect({ baselines, selectedIds, onChange, colors, extras = [], className = '' }) {
   const [open, setOpen] = useState(false)
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, minWidth: 0 })
   const ref = useRef(null)
+  const btnRef = useRef(null)
+  const portalRef = useRef(null)
 
   useEffect(() => {
-    const handler = e => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const handler = e => {
+      if (ref.current && ref.current.contains(e.target)) return
+      if (portalRef.current && portalRef.current.contains(e.target)) return
+      setOpen(false)
+    }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [])
+
+  const openDropdown = () => {
+    if (btnRef.current) {
+      const r = btnRef.current.getBoundingClientRect()
+      setDropPos({ top: r.bottom + 4, left: r.left, minWidth: r.width })
+    }
+    setOpen(v => !v)
+  }
 
   const toggle = id => {
     if (selectedIds.includes(id)) onChange(selectedIds.filter(x => x !== id))
@@ -272,8 +288,9 @@ function BaselineMultiSelect({ baselines, selectedIds, onChange, colors, extras 
   return (
     <div ref={ref} className="relative">
       <button
+        ref={btnRef}
         type="button"
-        onClick={() => setOpen(v => !v)}
+        onClick={openDropdown}
         className={`flex items-center gap-2 px-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white text-gray-700 hover:border-[#ed6055] transition min-w-52 ${className}`}
       >
         <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -287,8 +304,9 @@ function BaselineMultiSelect({ baselines, selectedIds, onChange, colors, extras 
           <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
         </svg>
       </button>
-      {open && (
-        <div className="absolute bottom-full mb-1 left-0 z-50 bg-white rounded-xl border border-gray-200 shadow-lg py-1 min-w-52">
+      {open && createPortal(
+        <div ref={portalRef} className="fixed z-[9999] bg-white rounded-xl border border-gray-200 shadow-lg py-1"
+          style={{ top: dropPos.top, left: dropPos.left, minWidth: Math.max(dropPos.minWidth, 208) }}>
           {extras.length > 0 && (
             <>
               {extras.map(({ label, color, checked, onToggle }) => (
@@ -340,7 +358,8 @@ function BaselineMultiSelect({ baselines, selectedIds, onChange, colors, extras 
               </button>
             </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
