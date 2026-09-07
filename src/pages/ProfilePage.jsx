@@ -395,7 +395,7 @@ function AvatarSection({ profile, showToast }) {
               onKeyDown={e => { if (e.key === 'Enter') saveName(); if (e.key === 'Escape') { setEditingName(false); setName(profile?.full_name ?? '') } }}
             />
             <button onClick={saveName} disabled={savingName || !name.trim()} className="px-3 py-2 rounded-lg bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-              {savingName ? 'â€¦' : 'Save'}
+              {savingName ? '...' : 'Save'}
             </button>
             <button onClick={() => { setEditingName(false); setName(profile?.full_name ?? '') }} className="px-3 py-2 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">
               Cancel
@@ -479,7 +479,7 @@ function PasswordSection({ showToast }) {
           </div>
         </div>
         <button type="submit" disabled={disabled} className="w-full py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-          {saving ? 'Verifyingâ€¦' : 'Update Password'}
+          {saving ? 'Verifying...' : 'Update Password'}
         </button>
       </form>
     </div>

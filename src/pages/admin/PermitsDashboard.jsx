@@ -384,7 +384,7 @@ export default function PermitsDashboard() {
             </svg>
             <input
               type="text"
-              placeholder="Search permits or projectsâ€¦"
+              placeholder="Search permits or projects..."
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
@@ -440,7 +440,7 @@ export default function PermitsDashboard() {
                     </svg>
                     <input
                       type="text"
-                      placeholder="Searchâ€¦"
+                      placeholder="Search..."
                       value={projectSearch}
                       onChange={e => setProjectSearch(e.target.value)}
                       className="w-full pl-6 pr-2 py-1 text-xs rounded-lg bg-gray-100 border-none outline-none focus:ring-1 focus:ring-[#ed6055]"
@@ -929,7 +929,7 @@ export default function PermitsDashboard() {
                       <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                       <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
                     </svg>
-                    Importingâ€¦
+                    Importing...
                   </>
                 ) : (
                   <>Import {importPreview.valid.length} {importPreview.valid.length === 1 ? 'permit' : 'permits'}</>

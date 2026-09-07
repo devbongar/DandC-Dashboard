@@ -544,7 +544,7 @@ export default function ProjectsPage() {
               </svg>
               <input
                 type="text"
-                placeholder="Search projectsâ€¦"
+                placeholder="Search projects..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
@@ -615,7 +615,7 @@ export default function ProjectsPage() {
                     {isAdmin && (
                       <>
                         <button onClick={() => { importRef.current?.click(); setShowActions(false) }} disabled={importing} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50">
-                          <UploadIcon /> {importing ? 'Importingâ€¦' : 'Import'}
+                          <UploadIcon /> {importing ? 'Importing...' : 'Import'}
                         </button>
                         <div className="my-1 border-t border-gray-100" />
                         <button onClick={() => { openAdd(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition">
@@ -686,7 +686,7 @@ export default function ProjectsPage() {
               </svg>
               <input
                 type="text"
-                placeholder="Search projectsâ€¦"
+                placeholder="Search projects..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 className="w-full pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition"
@@ -744,7 +744,7 @@ export default function ProjectsPage() {
                     {isAdmin && (
                       <>
                         <button onClick={() => { importRef.current?.click(); setShowActions(false) }} disabled={importing} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50">
-                          <UploadIcon /> {importing ? 'Importingâ€¦' : 'Import'}
+                          <UploadIcon /> {importing ? 'Importing...' : 'Import'}
                         </button>
                         <div className="my-1 border-t border-gray-100" />
                         <button onClick={() => { openAdd(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition">
@@ -763,10 +763,10 @@ export default function ProjectsPage() {
             <div className="px-5 pb-3">
               <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <SearchDropdown fluid options={PHASES.map(p => ({ value: p.key, label: p.label }))} value={phaseFilter} onChange={setPhaseFilter} emptyValue="all" emptyLabel="All Phases" placeholder="Search phasesâ€¦" />
-                  <SearchDropdown fluid options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))} value={businessUnitFilter} onChange={setBusinessUnitFilter} emptyValue="all" emptyLabel="All Business Units" placeholder="Search unitsâ€¦" />
-                  <SearchDropdown fluid options={[{ value: 'housing', label: 'Housing' }, { value: 'condominium', label: 'Condominium' }]} value={devTypeFilter} onChange={setDevTypeFilter} emptyValue="all" emptyLabel="All Dev Types" placeholder="Search typesâ€¦" />
-                  <SearchDropdown fluid options={[{ value: 'yes', label: '4PH' }, { value: 'no', label: 'Non-4PH' }]} value={is4phFilter} onChange={setIs4phFilter} emptyValue="all" emptyLabel="All Types" placeholder="Searchâ€¦" />
+                  <SearchDropdown fluid options={PHASES.map(p => ({ value: p.key, label: p.label }))} value={phaseFilter} onChange={setPhaseFilter} emptyValue="all" emptyLabel="All Phases" placeholder="Search phases..." />
+                  <SearchDropdown fluid options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))} value={businessUnitFilter} onChange={setBusinessUnitFilter} emptyValue="all" emptyLabel="All Business Units" placeholder="Search units..." />
+                  <SearchDropdown fluid options={[{ value: 'housing', label: 'Housing' }, { value: 'condominium', label: 'Condominium' }]} value={devTypeFilter} onChange={setDevTypeFilter} emptyValue="all" emptyLabel="All Dev Types" placeholder="Search types..." />
+                  <SearchDropdown fluid options={[{ value: 'yes', label: '4PH' }, { value: 'no', label: 'Non-4PH' }]} value={is4phFilter} onChange={setIs4phFilter} emptyValue="all" emptyLabel="All Types" placeholder="Search..." />
                 </div>
               </div>
             </div>
@@ -945,7 +945,7 @@ export default function ProjectsPage() {
               <div className="flex justify-end gap-2">
                 <button type="button" onClick={() => setShowForm(false)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
                 <button type="submit" disabled={submitting || !form.name.trim()} className="px-3 py-1.5 rounded-lg bg-[#ed6055] hover:bg-[#d94f45] text-white text-sm font-semibold transition disabled:opacity-60">
-                  {submitting ? 'Addingâ€¦' : 'Add Project'}
+                  {submitting ? 'Adding...' : 'Add Project'}
                 </button>
               </div>
               <div className="bg-gray-50 rounded-xl px-4 py-4">
@@ -954,7 +954,7 @@ export default function ProjectsPage() {
                   value={form.project_brief}
                   onChange={e => setForm(f => ({ ...f, project_brief: e.target.value }))}
                   rows={4}
-                  placeholder="Write a summary of the project -- scope, objectives, key details, stakeholdersâ€¦"
+                  placeholder="Write a summary of the project -- scope, objectives, key details, stakeholders..."
                   className={`${inputCls} resize-y`}
                 />
               </div>
@@ -1045,7 +1045,7 @@ export default function ProjectsPage() {
             <div className="flex gap-3">
               <button onClick={() => setDeleteTarget(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={confirmDelete} disabled={deleting} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-60">
-                {deleting ? 'Deletingâ€¦' : 'Delete'}
+                {deleting ? 'Deleting...' : 'Delete'}
               </button>
             </div>
           </div>

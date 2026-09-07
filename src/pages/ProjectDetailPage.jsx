@@ -127,6 +127,7 @@ export default function ProjectDetailPage() {
     if (tooltipRef.current) tooltipRef.current.style.opacity = '0'
   }
   const [menuOpen,    setMenuOpen]    = useState(false)
+  const [headerScrolled, setHeaderScrolled] = useState(false)
 
   const initial   = (profile?.full_name?.[0] ?? profile?.email?.[0] ?? '?').toUpperCase()
   const roleLabel = ROLE_LABELS[profile?.role] ?? profile?.role ?? ''
@@ -187,12 +188,24 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     if (mainScrollRef.current) mainScrollRef.current.scrollTop = 0
     setMobileSearchOpen(false)
+    setHeaderScrolled(false)
+  }, [section])
+
+  useEffect(() => {
+    const el = mainScrollRef.current
+    if (!el) return
+    const onScroll = () => setHeaderScrolled(el.scrollTop > 10)
+    el.addEventListener('scroll', onScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onScroll)
   }, [section])
 
   if (loading || profileLoading) return <LoadingScreen />
   if (!project) return <LoadingScreen />
 
   const activeLabel = section === null ? 'Project Info' : section
+  const headerSearchCls = headerScrolled
+    ? 'pl-9 pr-3 py-1.5 text-sm rounded-lg bg-white/[0.15] text-white placeholder-white/50 outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/[0.22] transition w-96'
+    : 'pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96'
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-200" style={{ minHeight: '100dvh' }}>
@@ -204,7 +217,7 @@ export default function ProjectDetailPage() {
 
       {/* -- Sidebar -- */}
       <aside
-        className={`sidebar-frost ${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} sm:relative sm:flex sm:z-auto flex-shrink-0 flex-col py-3 gap-1`}
+        className={`sidebar-frost ${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} sm:relative sm:flex sm:z-20 flex-shrink-0 flex-col py-3 gap-1`}
         style={{
           width: sidebarExpanded ? 240 : 80,
           background: 'transparent',
@@ -214,7 +227,7 @@ export default function ProjectDetailPage() {
           boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
           borderRadius: mobileSidebarOpen ? 0 : 16,
           transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
-          zIndex: mobileSidebarOpen ? 40 : 1,
+          zIndex: mobileSidebarOpen ? 40 : 20,
         }}
       >
         {/* Logo */}
@@ -374,7 +387,7 @@ export default function ProjectDetailPage() {
             </div>
           )}
 
-          {/* Expand / collapse toggle â€” hidden on mobile */}
+          {/* Expand / collapse toggle â€" hidden on mobile */}
           <div className={`mt-1 relative group ${mobileSidebarOpen ? 'hidden' : ''}`}
             onMouseEnter={(e) => showTooltip(e, sidebarExpanded ? 'Collapse' : 'Expand')}
             onMouseLeave={hideTooltip}
@@ -421,15 +434,17 @@ export default function ProjectDetailPage() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
 
-          {/* Header â€” transparent + sticky on Project Info so cover photo shows through */}
+          {/* Header â€" transparent + sticky on Project Info so cover photo shows through */}
           <header
-            className={`flex flex-col ${section === null ? 'sticky top-0 z-10 sm:fixed sm:top-0 sm:left-0 sm:right-0 sm:z-[15]' : section === 'Permits' ? 'sticky top-0 z-10 sm:sticky sm:top-0 sm:z-20' : ''}`}
-            style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.65) 0%, rgba(0,0,0,0) 100%)' }}
+            className={`flex flex-col sticky top-0 z-10 sm:fixed sm:top-0 sm:left-0 sm:right-0 sm:z-[15]`}
+            style={{ background: headerScrolled ? 'linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0) 100%)' : 'transparent', transition: 'background 200ms ease' }}
           >
-            {/* Safe area spacer â€” pushes header content below iOS status bar on mobile */}
+            {/* Safe area spacer â€" pushes header content below iOS status bar on mobile */}
             <div className="sm:hidden flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
-            <div className="flex items-center h-14 px-5 gap-4">
-            {/* Back button â€” mobile only */}
+            <div className={`flex items-center h-14 px-5 gap-4`}>
+            {/* Sidebar-width spacer: aligns project name with tab content below (desktop only) */}
+            <div className="hidden sm:block flex-shrink-0" style={{ width: (sidebarExpanded ? 240 : 80) - 4 }} />
+            {/* Back button â€" mobile only */}
             <button
               className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 text-white active:scale-90 transition-all"
               style={{ background: 'rgba(255,255,255,0.18)' }}
@@ -444,7 +459,7 @@ export default function ProjectDetailPage() {
               <span className={`text-lg font-bold text-gray-800 tracking-wide truncate ${section === 'Permits' ? 'hidden sm:block' : ''}`}>{project.name}</span>
             )}
             {activeLabel !== 'Project Info' && (
-              <span className="text-sm text-gray-400 hidden sm:flex flex-shrink-0 items-center gap-1.5">
+              <span className="text-sm text-gray-800 hidden sm:flex flex-shrink-0 items-center gap-1.5">
                 / {activeLabel}
                 {section === 'Work Program' && ganttBLName && (
                   <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[11px] font-semibold">{ganttBLName}</span>
@@ -453,7 +468,7 @@ export default function ProjectDetailPage() {
             )}
             <div className="flex-1" />
 
-            {/* Photos controls â€” only visible on Photos tab */}
+            {/* Photos controls â€" only visible on Photos tab */}
             {section === 'Photos' && (
               <>
               {/* Mobile search toggle */}
@@ -479,10 +494,10 @@ export default function ProjectDetailPage() {
                 </svg>
                 <input
                   type="text"
-                  placeholder="Search photosâ€¦"
+                  placeholder="Search photos..."
                   value={photosSearch}
                   onChange={e => setPhotosSearch(e.target.value)}
-                  className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
+                  className={headerSearchCls}
                 />
               </div>
 
@@ -590,7 +605,7 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Issues & Concerns controls â€” only visible on Issues tab */}
+            {/* Issues & Concerns controls â€" only visible on Issues tab */}
             {section === 'Issues & Concerns' && (
               <>
                 {/* Mobile search toggle */}
@@ -614,10 +629,10 @@ export default function ProjectDetailPage() {
                   </svg>
                   <input
                     type="text"
-                    placeholder="Search issuesâ€¦"
+                    placeholder="Search issues..."
                     value={issuesSearch}
                     onChange={e => setIssuesSearch(e.target.value)}
-                    className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
+                    className={headerSearchCls}
                   />
                 </div>
 
@@ -753,7 +768,7 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Work Program controls â€” only visible on Work Program tab */}
+            {/* Work Program controls â€" only visible on Work Program tab */}
             {section === 'Work Program' && (
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
@@ -807,7 +822,7 @@ export default function ProjectDetailPage() {
               </div>
             )}
 
-            {/* Permits controls â€” only visible on Permits tab */}
+            {/* Permits controls â€" only visible on Permits tab */}
             {section === 'Permits' && (
               <>
                 {/* Mobile search toggle */}
@@ -831,14 +846,14 @@ export default function ProjectDetailPage() {
                   </svg>
                   <input
                     type="text"
-                    placeholder="Search permitsâ€¦"
+                    placeholder="Search permits..."
                     value={permitsSearch}
                     onChange={e => setPermitsSearch(e.target.value)}
-                    className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
+                    className={headerSearchCls}
                   />
                 </div>
 
-                {/* Filter button + popover â€” desktop only; mobile filter lives in the content row */}
+                {/* Filter button + popover â€" desktop only; mobile filter lives in the content row */}
                 <div className="relative flex-shrink-0 hidden sm:block" ref={filterPopRef}>
                   <button
                     onClick={() => setPermitsFilterOpen(v => !v)}
@@ -937,7 +952,7 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Setup button â€” Unit Completion tab only, opens Planned M4/M5 */}
+            {/* Setup button â€" Unit Completion tab only, opens Planned M4/M5 */}
             {section === 'Unit Completion' && (
               <button
                 onClick={() => setSection('Planned M4/M5')}
@@ -952,7 +967,7 @@ export default function ProjectDetailPage() {
               </button>
             )}
 
-            {/* Report button â€” hidden on Permits/Photos/Issues/Work Program tabs (lives inside Actions dropdown there) */}
+            {/* Report button â€" hidden on Permits/Photos/Issues/Work Program tabs (lives inside Actions dropdown there) */}
             {section !== 'Permits' && section !== 'Photos' && section !== 'Issues & Concerns' && section !== 'Work Program' && (
               <button
                 onClick={() => setReportOpen(true)}
@@ -969,7 +984,7 @@ export default function ProjectDetailPage() {
 
             <NotificationBell userId={profile?.id} />
 
-            {/* User menu â€” hidden on mobile */}
+            {/* User menu â€" hidden on mobile */}
             <div className="relative flex-shrink-0 hidden sm:block">
               <button
                 onClick={() => setMenuOpen(v => !v)}
@@ -977,7 +992,7 @@ export default function ProjectDetailPage() {
               >
                 <div className="text-right hidden sm:block">
                   <p className="text-xs font-semibold text-gray-800 leading-tight">{profile?.full_name ?? ''}</p>
-                  <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{roleLabel}</p>
+                  <p className="text-[10px] text-gray-800 leading-tight mt-0.5">{roleLabel}</p>
                 </div>
                 <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 ring-1 ring-gray-200"
                   style={{ background: 'rgba(237,96,85,0.15)' }}>
@@ -1017,8 +1032,8 @@ export default function ProjectDetailPage() {
             </div>{/* end content row */}
           </header>
 
-          {/* Spacer for fixed header on Project Info desktop */}
-          {section === null && <div className="hidden sm:block flex-shrink-0 h-14" />}
+          {/* Spacer for fixed header on desktop */}
+          <div className="hidden sm:block flex-shrink-0 h-14" />
 
           {/* Mobile search expansion row */}
           {mobileSearchOpen && (section === 'Photos' || section === 'Issues & Concerns' || section === 'Permits') && (
@@ -1030,7 +1045,7 @@ export default function ProjectDetailPage() {
                 <input
                   type="text"
                   autoFocus
-                  placeholder={section === 'Photos' ? 'Search photosâ€¦' : section === 'Issues & Concerns' ? 'Search issuesâ€¦' : 'Search permitsâ€¦'}
+                  placeholder={section === 'Photos' ? 'Search photos...' : section === 'Issues & Concerns' ? 'Search issues...' : 'Search permits...'}
                   value={section === 'Photos' ? photosSearch : section === 'Issues & Concerns' ? issuesSearch : permitsSearch}
                   onChange={e => {
                     const v = e.target.value
@@ -1118,7 +1133,7 @@ export default function ProjectDetailPage() {
         </main>
       </div>
 
-      {/* Mobile bottom nav â€” app-level navigation */}
+      {/* Mobile bottom nav â€" app-level navigation */}
       <nav
         className="sm:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around"
         style={{

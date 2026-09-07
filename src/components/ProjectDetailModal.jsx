@@ -416,7 +416,7 @@ function FloorUploadCell({ value, onChange, showToast }) {
     <div className="flex items-center gap-1.5">
       <input ref={ref} type="file" accept="image/*,.pdf" className="hidden" onChange={upload} />
       {uploading
-        ? <span className="text-[10px] text-gray-400 italic">Uploadingâ€¦</span>
+        ? <span className="text-[10px] text-gray-400 italic">Uploading...</span>
         : <button type="button" onClick={() => ref.current?.click()} className="text-[10px] px-2 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition whitespace-nowrap">
             {value ? 'âœ“ Change' : 'â†‘ Upload'}
           </button>
@@ -910,7 +910,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         <div className="flex justify-end gap-2">
           <button onClick={cancelEdit} className="px-4 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition-colors duration-200 active:scale-[0.97]">Cancel</button>
           <button onClick={save} disabled={saving || !form.name?.trim()} className="px-4 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-40 transition-colors duration-200 active:scale-[0.97]">
-            {saving ? 'Savingâ€¦' : 'Save Changes'}
+            {saving ? 'Saving...' : 'Save Changes'}
           </button>
         </div>
 
@@ -919,7 +919,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
             value={f('project_brief')}
             onChange={e => set('project_brief', e.target.value)}
             rows={4}
-            placeholder="Write a summary of the project -- scope, objectives, key details, stakeholdersâ€¦"
+            placeholder="Write a summary of the project -- scope, objectives, key details, stakeholders..."
             className={`${inputCls} resize-y rounded-xl`}
           />
         </IosCard>
@@ -967,7 +967,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
                 options={PH_PROVINCES}
                 value={f('province')}
                 onChange={v => { set('province', v); set('city', '') }}
-                placeholder="Type to search provinceâ€¦"
+                placeholder="Type to search province..."
               />
             </Field>
             <Field label="City / Municipality">
@@ -975,7 +975,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
                 options={PH_CITIES[f('province')] ?? []}
                 value={f('city')}
                 onChange={v => set('city', v)}
-                placeholder="Type to search cityâ€¦"
+                placeholder="Type to search city..."
                 disabled={!f('province')}
               />
             </Field>
@@ -1180,7 +1180,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
               <div className="flex gap-2">
                 <button onClick={() => setConfirmDelete(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
                 <button onClick={handleDeleteProject} disabled={deleting} className="flex-1 py-2.5 rounded-xl bg-red-600 text-white text-sm font-semibold hover:bg-red-700 transition disabled:opacity-60">
-                  {deleting ? 'Deletingâ€¦' : 'Delete'}
+                  {deleting ? 'Deleting...' : 'Delete'}
                 </button>
               </div>
             </div>
@@ -1404,7 +1404,7 @@ function UnitTypePhotoManager({ unitTypeId, unitTypeName, showToast }) {
             disabled={uploading}
             className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 h-8 rounded-lg border border-gray-200 bg-white hover:border-[#ed6055] hover:text-[#ed6055] transition-colors disabled:opacity-50"
           >
-            {uploading ? 'Uploadingâ€¦' : '+ Photo'}
+            {uploading ? 'Uploading...' : '+ Photo'}
           </button>
           <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={upload} />
         </div>
@@ -1782,7 +1782,7 @@ function BulkAddTowersModal({ projectId, existingNames, onDone, onCancel }) {
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Addingâ€¦' : 'Add Towers'}
+            {saving ? 'Adding...' : 'Add Towers'}
           </button>
         </div>
       </div>
@@ -1840,7 +1840,7 @@ function BulkDeleteTowersModal({ buildings, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-red-500 hover:bg-red-600 text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Deletingâ€¦' : `Delete${selected.size > 0 ? ` (${selected.size})` : ''}`}
+            {saving ? 'Deleting...' : `Delete${selected.size > 0 ? ` (${selected.size})` : ''}`}
           </button>
         </div>
       </div>
@@ -1935,7 +1935,7 @@ function CopyConfigModal({ buildings, sourceId, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2 mt-5">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Copyingâ€¦' : 'Copy'}
+            {saving ? 'Copying...' : 'Copy'}
           </button>
         </div>
       </div>
@@ -1985,7 +1985,7 @@ function BuildingSelector({ projectId, isAdmin, buildingId, onChange, canAdd = t
             options={buildings.map(b => ({ value: b.id, label: b.name }))}
             value={buildingId}
             onChange={onChange}
-            placeholder="Select towerâ€¦"
+            placeholder="Select tower..."
             usePortal={usePortalDropdown}
           />
         </div>
@@ -2276,7 +2276,7 @@ function AddTowerModal({ projectId, existingCount, onDone, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium transition">Cancel</button>
           <button onClick={handleSubmit} disabled={submitting} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {submitting ? 'Addingâ€¦' : 'Add Tower'}
+            {submitting ? 'Adding...' : 'Add Tower'}
           </button>
         </div>
       </div>
@@ -2406,7 +2406,7 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium transition">Cancel</button>
           <button onClick={handleSave} disabled={saving} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Savingâ€¦' : 'Save'}
+            {saving ? 'Saving...' : 'Save'}
           </button>
         </div>
       </div>
@@ -2432,7 +2432,7 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
     if (!rangeValid) return ''
     const labels = Array.from({ length: count }, (_, i) => prefix ? `${prefix}${f + i}` : String(f + i))
     if (labels.length <= 4) return labels.join(', ')
-    return `${labels[0]}, ${labels[1]} â€¦ ${labels[labels.length - 1]}`
+    return `${labels[0]}, ${labels[1]} ... ${labels[labels.length - 1]}`
   }
 
   const handle = () => {
@@ -2525,7 +2525,7 @@ function AddGroupModal({ onConfirm, onCancel }) {
         <div className="flex justify-end gap-2">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-600 hover:text-gray-800 font-medium">Cancel</button>
           <button onClick={handle} disabled={saving || !name.trim()} className="px-4 py-2 text-sm font-semibold bg-[#ed6055] hover:bg-[#d94f45] text-white rounded-lg transition disabled:opacity-50">
-            {saving ? 'Addingâ€¦' : 'Add Group'}
+            {saving ? 'Adding...' : 'Add Group'}
           </button>
         </div>
       </div>
@@ -3018,7 +3018,7 @@ function ProjectPlansSection({ projectId, isAdmin, editing = false, showToast })
             disabled={uploading || !nameInput.trim()}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] transition disabled:opacity-50"
           >
-            {uploading ? 'Uploadingâ€¦' : 'Choose PDF'}
+            {uploading ? 'Uploading...' : 'Choose PDF'}
           </button>
           <button onClick={() => { setAdding(false); setNameInput('') }} className="text-xs text-gray-400 hover:text-gray-600 px-2">Cancel</button>
           <input ref={fileRef} type="file" accept=".pdf" className="hidden" onChange={upload} />
@@ -3138,9 +3138,9 @@ function CondominiumDevelopmentTab({ project, isAdmin, profile, showToast, devRe
               <div key={g.id} className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs ${colorCls}`}>
                 <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${dotCls}`} />
                 <span className="text-gray-500">{g.name}</span>
-                <span className="text-gray-300">Â·</span>
+                <span className="text-gray-300">·</span>
                 <span className="font-semibold text-gray-800">{s.floors} floor{s.floors !== 1 ? 's' : ''}</span>
-                <span className="text-gray-300">Â·</span>
+                <span className="text-gray-300">·</span>
                 <span className="font-semibold text-gray-800">{s.units} {unitWord}{s.units !== 1 ? 's' : ''}</span>
               </div>
             )
@@ -3487,7 +3487,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
   const COLS = isAdmin ? 4 : 3
 
   if (loading) {
-    return <TriangleLoader label={populating ? 'Setting up permits from standard listâ€¦' : 'Loading permitsâ€¦'} />
+    return <TriangleLoader label={populating ? 'Setting up permits from standard list...' : 'Loading permits...'} />
   }
 
   return (
@@ -3796,7 +3796,7 @@ function ComplianceTab({ project, isAdmin, showToast }) {
                     <textarea
                       value={form.remarks ?? ''}
                       onChange={e => setForm(p => ({ ...p, remarks: e.target.value }))}
-                      placeholder="Add any notesâ€¦"
+                      placeholder="Add any notes..."
                       rows={3}
                       className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] text-black placeholder-gray-400 resize-y"
                     />
@@ -4081,7 +4081,7 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
         <div className="px-4 pt-3 pb-4">
 
       {loading ? (
-        <TriangleLoader label="Loading issuesâ€¦" />
+        <TriangleLoader label="Loading issues..." />
       ) : rows.length === 0 ? (
         <div className="text-center py-12 text-sm text-gray-400 italic">No issues recorded for this project.</div>
       ) : filtered.length === 0 ? (
@@ -4266,22 +4266,22 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Issue <span className="text-[#ed6055]">*</span></label>
-                <textarea value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issueâ€¦" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
+                <textarea value={form.details} onChange={e => setForm(f => ({ ...f, details: e.target.value }))} placeholder="Describe the issue..." className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Caused By <span className="text-[#ed6055]">*</span></label>
-                <textarea value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root causeâ€¦" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
+                <textarea value={form.caused_by} onChange={e => setForm(f => ({ ...f, caused_by: e.target.value }))} placeholder="Root cause..." className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
               <div>
                 <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Action Steps <span className="text-[#ed6055]">*</span></label>
-                <textarea value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or plannedâ€¦" className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
+                <textarea value={form.action_steps} onChange={e => setForm(f => ({ ...f, action_steps: e.target.value }))} placeholder="Steps taken or planned..." className={iCls} style={{ fieldSizing: 'content', minHeight: '80px', resize: 'none' }} />
               </div>
             </div>
             <div className="px-5 py-4 border-t border-gray-100 flex justify-end gap-3 flex-shrink-0">
               <button onClick={close} className="px-4 py-2 text-sm text-gray-600 rounded-lg border border-gray-200 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={save} disabled={saving || !form.issue_group || !form.management_level || !form.date_presented || !form.details.trim() || !form.caused_by.trim() || !form.action_steps.trim()}
                 className="px-5 py-2 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 disabled:cursor-not-allowed transition">
-                {saving ? 'Savingâ€¦' : modal === 'add' ? 'Add Issue' : 'Save Changes'}
+                {saving ? 'Saving...' : modal === 'add' ? 'Add Issue' : 'Save Changes'}
               </button>
             </div>
           </div>
@@ -4582,7 +4582,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
       <div className="mt-6 flex items-center gap-3">
         <button onClick={doUpload} disabled={!files.length || uploading}
           className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 transition">
-          {uploading ? 'Uploadingâ€¦' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
+          {uploading ? 'Uploading...' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
         </button>
         <button onClick={onBack} className="px-4 py-2 text-xs font-semibold text-gray-500 hover:text-gray-700 transition">Cancel</button>
       </div>
@@ -4673,7 +4673,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
     load()
   }
 
-  if (loading) return <TriangleLoader label="Loading photosâ€¦" />
+  if (loading) return <TriangleLoader label="Loading photos..." />
 
   if (showUploadScreen) return (
     <UploadScreen project={project} showToast={showToast}
@@ -4818,11 +4818,11 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
             )}
             <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm">
               <span className="text-xs text-white/70 max-w-[200px] truncate">{fixEncoding(filteredPhotos[lightbox].file_name)}</span>
-              <span className="text-xs text-white/40">Â·</span>
+              <span className="text-xs text-white/40">·</span>
               <span className="text-xs text-white/50">{lightbox + 1} / {filteredPhotos.length}</span>
               {(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
                 <>
-                  <span className="text-xs text-white/40">Â·</span>
+                  <span className="text-xs text-white/40">·</span>
                   <button onClick={e => handleDelete(filteredPhotos[lightbox], e)}
                     className="text-xs text-red-400 hover:text-red-300 transition font-medium">Delete</button>
                 </>
@@ -5434,7 +5434,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setFloorModal(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveFloorModal} disabled={floorModalSaving || floorModalStatus === 'none'} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {floorModalSaving ? 'Savingâ€¦' : 'Apply'}
+                {floorModalSaving ? 'Saving...' : 'Apply'}
               </button>
             </div>
           </div>
@@ -5502,7 +5502,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setBulkModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveBulk} disabled={bulkSaving} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {bulkSaving ? 'Savingâ€¦' : `Apply to ${selectedCells.size}`}
+                {bulkSaving ? 'Saving...' : `Apply to ${selectedCells.size}`}
               </button>
             </div>
           </div>
@@ -5588,7 +5588,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
             <div className="flex gap-3 mt-5">
               <button onClick={() => setSelected(null)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button onClick={saveCell} disabled={saving} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] disabled:opacity-50 transition">
-                {saving ? 'Savingâ€¦' : 'Save'}
+                {saving ? 'Saving...' : 'Save'}
               </button>
             </div>
           </div>
@@ -5816,7 +5816,7 @@ function ExcelButtons({ onExport, onImport, importing = false, canImport = true 
             title="Import from Excel"
             className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 transition disabled:opacity-50"
           >
-            <UploadIcon /> {importing ? 'Importingâ€¦' : 'Import'}
+            <UploadIcon /> {importing ? 'Importing...' : 'Import'}
           </button>
           <input
             ref={ref}

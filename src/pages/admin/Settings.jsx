@@ -390,7 +390,7 @@ export default function Settings() {
                         disabled={logoUploading}
                         className="px-3 py-1.5 text-xs font-medium rounded-lg bg-[#ed6055] text-white hover:bg-[#d94f45] disabled:opacity-50 transition-colors"
                       >
-                        {logoUploading ? 'Uploadingâ€¦' : logoUrl ? 'Replace' : 'Upload'}
+                        {logoUploading ? 'Uploading...' : logoUrl ? 'Replace' : 'Upload'}
                       </button>
                       {logoUrl && (
                         <button
@@ -424,7 +424,7 @@ export default function Settings() {
                   <p className="text-xs font-semibold text-blue-700">How to set up</p>
                   <ol className="text-xs text-blue-700 list-decimal list-inside space-y-0.5">
                     <li>Open the Teams channel where you want notifications</li>
-                    <li>Click Â·Â·Â· â†’ Connectors â†’ Incoming Webhook â†’ Configure</li>
+                    <li>Click ··· â†’ Connectors â†’ Incoming Webhook â†’ Configure</li>
                     <li>Name it "DandC Dashboard", copy the webhook URL</li>
                     <li>Paste it below and save</li>
                   </ol>
@@ -504,7 +504,7 @@ export default function Settings() {
                   <p className="text-xs font-semibold text-blue-700">How to set up</p>
                   <ol className="text-xs text-blue-700 list-decimal list-inside space-y-0.5">
                     <li>Open your Teams group chat</li>
-                    <li>Click Â·Â·Â· â†’ Workflows â†’ select "Post to a chat when a webhook request is received"</li>
+                    <li>Click ··· â†’ Workflows â†’ select "Post to a chat when a webhook request is received"</li>
                     <li>Name it "DandC Daily Digest", copy the webhook URL</li>
                     <li>Paste it below and save</li>
                     <li>Add <code className="font-mono bg-blue-100 px-1 rounded">SUPABASE_URL</code>, <code className="font-mono bg-blue-100 px-1 rounded">SUPABASE_SERVICE_ROLE_KEY</code>, and <code className="font-mono bg-blue-100 px-1 rounded">CRON_SECRET</code> to Vercel environment variables</li>
