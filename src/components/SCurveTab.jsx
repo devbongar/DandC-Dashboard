@@ -1133,6 +1133,17 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     return rows.length ? rows[0].actual : null
   })()
 
+  const { currentMonthActual, periodicTrend } = (() => {
+    if (!latestActualDate) return { currentMonthActual: null, periodicTrend: null }
+    const sorted = chartData.filter(d => d.actual != null).sort((a, b) => a._date < b._date ? -1 : 1)
+    const idx = sorted.findIndex(d => d._date === latestActualDate)
+    if (idx < 0) return { currentMonthActual: null, periodicTrend: null }
+    const currentPeriodic = +(sorted[idx].actual - (idx > 0 ? sorted[idx - 1].actual : 0)).toFixed(2)
+    const prevPeriodic    = idx > 1 ? +(sorted[idx - 1].actual - sorted[idx - 2].actual).toFixed(2) : null
+    const trend = prevPeriodic != null ? (currentPeriodic >= prevPeriodic ? 1 : -1) : null
+    return { currentMonthActual: currentPeriodic, periodicTrend: trend }
+  })()
+
   // Latest period covered by any data (actual or forecast) -- used as planned reference
   const latestDataDate = chartData
     .filter(d => d.actual != null || d.forecast != null)
@@ -1598,45 +1609,53 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         const varColor = summaryVariance == null ? '#9ca3af' : summaryVariance >= 0 ? '#16a34a' : '#dc2626'
         const cards = [
           {
-            label: 'Actual POC', value: summaryActual, accent: actualColor, sublabel: null,
-            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l4-4 4 4 4-6 4 2" /></svg>,
+            label: 'Actual POC', value: summaryActual, accent: actualColor,
+            sublabel: latestActualDate ? `as of ${new Date(latestActualDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : null,
+            icon: <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l4-4 4 4 4-6 4 2" /></svg>,
           },
           {
             label: 'Planned POC', value: summaryPlanned, accent: blColor(refBaseline?.id, 0), sublabel: refBaseline?.name,
-            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><rect x="3" y="4" width="18" height="18" rx="2" /><path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" /></svg>,
+            icon: <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><rect x="3" y="4" width="18" height="18" rx="2" /><path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" /></svg>,
           },
           {
             label: 'Variance', value: summaryVariance, accent: varColor, sublabel: 'vs planned today', semantic: true,
             icon: summaryVariance == null || summaryVariance >= 0
-              ? <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-5 4 4 9-9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 7h5v5" /></svg>
-              : <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7l5 5 4-4 9 9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5v-5" /></svg>,
+              ? <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-5 4 4 9-9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 7h5v5" /></svg>
+              : <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7l5 5 4-4 9 9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5v-5" /></svg>,
           },
           {
-            label: '', value: null, accent: '#9ca3af', sublabel: null, placeholder: true,
-            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 8v4l3 3" /></svg>,
+            label: 'Periodic POC', value: currentMonthActual, accent: '#6366f1', trend: periodicTrend,
+            sublabel: latestActualDate ? new Date(latestActualDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null,
+            icon: <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 8v4l3 3" /></svg>,
           },
         ]
         return (
           <div className="flex-shrink-0 flex flex-row gap-3">
           {cards.map(card => (
             <div key={card.label || 'placeholder'}
-              className="flex-1 rounded-xl border px-4 py-3 flex flex-row items-center gap-3 overflow-hidden"
+              className="flex-1 rounded-xl border px-4 py-3 flex flex-row items-start gap-3 overflow-hidden"
               style={{
                 borderColor: '#e5e7eb',
-                borderLeftColor: card.accent,
-                borderLeftWidth: 3,
                 background: '#ffffff',
                 boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
               }}
             >
               {/* Text content */}
-              <div className="flex flex-col justify-center gap-1.5 flex-1 min-w-0">
-                <span className="text-[10px] font-bold uppercase tracking-widest leading-none text-gray-400">{card.label}</span>
+              <div className="flex flex-col justify-start gap-1.5 flex-1 min-w-0">
+                <span className="text-xs font-bold tracking-wide leading-none text-gray-400">{card.label}</span>
                 <div className="flex items-baseline gap-1">
                   {card.semantic && card.value != null && (
                     <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
                       style={{ color: card.accent }} fill="currentColor">
                       {card.value >= 0
+                        ? <polygon points="5,1 9,9 1,9" />
+                        : <polygon points="5,9 9,1 1,1" />}
+                    </svg>
+                  )}
+                  {card.trend != null && (
+                    <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
+                      style={{ color: card.trend >= 0 ? '#16a34a' : '#dc2626' }} fill="currentColor">
+                      {card.trend >= 0
                         ? <polygon points="5,1 9,9 1,9" />
                         : <polygon points="5,9 9,1 1,1" />}
                     </svg>
@@ -1862,7 +1881,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         })()
 
         return (
-          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow-md overflow-hidden pb-2">
+          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-md overflow-hidden pb-2">
             {/* Legend */}
             <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-2.5 pb-2.5 flex-wrap border-b border-gray-100">
               {selectedBaselineIds.map((id, i) => {
