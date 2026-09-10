@@ -436,14 +436,15 @@ export default function ProjectDetailPage() {
 
           {/* Header â€" transparent + sticky on Project Info so cover photo shows through */}
           <header
-            className={`flex flex-col sticky top-0 z-10 sm:fixed sm:top-0 sm:left-0 sm:right-0 sm:z-[15]`}
+            className={`flex flex-col sticky top-0 z-10`}
             style={{ background: headerScrolled ? 'linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0) 100%)' : 'transparent', transition: 'background 200ms ease' }}
           >
             {/* Safe area spacer â€" pushes header content below iOS status bar on mobile */}
             <div className="sm:hidden flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
-            <div className={`flex items-center h-14 px-5 gap-4`}>
-            {/* Sidebar-width spacer: aligns project name with tab content below (desktop only) */}
-            <div className="hidden sm:block flex-shrink-0" style={{ width: (sidebarExpanded ? 240 : 80) - 4 }} />
+            <div className={`flex items-center h-14`}>
+            {/* Inner content wrapper: aligns with max-w-7xl content containers */}
+            <div className="flex flex-1 items-center h-full min-w-0 px-3 sm:px-6">
+            <div className="w-full flex items-center gap-4 h-full">
             {/* Back button â€" mobile only */}
             <button
               className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 text-white active:scale-90 transition-all"
@@ -456,15 +457,17 @@ export default function ProjectDetailPage() {
               </svg>
             </button>
             {section !== null && (
-              <span className={`text-lg font-bold text-gray-800 tracking-wide truncate ${section === 'Permits' ? 'hidden sm:block' : ''}`}>{project.name}</span>
-            )}
-            {activeLabel !== 'Project Info' && (
-              <span className="text-sm text-gray-800 hidden sm:flex flex-shrink-0 items-center gap-1.5">
-                / {activeLabel}
-                {section === 'Work Program' && ganttBLName && (
-                  <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[11px] font-semibold">{ganttBLName}</span>
+              <div className={`flex flex-col justify-center flex-shrink-0 ${section === 'Permits' ? 'hidden sm:flex' : ''}`}>
+                <span className="text-lg font-extrabold text-gray-800 tracking-wide leading-tight">{project.name}</span>
+                {activeLabel !== 'Project Info' && (
+                  <span className="text-xs font-semibold text-[#ed6055] hidden sm:flex items-center gap-1.5 mt-0.5">
+                    {activeLabel}
+                    {section === 'Work Program' && ganttBLName && (
+                      <span className="px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-500 text-[10px] font-semibold">{ganttBLName}</span>
+                    )}
+                  </span>
                 )}
-              </span>
+              </div>
             )}
             <div className="flex-1" />
 
@@ -488,7 +491,7 @@ export default function ProjectDetailPage() {
                 </svg>
               </button>
               {/* Desktop search */}
-              <div className="relative hidden sm:block">
+              <div className="relative hidden sm:flex flex-1 min-w-0 max-w-xs">
                 <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
                 </svg>
@@ -497,7 +500,7 @@ export default function ProjectDetailPage() {
                   placeholder="Search photos..."
                   value={photosSearch}
                   onChange={e => setPhotosSearch(e.target.value)}
-                  className={headerSearchCls}
+                  className={headerSearchCls.replace('w-96', 'w-full')}
                 />
               </div>
 
@@ -623,7 +626,7 @@ export default function ProjectDetailPage() {
                   </svg>
                 </button>
                 {/* Desktop search */}
-                <div className="relative flex-shrink-0 hidden sm:block">
+                <div className="relative hidden sm:flex flex-1 min-w-0 max-w-xs">
                   <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                     <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
                   </svg>
@@ -632,7 +635,7 @@ export default function ProjectDetailPage() {
                     placeholder="Search issues..."
                     value={issuesSearch}
                     onChange={e => setIssuesSearch(e.target.value)}
-                    className={headerSearchCls}
+                    className={headerSearchCls.replace('w-96', 'w-full')}
                   />
                 </div>
 
@@ -1029,11 +1032,11 @@ export default function ProjectDetailPage() {
                 </div>
               )}
             </div>
+            </div>{/* end max-w-7xl wrapper */}
+            </div>{/* end inner wrapper */}
             </div>{/* end content row */}
           </header>
 
-          {/* Spacer for fixed header on desktop */}
-          <div className="hidden sm:block flex-shrink-0 h-14" />
 
           {/* Mobile search expansion row */}
           {mobileSearchOpen && (section === 'Photos' || section === 'Issues & Concerns' || section === 'Permits') && (
@@ -1237,6 +1240,8 @@ function PhotosIcon({ className }) {
 function IssuesIcon({ className }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
 }
+
+
 
 
 
