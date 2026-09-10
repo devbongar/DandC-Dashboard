@@ -28,6 +28,59 @@
   z-index: 1;
 }
 
+/* Site plan full-screen mode — hide app header */
+body.plan-fullscreen header {
+  display: none !important;
+}
+
+/* Site plan map pin */
+.site-pin {
+  width: 22px;
+  height: 22px;
+  display: block;
+  position: relative;
+  box-sizing: border-box;
+}
+.site-pin::after {
+  content: '';
+  width: 22px;
+  height: 22px;
+  left: 0;
+  bottom: 0;
+  position: absolute;
+  border-radius: 50% 50% 0;
+  border: 7px solid #ed6055;
+  transform: rotate(45deg) translate(0, 0);
+  box-sizing: border-box;
+  animation: sitePinBounce 0.7s ease-in-out infinite alternate;
+}
+.site-pin::before {
+  content: '';
+  box-sizing: border-box;
+  position: absolute;
+  left: 0;
+  right: 0;
+  margin: auto;
+  top: 150%;
+  width: 11px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.18);
+  animation: sitePinShadow 0.7s ease-in-out infinite alternate;
+}
+.site-pin-selected::after {
+  border-color: #c0392b;
+  animation-play-state: paused;
+}
+@keyframes sitePinBounce {
+  0%   { transform: rotate(45deg) translate(3px, 3px); }
+  100% { transform: rotate(45deg) translate(-3px, -3px); }
+}
+@keyframes sitePinShadow {
+  0%   { transform: scale(0.5); }
+  100% { transform: scale(1); }
+}
+
 /* Remove browser autofill white background on dark/glass inputs */
 input:-webkit-autofill,
 input:-webkit-autofill:hover,

@@ -4452,13 +4452,20 @@ const fmtPhotoDate = (dateStr) => {
 // -- Upload Screen -------------------------------------------------------------
 
 function UploadScreen({ project, showToast, onBack, onUploaded }) {
-  const [files, setFiles]           = useState([])
-  const [previews, setPreviews]     = useState([])
-  const [uploadDate, setUploadDate] = useState(() => new Date().toLocaleDateString('en-CA'))
-  const [uploadTags, setUploadTags] = useState([])
-  const [uploading, setUploading]   = useState(false)
-  const [dragging, setDragging]     = useState(false)
+  const [files, setFiles]               = useState([])
+  const [previews, setPreviews]         = useState([])
+  const [uploadDate, setUploadDate]     = useState(() => new Date().toLocaleDateString('en-CA'))
+  const [uploadTags, setUploadTags]     = useState([])
+  const [uploadBuilding, setUploadBuilding] = useState(null)
+  const [buildings, setBuildings]       = useState([])
+  const [uploading, setUploading]       = useState(false)
+  const [dragging, setDragging]         = useState(false)
   const fileRef = useRef(null)
+
+  useEffect(() => {
+    supabase.from('project_buildings').select('id, name').eq('project_id', project.id).order('name')
+      .then(({ data }) => setBuildings(data ?? []))
+  }, [project.id])
 
   useEffect(() => () => previews.forEach(u => URL.revokeObjectURL(u)), [previews])
 
@@ -4494,7 +4501,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
       }
       await supabase.from('project_photos').insert({
         project_id: project.id, storage_path: path, file_name: file.name,
-        tags: uploadTags, photo_date: uploadDate,
+        tags: uploadTags, photo_date: uploadDate, building_id: uploadBuilding,
       })
       ok++
     }
@@ -4514,9 +4521,23 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
       {/* Settings card */}
       <div className="bg-gray-50 rounded-xl border border-gray-100 p-4 mb-5 space-y-4">
         <div>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Tower <span className="text-[#ed6055]">*</span></p>
+          <div className="flex flex-wrap gap-2">
+            {buildings.length === 0
+              ? <p className="text-xs text-gray-400">No towers defined for this project</p>
+              : buildings.map(b => (
+                <button key={b.id} onClick={() => setUploadBuilding(b.id)}
+                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${uploadBuilding === b.id ? 'bg-[#ed6055] text-white border-[#ed6055]' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}>
+                  {b.name}
+                </button>
+              ))
+            }
+          </div>
+          {!uploadBuilding && <p className="text-[10px] text-[#ed6055] mt-1">Select a tower to enable upload</p>}
+        </div>
+        <div>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Photo Date</p>
-          <input type="date" value={uploadDate} max={new Date().toISOString().slice(0, 10)}
-            max={new Date().toLocaleDateString('en-CA')}
+          <input type="date" value={uploadDate} max={new Date().toLocaleDateString('en-CA')}
             onChange={e => setUploadDate(e.target.value)}
             className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white" />
         </div>
@@ -4580,7 +4601,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
       )}
 
       <div className="mt-6 flex items-center gap-3">
-        <button onClick={doUpload} disabled={!files.length || uploading}
+        <button onClick={doUpload} disabled={!files.length || uploading || !uploadBuilding}
           className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 transition">
           {uploading ? 'Uploading...' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
         </button>
@@ -4590,16 +4611,412 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
   )
 }
 
+// -- Site Plan View ------------------------------------------------------------
+
+function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast }) {
+  const [plan, setPlan]               = useState(null)
+  const [pins, setPins]               = useState([])
+  const [loading, setLoading]         = useState(true)
+  const [uploading, setUploading]     = useState(false)
+  const [editMode, setEditMode]       = useState(false)
+  const [pendingPin, setPendingPin]   = useState(null)      // { x_pct, y_pct }
+  const [selectedTower, setSelectedTower] = useState(null)
+  const [towerPhotos, setTowerPhotos] = useState([])
+  const [photosLoading, setPhotosLoading] = useState(false)
+  const [lightbox, setLightbox]       = useState(null)
+  const [lbLoaded, setLbLoaded]       = useState(false)
+  // zoom transition state: 'plan' | 'zooming' | 'photos'
+  const [planMode, setPlanMode]       = useState('plan')
+  const [zoomOrigin, setZoomOrigin]   = useState(null)      // { x_pct, y_pct }
+  const [photosVisible, setPhotosVisible] = useState(false) // opacity fade-in
+  const imgRef      = useRef(null)
+  const fileRef     = useRef(null)
+  const zoomTimer   = useRef(null)
+  const fadeTimer   = useRef(null)
+
+  const getPlanUrl  = (path) => supabase.storage.from('project-photos').getPublicUrl(path).data.publicUrl
+  const getThumbUrl = (path) => supabase.storage.from('project-photos').getPublicUrl(`thumbs/${path}`).data.publicUrl
+
+  useEffect(() => () => { clearTimeout(zoomTimer.current); clearTimeout(fadeTimer.current) }, [])
+
+  // Hide app header when site plan is in full-screen mode
+  useEffect(() => {
+    const full = planMode !== 'photos'
+    document.body.classList.toggle('plan-fullscreen', full)
+    return () => document.body.classList.remove('plan-fullscreen')
+  }, [planMode])
+
+  const load = async () => {
+    setLoading(true)
+    const { data: planData } = await supabase.from('project_site_plans').select('*').eq('project_id', project.id).maybeSingle()
+    if (planData) {
+      const { data: pinData } = await supabase.from('project_site_plan_pins').select('*').eq('site_plan_id', planData.id)
+      setPlan(planData)
+      setPins(pinData ?? [])
+    } else {
+      setPlan(null); setPins([])
+    }
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [project.id])
+
+  useEffect(() => {
+    if (!selectedTower) { setTowerPhotos([]); return }
+    setPhotosLoading(true)
+    supabase.from('project_photos').select('*').eq('project_id', project.id).eq('building_id', selectedTower).order('photo_date', { ascending: false })
+      .then(({ data }) => { setTowerPhotos(data ?? []); setPhotosLoading(false) })
+  }, [selectedTower, project.id])
+
+  const uploadPlan = async (file) => {
+    setUploading(true)
+    const ext  = file.name.split('.').pop().toLowerCase()
+    const path = `site-plans/${project.id}/plan.${ext}`
+    const { error } = await supabase.storage.from('project-photos').upload(path, file, { upsert: true })
+    if (error) { showToast('Upload failed', 'error'); setUploading(false); return }
+    const { data } = await supabase.from('project_site_plans')
+      .upsert({ project_id: project.id, storage_path: path }, { onConflict: 'project_id' })
+      .select().maybeSingle()
+    setPlan(data); setPins([]); backToPlan(true)
+    setUploading(false); showToast('Site plan uploaded')
+  }
+
+  const handleImageClick = (e) => {
+    if (!editMode || !imgRef.current) return
+    if (e.target !== imgRef.current) return
+    const rect = imgRef.current.getBoundingClientRect()
+    const x_pct = ((e.clientX - rect.left) / rect.width) * 100
+    const y_pct = ((e.clientY - rect.top) / rect.height) * 100
+    setPendingPin({ x_pct, y_pct })
+  }
+
+  const handlePinClick = (pin) => {
+    if (editMode) return
+    setSelectedTower(pin.building_id)
+    setZoomOrigin({ x_pct: pin.x_pct, y_pct: pin.y_pct })
+    setPhotosVisible(false)
+    setPlanMode('zooming')
+    zoomTimer.current = setTimeout(() => {
+      setPlanMode('photos')
+      fadeTimer.current = setTimeout(() => setPhotosVisible(true), 30)
+    }, 900)
+  }
+
+  const backToPlan = (instant = false) => {
+    clearTimeout(zoomTimer.current); clearTimeout(fadeTimer.current)
+    setPhotosVisible(false)
+    setPlanMode('plan')
+    setZoomOrigin(null)
+    setSelectedTower(null)
+    setLightbox(null)
+  }
+
+  const assignPin = async (buildingId) => {
+    if (!pendingPin || !plan) return
+    const { data } = await supabase.from('project_site_plan_pins').insert({
+      site_plan_id: plan.id, building_id: buildingId,
+      x_pct: pendingPin.x_pct, y_pct: pendingPin.y_pct,
+    }).select().maybeSingle()
+    if (data) setPins(prev => [...prev, data])
+    setPendingPin(null)
+  }
+
+  const deletePin = async (pinId) => {
+    await supabase.from('project_site_plan_pins').delete().eq('id', pinId)
+    setPins(prev => prev.filter(p => p.id !== pinId))
+  }
+
+  const buildingName = (buildingId) => buildings.find(b => b.id === buildingId)?.name ?? 'Tower'
+
+  if (loading) return <TriangleLoader label="Loading site plan..." />
+
+  // ── Empty state ──────────────────────────────────────────────────────────────
+  if (!plan) return (
+    <div className="pt-4 px-3 sm:px-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm max-w-7xl mx-auto">
+        <div className="px-4 py-4 flex items-center justify-between border-b border-gray-100">
+          <p className="text-xs font-semibold text-gray-500">Site Plan</p>
+          <button onClick={onViewGallery} className="text-xs font-semibold text-[#ed6055] hover:underline flex items-center gap-1">
+            View All Photos
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+        </div>
+        <div className="py-16 text-center">
+          <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
+            <svg className="w-7 h-7 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-6v8.25m.503 3.498l4.875-2.437c.381-.19.622-.58.622-1.006V4.82c0-.836-.88-1.38-1.628-1.006l-3.869 1.934c-.317.159-.69.159-1.006 0L9.503 3.252a1.125 1.125 0 00-1.006 0L3.622 5.689C3.24 5.88 3 6.27 3 6.695V19.18c0 .836.88 1.38 1.628 1.006l3.869-1.934c-.317-.159.69-.159 1.006 0l4.994 2.497c.317.158.69.158 1.006 0z" />
+            </svg>
+          </div>
+          <p className="text-sm text-gray-400">No site plan uploaded yet</p>
+          {isAdmin && (
+            <>
+              <p className="text-xs text-gray-300 mt-1 mb-4">Upload a site plan image and tag tower locations</p>
+              <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                className="px-4 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 transition">
+                {uploading ? 'Uploading…' : 'Upload Site Plan'}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                onChange={e => { if (e.target.files[0]) uploadPlan(e.target.files[0]); e.target.value = '' }} />
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+
+  const planUrl            = getPlanUrl(plan.storage_path)
+  const pinnedBuildingIds  = new Set(pins.map(p => p.building_id))
+  const unpinnedBuildings  = buildings.filter(b => !pinnedBuildingIds.has(b.id))
+  const isZooming          = planMode === 'zooming'
+  const showPhotos         = planMode === 'photos'
+
+  // ── Full-screen plan view (planMode !== 'photos') ───────────────────────────
+  if (!showPhotos) return (
+    <div style={{ position: 'relative', width: '100%', overflow: isZooming ? 'hidden' : 'visible' }}>
+      {/* Floating controls overlay */}
+      {!isZooming && (
+        <div style={{ position: 'absolute', top: 12, right: 16, zIndex: 30, display: 'flex', alignItems: 'center', gap: 8 }}>
+          {isAdmin && (
+            <>
+              <button onClick={() => fileRef.current?.click()} disabled={uploading}
+                className="text-[10px] font-semibold px-2.5 py-1.5 rounded-lg backdrop-blur-sm bg-white/80 border border-gray-200 text-gray-600 hover:bg-white transition disabled:opacity-50 shadow-sm">
+                {uploading ? 'Uploading…' : 'Replace Plan'}
+              </button>
+              <input ref={fileRef} type="file" accept="image/*" className="hidden"
+                onChange={e => { if (e.target.files[0]) uploadPlan(e.target.files[0]); e.target.value = '' }} />
+              <button onClick={() => { setEditMode(e => !e); setPendingPin(null) }}
+                className={`text-[10px] font-semibold px-2.5 py-1.5 rounded-lg backdrop-blur-sm border transition shadow-sm ${editMode ? 'bg-[#ed6055] text-white border-[#ed6055]' : 'bg-white/80 border-gray-200 text-gray-600 hover:bg-white'}`}>
+                {editMode ? 'Done' : 'Edit Pins'}
+              </button>
+            </>
+          )}
+          <button onClick={onViewGallery}
+            className="text-[10px] font-semibold px-2.5 py-1.5 rounded-lg backdrop-blur-sm bg-white/80 border border-gray-200 text-[#ed6055] hover:bg-white transition shadow-sm flex items-center gap-1">
+            All Photos
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* Edit mode hint */}
+      {editMode && (
+        <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 30 }}>
+          <div className="px-3 py-1.5 rounded-full backdrop-blur-sm bg-amber-500/80 text-white text-[10px] font-semibold shadow-sm whitespace-nowrap">
+            {unpinnedBuildings.length > 0 ? 'Click on the plan to place a tower pin' : 'All towers pinned — delete a pin to reposition'}
+          </div>
+        </div>
+      )}
+
+      {/* Image + pins */}
+      <div className="relative" style={{ cursor: editMode ? 'crosshair' : 'default', height: '100dvh', background: '#000' }}>
+        <img
+          ref={imgRef}
+          src={planUrl}
+          alt="Site plan"
+          onClick={handleImageClick}
+          draggable={false}
+          className="block select-none"
+          style={{
+            transition: isZooming
+              ? 'transform 0.9s cubic-bezier(0.4,0,0.6,0), opacity 0.22s ease 0.65s'
+              : 'none',
+            transform: isZooming ? 'scale(6)' : 'scale(1)',
+            transformOrigin: zoomOrigin ? `${zoomOrigin.x_pct}% ${zoomOrigin.y_pct}%` : 'center center',
+            opacity: isZooming ? 0 : 1,
+            willChange: 'transform, opacity',
+            position: 'relative', zIndex: 1,
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+            objectPosition: 'center center',
+          }}
+        />
+
+        {/* Black vignette — blends image edges into black background */}
+        <div
+          style={{
+            position: 'absolute', inset: 0, zIndex: 20, pointerEvents: 'none',
+            background: 'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 45%, rgba(0,0,0,0.5) 70%, rgba(0,0,0,0.85) 100%)',
+            transition: 'opacity 0.4s ease',
+            opacity: isZooming ? 0 : 1,
+          }}
+        />
+
+        {/* Pins */}
+        {!isZooming && pins.map(pin => {
+          const name = buildingName(pin.building_id)
+          return (
+            <div key={pin.id} className="absolute" style={{ left: `${pin.x_pct}%`, top: `${pin.y_pct}%`, transform: 'translate(-50%, -110%)', zIndex: 30 }}>
+              {editMode ? (
+                <button onClick={() => deletePin(pin.id)} className="flex flex-col items-center group">
+                  <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-red-500 text-white shadow-lg mb-0.5 group-hover:bg-red-600 transition whitespace-nowrap">
+                    {name}
+                    <svg className="w-2.5 h-2.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </span>
+                  <svg className="w-2 h-2 text-red-500" viewBox="0 0 8 8"><path d="M4 8 L0 0 L8 0 Z" fill="currentColor"/></svg>
+                </button>
+              ) : (
+                <button onClick={() => handlePinClick(pin)} className="flex flex-col items-center group" style={{ marginBottom: 8 }}>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md mb-1 whitespace-nowrap transition-transform group-hover:scale-110 bg-white text-gray-700 border border-gray-200 group-hover:bg-[#ed6055] group-hover:text-white group-hover:border-[#ed6055]">
+                    {name}
+                  </span>
+                  <span className="site-pin" />
+                </button>
+              )}
+            </div>
+          )
+        })}
+
+        {/* Pending pin picker */}
+        {pendingPin && (
+          <div className="absolute z-20" style={{ left: `${pendingPin.x_pct}%`, top: `${pendingPin.y_pct}%`, transform: 'translate(-50%, -110%)' }}>
+            <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-2 min-w-[120px]">
+              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Select tower</p>
+              {unpinnedBuildings.length === 0
+                ? <p className="text-[10px] text-gray-400 px-1 pb-1">All towers pinned</p>
+                : unpinnedBuildings.map(b => (
+                  <button key={b.id} onClick={() => assignPin(b.id)}
+                    className="w-full text-left text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-[#ed6055] hover:text-white transition text-gray-700">
+                    {b.name}
+                  </button>
+                ))
+              }
+              <button onClick={() => setPendingPin(null)}
+                className="w-full text-left text-[10px] text-gray-400 hover:text-gray-600 px-2 py-1 mt-1 border-t border-gray-100 transition">
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  )
+
+  // ── Photos view (after zoom) — normal card layout ────────────────────────────
+  return (
+    <div className="pt-4 px-3 sm:px-6">
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm max-w-7xl mx-auto">
+        {/* Header */}
+        <div className="px-4 py-3 flex items-center gap-3 border-b border-gray-100">
+          <button onClick={() => backToPlan()}
+            className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition mr-auto">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+            Site Plan
+          </button>
+          <p className="text-xs font-semibold text-gray-700">{buildingName(selectedTower)}</p>
+          {!photosLoading && (
+            <span className="text-xs text-gray-400">{towerPhotos.length} photo{towerPhotos.length !== 1 ? 's' : ''}</span>
+          )}
+        </div>
+
+        {/* Photos grid */}
+        <div className="px-4 py-4" style={{ opacity: photosVisible ? 1 : 0, transition: 'opacity 0.3s ease' }}>
+          {photosLoading ? (
+            <TriangleLoader label="Loading photos…" />
+          ) : towerPhotos.length === 0 ? (
+            <div className="py-14 text-center">
+              <p className="text-sm text-gray-400">No photos for {buildingName(selectedTower)} yet</p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+              {towerPhotos.map((photo, idx) => (
+                <div key={photo.id}
+                  className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
+                  style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
+                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'}
+                  onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)'}
+                  onClick={() => { setLbLoaded(false); setLightbox(idx) }}>
+                  <img
+                    src={getThumbUrl(photo.storage_path)}
+                    onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = getPlanUrl(photo.storage_path) }}
+                    alt={fixEncoding(photo.file_name)}
+                    loading="lazy"
+                    className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                  />
+                  {(photo.tags ?? []).length > 0 && (
+                    <div className="absolute top-1.5 left-1.5 flex flex-wrap gap-0.5">
+                      {(photo.tags ?? []).slice(0, 1).map(tag => (
+                        <span key={tag} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/50 text-white backdrop-blur-sm leading-none">{tag}</span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Lightbox ─────────────────────────────────────────────────────── */}
+      {lightbox !== null && towerPhotos[lightbox] && createPortal(
+        <div className="lb-backdrop fixed inset-0 z-[9999] bg-black/90 flex items-center justify-center" onClick={() => setLightbox(null)}>
+          <button className="absolute top-4 right-4 w-9 h-9 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
+            onClick={() => setLightbox(null)}>
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          {lightbox > 0 && (
+            <button className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
+              onClick={e => { e.stopPropagation(); setLbLoaded(false); setLightbox(l => l - 1) }}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+          )}
+          {lightbox < towerPhotos.length - 1 && (
+            <button className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
+              onClick={e => { e.stopPropagation(); setLbLoaded(false); setLightbox(l => l + 1) }}>
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+          )}
+          <div className="relative flex items-center justify-center max-w-[88vw] max-h-[80vh]" onClick={e => e.stopPropagation()}>
+            {!lbLoaded && (
+              <img src={getThumbUrl(towerPhotos[lightbox].storage_path)} alt="" aria-hidden
+                className="absolute inset-0 w-full h-full object-contain rounded-lg blur-sm scale-105 opacity-60" />
+            )}
+            <img src={getPlanUrl(towerPhotos[lightbox].storage_path)} alt={fixEncoding(towerPhotos[lightbox].file_name)}
+              onLoad={() => setLbLoaded(true)}
+              className={`relative max-w-[88vw] max-h-[80vh] object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${lbLoaded ? 'opacity-100' : 'opacity-0'}`} />
+          </div>
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm">
+              <span className="text-xs text-white/70 max-w-[200px] truncate">{fixEncoding(towerPhotos[lightbox].file_name)}</span>
+              <span className="text-xs text-white/40">·</span>
+              <span className="text-xs text-white/50">{lightbox + 1} / {towerPhotos.length}</span>
+            </div>
+          </div>
+        </div>
+      , document.body)}
+    </div>
+  )
+}
+
 // -- Photos Gallery ------------------------------------------------------------
 
 function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearchChange, filterTags = [], onFilterTagsChange, filterMonth = '', onFilterMonthChange, sortOrder = 'newest', onSortOrderChange, showUpload = false, onShowUploadChange }) {
+  const [view, setView]                   = useState('site-plan')  // 'site-plan' | 'gallery'
   const [photos, setPhotos]               = useState([])
+  const [buildings, setBuildings]         = useState([])
   const [loading, setLoading]             = useState(true)
   const [lightbox, setLightbox]           = useState(null)
   const [lbLoaded, setLbLoaded]           = useState(false)
   const [deletePhoto, setDeletePhoto]     = useState(null)
   const [slideDir, setSlideDir]           = useState('open')
   const [imgKey, setImgKey]               = useState(0)
+  const [groupMode, setGroupMode]         = useState('date')   // 'date' | 'tower'
+  const [filterBuilding, setFilterBuilding] = useState(null)
+  const [lbEditBuilding, setLbEditBuilding] = useState(false)
   const showUploadScreen = showUpload
   const setShowUpload    = onShowUploadChange
   const setFilterMonth   = onFilterMonthChange
@@ -4608,12 +5025,12 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
 
   const load = async () => {
     setLoading(true)
-    const { data } = await supabase
-      .from('project_photos')
-      .select('*')
-      .eq('project_id', project.id)
-      .order('photo_date', { ascending: false })
-    setPhotos(data ?? [])
+    const [{ data: photoData }, { data: bData }] = await Promise.all([
+      supabase.from('project_photos').select('*, project_buildings(id, name)').eq('project_id', project.id).order('photo_date', { ascending: false }),
+      supabase.from('project_buildings').select('id, name').eq('project_id', project.id).order('name'),
+    ])
+    setPhotos(photoData ?? [])
+    setBuildings(bData ?? [])
     setLoading(false)
   }
 
@@ -4631,12 +5048,13 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
     return [...seen].sort().reverse()
   }, [photos])
 
-  const activeFilterCount = [!!filterMonth, filterTags.length > 0].filter(Boolean).length
+  const activeFilterCount = [!!filterMonth, filterTags.length > 0, !!filterBuilding].filter(Boolean).length
   const filteredPhotos = useMemo(() => {
     const q = search.toLowerCase()
     const result = photos.filter(p => {
       if (filterMonth && !(p.photo_date ?? p.created_at)?.startsWith(filterMonth)) return false
       if (filterTags.length && !filterTags.every(t => (p.tags ?? []).includes(t))) return false
+      if (filterBuilding && p.building_id !== filterBuilding) return false
       if (q && !(p.file_name ?? '').toLowerCase().includes(q) && !(p.tags ?? []).some(t => t.toLowerCase().includes(q))) return false
       return true
     })
@@ -4646,7 +5064,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
       return sortOrder === 'newest' ? db.localeCompare(da) : da.localeCompare(db)
     })
     return result
-  }, [photos, filterMonth, filterTags, sortOrder])
+  }, [photos, filterMonth, filterTags, filterBuilding, sortOrder])
 
   const groupedPhotos = useMemo(() => {
     const map = new Map()
@@ -4657,6 +5075,21 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
     })
     return [...map.entries()].map(([day, items]) => ({ day, items }))
   }, [filteredPhotos])
+
+  const groupedByTower = useMemo(() => {
+    const map = new Map()
+    filteredPhotos.forEach((photo, idx) => {
+      const bid = photo.building_id ?? '__none__'
+      if (!map.has(bid)) map.set(bid, [])
+      map.get(bid).push({ ...photo, _flatIdx: idx })
+    })
+    const buildingMap = Object.fromEntries(buildings.map(b => [b.id, b.name]))
+    return [...map.entries()].map(([bid, items]) => ({
+      bid,
+      name: bid === '__none__' ? 'No Tower' : (buildingMap[bid] ?? 'Unknown Tower'),
+      items,
+    }))
+  }, [filteredPhotos, buildings])
 
   const handleDelete = (photo, e) => {
     e.stopPropagation()
@@ -4673,6 +5106,15 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
     load()
   }
 
+  const getBuildingName = (photo) => photo.project_buildings?.name ?? buildings.find(b => b.id === photo.building_id)?.name ?? null
+
+  const updatePhotoBuilding = async (photo, newBuildingId) => {
+    await supabase.from('project_photos').update({ building_id: newBuildingId }).eq('id', photo.id)
+    setPhotos(prev => prev.map(p => p.id === photo.id
+      ? { ...p, building_id: newBuildingId, project_buildings: buildings.find(b => b.id === newBuildingId) ?? null }
+      : p))
+  }
+
   if (loading) return <TriangleLoader label="Loading photos..." />
 
   if (showUploadScreen) return (
@@ -4681,13 +5123,58 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
       onUploaded={() => { setShowUpload(false); load() }} />
   )
 
-  const hasFilters = !!(filterMonth || filterTags.length || search)
+  if (view === 'site-plan') return (
+    <SitePlanView
+      project={project}
+      isAdmin={isAdmin}
+      buildings={buildings}
+      showToast={showToast}
+      onViewGallery={() => setView('gallery')}
+    />
+  )
+
+  const hasFilters = !!(filterMonth || filterTags.length || search || filterBuilding)
 
   return (
     <div className="pt-4 px-3 sm:px-6">
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 max-w-7xl mx-auto">
         {/* Grid */}
       <div className="px-4 py-4">
+      {/* Back to site plan */}
+      <div className="flex items-center gap-3 mb-4">
+        <button onClick={() => setView('site-plan')}
+          className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          Site Plan
+        </button>
+      </div>
+
+      {/* Group mode + building filter bar */}
+      {buildings.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-4">
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden text-[10px] font-semibold">
+            <button onClick={() => setGroupMode('date')}
+              className={`px-2.5 py-1.5 transition ${groupMode === 'date' ? 'bg-[#ed6055] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+              By Date
+            </button>
+            <button onClick={() => setGroupMode('tower')}
+              className={`px-2.5 py-1.5 transition border-l border-gray-200 ${groupMode === 'tower' ? 'bg-[#ed6055] text-white' : 'text-gray-500 hover:bg-gray-50'}`}>
+              By Tower
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {buildings.map(b => (
+              <button key={b.id} onClick={() => setFilterBuilding(filterBuilding === b.id ? null : b.id)}
+                className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition ${filterBuilding === b.id ? 'bg-[#ed6055] text-white border-[#ed6055]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                {b.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {filteredPhotos.length === 0 ? (
         <div className="py-16 text-center">
           <div className="w-14 h-14 mx-auto mb-3 rounded-full bg-gray-100 flex items-center justify-center">
@@ -4698,7 +5185,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
           {hasFilters ? (
             <>
               <p className="text-sm text-gray-400">No photos match the current filters</p>
-              <button onClick={() => { setFilterMonth(''); setFilterTags([]); onSearchChange?.('') }} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
+              <button onClick={() => { setFilterMonth(''); setFilterTags([]); setFilterBuilding(null); onSearchChange?.('') }} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
             </>
           ) : (
             <>
@@ -4712,53 +5199,83 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
           <p className="text-xs text-gray-400 mb-4">
             {filteredPhotos.length}{hasFilters ? ` of ${photos.length}` : ''} photo{filteredPhotos.length !== 1 ? 's' : ''}
           </p>
-          <div className="space-y-6">
-            {groupedPhotos.map(({ day, items }) => (
-              <div key={day}>
-                <p className="text-sm font-semibold text-gray-700 mb-2.5">{fmtPhotoDate(day)}</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
-                  {items.map(photo => (
-                    <div key={photo.id}
-                      className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
-                      style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
-                      onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'; const img = new Image(); img.src = getUrl(photo.storage_path) }}
-                      onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)'}
-                      onClick={() => { setSlideDir('open'); setImgKey(k => k + 1); setLbLoaded(false); setLightbox(photo._flatIdx) }}>
-                      <img
-                        src={getThumbnailUrl(photo.storage_path)}
-                        onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = getUrl(photo.storage_path) }}
-                        alt={fixEncoding(photo.file_name)}
-                        loading="lazy"
-                        className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
-                      />
-                      {(photo.tags ?? []).length > 0 && (
-                        <div className="absolute top-2 left-2 flex flex-wrap gap-1">
-                          {(photo.tags ?? []).slice(0, 2).map(tag => (
-                            <span key={tag} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/50 text-white backdrop-blur-sm leading-none">{tag}</span>
-                          ))}
-                          {(photo.tags ?? []).length > 2 && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/50 text-white leading-none">+{(photo.tags ?? []).length - 2}</span>
-                          )}
-                        </div>
+
+          {/* Photo card renderer */}
+          {(() => {
+            const renderPhotoCard = (photo) => (
+              <div key={photo.id}
+                className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
+                style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'; const img = new Image(); img.src = getUrl(photo.storage_path) }}
+                onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)'}
+                onClick={() => { setSlideDir('open'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLightbox(photo._flatIdx) }}>
+                <img
+                  src={getThumbnailUrl(photo.storage_path)}
+                  onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = getUrl(photo.storage_path) }}
+                  alt={fixEncoding(photo.file_name)}
+                  loading="lazy"
+                  className="w-full h-full object-cover transition duration-200 group-hover:scale-105"
+                />
+                <div className="absolute top-2 left-2 flex flex-col gap-1">
+                  {(photo.tags ?? []).length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {(photo.tags ?? []).slice(0, 2).map(tag => (
+                        <span key={tag} className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/50 text-white backdrop-blur-sm leading-none">{tag}</span>
+                      ))}
+                      {(photo.tags ?? []).length > 2 && (
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-black/50 text-white leading-none">+{(photo.tags ?? []).length - 2}</span>
                       )}
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end">
-                        <p className="px-2 pb-2 text-[10px] text-white font-medium opacity-0 group-hover:opacity-100 transition truncate w-full drop-shadow">{fixEncoding(photo.file_name)}</p>
+                    </div>
+                  )}
+                </div>
+                {getBuildingName(photo) && (
+                  <div className="absolute bottom-2 left-2">
+                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ed6055]/80 text-white backdrop-blur-sm leading-none">{getBuildingName(photo)}</span>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end">
+                  <p className="px-2 pb-2 text-[10px] text-white font-medium opacity-0 group-hover:opacity-100 transition truncate w-full drop-shadow">{fixEncoding(photo.file_name)}</p>
+                </div>
+                {(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
+                  <button onClick={e => handleDelete(photo, e)}
+                    className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-500"
+                    title="Delete photo">
+                    <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                )}
+              </div>
+            )
+
+            if (groupMode === 'tower') {
+              return (
+                <div className="space-y-6">
+                  {groupedByTower.map(({ bid, name, items }) => (
+                    <div key={bid}>
+                      <p className="text-sm font-semibold text-gray-700 mb-2.5">{name}</p>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                        {items.map(photo => renderPhotoCard(photo))}
                       </div>
-                      {(isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser') && (
-                        <button onClick={e => handleDelete(photo, e)}
-                          className="absolute top-2 right-2 w-6 h-6 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition hover:bg-red-500"
-                          title="Delete photo">
-                          <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </button>
-                      )}
                     </div>
                   ))}
                 </div>
+              )
+            }
+
+            return (
+              <div className="space-y-6">
+                {groupedPhotos.map(({ day, items }) => (
+                  <div key={day}>
+                    <p className="text-sm font-semibold text-gray-700 mb-2.5">{fmtPhotoDate(day)}</p>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+                      {items.map(photo => renderPhotoCard(photo))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            )
+          })()}
         </>
       )}
 
@@ -4775,7 +5292,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
           {lightbox > 0 && (
             <button
               className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
-              onClick={e => { e.stopPropagation(); setSlideDir('prev'); setImgKey(k => k + 1); setLbLoaded(false); setLightbox(l => l - 1) }}>
+              onClick={e => { e.stopPropagation(); setSlideDir('prev'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLightbox(l => l - 1) }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
@@ -4784,7 +5301,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
           {lightbox < filteredPhotos.length - 1 && (
             <button
               className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
-              onClick={e => { e.stopPropagation(); setSlideDir('next'); setImgKey(k => k + 1); setLbLoaded(false); setLightbox(l => l + 1) }}>
+              onClick={e => { e.stopPropagation(); setSlideDir('next'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLightbox(l => l + 1) }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
@@ -4815,6 +5332,26 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
                   <span key={tag} className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#ed6055]/80 text-white backdrop-blur-sm">{tag}</span>
                 ))}
               </div>
+            )}
+            {/* Building tag in lightbox */}
+            {buildings.length > 0 && (
+              lbEditBuilding ? (
+                <div className="flex gap-1.5 flex-wrap justify-center">
+                  {buildings.map(b => (
+                    <button key={b.id}
+                      onClick={() => { updatePhotoBuilding(filteredPhotos[lightbox], b.id); setLbEditBuilding(false) }}
+                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition ${filteredPhotos[lightbox].building_id === b.id ? 'bg-[#ed6055] text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                      {b.name}
+                    </button>
+                  ))}
+                  <button onClick={() => setLbEditBuilding(false)} className="text-[10px] text-white/50 hover:text-white/80 px-1">✕</button>
+                </div>
+              ) : (
+                <button onClick={() => setLbEditBuilding(true)}
+                  className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#ed6055]/70 text-white backdrop-blur-sm hover:bg-[#ed6055]/90 transition">
+                  {getBuildingName(filteredPhotos[lightbox]) ?? '+ Add Tower'}
+                </button>
+              )
             )}
             <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm">
               <span className="text-xs text-white/70 max-w-[200px] truncate">{fixEncoding(filteredPhotos[lightbox].file_name)}</span>
@@ -5719,8 +6256,8 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 
         {/* Content */}
         {activeSection === null ? (
-          <div key="home" className={`flex-1 overflow-hidden flex flex-col items-center ${asPage ? '-mt-14 sm:-mt-14' : ''}`} style={{ animation: 'fade-in 180ms ease-out both' }}>
-            <div className="w-full max-w-6xl flex-1 flex flex-col min-h-0">
+          <div key="home" className={`flex-1 overflow-hidden flex flex-col ${asPage ? '-mt-14 sm:-mt-14' : ''}`} style={{ animation: 'fade-in 180ms ease-out both' }}>
+            <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col min-h-0 px-3 sm:px-6">
               <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} onSectionChange={asPage ? navigate : undefined} />
             </div>
           </div>
