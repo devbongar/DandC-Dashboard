@@ -1629,68 +1629,78 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         const cards = [
           {
             label: 'Actual POC', value: summaryActual, accent: actualColor,
+            bg: 'linear-gradient(135deg, #ed6055 0%, #111111 100%)',
             sublabel: latestActualDate ? `as of ${new Date(latestActualDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : null,
-            icon: <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l4-4 4 4 4-6 4 2" /></svg>,
+            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l4-4 4 4 4-6 4 2" /></svg>,
           },
           {
             label: 'Planned POC', value: summaryPlanned, accent: blColor(refBaseline?.id, 0), sublabel: refBaseline?.name,
-            icon: <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><rect x="3" y="4" width="18" height="18" rx="2" /><path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" /></svg>,
+            bg: 'linear-gradient(135deg, #4b5563 0%, #111111 100%)',
+            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><rect x="3" y="4" width="18" height="18" rx="2" /><path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" /></svg>,
           },
           {
             label: 'Variance', value: summaryVariance, accent: varColor, sublabel: 'vs planned today', semantic: true,
+            bg: summaryVariance == null
+              ? 'linear-gradient(135deg, #9ca3af 0%, #374151 100%)'
+              : summaryVariance >= 0
+                ? 'linear-gradient(135deg, #16a34a 0%, #052e16 100%)'
+                : 'linear-gradient(135deg, #dc2626 0%, #1a0000 100%)',
             icon: summaryVariance == null || summaryVariance >= 0
-              ? <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-5 4 4 9-9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 7h5v5" /></svg>
-              : <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7l5 5 4-4 9 9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5v-5" /></svg>,
+              ? <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-5 4 4 9-9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 7h5v5" /></svg>
+              : <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7l5 5 4-4 9 9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5v-5" /></svg>,
           },
           {
             label: 'Periodic POC', value: currentMonthActual, accent: '#6366f1', trend: periodicTrend,
+            bg: 'linear-gradient(135deg, #ed6055 0%, #111111 100%)',
             sublabel: latestActualDate ? new Date(latestActualDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null,
-            icon: <svg className="w-14 h-14" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 8v4l3 3" /></svg>,
+            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 8v4l3 3" /></svg>,
           },
         ]
         return (
           <div className="flex-shrink-0 flex flex-row gap-3">
           {cards.map(card => (
             <div key={card.label || 'placeholder'}
-              className="flex-1 rounded-xl border px-4 py-3 flex flex-row items-start gap-3 overflow-hidden"
+              className="flex-1 rounded-xl border px-4 py-3 flex flex-col gap-2 overflow-hidden"
               style={{
-                borderColor: '#e5e7eb',
-                background: '#ffffff',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.06)',
+                borderColor: card.bg ? 'transparent' : '#e5e7eb',
+                background: card.bg || '#ffffff',
+                boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
               }}
             >
-              {/* Text content */}
-              <div className="flex flex-col justify-start gap-1.5 flex-1 min-w-0">
-                <span className="text-xs font-bold tracking-wide leading-none text-gray-400">{card.label}</span>
-                <div className="flex items-baseline gap-1">
-                  {card.semantic && card.value != null && (
-                    <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
-                      style={{ color: card.accent }} fill="currentColor">
-                      {card.value >= 0
-                        ? <polygon points="5,1 9,9 1,9" />
-                        : <polygon points="5,9 9,1 1,1" />}
-                    </svg>
-                  )}
-                  {card.trend != null && (
-                    <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
-                      style={{ color: card.trend >= 0 ? '#16a34a' : '#dc2626' }} fill="currentColor">
-                      {card.trend >= 0
-                        ? <polygon points="5,1 9,9 1,9" />
-                        : <polygon points="5,9 9,1 1,1" />}
-                    </svg>
-                  )}
-                  <span className="text-2xl font-bold tabular-nums leading-tight" style={{ color: card.accent }}>
-                    {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '--'}
-                  </span>
+              {/* Card title — outside value container */}
+              <span className="text-xs font-bold tracking-wide leading-tight block" style={{ color: card.bg ? 'rgba(255,255,255,0.6)' : '#9ca3af' }}>{card.label}</span>
+              {/* Middle row: value + icon */}
+              <div className="flex flex-row items-center gap-3">
+                <div className="flex items-center gap-1 flex-1 min-w-0">
+                    {card.semantic && card.value != null && (
+                      <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
+                        style={{ color: card.bg ? 'rgba(255,255,255,0.85)' : card.accent }} fill="currentColor">
+                        {card.value >= 0
+                          ? <polygon points="5,1 9,9 1,9" />
+                          : <polygon points="5,9 9,1 1,1" />}
+                      </svg>
+                    )}
+                    {card.trend != null && (
+                      <svg viewBox="0 0 10 10" className="w-2.5 h-2.5 flex-shrink-0 mb-0.5"
+                        style={{ color: card.bg ? 'rgba(255,255,255,0.85)' : (card.trend >= 0 ? '#16a34a' : '#dc2626') }} fill="currentColor">
+                        {card.trend >= 0
+                          ? <polygon points="5,1 9,9 1,9" />
+                          : <polygon points="5,9 9,1 1,1" />}
+                      </svg>
+                    )}
+                    <span className="text-2xl font-bold tabular-nums leading-tight" style={{ color: card.bg ? '#ffffff' : card.accent }}>
+                      {card.value != null ? `${Math.abs(card.value).toFixed(1)}%` : '--'}
+                    </span>
                 </div>
-                {card.sublabel && (
-                  <span className="text-[10px] leading-tight text-gray-400 truncate">{card.sublabel}</span>
-                )}
+                {/* Large icon */}
+                <div className="flex-shrink-0" style={{ color: card.bg ? 'rgba(255,255,255,0.15)' : card.accent, opacity: card.bg ? 1 : 0.12 }}>
+                  {card.icon}
+                </div>
               </div>
-              {/* Large icon */}
-              <div className="flex-shrink-0 opacity-[0.12]" style={{ color: card.accent }}>
-                {card.icon}
-              </div>
+              {/* Sublabel — outside text/value container */}
+              {card.sublabel && (
+                <span className="text-[10px] leading-tight" style={{ color: card.bg ? 'rgba(255,255,255,0.5)' : '#9ca3af' }}>{card.sublabel}</span>
+              )}
             </div>
           ))}
           </div>
