@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
+﻿import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabaseClient'
 import useProfile from '../hooks/useProfile'
@@ -9,8 +9,10 @@ import {
 } from 'recharts'
 
 const COL_W    = 80
-const LABEL_W  = 160
-const Y_AXIS_W = 58
+const LABEL_W        = 160
+const Y_AXIS_W       = 58
+const TABLE_HEADER_H = 34   // px — must match sticky header row height
+const TABLE_ROW_H    = 36   // px — must match sticky data row height
 
 const BASELINE_COLORS = ['#9ca3af', '#3b82f6', '#8b5cf6', '#f59e0b', '#06b6d4']
 
@@ -1097,11 +1099,13 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     return qSet.size
   }, [viewMode, filteredPeriods])
 
+  const CHART_RIGHT_MARGIN = 52
   const effectiveColW = displayColCount > 0
-    ? (effectiveWidth - (showTable ? LABEL_W : 0)) / displayColCount
+    ? (effectiveWidth - (showTable ? LABEL_W : 0) - CHART_RIGHT_MARGIN) / displayColCount
     : colWidth
 
   const xHoriz = effectiveColW >= 56
+  const cellFontSize = Math.max(8, Math.min(12, effectiveColW * 0.22))
   const xTickInterval = xHoriz
     ? Math.max(0, Math.ceil(52 / effectiveColW) - 1)
     : Math.max(0, Math.ceil(12 / effectiveColW) - 1)
@@ -2003,30 +2007,64 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                 </button>
               </div>
             </div>
-            {/* flex row: sticky Y-axis panel (outside scroll) + scrollable chart+table area */}
+            {/* flex row: combined left panel (Y-axis + row labels) + scrollable chart+table area */}
             <div className="flex-1 min-h-0 flex overflow-hidden">
-            {hasChartData && chartSlotHeight > 0 && (() => {
-              const plotTop = 12
-              const plotBottom = chartSlotHeight - 20 - (xHoriz ? 24 : 52)
-              const plotH = plotBottom - plotTop
-              return (
-                <div style={{ flexShrink: 0, width: yAxisPanelW, overflow: 'hidden', background: 'white' }}>
-                  <svg width={yAxisPanelW} height={chartSlotHeight} style={{ display: 'block' }}>
-                    <text x={10} y={chartSlotHeight / 2} textAnchor="middle" fontSize={10} fill="#9ca3af"
-                      transform={`rotate(-90,10,${chartSlotHeight / 2})`}>% Complete</text>
-                    {[0, 20, 40, 60, 80, 100].map(v => {
-                      const y = plotTop + plotH * (1 - (v - (-8)) / (110 - (-8)))
-                      return (
-                        <text key={v} x={yAxisPanelW - 6} y={y} textAnchor="end"
-                          dominantBaseline="middle" fontSize={11} fontWeight="600" fill="#4b5563">{v}%</text>
-                      )
-                    })}
-                  </svg>
+            {/* Left panel: Y-axis % labels stacked above periodic/cumulative row labels */}
+            <div style={{ flexShrink: 0, width: yAxisPanelW, background: 'white', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+              {/* Y-axis SVG */}
+              {hasChartData && chartSlotHeight > 0 && (() => {
+                const plotTop = 12
+                const plotBottom = chartSlotHeight - 20 - (xHoriz ? 24 : 52)
+                const plotH = plotBottom - plotTop
+                return (
+                  <div style={{ height: chartSlotHeight, flexShrink: 0 }}>
+                    <svg width={yAxisPanelW} height={chartSlotHeight} style={{ display: 'block' }}>
+                      <text x={10} y={chartSlotHeight / 2} textAnchor="middle" fontSize={10} fill="#9ca3af"
+                        transform={`rotate(-90,10,${chartSlotHeight / 2})`}>% Complete</text>
+                      {[0, 20, 40, 60, 80, 100].map(v => {
+                        const y = plotTop + plotH * (1 - (v - (-8)) / (110 - (-8)))
+                        return (
+                          <text key={v} x={yAxisPanelW - 6} y={y} textAnchor="end"
+                            dominantBaseline="middle" fontSize={11} fontWeight="600" fill="#4b5563">{v}%</text>
+                        )
+                      })}
+                    </svg>
+                  </div>
+                )
+              })()}
+              {/* Periodic % row labels */}
+              {showTable && <>
+                <div style={{ height: TABLE_HEADER_H, flexShrink: 0, backgroundColor: '#f1f5f9', borderTop: '2px solid #d1d5db', borderBottom: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', paddingLeft: 12 }}>
+                  <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Periodic %</span>
                 </div>
-              )
-            })()}
+                {INPUT_ROWS.map(({ label: rowLabel, type, baselineId, color, bg }) => (
+                  <div key={type === 'baseline' ? `bl_${baselineId}` : type}
+                    style={{ height: TABLE_ROW_H, flexShrink: 0, backgroundColor: bg, borderBottom: '1px solid #f9fafb', borderRight: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', paddingLeft: 12 }}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-xs font-semibold text-gray-600 truncate">{rowLabel}</span>
+                    </div>
+                  </div>
+                ))}
+              </>}
+              {/* Cumulative % row labels */}
+              {hasChartData && showTable && <>
+                <div style={{ height: TABLE_HEADER_H, flexShrink: 0, backgroundColor: '#f1f5f9', borderTop: '1px solid #f3f4f6', borderBottom: '1px solid #e5e7eb', borderRight: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', paddingLeft: 12 }}>
+                  <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Cumulative %</span>
+                </div>
+                {CUMULATIVE_ROWS.map(({ label: rowLabel, key, color, bg }) => (
+                  <div key={key}
+                    style={{ height: TABLE_ROW_H, flexShrink: 0, backgroundColor: bg, borderBottom: '1px solid #f9fafb', borderRight: '1px solid #f3f4f6', display: 'flex', alignItems: 'center', paddingLeft: 12 }}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: color }} />
+                      <span className="text-xs font-semibold text-gray-600 truncate">{rowLabel}</span>
+                    </div>
+                  </div>
+                ))}
+              </>}
+            </div>
             <div className="scurve-scroll flex-1 min-h-0 overflow-x-auto overflow-y-hidden" style={{ touchAction: 'pan-x', scrollbarWidth: 'thin', scrollbarColor: '#9ca3af #f1f5f9', paddingRight: 16 }}>
-              <div className="h-full flex flex-col" style={{ width: '100%', minWidth: totalW }}>
+              <div className="h-full flex flex-col" style={{ width: '100%', minWidth: totalW - (showTable ? LABEL_W : 0) }}>
 
                 {/* Chart slot: fills remaining vertical space */}
                 <div ref={chartSlotRef} className="flex-1 min-h-0 overflow-hidden">
@@ -2035,7 +2073,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                   return (
                   <ResponsiveContainer width="100%" height="100%">
                   <ComposedChart data={displayData}
-                    margin={{ top: 12, right: 52, bottom: 20, left: showTable ? LABEL_W : 0 }}>
+                    margin={{ top: 12, right: CHART_RIGHT_MARGIN, bottom: 20, left: 0 }}>
                     <defs>
                       <filter id="line-glow" x="-10%" y="-30%" width="120%" height="160%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -2114,144 +2152,121 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                 })()}
                 </div>
 
+                {/* Periodic % table */}
+                {showTable && <table className="text-xs border-t-2 border-gray-300" style={{ width: displayColCount * effectiveColW, minWidth: displayColCount * effectiveColW, tableLayout: 'fixed' }}>
+                      <thead>
+                        <tr style={{ height: TABLE_HEADER_H, backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
+                          {periodicGroups
+                            ? periodicGroups.map(({ qKey }) => <th key={qKey} style={{ width: effectiveColW }} />)
+                            : filteredPeriods.map(p => <th key={p} style={{ width: effectiveColW }} />)}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {INPUT_ROWS.map(({ label, type, baselineId, color, bg, adminOnly }) => {
+                          const canEditRow = adminOnly ? isAdmin : canEdit
+                          return (
+                            <tr key={type === 'baseline' ? `baseline_${baselineId}` : type}
+                              className="border-b border-gray-50 last:border-b-0 hover:bg-[#f0f4f8]" style={{ height: TABLE_ROW_H, backgroundColor: bg }}>
+                              {periodicGroups
+                                ? periodicGroups.map(({ qKey, months }) => {
+                                    const sum = months.reduce((s, p) => {
+                                      const v = type === 'baseline'
+                                        ? ((baselineMaps[baselineId] ?? {})[p]?.planned_pct ?? 0)
+                                        : type === 'actual'
+                                          ? (actualMap[p]?.actual_pct ?? 0)
+                                          : (forecastMap[p]?.forecast_pct ?? 0)
+                                      return s + v
+                                    }, 0)
+                                    return (
+                                      <td key={qKey} style={{ width: effectiveColW, fontSize: cellFontSize }} className="text-center px-1 py-2 tabular-nums text-gray-700">
+                                        {sum > 0
+                                          ? <span className="font-medium">{sum % 1 === 0 ? sum + '%' : sum.toFixed(2) + '%'}</span>
+                                          : <span className="text-gray-300">--</span>}
+                                      </td>
+                                    )
+                                  })
+                                : filteredPeriods.map(p => {
+                                    const isEditing = editCell?.period_date === p && editCell?.type === type &&
+                                      (type !== 'baseline' || editCell?.baselineId === baselineId)
+                                    const rawVal = type === 'baseline'
+                                      ? ((baselineMaps[baselineId] ?? {})[p]?.planned_pct ?? null)
+                                      : type === 'actual'
+                                        ? (actualMap[p]?.actual_pct ?? null)
+                                        : (forecastMap[p]?.forecast_pct ?? null)
+                                    const displayVal = (rawVal ?? 0) > 0 ? rawVal : null
+                                    const notEditable = (type === 'forecast' && (actualMap[p]?.actual_pct ?? 0) > 0)
+                                      || (type === 'baseline' && !baselineId)
+
+                                    return (
+                                      <td key={p} style={{ width: effectiveColW, fontSize: cellFontSize }} className="text-center px-1 py-2 tabular-nums">
+                                        {isEditing ? (
+                                          <div className="flex items-center gap-0.5 justify-center">
+                                            <input
+                                              type="number" min={0} max={100} step={0.01}
+                                              value={editValue} autoFocus
+                                              onChange={e => setEditValue(e.target.value)}
+                                              onKeyDown={e => {
+                                                if (e.key === 'Enter') handleEdit(p, type)
+                                                if (e.key === 'Escape') { setEditCell(null); setEditValue('') }
+                                              }}
+                                              className="w-14 px-1 py-0.5 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
+                                            />
+                                            <button onClick={() => handleEdit(p, type)} disabled={saving}
+                                              className="text-green-600 hover:text-green-700 font-bold text-sm leading-none">✓</button>
+                                            <button onClick={() => { setEditCell(null); setEditValue('') }}
+                                              className="text-gray-400 hover:text-gray-600 font-bold text-sm leading-none">✕</button>
+                                          </div>
+                                        ) : notEditable ? (
+                                          <span className="text-gray-400">{displayVal != null ? displayVal + '%' : '--'}</span>
+                                        ) : (
+                                          <button
+                                            onClick={() => {
+                                              if (!canEditRow) return
+                                              setEditCell({ period_date: p, type, ...(type === 'baseline' ? { baselineId } : {}) })
+                                              setEditValue(displayVal != null ? String(displayVal) : '')
+                                            }}
+                                            className={`transition-colors ${canEditRow ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} ${displayVal != null ? 'text-gray-700 font-medium' : canEditRow ? 'text-gray-400 hover:text-[#ed6055]' : 'text-gray-200'}`}
+                                          >
+                                            {displayVal != null ? displayVal + '%' : (canEditRow ? '+ add' : '--')}
+                                          </button>
+                                        )}
+                                      </td>
+                                    )
+                                  })}
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>}
+
                 {/* Cumulative % table */}
-                {hasChartData && showTable && (
-                  <table className="text-xs border-t border-gray-100" style={{ width: '100%', minWidth: totalW, tableLayout: 'fixed' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
-                        <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
-                          className="text-left px-3 py-2 sticky left-0 z-10 border-r border-gray-200">
-                          <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Cumulative %</span>
-                        </th>
-                        {displayData.map(d => (
-                          <th key={d._date} style={{ width: effectiveColW }} className="text-center px-1 py-2 font-medium text-gray-400 whitespace-nowrap">
-                            {d.period}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {CUMULATIVE_ROWS.map(({ label, key, color, bg }) => (
-                        <tr key={key} className="border-b border-gray-50 last:border-b-0 hover:bg-[#f0f4f8]" style={{ backgroundColor: bg }}>
-                          <td style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: bg, boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
-                            className="px-3 py-2 sticky left-0 z-10 border-r border-gray-100">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: color }} />
-                              <span className="font-semibold text-gray-600 truncate">{label}</span>
-                            </div>
-                          </td>
+                {hasChartData && showTable && <table className="text-xs border-t border-gray-100" style={{ width: displayColCount * effectiveColW, minWidth: displayColCount * effectiveColW, tableLayout: 'fixed' }}>
+                      <thead>
+                        <tr style={{ height: TABLE_HEADER_H, backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
                           {displayData.map(d => (
-                            <td key={d._date} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums text-gray-700">
-                              {d[key] != null ? `${d[key].toFixed(2)}%` : <span className="text-gray-300">--</span>}
-                            </td>
+                            <th key={d._date} style={{ width: effectiveColW }} />
                           ))}
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
-
-                {/* Periodic input table */}
-                {showTable && <table className="text-xs border-t-2 border-gray-300" style={{ width: '100%', minWidth: totalW, tableLayout: 'fixed' }}>
-                    <thead>
-                      <tr style={{ backgroundColor: '#f1f5f9' }} className="border-b border-gray-200">
-                        <th style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: '#f1f5f9', boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
-                          className="text-left px-3 py-1.5 sticky left-0 z-10 border-r border-gray-200">
-                          <span className="text-[10px] font-extrabold text-gray-500 uppercase tracking-wider">Periodic %</span>
-                        </th>
-                        {periodicGroups
-                          ? periodicGroups.map(({ qKey }) => <th key={qKey} style={{ width: effectiveColW }} />)
-                          : filteredPeriods.map(p => <th key={p} style={{ width: effectiveColW }} />)}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {INPUT_ROWS.map(({ label, type, baselineId, color, bg, adminOnly }) => {
-                        const canEditRow = adminOnly ? isAdmin : canEdit
-                        return (
-                          <tr key={type === 'baseline' ? `baseline_${baselineId}` : type}
-                            className="border-b border-gray-50 last:border-b-0 hover:bg-[#f0f4f8]" style={{ backgroundColor: bg }}>
-                            <td style={{ width: LABEL_W, minWidth: LABEL_W, backgroundColor: bg, boxShadow: '2px 0 4px rgba(0,0,0,0.06)' }}
-                              className="px-3 py-2 sticky left-0 z-10 border-r border-gray-100">
-                              <div className="flex items-center gap-2 min-w-0">
-                                <span className="w-3 h-3 rounded flex-shrink-0" style={{ backgroundColor: color }} />
-                                <span className="font-semibold text-gray-600 truncate">{label}</span>
-                              </div>
-                            </td>
-                            {periodicGroups
-                              ? periodicGroups.map(({ qKey, months }) => {
-                                  const sum = months.reduce((s, p) => {
-                                    const v = type === 'baseline'
-                                      ? ((baselineMaps[baselineId] ?? {})[p]?.planned_pct ?? 0)
-                                      : type === 'actual'
-                                        ? (actualMap[p]?.actual_pct ?? 0)
-                                        : (forecastMap[p]?.forecast_pct ?? 0)
-                                    return s + v
-                                  }, 0)
-                                  return (
-                                    <td key={qKey} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums text-gray-700">
-                                      {sum > 0
-                                        ? <span className="font-medium">{sum % 1 === 0 ? sum + '%' : sum.toFixed(2) + '%'}</span>
-                                        : <span className="text-gray-300">--</span>}
-                                    </td>
-                                  )
-                                })
-                              : filteredPeriods.map(p => {
-                                  const isEditing = editCell?.period_date === p && editCell?.type === type &&
-                                    (type !== 'baseline' || editCell?.baselineId === baselineId)
-                                  const rawVal = type === 'baseline'
-                                    ? ((baselineMaps[baselineId] ?? {})[p]?.planned_pct ?? null)
-                                    : type === 'actual'
-                                      ? (actualMap[p]?.actual_pct ?? null)
-                                      : (forecastMap[p]?.forecast_pct ?? null)
-                                  const displayVal = (rawVal ?? 0) > 0 ? rawVal : null
-                                  const notEditable = (type === 'forecast' && (actualMap[p]?.actual_pct ?? 0) > 0)
-                                    || (type === 'baseline' && !baselineId)
-
-                                  return (
-                                    <td key={p} style={{ width: effectiveColW }} className="text-center px-1 py-2 tabular-nums">
-                                      {isEditing ? (
-                                        <div className="flex items-center gap-0.5 justify-center">
-                                          <input
-                                            type="number" min={0} max={100} step={0.01}
-                                            value={editValue} autoFocus
-                                            onChange={e => setEditValue(e.target.value)}
-                                            onKeyDown={e => {
-                                              if (e.key === 'Enter') handleEdit(p, type)
-                                              if (e.key === 'Escape') { setEditCell(null); setEditValue('') }
-                                            }}
-                                            className="w-14 px-1 py-0.5 text-xs rounded border border-gray-300 focus:outline-none focus:ring-1 focus:ring-[#ed6055]"
-                                          />
-                                          <button onClick={() => handleEdit(p, type)} disabled={saving}
-                                            className="text-green-600 hover:text-green-700 font-bold text-sm leading-none">✓</button>
-                                          <button onClick={() => { setEditCell(null); setEditValue('') }}
-                                            className="text-gray-400 hover:text-gray-600 font-bold text-sm leading-none">✕</button>
-                                        </div>
-                                      ) : notEditable ? (
-                                        <span className="text-gray-400">{displayVal != null ? displayVal + '%' : '--'}</span>
-                                      ) : (
-                                        <button
-                                          onClick={() => {
-                                            if (!canEditRow) return
-                                            setEditCell({ period_date: p, type, ...(type === 'baseline' ? { baselineId } : {}) })
-                                            setEditValue(displayVal != null ? String(displayVal) : '')
-                                          }}
-                                          className={`transition-colors ${canEditRow ? 'hover:text-[#ed6055] cursor-pointer' : 'cursor-default'} ${displayVal != null ? 'text-gray-700 font-medium' : canEditRow ? 'text-gray-400 hover:text-[#ed6055]' : 'text-gray-200'}`}
-                                        >
-                                          {displayVal != null ? displayVal + '%' : (canEditRow ? '+ add' : '--')}
-                                        </button>
-                                      )}
-                                    </td>
-                                  )
-                                })}
+                      </thead>
+                      <tbody>
+                        {CUMULATIVE_ROWS.map(({ label, key, color, bg }) => (
+                          <tr key={key} className="border-b border-gray-50 last:border-b-0 hover:bg-[#f0f4f8]" style={{ height: TABLE_ROW_H, backgroundColor: bg }}>
+                            {displayData.map(d => (
+                              <td key={d._date} style={{ width: effectiveColW, fontSize: cellFontSize }} className="text-center px-1 py-2 tabular-nums text-gray-700">
+                                {d[key] != null ? `${d[key].toFixed(2)}%` : <span className="text-gray-300">--</span>}
+                              </td>
+                            ))}
                           </tr>
-                        )
-                      })}
-                    </tbody>
-                  </table>}
+                        ))}
+                      </tbody>
+                    </table>}
+
+
 
               </div>
             </div>
             </div>{/* end flex row wrapper */}
+
           </div>
         )
       })()}
