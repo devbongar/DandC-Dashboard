@@ -256,8 +256,9 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
             paddingTop: mobileBg && isMobile ? 'env(safe-area-inset-top)' : undefined,
             borderRadius: mobileBg && isMobile ? '0 0 20px 20px' : undefined,
             maxHeight: mobileBg && isMobile ? (headerVisible ? '220px' : '0px') : undefined,
+            opacity: mobileBg && isMobile ? (headerVisible ? 1 : 0) : undefined,
             overflow: mobileBg && isMobile ? 'hidden' : undefined,
-            transition: mobileBg && isMobile ? 'max-height 0.32s cubic-bezier(0.4,0,0.2,1)' : undefined,
+            transition: mobileBg && isMobile ? 'max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease' : undefined,
           }}
         >
           {/* Row 1: title + actions (desktop) + bell + avatar */}
