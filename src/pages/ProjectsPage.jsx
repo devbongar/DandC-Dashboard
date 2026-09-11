@@ -364,9 +364,9 @@ export default function ProjectsPage() {
     </>
   )
 
-  // Mobile second row: search bar + action button (rendered below title row)
+  // Mobile second row: search bar + phase count pills
   const mobileSearchRow = (
-    <div className="flex items-stretch gap-2 px-0">
+    <div className="flex flex-col gap-3 px-0">
       <div className="relative flex-1">
         <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
@@ -393,6 +393,27 @@ export default function ProjectsPage() {
             )}
           </span>
         </button>
+      </div>
+      {/* Phase count pills */}
+      <div className="flex gap-2">
+        {PHASES.map(ph => {
+          const count = projects.filter(p => p.phase === ph.key).length
+          const shortLabel = ph.key === 'execution_monitoring' ? 'Execution' : ph.label
+          return (
+            <button
+              key={ph.key}
+              onClick={() => setPhaseFilter(f => f === ph.key ? 'all' : ph.key)}
+              className="flex-1 flex flex-col items-center py-1.5 rounded-lg transition-all"
+              style={{
+                background: phaseFilter === ph.key ? `${ph.color}30` : 'rgba(255,255,255,0.12)',
+                outline: phaseFilter === ph.key ? `1.5px solid ${ph.color}` : 'none',
+              }}
+            >
+              <span className="text-base font-bold leading-none" style={{ color: ph.color }}>{count}</span>
+              <span className="text-[9px] font-semibold mt-0.5 leading-none" style={{ color: 'rgba(255,255,255,0.6)' }}>{shortLabel}</span>
+            </button>
+          )
+        })}
       </div>
     </div>
   )
