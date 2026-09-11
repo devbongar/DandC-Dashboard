@@ -128,7 +128,7 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
 
       {/* -- Sidebar -- */}
       <aside
-        className={`sidebar-frost fixed sm:relative inset-y-0 left-0 z-40 sm:z-auto flex-shrink-0 flex flex-col py-3 gap-1 sm:translate-x-0 ${mobileSidebarOpen ? 'translate-x-0' : 'hidden sm:flex'}`}
+        className={`sidebar-frost fixed sm:relative inset-y-0 left-0 z-40 sm:z-auto flex-shrink-0 flex flex-col py-3 gap-1 ${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} sm:translate-x-0`}
         style={{
           width: expanded ? 240 : 80,
           background: 'transparent',
