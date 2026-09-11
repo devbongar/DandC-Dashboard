@@ -37,11 +37,37 @@ function SidebarTooltip({ label }) {
  *   actions  — optional ReactNode rendered between title and notification bell
  *   children — main scrollable content
  */
-export default function AdminLayout({ title, actions, children }) {
+export default function AdminLayout({ title, actions, mobileActionsRow, children, mobileBg }) {
   const { profile, loading } = useProfile()
   const showLoading = useMinLoading(loading)
   const navigate    = useNavigate()
   const location    = useLocation()
+
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 639px)')
+    setIsMobile(mq.matches)
+    const handler = e => setIsMobile(e.matches)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  const [headerVisible, setHeaderVisible] = useState(true)
+  const lastScrollY = useRef(0)
+  useEffect(() => {
+    if (!mobileBg) return
+    const onScroll = () => {
+      const el = document.getElementById('main-scroll')
+      if (!el) return
+      const y = el.scrollTop
+      const delta = y - lastScrollY.current
+      if (Math.abs(delta) < 6) return
+      setHeaderVisible(delta < 0 || y < 40)
+      lastScrollY.current = y
+    }
+    document.addEventListener('scroll', onScroll, { capture: true, passive: true })
+    return () => document.removeEventListener('scroll', onScroll, { capture: true })
+  }, [mobileBg])
 
   const isSite = profile?.team === 'site'
 
@@ -218,20 +244,31 @@ export default function AdminLayout({ title, actions, children }) {
       <MobileBottomNav profile={profile} />
 
       {/* -- Right column -- */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+      <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
 
         {/* App header */}
         <header
-          className="flex-shrink-0 flex items-center h-14 px-5 gap-4"
-          style={{ background: 'transparent', borderBottom: 'none', boxShadow: 'none' }}
+          className="flex-shrink-0 flex flex-col px-5 relative"
+          style={{
+            background: mobileBg && isMobile ? mobileBg : 'transparent',
+            borderBottom: 'none',
+            boxShadow: 'none',
+            paddingTop: mobileBg && isMobile ? 'env(safe-area-inset-top)' : undefined,
+            borderRadius: mobileBg && isMobile ? '0 0 20px 20px' : undefined,
+            maxHeight: mobileBg && isMobile ? (headerVisible ? '220px' : '0px') : undefined,
+            overflow: mobileBg && isMobile ? 'hidden' : undefined,
+            transition: mobileBg && isMobile ? 'max-height 0.32s cubic-bezier(0.4,0,0.2,1)' : undefined,
+          }}
         >
-          <span className="text-lg font-bold text-gray-800 tracking-wide">{title}</span>
+          {/* Row 1: title + actions (desktop) + bell + avatar */}
+          <div className="flex items-center h-14 gap-4">
+            <span className={`text-lg font-bold tracking-wide ${mobileBg && isMobile ? 'text-white' : 'text-gray-800'}`}>{title}</span>
 
-          <div className="flex-1" />
+            <div className="flex-1" />
 
-          {actions}
+            {actions}
 
-          <NotificationBell userId={profile?.id} />
+            <NotificationBell userId={profile?.id} />
 
           {/* User menu */}
           <div className="relative flex-shrink-0" ref={menuRef}>
@@ -253,7 +290,7 @@ export default function AdminLayout({ title, actions, children }) {
                 }
               </div>
               <svg
-                className={`w-3 h-3 text-gray-400 flex-shrink-0 transition-transform ${menuOpen ? 'rotate-180' : ''}`}
+                className={`hidden sm:block w-3 h-3 text-gray-400 flex-shrink-0 transition-transform ${menuOpen ? 'rotate-180' : ''}`}
                 fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
               >
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
@@ -292,6 +329,30 @@ export default function AdminLayout({ title, actions, children }) {
               </div>
             )}
           </div>
+          </div>{/* end row 1 */}
+
+          {/* Row 2: mobile search row */}
+          {mobileActionsRow && (
+            <div className="sm:hidden pb-6">
+              {mobileActionsRow}
+            </div>
+          )}
+
+          {/* Glass shine — inside header so overflow:hidden clips it */}
+          {mobileBg && isMobile && (
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                zIndex: 10,
+                opacity: headerVisible ? 1 : 0,
+                transition: 'opacity 0.32s ease',
+              }}
+            >
+              <div className="admin-banner-shine absolute inset-0"
+                style={{ background: 'linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.22) 50%, transparent 65%)' }}
+              />
+            </div>
+          )}
         </header>
 
         {/* Main content — pages control their own padding/overflow */}

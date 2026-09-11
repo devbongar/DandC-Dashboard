@@ -51,7 +51,7 @@ export default function MobileBottomNav({ profile }) {
     <nav
       className="fixed bottom-4 left-1/2 z-50 sm:hidden flex items-center gap-0.5 px-2 py-1.5"
       style={{
-        background: 'rgba(30, 30, 40, 0.28)',
+        background: 'rgba(30, 30, 40, 0.72)',
         backdropFilter: 'blur(12px) saturate(160%)',
         WebkitBackdropFilter: 'blur(12px) saturate(160%)',
         border: '1px solid rgba(255,255,255,0.18)',
