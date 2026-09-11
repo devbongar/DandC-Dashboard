@@ -246,6 +246,17 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
       {/* -- Right column -- */}
       <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
 
+        {/* Status bar cover — always visible on mobile, same gradient top color */}
+        {mobileBg && isMobile && (
+          <div
+            className="flex-shrink-0"
+            style={{
+              height: 'env(safe-area-inset-top)',
+              background: '#2e2e2e',
+            }}
+          />
+        )}
+
         {/* App header */}
         <header
           className="flex-shrink-0 flex flex-col px-5 relative"
@@ -253,7 +264,6 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
             background: mobileBg && isMobile ? mobileBg : 'transparent',
             borderBottom: 'none',
             boxShadow: 'none',
-            paddingTop: mobileBg && isMobile ? 'env(safe-area-inset-top)' : undefined,
             borderRadius: mobileBg && isMobile ? '0 0 20px 20px' : undefined,
             maxHeight: mobileBg && isMobile ? (headerVisible ? '220px' : '0px') : undefined,
             opacity: mobileBg && isMobile ? (headerVisible ? 1 : 0) : undefined,
