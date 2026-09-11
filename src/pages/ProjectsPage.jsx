@@ -355,7 +355,7 @@ export default function ProjectsPage() {
             }}
           >
             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 12.75a.75.75 0 110-1.5.75.75 0 010 1.5zM12 18.75a.75.75 0 110-1.5.75.75 0 010 1.5z" />
             </svg>
           </button>
           {actionsDropdown}
@@ -366,7 +366,7 @@ export default function ProjectsPage() {
 
   // Mobile second row: search bar + action button (rendered below title row)
   const mobileSearchRow = (
-    <div className="flex items-center gap-2 px-0">
+    <div className="flex items-stretch gap-2 px-0">
       <div className="relative flex-1">
         <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
@@ -376,7 +376,7 @@ export default function ProjectsPage() {
           placeholder="Search projects..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-8 pr-9 py-3 text-sm rounded-lg text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition"
+          className="w-full pl-8 pr-9 py-4 text-sm rounded-lg text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition"
           style={{ background: '#ffffff' }}
         />
         <button
@@ -385,7 +385,7 @@ export default function ProjectsPage() {
           style={{ color: activeCount > 0 ? '#ed6055' : showFilters ? '#ed6055' : '#9ca3af' }}
         >
           <span className="relative flex items-center justify-center">
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
             </svg>
             {activeCount > 0 && (
@@ -394,26 +394,29 @@ export default function ProjectsPage() {
           </span>
         </button>
       </div>
-      <div className="relative flex-shrink-0" ref={actionsRef}>
-        <button
-          onClick={() => setShowActions(v => !v)}
-          className="flex items-center justify-center w-8 h-8 rounded-lg transition-all"
-          style={{
-            background: showActions ? 'rgba(237,96,85,0.25)' : 'rgba(255,255,255,0.15)',
-            color: showActions ? '#ed6055' : 'rgba(255,255,255,0.85)',
-          }}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
-          </svg>
-        </button>
-        {actionsDropdown}
-      </div>
+    </div>
+  )
+
+  const mobileTitleActionsBtn = (
+    <div className="relative" ref={actionsRef}>
+      <button
+        onClick={() => setShowActions(v => !v)}
+        className="flex items-center justify-center w-9 h-9 rounded-lg transition-all"
+        style={{
+          background: 'transparent',
+          color: showActions ? '#ed6055' : 'rgba(255,255,255,0.85)',
+        }}
+      >
+        <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+          <path d="M12 7.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM12 13.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM12 19.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
+        </svg>
+      </button>
+      {actionsDropdown}
     </div>
   )
 
   return (
-    <AdminLayout title="Project List" actions={headerActions} mobileActionsRow={mobileSearchRow} mobileBg="linear-gradient(180deg, #2e2e2e 0%, #636363 100%)">
+    <AdminLayout title="Project List" actions={headerActions} mobileActionsRow={mobileSearchRow} mobileTitleActions={mobileTitleActionsBtn} mobileBg="linear-gradient(180deg, #2e2e2e 0%, #636363 100%)">
       <style>{`
         @keyframes card-shine {
           from { transform: translateX(-180%) skewX(-18deg); opacity: 1; }

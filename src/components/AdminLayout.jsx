@@ -37,7 +37,7 @@ function SidebarTooltip({ label }) {
  *   actions  — optional ReactNode rendered between title and notification bell
  *   children — main scrollable content
  */
-export default function AdminLayout({ title, actions, mobileActionsRow, children, mobileBg }) {
+export default function AdminLayout({ title, actions, mobileActionsRow, mobileTitleActions, children, mobileBg }) {
   const { profile, loading } = useProfile()
   const showLoading = useMinLoading(loading)
   const navigate    = useNavigate()
@@ -329,11 +329,16 @@ export default function AdminLayout({ title, actions, mobileActionsRow, children
               </div>
             )}
           </div>
+          {mobileTitleActions && (
+            <div className="sm:hidden flex-shrink-0">
+              {mobileTitleActions}
+            </div>
+          )}
           </div>{/* end row 1 */}
 
           {/* Row 2: mobile search row */}
           {mobileActionsRow && (
-            <div className="sm:hidden pb-6">
+            <div className="sm:hidden pt-6 pb-6">
               {mobileActionsRow}
             </div>
           )}
