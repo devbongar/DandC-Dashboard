@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import PermitDetail from './PermitDetail'
 import PermitsGanttView from './PermitsGanttView'
@@ -8,6 +8,15 @@ function IssueIcon() {
   return (
     <svg className="w-4 h-4 text-amber-400 drop-shadow-sm flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
       <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+    </svg>
+  )
+}
+
+function GripIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="5" cy="4" r="1.2"/><circle cx="5" cy="8" r="1.2"/><circle cx="5" cy="12" r="1.2"/>
+      <circle cx="10" cy="4" r="1.2"/><circle cx="10" cy="8" r="1.2"/><circle cx="10" cy="12" r="1.2"/>
     </svg>
   )
 }
@@ -56,6 +65,23 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
   const [cardScrollPos, setCardScrollPos] = useState(0)
   const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const mobileFilterRef = useRef(null)
+  const [dragOverId, setDragOverId] = useState(null)
+  const [draggingId, setDraggingId] = useState(null)
+  const dragIdRef = useRef(null)
+  const ganttWrapRef = useRef(null)
+  const [ganttHeight, setGanttHeight] = useState(500)
+
+  useEffect(() => {
+    if (view !== 'gantt') return
+    function measure() {
+      if (!ganttWrapRef.current) return
+      const top = ganttWrapRef.current.getBoundingClientRect().top
+      setGanttHeight(Math.max(300, window.innerHeight - top - 24))
+    }
+    measure()
+    window.addEventListener('resize', measure)
+    return () => window.removeEventListener('resize', measure)
+  }, [view])
 
   useEffect(() => {
     const handler = (e) => {
@@ -73,7 +99,8 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
       .from('permits')
       .select('*, permit_requirements(id, is_complete), permit_issues(id, status)')
       .eq('project_id', project.id)
-      .order('created_at', { ascending: false })
+      .order('sort_order', { ascending: true, nullsFirst: false })
+      .order('created_at', { ascending: true })
     setPermits(data ?? [])
     setLoading(false)
   }
@@ -90,6 +117,42 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
     setForm({ name: '', responsible_person: '', planned_start: '', planned_finish: '' })
     onCreatingChange?.(false)
     load()
+  }
+
+  const reorderPermits = useCallback(async (fromId, toId) => {
+    if (!fromId || fromId === toId) return
+    const from = permits.findIndex(p => p.id === fromId)
+    const to   = permits.findIndex(p => p.id === toId)
+    if (from < 0 || to < 0) return
+    const reordered = [...permits]
+    const [moved] = reordered.splice(from, 1)
+    reordered.splice(to, 0, moved)
+    setPermits(reordered)
+    await Promise.all(reordered.map((p, i) =>
+      supabase.from('permits').update({ sort_order: i }).eq('id', p.id)
+    ))
+  }, [permits])
+
+  const onDragStart = (e, id) => {
+    dragIdRef.current = id
+    setDraggingId(id)
+    e.dataTransfer.effectAllowed = 'move'
+  }
+  const onDragOver = (e, id) => {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    if (dragOverId !== id) setDragOverId(id)
+  }
+  const onDrop = (e, id) => {
+    e.preventDefault()
+    reorderPermits(dragIdRef.current, id)
+    setDragOverId(null)
+    dragIdRef.current = null
+  }
+  const onDragEnd = () => {
+    setDragOverId(null)
+    setDraggingId(null)
+    dragIdRef.current = null
   }
 
   if (loading) {
@@ -389,8 +452,19 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
 
         {/* Gantt view */}
         {rows.length > 0 && view === 'gantt' && (
-          <div style={{ height: 'calc(100dvh - 200px)', minHeight: 400 }}>
-            <PermitsGanttView permits={rows} onSelectPermit={setSelected} hideGroupHeaders />
+          <div ref={ganttWrapRef} style={{ height: ganttHeight, minHeight: 300 }}>
+            <PermitsGanttView
+              permits={rows}
+              onSelectPermit={setSelected}
+              hideGroupHeaders
+              onReorder={isAdmin ? reorderPermits : undefined}
+              onDragStart={isAdmin ? onDragStart : undefined}
+              onDragOver={isAdmin ? onDragOver : undefined}
+              onDrop={isAdmin ? onDrop : undefined}
+              onDragEnd={isAdmin ? onDragEnd : undefined}
+              dragOverId={dragOverId}
+              draggingId={draggingId}
+            />
           </div>
         )}
 
@@ -405,8 +479,25 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
               const delayed  = permit.planned_finish && status !== 'acquired'
                 ? Math.max(0, Math.floor((Date.now() - new Date(permit.planned_finish).getTime()) / 86400000)) : 0
               return (
-                <button key={permit.id} onClick={() => setSelected(permit)}
-                  className="w-full text-left bg-white rounded-xl border border-gray-200 px-4 py-3 active:scale-[0.99] transition-[transform,box-shadow] shadow-sm hover:shadow-md">
+                <div key={permit.id}
+                  draggable={isAdmin}
+                  onDragStart={isAdmin ? e => onDragStart(e, permit.id) : undefined}
+                  onDragOver={isAdmin ? e => onDragOver(e, permit.id) : undefined}
+                  onDrop={isAdmin ? e => onDrop(e, permit.id) : undefined}
+                  onDragEnd={isAdmin ? onDragEnd : undefined}
+                  className="w-full text-left bg-white rounded-xl border px-4 py-3 transition-[transform,box-shadow,border-color,opacity] shadow-sm hover:shadow-md"
+                  style={{
+                    borderColor: dragOverId === permit.id ? '#ed6055' : '#e5e7eb',
+                    opacity: dragIdRef.current === permit.id ? 0.4 : 1,
+                    cursor: isAdmin ? 'grab' : 'default',
+                  }}>
+                  <div className="flex items-stretch gap-2">
+                  {isAdmin && (
+                    <div className="flex items-center flex-shrink-0 text-gray-300 hover:text-gray-400 transition-colors">
+                      <GripIcon />
+                    </div>
+                  )}
+                  <button onClick={() => setSelected(permit)} className="flex-1 min-w-0 text-left">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
@@ -429,7 +520,9 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                     {delayed > 0 && <span className="text-xs font-semibold text-red-600">{delayed}d delayed</span>}
                     {permit.responsible_person && <span className="text-xs text-gray-400 truncate">{permit.responsible_person}</span>}
                   </div>
-                </button>
+                  </button>
+                  </div>{/* end grip+content row */}
+                </div>
               )
             })}
           </div>
@@ -447,20 +540,36 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                 ? Math.max(0, Math.floor((Date.now() - new Date(permit.planned_finish).getTime()) / 86400000)) : 0
 
               return (
-                <button
+                <div
                   key={permit.id}
-                  onClick={() => setSelected(permit)}
-                  className="text-left rounded-xl p-4 transition-all duration-200 ease-out flex flex-col gap-3 hover:-translate-y-1 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/50"
+                  draggable={isAdmin}
+                  onDragStart={isAdmin ? e => onDragStart(e, permit.id) : undefined}
+                  onDragOver={isAdmin ? e => onDragOver(e, permit.id) : undefined}
+                  onDrop={isAdmin ? e => onDrop(e, permit.id) : undefined}
+                  onDragEnd={isAdmin ? onDragEnd : undefined}
+                  className="rounded-xl p-4 transition-all duration-200 ease-out flex flex-col gap-3"
                   style={{
                     background: 'rgba(255,255,255,0.55)',
                     backdropFilter: 'blur(12px)',
                     WebkitBackdropFilter: 'blur(12px)',
-                    border: '1px solid rgba(255,255,255,0.7)',
-                    boxShadow: '0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                    border: dragOverId === permit.id ? '1px solid #ed6055' : '1px solid rgba(255,255,255,0.7)',
+                    boxShadow: dragOverId === permit.id
+                      ? '0 0 0 3px rgba(237,96,85,0.15), 0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)'
+                      : '0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                    opacity: dragIdRef.current === permit.id ? 0.4 : 1,
+                    cursor: isAdmin ? 'grab' : 'default',
                   }}
-                  onMouseEnter={e => e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.8)'}
-                  onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)'}
+                  onMouseEnter={e => { if (dragIdRef.current !== permit.id) e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.8)' }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)' }}
                 >
+                  {/* Grip + click area */}
+                  <div className="flex items-stretch gap-2">
+                  {isAdmin && (
+                    <div className="flex items-center flex-shrink-0 pr-1 text-gray-300 hover:text-gray-400 transition-colors">
+                      <GripIcon />
+                    </div>
+                  )}
+                  <button onClick={() => setSelected(permit)} className="text-left flex-1 min-w-0 focus-visible:outline-none">
                   <div className="grid grid-cols-3 gap-x-3 gap-y-2">
 
                     {/* Row 1 Col 1: icon + name + issue */}
@@ -523,8 +632,9 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                     </div>
 
                   </div>
-
-                </button>
+                  </button>
+                  </div>{/* end grip+content row */}
+                </div>
               )
             })}
           </div>

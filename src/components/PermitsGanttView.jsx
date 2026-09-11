@@ -38,7 +38,27 @@ function monthsBetween(a, b) {
 
 const fmtMonthShort = d => d.toLocaleDateString('en-PH', { month: 'short' })
 
-export default function PermitsGanttView({ permits, onSelectPermit, hideGroupHeaders = false }) {
+function GripIcon() {
+  return (
+    <svg className="w-3.5 h-3.5" viewBox="0 0 16 16" fill="currentColor">
+      <circle cx="5" cy="4" r="1.2"/><circle cx="5" cy="8" r="1.2"/><circle cx="5" cy="12" r="1.2"/>
+      <circle cx="10" cy="4" r="1.2"/><circle cx="10" cy="8" r="1.2"/><circle cx="10" cy="12" r="1.2"/>
+    </svg>
+  )
+}
+
+export default function PermitsGanttView({
+  permits,
+  onSelectPermit,
+  hideGroupHeaders = false,
+  onReorder,
+  onDragStart,
+  onDragOver,
+  onDrop,
+  onDragEnd,
+  dragOverId,
+  draggingId,
+}) {
   const scrollRef      = useRef(null)
   const labelScrollRef = useRef(null)
   const axisInnerRef   = useRef(null)
@@ -105,7 +125,9 @@ export default function PermitsGanttView({ permits, onSelectPermit, hideGroupHea
     return dates.length ? Math.max(...dates) : Infinity
   }
 
-  // Group permits by project, sorted within each group by earliest finish
+  // Group permits by project.
+  // When onReorder is provided, preserve incoming permits order (user-defined sort_order).
+  // Otherwise sort each group by earliest finish.
   const groups = useMemo(() => {
     const map = new Map()
     permits.forEach(p => {
@@ -116,9 +138,11 @@ export default function PermitsGanttView({ permits, onSelectPermit, hideGroupHea
     })
     return [...map.values()].map(g => ({
       ...g,
-      rows: [...g.rows].sort((a, b) => finishSortKey(a) - finishSortKey(b)),
+      rows: onReorder
+        ? g.rows  // preserve incoming order
+        : [...g.rows].sort((a, b) => finishSortKey(a) - finishSortKey(b)),
     }))
-  }, [permits])
+  }, [permits, onReorder])
 
   const today = new Date()
   const todayX = toPx(today)
@@ -207,14 +231,40 @@ export default function PermitsGanttView({ permits, onSelectPermit, hideGroupHea
                   </div>
                 )}
                 {g.rows.map(p => (
-                  <button
+                  <div
                     key={p.id}
-                    onClick={() => onSelectPermit(p)}
-                    className="w-full flex items-center pl-10 pr-3 gap-2 border-b border-gray-100 hover:bg-gray-50 transition-colors text-left"
-                    style={{ height: ROW_H }}
+                    draggable={!!onReorder}
+                    onDragStart={onDragStart ? e => onDragStart(e, p.id) : undefined}
+                    onDragOver={onDragOver ? e => onDragOver(e, p.id) : undefined}
+                    onDrop={onDrop ? e => onDrop(e, p.id) : undefined}
+                    onDragEnd={onDragEnd}
+                    className="w-full flex items-stretch border-b border-gray-100 transition-[border-color,box-shadow,opacity]"
+                    style={{
+                      height: ROW_H,
+                      borderColor: dragOverId === p.id ? '#ed6055' : '#f3f4f6',
+                      boxShadow: dragOverId === p.id ? '0 0 0 2px rgba(237,96,85,0.15)' : 'none',
+                      opacity: draggingId === p.id ? 0.4 : 1,
+                      cursor: onReorder ? 'default' : 'default',
+                    }}
                   >
-                    <span className="text-xs font-medium text-gray-700 truncate">{p.name}</span>
-                  </button>
+                    {/* Grip handle */}
+                    {onReorder && (
+                      <div
+                        className="flex items-center justify-center px-2 text-gray-300 hover:text-gray-500 transition-colors flex-shrink-0"
+                        style={{ cursor: 'grab' }}
+                      >
+                        <GripIcon />
+                      </div>
+                    )}
+                    {/* Name button */}
+                    <button
+                      onClick={() => onSelectPermit(p)}
+                      className="flex-1 flex items-center pr-3 gap-2 hover:bg-gray-50 transition-colors text-left min-w-0"
+                      style={{ paddingLeft: onReorder ? 0 : 40 }}
+                    >
+                      <span className="text-xs font-medium text-gray-700 truncate">{p.name}</span>
+                    </button>
+                  </div>
                 ))}
               </div>
             ))}
@@ -268,42 +318,54 @@ export default function PermitsGanttView({ permits, onSelectPermit, hideGroupHea
                     ].filter(Boolean).map(d => parseDate(d))
                     const latestEnd  = barEnds.length ? new Date(Math.max(...barEnds)) : null
                     const indicatorX = latestEnd ? toPx(latestEnd) + 8 : null
+                    const isDragOver = dragOverId === p.id
+                    const isDragging = draggingId === p.id
                     return (
-                    <button
+                    <div
                       key={p.id}
-                      onClick={() => onSelectPermit(p)}
-                      className="relative flex flex-col justify-center w-full border-b border-gray-100 hover:bg-gray-50/60 transition-colors"
-                      style={{ height: ROW_H }}
+                      onDragOver={onDragOver ? e => onDragOver(e, p.id) : undefined}
+                      onDrop={onDrop ? e => onDrop(e, p.id) : undefined}
+                      className="relative transition-[border-color,opacity]"
+                      style={{
+                        height: ROW_H,
+                        opacity: isDragging ? 0.4 : 1,
+                        borderBottom: isDragOver ? '1px solid #ed6055' : '1px solid #f3f4f6',
+                      }}
                     >
-                      {/* Planned bar */}
-                      <div className="relative" style={{ height: 10, marginBottom: 10 }}>
-                        <GanttBar start={p.planned_start}  end={p.planned_finish}  color={BAR_PLANNED}  toPx={toPx} />
-                      </div>
-                      {/* Actual + Forecast on same row */}
-                      <div className="relative" style={{ height: 10 }}>
-                        {!p.actual_finish && <GanttBar start={todayStr} end={p.forecast_finish} color={BAR_FORECAST} toPx={toPx} />}
-                        <GanttBar start={p.actual_start} end={p.actual_finish ?? todayStr} color={BAR_ACTUAL} toPx={toPx} />
-                      </div>
-                      {/* Right-side indicator */}
-                      {indicatorX !== null && (
-                        <div className="absolute flex items-center gap-1" style={{ left: indicatorX, top: '50%', transform: 'translateY(-50%)' }}>
-                          {isAcquired ? (
-                            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">Acquired</span>
-                          ) : (
-                            <>
-                              {reqTotal > 0 && (
-                                <span className="text-[9px] font-semibold text-gray-400 whitespace-nowrap">{reqDone}/{reqTotal}</span>
-                              )}
-                              {hasIssue && (
-                                <svg className="w-3 h-3 text-amber-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
-                                  <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
-                                </svg>
-                              )}
-                            </>
-                          )}
+                      <button
+                        onClick={() => onSelectPermit(p)}
+                        className="relative flex flex-col justify-center w-full h-full hover:bg-gray-50/60 transition-colors"
+                      >
+                        {/* Planned bar */}
+                        <div className="relative" style={{ height: 10, marginBottom: 10 }}>
+                          <GanttBar start={p.planned_start}  end={p.planned_finish}  color={BAR_PLANNED}  toPx={toPx} />
                         </div>
-                      )}
-                    </button>
+                        {/* Actual + Forecast on same row */}
+                        <div className="relative" style={{ height: 10 }}>
+                          {!p.actual_finish && <GanttBar start={todayStr} end={p.forecast_finish} color={BAR_FORECAST} toPx={toPx} />}
+                          <GanttBar start={p.actual_start} end={p.actual_finish ?? todayStr} color={BAR_ACTUAL} toPx={toPx} />
+                        </div>
+                        {/* Right-side indicator */}
+                        {indicatorX !== null && (
+                          <div className="absolute flex items-center gap-1" style={{ left: indicatorX, top: '50%', transform: 'translateY(-50%)' }}>
+                            {isAcquired ? (
+                              <span className="text-[9px] font-bold px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 whitespace-nowrap">Acquired</span>
+                            ) : (
+                              <>
+                                {reqTotal > 0 && (
+                                  <span className="text-[9px] font-semibold text-gray-400 whitespace-nowrap">{reqDone}/{reqTotal}</span>
+                                )}
+                                {hasIssue && (
+                                  <svg className="w-3 h-3 text-amber-400 flex-shrink-0" viewBox="0 0 20 20" fill="currentColor">
+                                    <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        )}
+                      </button>
+                    </div>
                     )
                   })}
                 </div>
