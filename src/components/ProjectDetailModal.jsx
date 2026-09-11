@@ -5122,7 +5122,7 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
                     <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                       {photos.map(({ photo, idx }) => (
                         <div key={photo.id}
-                          className="group relative aspect-[4/3] sm:aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
+                          className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
                           style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
                           onMouseEnter={e => e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'}
                           onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)'}
@@ -5445,7 +5445,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
           {(() => {
             const renderPhotoCard = (photo) => (
               <div key={photo.id}
-                className="group relative aspect-[4/3] sm:aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
+                className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
                 style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'; const img = new Image(); img.src = getUrl(photo.storage_path) }}
                 onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)'}
