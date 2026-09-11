@@ -4684,15 +4684,21 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
     const ro = new ResizeObserver(updateImgBounds)
     if (containerRef.current) ro.observe(containerRef.current)
     window.addEventListener('resize', updateImgBounds)
-    return () => { ro.disconnect(); window.removeEventListener('resize', updateImgBounds) }
+    window.addEventListener('transitionend', updateImgBounds)
+    return () => { ro.disconnect(); window.removeEventListener('resize', updateImgBounds); window.removeEventListener('transitionend', updateImgBounds) }
   }, [updateImgBounds])
 
-  // Hide app header when site plan is in full-screen mode
+  // Re-sync imgBounds when returning to plan view (container re-mounts after photos round-trip)
   useEffect(() => {
-    const full = planMode !== 'photos'
+    if (planMode === 'plan') updateImgBounds()
+  }, [planMode, updateImgBounds])
+
+  // Hide app header when site plan is in full-screen mode (only when plan exists)
+  useEffect(() => {
+    const full = plan !== null && !loading && planMode !== 'photos'
     document.body.classList.toggle('plan-fullscreen', full)
     return () => document.body.classList.remove('plan-fullscreen')
-  }, [planMode])
+  }, [plan, loading, planMode])
 
   const load = async () => {
     setLoading(true)
@@ -4998,16 +5004,21 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
 
         {/* Pending pin picker — fixed to viewport, two-step: tower → floor */}
         {pendingPin && (() => {
-          const PICKER_W = 160, PICKER_H = 200, PAD = 8
+          const PICKER_W = 172, PICKER_H = 240, PAD = 8
           const vw = window.innerWidth
+          const vh = window.innerHeight
           const rawLeft = pendingPin.clientX - PICKER_W / 2
           const rawTop  = pendingPin.clientY - PICKER_H - 12
+          // Prefer above cursor; if no room flip below
+          let top = rawTop < PAD ? pendingPin.clientY + 20 : rawTop
+          // Clamp so bottom edge stays in viewport
+          top = Math.min(top, vh - PICKER_H - PAD)
+          top = Math.max(top, PAD)
           const left = Math.max(PAD, Math.min(rawLeft, vw - PICKER_W - PAD))
-          const top  = rawTop < PAD ? pendingPin.clientY + 20 : rawTop
           const pickerFloors = pickerBuilding ? allFloors.filter(f => f.building_id === pickerBuilding) : []
           return (
           <div className="z-[100]" style={{ position: 'fixed', left, top, width: PICKER_W }}>
-            <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-2">
+            <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-2" style={{ maxHeight: PICKER_H, overflowY: 'auto' }}>
               {!pickerBuilding ? (
                 <>
                   <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Select tower</p>
