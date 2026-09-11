@@ -154,7 +154,7 @@ export default function IssuesTable({ id }) {
   }, [issues, projects, type4ph])
 
   return (
-    <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col h-[600px]">
+    <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col h-[600px] max-h-[550px] lg:max-h-none">
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
