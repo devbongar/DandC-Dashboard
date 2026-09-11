@@ -200,6 +200,7 @@ export default function UnitCompletionChart({
   const [completions, setCompletions]   = useState([])
   const [loading, setLoading]           = useState(true)
   const [timescaleOpen, setTimescaleOpen] = useState(false)
+  const [filterOpen,    setFilterOpen]    = useState(false)
 
   // Load projects in standalone mode (when not provided via props)
   useEffect(() => {
@@ -212,6 +213,7 @@ export default function UnitCompletionChart({
   const m5Ref           = useRef(null)
   const timescaleRef    = useRef(null)
   const timescaleMobRef = useRef(null)
+  const filterRef       = useRef(null)
 
   // Close timescale popover on outside click
   useEffect(() => {
@@ -224,6 +226,16 @@ export default function UnitCompletionChart({
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
   }, [timescaleOpen])
+
+  // Close filter popover on outside click
+  useEffect(() => {
+    if (!filterOpen) return
+    const handler = (e) => {
+      if (!filterRef.current?.contains(e.target)) setFilterOpen(false)
+    }
+    document.addEventListener('mousedown', handler)
+    return () => document.removeEventListener('mousedown', handler)
+  }, [filterOpen])
 
   useEffect(() => {
     const load = async () => {
@@ -322,8 +334,100 @@ const chartData = useMemo(
           <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />
           <h2 className="text-sm font-bold text-black">Unit Completion Overview</h2>
         </div>
-        {/* Desktop: timescale button */}
+        {/* Desktop: filter + timescale buttons */}
         <div className="hidden sm:flex items-center gap-2">
+          {/* Filter button */}
+          <div className="relative flex-shrink-0" ref={filterRef}>
+            <button
+              onClick={() => setFilterOpen(v => !v)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+              style={{
+                background: filterOpen || activeFilterCount > 0 ? '#fff' : '#fafafa',
+                borderColor: activeFilterCount > 0 ? '#ed6055' : (filterOpen ? '#ed6055' : '#e5e7eb'),
+                color: activeFilterCount > 0 ? '#ed6055' : '#6b7280',
+                boxShadow: filterOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+              </svg>
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+            {filterOpen && (
+              <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl"
+                style={{ width: 260, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
+              >
+                <div className="p-3 space-y-3">
+                  {/* Type toggle */}
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Type</p>
+                    <div className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
+                      style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}>
+                      {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
+                        <button
+                          key={t.key}
+                          onClick={() => { setIs4ph(t.key); setProjectId('all'); setProvince(''); setCity('') }}
+                          className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                          style={is4ph === t.key ? {
+                            background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
+                            color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                          } : { color: '#6b7280', background: 'transparent' }}
+                        >{t.label}</button>
+                      ))}
+                    </div>
+                  </div>
+                  {/* Project */}
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Project</p>
+                    <SearchDropdown
+                      fluid
+                      options={(allProjects ?? []).filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)).sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
+                      value={projectId} onChange={setProjectId} emptyValue="all" emptyLabel="All Projects"
+                      placeholder="Search projects…"
+                      icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+                    />
+                  </div>
+                  {/* Province */}
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Province</p>
+                    <SearchDropdown
+                      fluid
+                      options={availableProvinces.map(p => ({ value: p, label: p }))}
+                      value={province} onChange={v => { setProvince(v); setCity('') }}
+                      emptyValue="" emptyLabel="All Provinces" placeholder="Search provinces…"
+                      icon="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
+                    />
+                  </div>
+                  {/* City */}
+                  <div>
+                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">City</p>
+                    <SearchDropdown
+                      fluid
+                      options={availableCities.map(c => ({ value: c, label: c }))}
+                      value={city} onChange={setCity}
+                      emptyValue="" emptyLabel="All Cities" placeholder="Search cities…"
+                      icon="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"
+                      disabled={!province || availableCities.length === 0}
+                    />
+                  </div>
+                  {/* Clear all */}
+                  {activeFilterCount > 0 && (
+                    <button
+                      onClick={() => { setIs4ph('all'); setProjectId('all'); setProvince(''); setCity(''); setFilterDate('') }}
+                      className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors"
+                    >
+                      Clear all filters
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           {/* Timescale button */}
           <div className="relative flex-shrink-0" ref={timescaleRef}>
             <button

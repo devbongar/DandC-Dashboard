@@ -14,13 +14,13 @@ export default function ApproverDashboard() {
 
   return (
     <DashboardLayout profile={profile}>
-      <div className="space-y-3">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div className="h-full [&>section]:mb-0 [&>section]:h-full"><ProjectPhasesBoard /></div>
-          <div className="h-full [&>section]:mb-0 [&>section]:h-full"><UnitCompletionChart /></div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+        <div className="flex flex-col gap-3 h-full">
+          <div className="[&>section]:mb-0"><ProjectPhasesBoard /></div>
+          <div className="flex-1 [&>section]:mb-0 [&>section]:h-full"><IssuesTable /></div>
         </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 items-start">
-          <div className="[&>section]:mb-0"><IssuesTable /></div>
+        <div className="flex flex-col gap-3">
+          <div className="[&>section]:mb-0"><UnitCompletionChart /></div>
           <div className="[&>section]:mb-0"><ComplianceTable /></div>
         </div>
       </div>

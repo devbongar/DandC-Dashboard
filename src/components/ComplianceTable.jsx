@@ -254,7 +254,7 @@ export default function ComplianceTable({ id }) {
   const fetchAll = async () => {
     setLoading(true)
     const [permitsRes, projectsRes] = await Promise.all([
-      supabase.from('permits').select('id, project_id, name, status, actual_start, actual_finish, planned_finish'),
+      supabase.from('permits').select('id, project_id, name, status, actual_start, actual_finish, planned_finish, sort_order'),
       supabase.from('projects').select('id, name, is_4ph_project').order('name'),
     ])
     if (permitsRes.data)  setPermits(permitsRes.data)
@@ -284,9 +284,19 @@ export default function ComplianceTable({ id }) {
 
   const permitNames = useMemo(() => {
     const visibleIds = new Set(visibleProjects.map(p => p.id))
-    const seen = new Set()
-    permits.filter(p => visibleIds.has(p.project_id)).forEach(p => seen.add(p.name))
-    return [...seen].sort()
+    const minOrder = {}
+    permits.filter(p => visibleIds.has(p.project_id)).forEach(p => {
+      if (!(p.name in minOrder) || (p.sort_order != null && (minOrder[p.name] == null || p.sort_order < minOrder[p.name]))) {
+        minOrder[p.name] = p.sort_order ?? null
+      }
+    })
+    return Object.keys(minOrder).sort((a, b) => {
+      const oa = minOrder[a], ob = minOrder[b]
+      if (oa == null && ob == null) return a.localeCompare(b)
+      if (oa == null) return 1
+      if (ob == null) return -1
+      return oa - ob
+    })
   }, [permits, visibleProjects])
 
   const projectOptions = useMemo(() => {

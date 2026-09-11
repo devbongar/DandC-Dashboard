@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, Fragment } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import SearchDropdown from './SearchDropdown'
 import TriangleLoader from './TriangleLoader'
+import useProfile from '../hooks/useProfile'
 
 const STATUS_CONFIG = {
   open:  { label: 'Open',   className: 'bg-[#ed6055]/10 text-[#ed6055] border border-[#ed6055]/20' },
@@ -10,7 +11,7 @@ const STATUS_CONFIG = {
 }
 
 const GROUPS = ['Commercial', 'Design', 'Construction', 'Compliance']
-const MANAGEMENT_LEVELS = ['ESA', 'Management Committee']
+const MANAGEMENT_LEVELS = ['ESA', 'Management Committee', 'D&C Head']
 
 const daysAging = (dateStr) => {
   if (!dateStr) return null
@@ -44,15 +45,20 @@ function SectionBlock({ label, value }) {
 }
 
 export default function IssuesTable({ id }) {
+  const { profile } = useProfile()
+  const canEdit = profile?.role === 'admin' || profile?.role === 'head'
   const [issues, setIssues]         = useState([])
   const [projects, setProjects]     = useState([])
   const [loading, setLoading]       = useState(true)
   const [modal, setModal]           = useState(null)
   const [active, setActive]         = useState(null)
+  const [editing, setEditing]       = useState(false)
+  const [draft, setDraft]           = useState(null)
+  const [saving, setSaving]         = useState(false)
   const [toast, setToast]           = useState(null)
   const [filterStatus, setFilterStatus]       = useState('all')
   const [filterGroup, setFilterGroup]         = useState('all')
-  const [filterMgmtLevel, setFilterMgmtLevel] = useState('all')
+  const [filterMgmtLevel, setFilterMgmtLevel] = useState(['ESA', 'Management Committee'])
   const [filterProject, setFilterProject]     = useState('all')
   const [type4ph, setType4ph]                 = useState('all')
   const [collapsed, setCollapsed]   = useState(new Set())
@@ -93,8 +99,31 @@ export default function IssuesTable({ id }) {
 
   const projectName = (id) => projects.find(p => p.id === id)?.name ?? '--'
 
-  const openView   = (issue) => { setActive(issue); setModal('view') }
-  const closeModal = () => { setModal(null); setActive(null) }
+  const openView   = (issue) => { setActive(issue); setDraft(issue); setModal('view'); setEditing(false) }
+  const closeModal = () => { setModal(null); setActive(null); setDraft(null); setEditing(false) }
+
+  const startEdit  = () => { setDraft({ ...active }); setEditing(true) }
+  const cancelEdit = () => { setDraft({ ...active }); setEditing(false) }
+
+  const saveEdit = async () => {
+    setSaving(true)
+    const { error } = await supabase.from('issues').update({
+      issue_group:      draft.issue_group,
+      management_level: draft.management_level,
+      status:           draft.status,
+      date_presented:   draft.date_presented || null,
+      details:          draft.details,
+      caused_by:        draft.caused_by,
+      action_steps:     draft.action_steps,
+    }).eq('id', active.id)
+    setSaving(false)
+    if (error) { showToast('Failed to save changes.', 'error'); return }
+    const updated = { ...active, ...draft }
+    setActive(updated)
+    setIssues(prev => prev.map(i => i.id === active.id ? updated : i))
+    setEditing(false)
+    showToast('Issue updated.')
+  }
 
   const showToast = (message, type = 'success') => {
     setToast({ message, type })
@@ -104,15 +133,15 @@ export default function IssuesTable({ id }) {
   const filtered = useMemo(() => issues.filter(issue => {
     const matchStatus    = filterStatus    === 'all' || issue.status           === filterStatus
     const matchGroup     = filterGroup     === 'all' || issue.issue_group      === filterGroup
-    const matchMgmtLevel = filterMgmtLevel === 'all' || issue.management_level === filterMgmtLevel
+    const matchMgmtLevel = filterMgmtLevel.length === 0 || filterMgmtLevel.includes(issue.management_level)
     const matchProject   = filterProject   === 'all' || issue.project_id       === filterProject
     const proj           = projects.find(p => p.id === issue.project_id)
     const match4ph       = type4ph === 'all' || (proj && (type4ph === 'yes' ? proj.is_4ph_project : !proj.is_4ph_project))
     return matchStatus && matchGroup && matchMgmtLevel && matchProject && match4ph
   }), [issues, filterStatus, filterGroup, filterMgmtLevel, filterProject, type4ph, projects])
 
-  const hasActiveFilter = filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel !== 'all' || filterProject !== 'all' || type4ph !== 'all'
-  const clearFilters = () => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel('all'); setFilterProject('all'); setType4ph('all') }
+  const hasActiveFilter = filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel.length > 0 || filterProject !== 'all' || type4ph !== 'all'
+  const clearFilters = () => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel([]); setFilterProject('all'); setType4ph('all') }
 
   // Projects that actually have issues (for the dropdown)
   const projectOptions = useMemo(() => {
@@ -154,7 +183,7 @@ export default function IssuesTable({ id }) {
               Filters
               {hasActiveFilter && (
                 <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                  {[type4ph !== 'all', filterProject !== 'all', filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel !== 'all'].filter(Boolean).length}
+                  {[type4ph !== 'all', filterProject !== 'all', filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel.length > 0].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -213,10 +242,22 @@ export default function IssuesTable({ id }) {
                   <div>
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
                     <div className="flex flex-wrap gap-1">
-                      {[{ value: 'all', label: 'All' }, ...MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))].map(o => (
-                        <button key={o.value} onClick={() => setFilterMgmtLevel(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                          style={filterMgmtLevel === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
-                      ))}
+                      <button
+                        onClick={() => setFilterMgmtLevel([])}
+                        className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                        style={filterMgmtLevel.length === 0 ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}
+                      >All</button>
+                      {MANAGEMENT_LEVELS.map(l => {
+                        const on = filterMgmtLevel.includes(l)
+                        return (
+                          <button
+                            key={l}
+                            onClick={() => setFilterMgmtLevel(prev => on ? prev.filter(x => x !== l) : [...prev, l])}
+                            className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
+                            style={on ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}
+                          >{l}</button>
+                        )
+                      })}
                     </div>
                   </div>
                   {hasActiveFilter && (
@@ -353,43 +394,148 @@ export default function IssuesTable({ id }) {
                   <h3 className="text-xl sm:text-3xl font-bold text-black leading-snug">
                     {projectName(active.project_id) !== '--' ? projectName(active.project_id) : 'No project linked'}
                   </h3>
+                  {editing && <p className="text-xs font-semibold text-[#ed6055] mt-1">Editing</p>}
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0 mt-1">
-                  <span className={`text-sm font-semibold px-3 py-1 rounded-full ${sc.className}`}>{sc.label}</span>
+                <div className="flex items-center gap-2 flex-shrink-0 mt-1">
+                  {!editing && <span className={`text-sm font-semibold px-3 py-1 rounded-full ${sc.className}`}>{sc.label}</span>}
+                  {canEdit && !editing && (
+                    <button
+                      onClick={startEdit}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 bg-white hover:bg-gray-50 transition"
+                      style={{ boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+                      </svg>
+                      Edit
+                    </button>
+                  )}
                   <button onClick={closeModal} className="p-2 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition"><XIcon /></button>
                 </div>
               </div>
 
               {/* Meta row */}
               <div className="px-4 sm:px-8 py-4 border-b border-gray-100 grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-6 bg-gray-50 flex-shrink-0">
-                <LabelBox label="Group"            value={active.issue_group} />
-                <LabelBox label="Management Level" value={active.management_level} />
-                <LabelBox label="Date Presented"   value={fmt(active.date_presented)} />
-                <div>
-                  <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Days Aging</p>
-                  {aging !== null ? (
-                    <span className={`inline-block text-sm sm:text-base font-semibold px-2.5 py-0.5 rounded-full ${
-                      aging >= 30 ? 'bg-red-50 text-red-600 border border-red-100' :
-                      aging >= 15 ? 'bg-amber-50 text-amber-600 border border-amber-100' :
-                      'text-gray-900'
-                    }`}>
-                      {aging} day{aging !== 1 ? 's' : ''}
-                    </span>
-                  ) : (
-                    <span className="text-gray-300 italic font-normal text-sm">--</span>
-                  )}
-                </div>
+                {editing ? (
+                  <>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Group</p>
+                      <SearchDropdown
+                        fluid
+                        options={GROUPS.map(g => ({ value: g, label: g }))}
+                        value={draft.issue_group ?? ''}
+                        onChange={v => setDraft(d => ({ ...d, issue_group: v }))}
+                        emptyValue="" emptyLabel="-- Select --"
+                        placeholder="Search groups…"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Management Level</p>
+                      <SearchDropdown
+                        fluid
+                        options={MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))}
+                        value={draft.management_level ?? ''}
+                        onChange={v => setDraft(d => ({ ...d, management_level: v }))}
+                        emptyValue="" emptyLabel="-- Select --"
+                        placeholder="Search levels…"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Date Presented</p>
+                      <input
+                        type="date"
+                        value={draft.date_presented ?? ''}
+                        onChange={e => setDraft(d => ({ ...d, date_presented: e.target.value }))}
+                        className="w-full text-sm font-medium text-gray-900 border border-gray-200 rounded-lg px-2.5 py-1.5 bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Status</p>
+                      <SearchDropdown
+                        fluid
+                        options={Object.entries(STATUS_CONFIG).map(([k, v]) => ({ value: k, label: v.label }))}
+                        value={draft.status ?? 'open'}
+                        onChange={v => setDraft(d => ({ ...d, status: v }))}
+                        emptyValue="" emptyLabel="-- Select --"
+                        placeholder="Search status…"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <LabelBox label="Group"            value={active.issue_group} />
+                    <LabelBox label="Management Level" value={active.management_level} />
+                    <LabelBox label="Date Presented"   value={fmt(active.date_presented)} />
+                    <div>
+                      <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Days Aging</p>
+                      {aging !== null ? (
+                        <span className={`inline-block text-sm sm:text-base font-semibold px-2.5 py-0.5 rounded-full ${
+                          aging >= 30 ? 'bg-red-50 text-red-600 border border-red-100' :
+                          aging >= 15 ? 'bg-amber-50 text-amber-600 border border-amber-100' :
+                          'text-gray-900'
+                        }`}>
+                          {aging} day{aging !== 1 ? 's' : ''}
+                        </span>
+                      ) : (
+                        <span className="text-gray-300 italic font-normal text-sm">--</span>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Body */}
               <div className="flex-1 px-4 sm:px-8 py-5 sm:py-6 space-y-5 overflow-y-auto">
-                <SectionBlock label="Issue"        value={active.details} />
-                {active.caused_by && <SectionBlock label="Caused By"   value={active.caused_by} />}
-                <SectionBlock label="Action Steps" value={active.action_steps} />
+                {editing ? (
+                  <>
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Issue</p>
+                      <textarea
+                        rows={4}
+                        value={draft.details ?? ''}
+                        onChange={e => setDraft(d => ({ ...d, details: e.target.value }))}
+                        className="w-full rounded-xl border border-gray-200 px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-gray-800 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Caused By</p>
+                      <textarea
+                        rows={3}
+                        value={draft.caused_by ?? ''}
+                        onChange={e => setDraft(d => ({ ...d, caused_by: e.target.value }))}
+                        className="w-full rounded-xl border border-gray-200 px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-gray-800 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent"
+                      />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Action Steps</p>
+                      <textarea
+                        rows={4}
+                        value={draft.action_steps ?? ''}
+                        onChange={e => setDraft(d => ({ ...d, action_steps: e.target.value }))}
+                        className="w-full rounded-xl border border-gray-200 px-3 sm:px-5 py-3 sm:py-4 text-sm sm:text-base text-gray-800 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <SectionBlock label="Issue"        value={active.details} />
+                    {active.caused_by && <SectionBlock label="Caused By"   value={active.caused_by} />}
+                    <SectionBlock label="Action Steps" value={active.action_steps} />
+                  </>
+                )}
               </div>
 
-              <div className="px-4 sm:px-8 py-4 border-t border-gray-100 flex justify-end flex-shrink-0">
-                <button onClick={closeModal} className="px-6 py-2.5 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition">Close</button>
+              <div className="px-4 sm:px-8 py-4 border-t border-gray-100 flex justify-end gap-2 flex-shrink-0">
+                {editing ? (
+                  <>
+                    <button onClick={cancelEdit} disabled={saving} className="px-6 py-2.5 text-sm font-semibold text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition disabled:opacity-50">Cancel</button>
+                    <button onClick={saveEdit}   disabled={saving} className="px-6 py-2.5 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition disabled:opacity-60">
+                      {saving ? 'Saving…' : 'Save changes'}
+                    </button>
+                  </>
+                ) : (
+                  <button onClick={closeModal} className="px-6 py-2.5 text-sm font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] transition">Close</button>
+                )}
               </div>
             </div>
           </div>
