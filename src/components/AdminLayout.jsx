@@ -5,6 +5,7 @@ import useMinLoading from '../hooks/useMinLoading'
 import LoadingScreen from './LoadingScreen'
 import Logo from './Logo'
 import NotificationBell from './NotificationBell'
+import MobileBottomNav from './MobileBottomNav'
 import { ROLE_LABELS } from '../lib/roles'
 import { supabase } from '../lib/supabaseClient'
 
@@ -213,19 +214,8 @@ export default function AdminLayout({ title, actions, children }) {
         </nav>
       </aside>
 
-      {/* Floating hamburger (mobile) */}
-      {!mobileSidebarOpen && (
-        <button
-          className="sm:hidden fixed z-50 flex items-center justify-center w-9 h-9 rounded-xl shadow-lg transition-all"
-          style={{ top: 110, left: 12, background: 'rgba(240,240,240,0.72)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', border: '1px solid rgba(255,255,255,0.6)', boxShadow: '0 2px 12px rgba(0,0,0,0.10)' }}
-          onClick={() => setMobileSidebarOpen(true)}
-          aria-label="Open menu"
-        >
-          <svg style={{ width: 18, height: 18 }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2} className="text-gray-600">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-          </svg>
-        </button>
-      )}
+      {/* Mobile bottom nav (replaces hamburger on small screens) */}
+      <MobileBottomNav profile={profile} />
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
@@ -305,7 +295,7 @@ export default function AdminLayout({ title, actions, children }) {
         </header>
 
         {/* Main content — pages control their own padding/overflow */}
-        <div className="flex-1 min-h-0 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div id="main-scroll" className="flex-1 min-h-0 overflow-auto pb-24 sm:pb-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {children}
         </div>
       </div>

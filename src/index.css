@@ -1,8 +1,5 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Sidebar frosted glass background */
+/* Sidebar frosted glass background — must be before @tailwind utilities so
+   Tailwind position utilities (fixed, relative, etc.) can override it */
 .sidebar-frost {
   position: relative;
   overflow: hidden;
@@ -27,6 +24,10 @@
   position: relative;
   z-index: 1;
 }
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 
 /* Site plan full-screen mode — hide app header, black page background */
 body.plan-fullscreen header {

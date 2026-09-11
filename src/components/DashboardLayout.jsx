@@ -4,6 +4,7 @@ import Sidebar from './Sidebar'
 import Logo from './Logo'
 import NotificationBell from './NotificationBell'
 import { supabase } from '../lib/supabaseClient'
+import MobileBottomNav from './MobileBottomNav'
 
 const ROLE_LABELS = {
   admin:    'Admin',
@@ -205,10 +206,13 @@ export default function DashboardLayout({ profile, children, navOverride, action
 
       {/* Main content -- offset = topbar (4rem) + safe-area-inset-top */}
       <div style={scrollHeader ? {} : { paddingTop: 'calc(4rem + env(safe-area-inset-top, 0px))' }}>
-        <div className="px-3 sm:px-4 pt-3" style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom))' }}>
+        <div className="px-3 sm:px-4 pt-3 pb-24 sm:pb-3">
           {children}
         </div>
       </div>
+
+      {/* Mobile bottom nav */}
+      <MobileBottomNav profile={profile} />
 
     </div>
   )
