@@ -416,7 +416,7 @@ export default function ProjectsPage() {
   )
 
   return (
-    <AdminLayout title="Project List" actions={headerActions} mobileActionsRow={mobileSearchRow} mobileTitleActions={mobileTitleActionsBtn} mobileBg="linear-gradient(180deg, #ed6055 0%, #c94040 100%)">
+    <AdminLayout title="Project List" actions={headerActions} mobileActionsRow={mobileSearchRow} mobileTitleActions={mobileTitleActionsBtn} mobileBg="linear-gradient(180deg, #c94040 0%, #ed6055 100%)">
       <style>{`
         @keyframes card-shine {
           from { transform: translateX(-180%) skewX(-18deg); opacity: 1; }
