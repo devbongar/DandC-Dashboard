@@ -244,13 +244,10 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
       <MobileBottomNav profile={profile} />
 
       {/* -- Right column -- */}
-      <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
-        {/* Dark strip behind status bar only — prevents bg-gray-200 showing through when header hides */}
-        {mobileBg && isMobile && (
-          <div className="sm:hidden fixed top-0 left-0 right-0 z-[5]"
-            style={{ height: 'env(safe-area-inset-top)', background: '#111111' }}
-          />
-        )}
+      <div
+        className="relative flex flex-col flex-1 min-w-0 overflow-hidden"
+        style={{ background: mobileBg && isMobile ? '#111111' : undefined }}
+      >
 
         {/* App header — background always covers status bar */}
         <header
