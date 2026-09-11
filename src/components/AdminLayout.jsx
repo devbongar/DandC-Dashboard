@@ -250,22 +250,34 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
         <header
           className="flex-shrink-0 flex flex-col relative"
           style={{
-            background: mobileBg && isMobile ? (headerVisible ? mobileBg : 'transparent') : 'transparent',
             borderBottom: 'none',
             boxShadow: 'none',
-            paddingTop: mobileBg && isMobile ? (headerVisible ? 'env(safe-area-inset-top)' : '0px') : undefined,
+            paddingTop: mobileBg && isMobile ? 'env(safe-area-inset-top)' : undefined,
             borderRadius: mobileBg && isMobile ? (headerVisible ? '0 0 20px 20px' : '0') : undefined,
-            transition: mobileBg && isMobile ? 'background 0.32s ease, padding-top 0.32s ease, border-radius 0.32s ease' : undefined,
+            transition: mobileBg && isMobile ? 'border-radius 0.32s ease' : undefined,
           }}
         >
+          {/* Gradient background — fades via opacity (gradient→transparent not animatable) */}
+          {mobileBg && isMobile && (
+            <div
+              className="pointer-events-none absolute inset-0"
+              style={{
+                background: mobileBg,
+                borderRadius: 'inherit',
+                opacity: headerVisible ? 1 : 0,
+                transition: 'opacity 0.32s ease',
+              }}
+            />
+          )}
+
           {/* Collapsible content — collapses while header bg stays over status bar */}
           <div
-            className="px-5"
+            className="px-5 relative"
             style={{
               maxHeight: mobileBg && isMobile ? (headerVisible ? '180px' : '0px') : undefined,
               opacity: mobileBg && isMobile ? (headerVisible ? 1 : 0) : undefined,
               overflow: mobileBg && isMobile ? 'hidden' : undefined,
-              transition: mobileBg && isMobile ? 'max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease' : undefined,
+              transition: mobileBg && isMobile ? 'max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease' : undefined,
             }}
           >
           {/* Row 1: title + actions (desktop) + bell + avatar */}
