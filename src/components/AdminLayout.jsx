@@ -246,19 +246,6 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
       {/* -- Right column -- */}
       <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
 
-        {/* Fixed dark strip behind status bar — transparent when header visible (header covers it),
-            dark when header hidden so status bar doesn't show bg-gray-200 layout bg */}
-        {mobileBg && isMobile && (
-          <div
-            className="sm:hidden fixed top-0 left-0 right-0 pointer-events-none"
-            style={{
-              height: 'env(safe-area-inset-top)',
-              background: headerVisible ? 'transparent' : '#111111',
-              transition: 'background 0.32s ease',
-            }}
-          />
-        )}
-
         {/* App header — background always covers status bar */}
         <header
           className="flex-shrink-0 flex flex-col relative"
