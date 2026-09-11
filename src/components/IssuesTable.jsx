@@ -56,7 +56,7 @@ export default function IssuesTable({ id }) {
   const [draft, setDraft]           = useState(null)
   const [saving, setSaving]         = useState(false)
   const [toast, setToast]           = useState(null)
-  const [filterStatus, setFilterStatus]       = useState('all')
+  const [filterStatus, setFilterStatus]       = useState('open')
   const [filterGroup, setFilterGroup]         = useState('all')
   const [filterMgmtLevel, setFilterMgmtLevel] = useState(['ESA', 'Management Committee'])
   const [filterProject, setFilterProject]     = useState('all')
@@ -140,8 +140,8 @@ export default function IssuesTable({ id }) {
     return matchStatus && matchGroup && matchMgmtLevel && matchProject && match4ph
   }), [issues, filterStatus, filterGroup, filterMgmtLevel, filterProject, type4ph, projects])
 
-  const hasActiveFilter = filterStatus !== 'all' || filterGroup !== 'all' || filterMgmtLevel.length > 0 || filterProject !== 'all' || type4ph !== 'all'
-  const clearFilters = () => { setFilterStatus('all'); setFilterGroup('all'); setFilterMgmtLevel([]); setFilterProject('all'); setType4ph('all') }
+  const hasActiveFilter = filterStatus !== 'open' || filterGroup !== 'all' || filterMgmtLevel.length > 0 || filterProject !== 'all' || type4ph !== 'all'
+  const clearFilters = () => { setFilterStatus('open'); setFilterGroup('all'); setFilterMgmtLevel([]); setFilterProject('all'); setType4ph('all') }
 
   // Projects that actually have issues (for the dropdown)
   const projectOptions = useMemo(() => {
@@ -183,7 +183,7 @@ export default function IssuesTable({ id }) {
               Filters
               {hasActiveFilter && (
                 <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                  {[type4ph !== 'all', filterProject !== 'all', filterStatus !== 'all', filterGroup !== 'all', filterMgmtLevel.length > 0].filter(Boolean).length}
+                  {[type4ph !== 'all', filterProject !== 'all', filterStatus !== 'open', filterGroup !== 'all', filterMgmtLevel.length > 0].filter(Boolean).length}
                 </span>
               )}
             </button>

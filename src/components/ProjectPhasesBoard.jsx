@@ -1,6 +1,5 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { supabase } from '../lib/supabaseClient'
-import SearchDropdown from './SearchDropdown'
 import TriangleLoader from './TriangleLoader'
 
 const PHASES = [
@@ -52,21 +51,7 @@ const PHASES = [
 export default function ProjectPhasesBoard({ id }) {
   const [projects, setProjects]   = useState([])
   const [loading, setLoading]     = useState(true)
-  const [is4ph, setIs4ph]         = useState('all')
-  const [projectId, setProjectId] = useState('all')
-  const [filterOpen, setFilterOpen] = useState(false)
-  const filterRef = useRef(null)
-
   useEffect(() => { fetchProjects() }, [])
-
-  useEffect(() => {
-    if (!filterOpen) return
-    const handler = (e) => {
-      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [filterOpen])
 
   const fetchProjects = async () => {
     setLoading(true)
@@ -78,12 +63,8 @@ export default function ProjectPhasesBoard({ id }) {
     setLoading(false)
   }
 
-  const filteredProjects = useMemo(() => projects
-    .filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project))
-    .filter(p => projectId === 'all' || p.id === projectId)
-  , [projects, is4ph, projectId])
-
-  const byPhase = (key) => filteredProjects.filter(p => p.phase === key)
+  const filteredProjects = projects
+  const byPhase = (key) => projects.filter(p => p.phase === key)
 
   return (
     <section id={id} className="mb-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow p-4">
@@ -97,89 +78,7 @@ export default function ProjectPhasesBoard({ id }) {
             <span className="text-xs font-semibold text-gray-400">{filteredProjects.length} projects</span>
           )}
         </div>
-        <div className="flex items-center gap-2">
-          {!loading && (() => {
-            const activeFilterCount = [is4ph !== 'all', projectId !== 'all'].filter(Boolean).length
-            return (
-              <div className="relative" ref={filterRef}>
-            <button
-              onClick={() => setFilterOpen(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
-              style={{
-                background: filterOpen || activeFilterCount > 0 ? '#fff' : '#fafafa',
-                borderColor: activeFilterCount > 0 ? '#ed6055' : (filterOpen ? '#ed6055' : '#e5e7eb'),
-                color: activeFilterCount > 0 ? '#ed6055' : '#6b7280',
-                boxShadow: filterOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-              }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-              </svg>
-              Filters
-              {activeFilterCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-
-            {filterOpen && (
-              <div className="absolute top-full right-0 mt-1.5 z-50 bg-white border border-gray-200 rounded-xl shadow-lg p-3 w-64 flex flex-col gap-3">
-                {/* Type */}
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Type</p>
-                  <div
-                    className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
-                    style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
-                  >
-                    {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                      <button
-                        key={t.key}
-                        onClick={() => { setIs4ph(t.key); setProjectId('all') }}
-                        className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
-                        style={is4ph === t.key ? {
-                          background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
-                          color: '#fff',
-                          boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
-                        } : { color: '#6b7280', background: 'transparent' }}
-                      >{t.label}</button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Project */}
-                <div>
-                  <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Project</p>
-                  <SearchDropdown
-                    fluid
-                    options={projects
-                      .filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project))
-                      .sort((a, b) => (a.project_code || a.name).localeCompare(b.project_code || b.name))
-                      .map(p => ({ value: p.id, label: p.project_code || p.name }))
-                    }
-                    value={projectId}
-                    onChange={setProjectId}
-                    emptyValue="all"
-                    emptyLabel="All Projects"
-                    placeholder="Search projects…"
-                    icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
-                  />
-                </div>
-
-                {activeFilterCount > 0 && (
-                  <button
-                    onClick={() => { setIs4ph('all'); setProjectId('all') }}
-                    className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors"
-                  >
-                    Clear all filters
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-            )
-          })()}
-        </div>
+        <div />
       </div>
 
       {loading ? (
