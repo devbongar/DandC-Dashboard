@@ -312,7 +312,7 @@ export default function PermitsDashboard() {
   const activeFilterCount = [filterStatus !== 'all', filterProjects.size > 0].filter(Boolean).length
 
   const mobileSearchRow = (
-    <div className="flex items-stretch gap-2 px-0">
+    <div className="flex items-stretch gap-2 px-0 pb-6">
       <div className="relative flex-1">
         <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
@@ -322,7 +322,7 @@ export default function PermitsDashboard() {
           placeholder="Search permits..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-8 pr-9 py-4 text-sm rounded-lg text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition"
+          className="w-full pl-8 pr-9 py-4 text-sm rounded-2xl text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition"
           style={{ background: '#ffffff' }}
         />
         <button

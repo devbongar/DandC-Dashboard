@@ -366,7 +366,7 @@ export default function ProjectsPage() {
 
   // Mobile second row: search bar + phase count pills
   const mobileSearchRow = (
-    <div className="flex flex-col gap-3 px-0">
+    <div className="flex flex-col gap-5 px-0">
       <div className="relative flex-1">
         <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
@@ -376,7 +376,7 @@ export default function ProjectsPage() {
           placeholder="Search projects..."
           value={search}
           onChange={e => setSearch(e.target.value)}
-          className="w-full pl-8 pr-9 py-4 text-sm rounded-lg text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition"
+          className="w-full pl-8 pr-9 py-4 text-sm rounded-2xl text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition"
           style={{ background: '#ffffff' }}
         />
         <button
@@ -394,23 +394,24 @@ export default function ProjectsPage() {
           </span>
         </button>
       </div>
-      {/* Phase count pills */}
-      <div className="flex gap-2">
-        {PHASES.map(ph => {
+      {/* Phase count row — -mx-5 bleeds past px-5 container to header edges */}
+      <div className="-mx-5 flex overflow-hidden" style={{ background: 'rgba(0,0,0,0.22)' }}>
+        {PHASES.map((ph, i) => {
           const count = projects.filter(p => p.phase === ph.key).length
           const shortLabel = ph.key === 'execution_monitoring' ? 'Execution' : ph.label
+          const active = phaseFilter === ph.key
           return (
             <button
               key={ph.key}
               onClick={() => setPhaseFilter(f => f === ph.key ? 'all' : ph.key)}
-              className="flex-1 flex flex-col items-center py-1.5 rounded-lg transition-all"
+              className="flex-1 flex flex-col items-center py-2.5 transition-all"
               style={{
-                background: phaseFilter === ph.key ? `${ph.color}30` : 'rgba(255,255,255,0.12)',
-                outline: phaseFilter === ph.key ? `1.5px solid ${ph.color}` : 'none',
+                borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.15)' : 'none',
+                background: active ? 'rgba(255,255,255,0.08)' : 'transparent',
               }}
             >
-              <span className="text-base font-bold leading-none" style={{ color: ph.color }}>{count}</span>
-              <span className="text-[9px] font-semibold mt-0.5 leading-none" style={{ color: 'rgba(255,255,255,0.6)' }}>{shortLabel}</span>
+              <span className="text-lg font-bold leading-none" style={{ color: active ? ph.color : '#ffffff' }}>{count}</span>
+              <span className="text-[10px] font-semibold mt-1 leading-none" style={{ color: 'rgba(255,255,255,0.55)' }}>{shortLabel}</span>
             </button>
           )
         })}
@@ -422,13 +423,13 @@ export default function ProjectsPage() {
     <div className="relative" ref={actionsRef}>
       <button
         onClick={() => setShowActions(v => !v)}
-        className="flex items-center justify-center w-9 h-9 rounded-lg transition-all"
+        className="flex items-center justify-center w-6 h-9 rounded-lg transition-all"
         style={{
           background: 'transparent',
           color: showActions ? '#ed6055' : 'rgba(255,255,255,0.85)',
         }}
       >
-        <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+        <svg className="w-8 h-8" fill="currentColor" viewBox="0 0 24 24" stroke="none">
           <path d="M12 7.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM12 13.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM12 19.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
         </svg>
       </button>

@@ -255,7 +255,7 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
 
           <div className="px-5 relative">
           {/* Row 1: title + actions (desktop) + bell + avatar */}
-          <div className="flex items-center h-14 gap-4">
+          <div className="flex items-center h-14 gap-2 sm:gap-4">
             <span className={`text-lg font-bold tracking-wide ${mobileBg && isMobile ? 'text-white' : 'text-gray-800'}`}>{title}</span>
 
             <div className="flex-1" />
@@ -332,7 +332,7 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
 
           {/* Row 2: mobile search row */}
           {mobileActionsRow && (
-            <div className="sm:hidden pt-6 pb-6">
+            <div className="sm:hidden pt-6 pb-0">
               {mobileActionsRow}
             </div>
           )}
