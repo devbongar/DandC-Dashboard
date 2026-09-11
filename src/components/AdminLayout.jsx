@@ -246,32 +246,28 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
       {/* -- Right column -- */}
       <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
 
-        {/* Status bar cover — always visible on mobile, same gradient top color */}
-        {mobileBg && isMobile && (
-          <div
-            className="flex-shrink-0"
-            style={{
-              height: 'env(safe-area-inset-top)',
-              background: headerVisible ? '#2e2e2e' : 'transparent',
-              transition: 'background 0.32s ease',
-            }}
-          />
-        )}
-
-        {/* App header */}
+        {/* App header — background always covers status bar */}
         <header
-          className="flex-shrink-0 flex flex-col px-5 relative"
+          className="flex-shrink-0 flex flex-col relative"
           style={{
-            background: mobileBg && isMobile ? mobileBg : 'transparent',
+            background: mobileBg && isMobile ? (headerVisible ? mobileBg : 'transparent') : 'transparent',
             borderBottom: 'none',
             boxShadow: 'none',
-            borderRadius: mobileBg && isMobile ? '0 0 20px 20px' : undefined,
-            maxHeight: mobileBg && isMobile ? (headerVisible ? '220px' : '0px') : undefined,
-            opacity: mobileBg && isMobile ? (headerVisible ? 1 : 0) : undefined,
-            overflow: mobileBg && isMobile ? 'hidden' : undefined,
-            transition: mobileBg && isMobile ? 'max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease' : undefined,
+            paddingTop: mobileBg && isMobile ? 'env(safe-area-inset-top)' : undefined,
+            borderRadius: mobileBg && isMobile ? (headerVisible ? '0 0 20px 20px' : '0') : undefined,
+            transition: mobileBg && isMobile ? 'background 0.32s ease, border-radius 0.32s ease' : undefined,
           }}
         >
+          {/* Collapsible content — collapses while header bg stays over status bar */}
+          <div
+            className="px-5"
+            style={{
+              maxHeight: mobileBg && isMobile ? (headerVisible ? '180px' : '0px') : undefined,
+              opacity: mobileBg && isMobile ? (headerVisible ? 1 : 0) : undefined,
+              overflow: mobileBg && isMobile ? 'hidden' : undefined,
+              transition: mobileBg && isMobile ? 'max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.28s ease' : undefined,
+            }}
+          >
           {/* Row 1: title + actions (desktop) + bell + avatar */}
           <div className="flex items-center h-14 gap-4">
             <span className={`text-lg font-bold tracking-wide ${mobileBg && isMobile ? 'text-white' : 'text-gray-800'}`}>{title}</span>
@@ -355,7 +351,9 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
             </div>
           )}
 
-          {/* Glass shine — inside header so overflow:hidden clips it */}
+          </div>{/* end collapsible content */}
+
+          {/* Glass shine — absolute inset-0 covers full header including status bar */}
           {mobileBg && isMobile && (
             <div
               className="pointer-events-none absolute inset-0"
