@@ -52,23 +52,6 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
     return () => mq.removeEventListener('change', handler)
   }, [])
 
-  const [headerVisible, setHeaderVisible] = useState(true)
-  const lastScrollY = useRef(0)
-  useEffect(() => {
-    if (!mobileBg) return
-    const onScroll = () => {
-      const el = document.getElementById('main-scroll')
-      if (!el) return
-      const y = el.scrollTop
-      const delta = y - lastScrollY.current
-      if (Math.abs(delta) < 6) return
-      setHeaderVisible(delta < 0 || y < 40)
-      lastScrollY.current = y
-    }
-    document.addEventListener('scroll', onScroll, { capture: true, passive: true })
-    return () => document.removeEventListener('scroll', onScroll, { capture: true })
-  }, [mobileBg])
-
   const isSite = profile?.team === 'site'
 
   const visibleNavGroups = NAV_GROUPS.map(group =>
@@ -246,40 +229,31 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
       {/* -- Right column -- */}
       <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
 
-        {/* App header — background always covers status bar */}
+        {/* Main content — pages control their own padding/overflow */}
+        <div id="main-scroll" className="flex-1 min-h-0 overflow-auto pb-24 sm:pb-0 bg-gray-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+
+        {/* App header — scrolls with content on mobile */}
         <header
           className="flex-shrink-0 flex flex-col relative"
           style={{
             borderBottom: 'none',
             boxShadow: 'none',
             paddingTop: mobileBg && isMobile ? 'env(safe-area-inset-top)' : undefined,
-            borderRadius: mobileBg && isMobile ? (headerVisible ? '0 0 20px 20px' : '0') : undefined,
-            transition: mobileBg && isMobile ? 'border-radius 0.32s ease' : undefined,
+            borderRadius: mobileBg && isMobile ? '0 0 20px 20px' : undefined,
           }}
         >
-          {/* Gradient background — fades via opacity (gradient→transparent not animatable) */}
+          {/* Gradient background */}
           {mobileBg && isMobile && (
             <div
               className="pointer-events-none absolute inset-0"
               style={{
                 background: mobileBg,
                 borderRadius: 'inherit',
-                opacity: headerVisible ? 1 : 0,
-                transition: 'opacity 0.32s ease',
               }}
             />
           )}
 
-          {/* Collapsible content — collapses while header bg stays over status bar */}
-          <div
-            className="px-5 relative"
-            style={{
-              maxHeight: mobileBg && isMobile ? (headerVisible ? '180px' : '0px') : undefined,
-              opacity: mobileBg && isMobile ? (headerVisible ? 1 : 0) : undefined,
-              overflow: mobileBg && isMobile ? 'hidden' : undefined,
-              transition: mobileBg && isMobile ? 'max-height 0.32s cubic-bezier(0.4,0,0.2,1), opacity 0.22s ease' : undefined,
-            }}
-          >
+          <div className="px-5 relative">
           {/* Row 1: title + actions (desktop) + bell + avatar */}
           <div className="flex items-center h-14 gap-4">
             <span className={`text-lg font-bold tracking-wide ${mobileBg && isMobile ? 'text-white' : 'text-gray-800'}`}>{title}</span>
@@ -365,16 +339,9 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
 
           </div>{/* end collapsible content */}
 
-          {/* Glass shine — absolute inset-0 covers full header including status bar */}
+          {/* Glass shine */}
           {mobileBg && isMobile && (
-            <div
-              className="pointer-events-none absolute inset-0"
-              style={{
-                zIndex: 10,
-                opacity: headerVisible ? 1 : 0,
-                transition: 'opacity 0.32s ease',
-              }}
-            >
+            <div className="pointer-events-none absolute inset-0" style={{ zIndex: 10 }}>
               <div className="admin-banner-shine absolute inset-0"
                 style={{ background: 'linear-gradient(105deg, transparent 35%, rgba(255,255,255,0.22) 50%, transparent 65%)' }}
               />
@@ -382,8 +349,6 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
           )}
         </header>
 
-        {/* Main content — pages control their own padding/overflow */}
-        <div id="main-scroll" className="flex-1 min-h-0 overflow-auto pb-24 sm:pb-0 bg-gray-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {children}
         </div>
       </div>
