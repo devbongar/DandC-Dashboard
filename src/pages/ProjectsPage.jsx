@@ -377,7 +377,7 @@ export default function ProjectsPage() {
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full pl-8 pr-9 py-4 text-sm rounded-2xl text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition"
-          style={{ background: '#ffffff' }}
+          style={{ background: '#ffffff', fontSize: '16px' }}
         />
         <button
           onClick={() => setShowFilters(v => !v)}
