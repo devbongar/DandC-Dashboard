@@ -1190,7 +1190,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     : null
 
   return (
-    <div ref={containerRef} className="flex flex-col overflow-hidden px-4 sm:px-8 pt-3 sm:pt-4 pb-6 gap-3 min-h-[calc(100vh-60px)]">
+    <div ref={containerRef} className="flex flex-col overflow-hidden px-4 sm:px-8 pt-3 sm:pt-4 pb-6 gap-3 h-full">
 
       {/* Toolbar: hidden file inputs only */}
       <div className="flex-shrink-0 flex items-center gap-3 flex-wrap">

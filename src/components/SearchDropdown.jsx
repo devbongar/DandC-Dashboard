@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 // placeholder: search input placeholder text
 // icon: optional SVG path string shown in the trigger
 // disabled: grays out and disables the control
-export default function SearchDropdown({ options, value, onChange, emptyValue, emptyLabel, placeholder, icon, disabled = false, minWidth = 130, fluid = false }) {
+export default function SearchDropdown({ options, value, onChange, emptyValue, emptyLabel, placeholder, icon, disabled = false, minWidth = 130, fluid = false, clearable = false }) {
   const [open, setOpen]       = useState(false)
   const [query, setQuery]     = useState('')
   const [alignRight, setAlignRight] = useState(false)
@@ -67,13 +67,25 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
           </svg>
         )}
         <span className="flex-1 text-left truncate font-medium">{selectedLabel}</span>
-        <svg
-          className="w-3 h-3 flex-shrink-0 text-gray-400 transition-transform"
-          style={{ transform: open ? 'rotate(180deg)' : 'none' }}
-          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
-        >
-          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-        </svg>
+        {clearable && !isEmptyVal && !disabled ? (
+          <span
+            role="button"
+            onClick={e => { e.stopPropagation(); onChange(emptyValue); setOpen(false) }}
+            className="flex-shrink-0 text-gray-400 hover:text-gray-600 transition-colors"
+          >
+            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </span>
+        ) : (
+          <svg
+            className="w-3 h-3 flex-shrink-0 text-gray-400 transition-transform"
+            style={{ transform: open ? 'rotate(180deg)' : 'none' }}
+            fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+          </svg>
+        )}
       </button>
 
       {/* Popover */}

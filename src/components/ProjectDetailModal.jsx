@@ -4509,59 +4509,55 @@ function UploadScreen({ project, showToast, onBack, onUploaded, buildings = [], 
   return (
     <div className="py-4 px-3 sm:px-6">
       <div className="max-w-6xl mx-auto">
-      <button onClick={onBack} className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition mb-6">
-        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-        </svg>
-        Back to Photos
-      </button>
-
       {/* Settings card */}
       <div className="bg-gray-50 rounded-xl border border-gray-100 p-4 mb-5 space-y-4">
-        <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Tower <span className="text-[#ed6055]">*</span></p>
-          <div className="flex flex-wrap gap-2">
+        <button onClick={onBack} className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 hover:text-gray-800 transition">
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          Back to Photos
+        </button>
+        <div className="flex flex-wrap gap-4 items-start">
+          <div className="flex-1 min-w-[160px]">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Location / Tower <span className="text-[#ed6055]">*</span></p>
             {buildings.length === 0
               ? <p className="text-xs text-gray-400">No towers defined for this project</p>
-              : buildings.map(b => (
-                <button key={b.id} onClick={() => { setUploadBuilding(b.id); setUploadFloor(null) }}
-                  className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${uploadBuilding === b.id ? 'bg-[#ed6055] text-white border-[#ed6055]' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}>
-                  {b.name}
-                </button>
-              ))
+              : <SearchDropdown
+                  fluid
+                  clearable
+                  options={buildings.map(b => ({ value: b.id, label: b.name }))}
+                  value={uploadBuilding ?? ''}
+                  emptyValue=""
+                  emptyLabel="Select location…"
+                  placeholder="Search…"
+                  onChange={v => { setUploadBuilding(v || null); setUploadFloor(null) }}
+                />
             }
+            {!uploadBuilding && buildings.length > 0 && <p className="text-[10px] text-[#ed6055] mt-1">Select a location to enable upload</p>}
           </div>
-          {!uploadBuilding && <p className="text-[10px] text-[#ed6055] mt-1">Select a tower to enable upload</p>}
-        </div>
-        {uploadBuilding && (
-          <div>
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Floor <span className="text-gray-400 font-normal normal-case">(optional)</span></p>
-            {floors.length === 0
-              ? <p className="text-xs text-gray-400">No floors defined for this tower in M4/M5</p>
-              : (
-                <div className="flex flex-wrap gap-2">
-                  {floors.map(f => {
-                    const label = f.physical_level
-                    return (
-                      <button key={f.id} onClick={() => setUploadFloor(uploadFloor === f.id ? null : f.id)}
-                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${uploadFloor === f.id ? 'bg-[#ed6055] text-white border-[#ed6055]' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}>
-                        {label}
-                      </button>
-                    )
-                  })}
-                </div>
-              )
-            }
+          <div className="flex-1 min-w-[160px]">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Floor / Block <span className="text-gray-400 font-normal normal-case">(optional)</span></p>
+            <SearchDropdown
+              fluid
+              clearable
+              disabled={!uploadBuilding || floors.length === 0}
+              options={floors.map(f => ({ value: f.id, label: f.physical_level }))}
+              value={uploadFloor ?? ''}
+              emptyValue=""
+              emptyLabel={!uploadBuilding ? 'Select location first' : floors.length === 0 ? 'No floors defined' : 'All floors'}
+              placeholder="Search floor…"
+              onChange={v => setUploadFloor(v || null)}
+            />
           </div>
-        )}
-        <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Photo Date</p>
-          <input type="date" value={uploadDate} max={new Date().toLocaleDateString('en-CA')}
-            onChange={e => setUploadDate(e.target.value)}
-            className="text-sm px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white" />
+          <div className="flex-1 min-w-[160px]">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Photo Date <span className="text-[#ed6055]">*</span></p>
+            <input type="date" value={uploadDate} max={new Date().toLocaleDateString('en-CA')}
+              onChange={e => setUploadDate(e.target.value)}
+              className="w-full text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent bg-white h-[30px]" />
+          </div>
         </div>
         <div>
-          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Tags</p>
+          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Tags <span className="text-[#ed6055]">*</span></p>
           <div className="flex flex-wrap gap-2">
             {PHOTO_TAGS.map(tag => (
               <button key={tag} onClick={() => toggleTag(tag)}
@@ -4620,7 +4616,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded, buildings = [], 
       )}
 
       <div className="mt-6 flex items-center gap-3">
-        <button onClick={doUpload} disabled={!files.length || uploading || !uploadBuilding}
+        <button onClick={doUpload} disabled={!files.length || uploading || !uploadBuilding || !uploadDate || !uploadTags.length}
           className="flex items-center gap-2 px-5 py-2 text-xs font-semibold bg-[#ed6055] text-white rounded-lg hover:bg-[#d94f45] disabled:opacity-50 transition">
           {uploading ? 'Uploading...' : `Upload ${files.length ? `${files.length} ` : ''}Photo${files.length !== 1 ? 's' : ''}`}
         </button>
