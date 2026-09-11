@@ -13,7 +13,6 @@ const NAV = {
     { label: 'Projects',              path: '/projects',                     Icon: FolderIcon },
     { label: 'Standard Permits',      path: '/admin/standard-permits',       Icon: DocumentCheckIcon, comingSoon: true },
     { label: 'Work Program Template', path: '/admin/work-program-template',  Icon: TemplateIcon,       comingSoon: true },
-    { label: 'User Management',       path: '/admin/users',                  Icon: UsersIcon },
     { label: 'Settings',              path: '/admin/settings',               Icon: SettingsIcon },
   ],
   ho: [

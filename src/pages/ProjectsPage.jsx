@@ -3,27 +3,12 @@ import { NavLink, useNavigate } from 'react-router-dom'
 import { slugify } from './ProjectDetailPage'
 import { supabase } from '../lib/supabaseClient'
 import useProfile from '../hooks/useProfile'
-import LoadingScreen from '../components/LoadingScreen'
-import useMinLoading from '../hooks/useMinLoading'
 import { downloadWorkbook, parseWorkbook, toFloat } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
 import ReportBuilderModal from '../components/ReportBuilderModal'
 import SearchDropdown from '../components/SearchDropdown'
-import Logo from '../components/Logo'
-import NotificationBell from '../components/NotificationBell'
-import { ROLE_LABELS } from '../lib/roles'
+import AdminLayout from '../components/AdminLayout'
 
-const NAV_GROUPS = [
-  [
-    { label: 'Dashboard',        path: '/admin/dashboard', Icon: HomeIcon },
-    { label: 'Unit Completion',  path: '/unit-completion', Icon: ChartBarIcon },
-    { label: 'Permits Dashboard',path: '/permits',         Icon: ClipboardListIcon },
-    { label: 'Projects',         path: '/projects',        Icon: FolderIcon },
-  ],
-  [
-    { label: 'User Management', path: '/admin/users', Icon: UsersIcon },
-  ],
-]
 
 const PHASES = [
   { key: 'initiation',           label: 'Initiation',            color: '#94a3b8', badge: 'bg-slate-100 text-slate-600 border-slate-200' },
@@ -110,27 +95,11 @@ function parseImportRow(row) {
   }
 }
 
-function SidebarTooltip({ label }) {
-  return (
-    <div
-      className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap pointer-events-none z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-100"
-      style={{ background: '#1a1a1a', color: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
-    >
-      {label}
-    </div>
-  )
-}
-
 export default function ProjectsPage() {
   const navigate = useNavigate()
   const { profile, loading: profileLoading } = useProfile()
   const isAdmin = profile?.role === 'admin'
   const isSite  = profile?.team === 'site'
-
-  const SITE_ONLY_PATHS = new Set(['/projects'])
-  const navGroups = NAV_GROUPS.map(group =>
-    group.filter(item => !isSite || SITE_ONLY_PATHS.has(item.path))
-  ).filter(group => group.length > 0)
 
   const MOBILE_BOTTOM_NAV_ALL = [
     { label: 'Dashboard',        path: '/admin/dashboard', Icon: HomeIcon },
@@ -142,10 +111,6 @@ export default function ProjectsPage() {
   const mobileBottomNav = MOBILE_BOTTOM_NAV_ALL.filter(item =>
     !isSite || item.path === '/projects'
   )
-
-  const [expanded,   setExpanded]   = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
-  const [showLabels, setShowLabels] = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
-  const [menuOpen, setMenuOpen] = useState(false)
 
   const [projects, setProjects]     = useState([])
   const [loading, setLoading]       = useState(true)
@@ -167,39 +132,9 @@ export default function ProjectsPage() {
   const [showReportBuilder, setShowReportBuilder] = useState(false)
   const [showFilters, setShowFilters]   = useState(false)
   const [showActions, setShowActions]   = useState(false)
-  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
-  const sidebarExpanded  = mobileSidebarOpen || expanded
-  const sidebarShowLabels = mobileSidebarOpen || showLabels
 
-  const menuRef    = useRef(null)
   const actionsRef = useRef(null)
   const importRef  = useRef(null)
-
-  const initial   = (profile?.full_name?.[0] ?? profile?.email?.[0] ?? '?').toUpperCase()
-  const roleLabel = ROLE_LABELS[profile?.role] ?? profile?.role ?? ''
-
-  const toggleSidebar = () => {
-    setExpanded(v => {
-      const next = !v
-      localStorage.setItem('sidebar_expanded', String(next))
-      if (!next) setShowLabels(false)
-      else setTimeout(() => setShowLabels(true), 230)
-      return next
-    })
-  }
-
-  const signOut = async () => {
-    await supabase.auth.signOut()
-    navigate('/signin')
-  }
-
-  useEffect(() => {
-    const handler = (e) => {
-      if (menuRef.current && !menuRef.current.contains(e.target)) setMenuOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [])
 
   useEffect(() => { if (!profileLoading && profile?.id) fetchProjects() }, [profileLoading, profile?.id])
 
@@ -342,9 +277,6 @@ export default function ProjectsPage() {
     setImporting(false)
   }
 
-  const showLoading = useMinLoading(profileLoading)
-  if (showLoading) return <LoadingScreen />
-
   const activeCount = [
     phaseFilter !== 'all' ? phaseFilter : '',
     businessUnitFilter !== 'all' ? businessUnitFilter : '',
@@ -352,8 +284,103 @@ export default function ProjectsPage() {
     is4phFilter !== 'all' ? is4phFilter : '',
   ].filter(Boolean).length
 
+  const headerActions = (
+    <>
+      {/* Search */}
+      <div className="relative hidden sm:block">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search projects..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
+        />
+      </div>
+
+      {/* Filter button — desktop only */}
+      <button
+        onClick={() => setShowFilters(v => !v)}
+        className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+        style={{
+          background: showFilters || activeCount > 0 ? '#fff' : '#f9fafb',
+          borderColor: activeCount > 0 ? '#ed6055' : showFilters ? '#ed6055' : '#e5e7eb',
+          color: activeCount > 0 ? '#ed6055' : '#6b7280',
+          boxShadow: showFilters ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+        }}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+        </svg>
+        {activeCount > 0 && (
+          <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+            {activeCount}
+          </span>
+        )}
+      </button>
+      {activeCount > 0 && (
+        <button
+          onClick={() => { setPhaseFilter('all'); setBusinessUnitFilter('all'); setDevTypeFilter('all'); setIs4phFilter('all') }}
+          className="hidden sm:block text-xs text-gray-400 hover:text-gray-600 transition flex-shrink-0"
+        >
+          Clear
+        </button>
+      )}
+
+      {/* Actions dropdown — desktop only */}
+      <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
+      <div className="hidden sm:block relative flex-shrink-0" ref={actionsRef}>
+        <button
+          onClick={() => setShowActions(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+          style={{
+            background: showActions ? '#fff' : '#f9fafb',
+            borderColor: showActions ? '#ed6055' : '#e5e7eb',
+            color: showActions ? '#ed6055' : '#6b7280',
+            boxShadow: showActions ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+          }}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+          </svg>
+        </button>
+        {showActions && (
+          <>
+            <div className="fixed inset-0 z-30" onClick={() => setShowActions(false)} />
+            <div className="absolute right-0 top-full mt-1.5 z-40 bg-white rounded-xl border border-gray-200 shadow-lg py-1.5 min-w-[160px]">
+              {projects.length > 0 && (
+                <button onClick={() => { setShowReportBuilder(true); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">
+                  <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+                  Report
+                </button>
+              )}
+              {projects.length > 0 && (
+                <button onClick={() => { handleExport(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">
+                  <DownloadIcon /> Export
+                </button>
+              )}
+              {isAdmin && (
+                <>
+                  <button onClick={() => { importRef.current?.click(); setShowActions(false) }} disabled={importing} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50">
+                    <UploadIcon /> {importing ? 'Importing...' : 'Import'}
+                  </button>
+                  <div className="my-1 border-t border-gray-100" />
+                  <button onClick={() => { openAdd(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition">
+                    <PlusIcon /> Add Project
+                  </button>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
+    </>
+  )
+
   return (
-    <div className="flex h-screen overflow-hidden overscroll-x-none bg-gray-50" style={{ minHeight: '100dvh' }}>
+    <AdminLayout title="Project List" actions={headerActions}>
       <style>{`
         @keyframes card-shine {
           from { transform: translateX(-180%) skewX(-18deg); opacity: 1; }
@@ -364,320 +391,8 @@ export default function ProjectsPage() {
         }
       `}</style>
 
-      {/* -- Mobile sidebar backdrop -- */}
-      {mobileSidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/50 sm:hidden"
-          onClick={() => setMobileSidebarOpen(false)}
-        />
-      )}
 
-      {/* -- Sidebar -- */}
-      <aside
-        className={`sidebar-frost ${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} sm:relative sm:flex sm:z-auto flex-shrink-0 flex-col py-3 gap-1`}
-        style={{
-          width: sidebarExpanded ? 240 : 80,
-          background: 'transparent',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          borderRight: '1px solid rgba(255,255,255,0.18)',
-          boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.12), inset 1px 0 0 rgba(255,255,255,0.06), 4px 0 32px rgba(0,0,0,0.35)',
-          borderRadius: 16,
-          transition: 'width 220ms cubic-bezier(0.4,0,0.2,1)',
-        }}
-      >
-        {/* Logo */}
-        <div
-          className="flex items-center h-14 flex-shrink-0 border-b border-white/5 mb-1"
-          style={{ paddingLeft: sidebarExpanded ? 16 : 0, justifyContent: sidebarExpanded ? 'flex-start' : 'center', overflow: 'hidden' }}
-        >
-          <div style={{ flexShrink: 0, overflow: 'hidden', maxWidth: sidebarExpanded ? 'none' : 56 }}>
-            <Logo size="md" />
-          </div>
-          {sidebarShowLabels && (
-            <span className="ml-3 text-white font-bold text-base tracking-wide whitespace-nowrap overflow-hidden">D&amp;C Dashboard</span>
-          )}
-        </div>
-
-        {/* Nav */}
-        <nav className="flex flex-col flex-1 w-full px-2 gap-0.5">
-          {navGroups.map((group, gi) => (
-            <div key={gi} className="flex flex-col gap-0.5">
-              {gi > 0 && (
-                <div className="my-2 mx-1" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
-              )}
-              {group.map((item) => {
-                const { Icon } = item
-                return (
-                  <div key={item.path}>
-                    <div className="relative group">
-                      <NavLink
-                        to={item.path}
-                        onClick={() => setMobileSidebarOpen(false)}
-                        className={({ isActive }) => [
-                          'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                          isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
-                        ].join(' ')}
-                        style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
-                      >
-                        {({ isActive }) => (
-                          <>
-                            {isActive && (
-                              <div
-                                className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full"
-                                style={{ width: 3, height: 20, background: '#ed6055' }}
-                              />
-                            )}
-                            <Icon className="w-[18px] h-[18px] flex-shrink-0" />
-                            {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{item.label}</span>}
-                          </>
-                        )}
-                      </NavLink>
-                      {!sidebarShowLabels && <SidebarTooltip label={item.label} />}
-                    </div>
-                    {item.children?.map(child => {
-                      const CIcon = child.Icon
-                      if (child.comingSoon) {
-                        return (
-                          <div key={child.path} className="relative group">
-                            <div
-                              className="flex items-center w-full h-9 rounded-lg cursor-default"
-                              style={{ color: 'rgba(255,255,255,0.18)', justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 28 : 0 }}
-                            >
-                              <CIcon className="w-[15px] h-[15px] flex-shrink-0" />
-                              {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
-                            </div>
-                            {!sidebarShowLabels && <SidebarTooltip label={`${child.label} (Soon)`} />}
-                          </div>
-                        )
-                      }
-                      return (
-                        <div key={child.path} className="relative group">
-                          <NavLink
-                            to={child.path}
-                            className={({ isActive }) => [
-                              'flex items-center w-full h-9 rounded-lg transition-all duration-150',
-                              isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
-                            ].join(' ')}
-                            style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 28 : 0 }}
-                          >
-                            {({ isActive }) => (
-                              <>
-                                {isActive && (
-                                  <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 16, background: '#ed6055' }} />
-                                )}
-                                <CIcon className="w-[15px] h-[15px] flex-shrink-0" />
-                                {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">{child.label}</span>}
-                              </>
-                            )}
-                          </NavLink>
-                          {!sidebarShowLabels && <SidebarTooltip label={child.label} />}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )
-              })}
-            </div>
-          ))}
-
-          {/* Settings + collapse pinned to bottom */}
-          <div className="flex-1" />
-          {isAdmin && <div className="my-1 mx-1" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />}
-          {isAdmin && <div className="relative group">
-            <NavLink
-              to="/admin/settings"
-              className={({ isActive }) => [
-                'flex items-center w-full h-11 rounded-lg transition-all duration-150',
-                isActive ? 'bg-[#ed6055] text-white' : 'text-white hover:bg-white/[0.07]',
-              ].join(' ')}
-              style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
-            >
-              {({ isActive }) => (
-                <>
-                  {isActive && <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r-full" style={{ width: 3, height: 20, background: '#ed6055' }} />}
-                  <SettingsIcon className="w-[18px] h-[18px] flex-shrink-0" />
-                  {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Settings</span>}
-                </>
-              )}
-            </NavLink>
-            {!sidebarShowLabels && <SidebarTooltip label="Settings" />}
-          </div>}
-
-          {/* Expand / collapse toggle â€” hidden on mobile sidebar */}
-          <div className={`mt-1 relative group ${mobileSidebarOpen ? 'hidden' : ''}`}>
-            <button
-              onClick={toggleSidebar}
-              className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white hover:bg-white/[0.07]"
-              style={{ justifyContent: sidebarExpanded ? 'flex-start' : 'center', paddingLeft: sidebarExpanded ? 12 : 0 }}
-            >
-              <svg
-                className="w-[18px] h-[18px] flex-shrink-0"
-                style={{ transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 220ms cubic-bezier(0.4,0,0.2,1)' }}
-                fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}
-              >
-                <path strokeLinecap="round" strokeLinejoin="round" d="M13 5l7 7-7 7M5 5l7 7-7 7" />
-              </svg>
-              {sidebarShowLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Collapse</span>}
-            </button>
-            {!sidebarShowLabels && <SidebarTooltip label="Expand" />}
-          </div>
-        </nav>
-      </aside>
-
-      {/* -- Right column -- */}
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-x-none">
-
-          {/* Header */}
-          <header
-            className="flex items-center h-14 px-5 gap-4"
-            style={{ background: 'transparent', borderBottom: 'none', boxShadow: 'none' }}
-          >
-            <span className="text-lg font-bold text-gray-800 tracking-wide">Project List</span>
-            <div className="flex-1" />
-
-            {/* Search */}
-            <div className="relative hidden sm:block">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
-              </svg>
-              <input
-                type="text"
-                placeholder="Search projects..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
-              />
-            </div>
-
-            {/* Filter button â€” desktop only */}
-            <button
-              onClick={() => setShowFilters(v => !v)}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
-              style={{
-                background: showFilters || activeCount > 0 ? '#fff' : '#f9fafb',
-                borderColor: activeCount > 0 ? '#ed6055' : showFilters ? '#ed6055' : '#e5e7eb',
-                color: activeCount > 0 ? '#ed6055' : '#6b7280',
-                boxShadow: showFilters ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-              }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-              </svg>
-              {activeCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                  {activeCount}
-                </span>
-              )}
-            </button>
-            {activeCount > 0 && (
-              <button
-                onClick={() => { setPhaseFilter('all'); setBusinessUnitFilter('all'); setDevTypeFilter('all'); setIs4phFilter('all') }}
-                className="hidden sm:block text-xs text-gray-400 hover:text-gray-600 transition flex-shrink-0"
-              >
-                Clear
-              </button>
-            )}
-
-            {/* Actions dropdown â€” desktop only */}
-            <input ref={importRef} type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={handleImport} />
-            <div className="hidden sm:block relative flex-shrink-0" ref={actionsRef}>
-              <button
-                onClick={() => setShowActions(v => !v)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
-                style={{
-                  background: showActions ? '#fff' : '#f9fafb',
-                  borderColor: showActions ? '#ed6055' : '#e5e7eb',
-                  color: showActions ? '#ed6055' : '#6b7280',
-                  boxShadow: showActions ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-                }}
-              >
-                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
-                </svg>
-              </button>
-              {showActions && (
-                <>
-                  <div className="fixed inset-0 z-30" onClick={() => setShowActions(false)} />
-                  <div className="absolute right-0 top-full mt-1.5 z-40 bg-white rounded-xl border border-gray-200 shadow-lg py-1.5 min-w-[160px]">
-                    {projects.length > 0 && (
-                      <button onClick={() => { setShowReportBuilder(true); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">
-                        <svg className="w-3.5 h-3.5 text-gray-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-                        Report
-                      </button>
-                    )}
-                    {projects.length > 0 && (
-                      <button onClick={() => { handleExport(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition">
-                        <DownloadIcon /> Export
-                      </button>
-                    )}
-                    {isAdmin && (
-                      <>
-                        <button onClick={() => { importRef.current?.click(); setShowActions(false) }} disabled={importing} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition disabled:opacity-50">
-                          <UploadIcon /> {importing ? 'Importing...' : 'Import'}
-                        </button>
-                        <div className="my-1 border-t border-gray-100" />
-                        <button onClick={() => { openAdd(); setShowActions(false) }} className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-[#ed6055] hover:bg-[#ed6055]/5 transition">
-                          <PlusIcon /> Add Project
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </>
-              )}
-            </div>
-
-            <NotificationBell userId={profile?.id} />
-
-            {/* User menu */}
-            <div className="relative flex-shrink-0" ref={menuRef}>
-              <button
-                onClick={() => setMenuOpen(v => !v)}
-                className="flex items-center gap-2.5 rounded-lg px-2 py-1 hover:bg-gray-100 transition"
-              >
-                <div className="text-right hidden sm:block">
-                  <p className="text-xs font-semibold text-gray-800 leading-tight">{profile?.full_name ?? ''}</p>
-                  <p className="text-[10px] text-gray-400 leading-tight mt-0.5">{roleLabel}</p>
-                </div>
-                <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 ring-1 ring-gray-200"
-                  style={{ background: 'rgba(237,96,85,0.15)' }}>
-                  {profile?.avatar_url
-                    ? <img src={profile.avatar_url} alt="avatar" className="w-full h-full object-cover" />
-                    : <span className="text-xs font-bold text-[#ed6055]">{initial}</span>
-                  }
-                </div>
-              </button>
-              {menuOpen && (
-                <div
-                  className="absolute right-0 top-full mt-2 w-48 rounded-xl z-50 overflow-hidden"
-                  style={{ background: '#ffffff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', animation: 'ph1-dropdown 0.15s ease-out both' }}
-                >
-                  <button
-                    onClick={() => { setMenuOpen(false); navigate('/profile') }}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left"
-                  >
-                    <svg className="w-4 h-4 flex-shrink-0 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-                    </svg>
-                    <span className="font-medium">View Profile</span>
-                  </button>
-                  <div style={{ height: 1, background: '#f3f4f6', margin: '0 12px' }} />
-                  <button
-                    onClick={signOut}
-                    className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 transition text-left"
-                  >
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75" />
-                    </svg>
-                    <span className="font-medium">Sign Out</span>
-                  </button>
-                </div>
-              )}
-            </div>
-          </header>
-
-          {/* Mobile toolbar â€” search + filter + actions */}
+          {/* Mobile toolbar — search + filter + actions */}
           <div className="sm:hidden flex items-center gap-2 px-4 pb-3">
             {/* Search */}
             <div className="relative flex-1">
@@ -758,7 +473,7 @@ export default function ProjectsPage() {
             </div>
           </div>
 
-          {/* Filter panel â€” below header, above scroll */}
+          {/* Filter panel â€" below header, above scroll */}
           {showFilters && (
             <div className="px-5 pb-3">
               <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -921,8 +636,6 @@ export default function ProjectsPage() {
           </div>
           {/* Spacer so content clears mobile bottom nav */}
           <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
-        </main>
-      </div>
 
       {/* -- Report Builder -- */}
       {showReportBuilder && (
@@ -1118,7 +831,6 @@ export default function ProjectsPage() {
               key={item.path}
               to={item.path}
               aria-label={item.label}
-              onClick={() => setMobileSidebarOpen(false)}
               className={({ isActive }) =>
                 `flex items-center justify-center rounded-full transition-all duration-300 hover:-translate-y-1 active:scale-95 focus-visible:ring-2 focus-visible:ring-black/20 ${isActive ? 'bg-[#ed6055]/10' : ''}`
               }
@@ -1141,7 +853,7 @@ export default function ProjectsPage() {
           {toast.message}
         </div>
       )}
-    </div>
+    </AdminLayout>
   )
 }
 

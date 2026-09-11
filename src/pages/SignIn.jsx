@@ -192,7 +192,7 @@ export default function SignIn() {
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
                   </svg>
                 )}
-                {loading ? 'Signing in…' : 'Sign In'} &nbsp;&rsaquo;
+                {loading ? 'Signing in...' : 'Sign In'}
               </button>
 
             </div>

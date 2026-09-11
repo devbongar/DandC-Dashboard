@@ -28,9 +28,12 @@
   z-index: 1;
 }
 
-/* Site plan full-screen mode — hide app header */
+/* Site plan full-screen mode — hide app header, black page background */
 body.plan-fullscreen header {
   display: none !important;
+}
+body.plan-fullscreen #layout-root {
+  background: #000 !important;
 }
 
 /* Site plan map pin */
@@ -198,6 +201,55 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
   background: #9ca3af;
   border-radius: 100px;
   transition: 0.3s ease;
+}
+
+/* -- Site plan hamburger menu button -------------------------- */
+.planMenuButton {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 13%;
+  width: 2.2em;
+  height: 2.2em;
+  border-radius: 0.4em;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: all .3s;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.2), 0 0 24px rgba(255,255,255,0.25);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.planMenuButton:hover {
+  background: rgba(0, 0, 0, 0.4);
+  border-color: rgba(255, 255, 255, 0.25);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3), 0 0 0 1px rgba(255,255,255,0.32), 0 0 36px rgba(255,255,255,0.32);
+}
+.planMenuButton:active {
+  background: rgba(0, 0, 0, 0.5);
+  box-shadow: 0 1px 6px rgba(0, 0, 0, 0.4);
+}
+.planMenuButton span {
+  width: 16px;
+  height: 2px;
+  background: rgb(220,220,220);
+  border-radius: 100px;
+  transition: 0.3s ease;
+}
+.planMenuButton span.pm-top.open {
+  transform: translateY(290%) rotate(45deg);
+  width: 20px;
+}
+.planMenuButton span.pm-bot.open {
+  transform: translateY(-270%) rotate(-45deg);
+  width: 20px;
+  box-shadow: 0 0 6px #495057;
+}
+.planMenuButton span.pm-mid.open {
+  transform: translateX(-12px);
+  opacity: 0;
 }
 
 

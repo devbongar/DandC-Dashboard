@@ -208,7 +208,7 @@ export default function ProjectDetailPage() {
     : 'pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96'
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-200" style={{ minHeight: '100dvh' }}>
+    <div id="layout-root" className="flex h-screen overflow-hidden bg-gray-200" style={{ minHeight: '100dvh' }}>
 
       {/* -- Mobile sidebar backdrop -- */}
       {mobileSidebarOpen && (
