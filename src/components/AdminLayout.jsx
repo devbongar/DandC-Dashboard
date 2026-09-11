@@ -246,17 +246,15 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
       {/* -- Right column -- */}
       <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
 
-        {/* Fixed dark strip — full viewport width, always dark, z-index below header.
-            Covers left/right layout bg-gray-200 gaps at status bar level.
-            Header gradient (z-index higher) paints over it in the right column area. */}
+        {/* Fixed dark strip behind status bar — transparent when header visible (header covers it),
+            dark when header hidden so status bar doesn't show bg-gray-200 layout bg */}
         {mobileBg && isMobile && (
           <div
             className="sm:hidden fixed top-0 left-0 right-0 pointer-events-none"
             style={{
               height: 'env(safe-area-inset-top)',
-              background: headerVisible ? '#2e2e2e' : '#111111',
+              background: headerVisible ? 'transparent' : '#111111',
               transition: 'background 0.32s ease',
-              zIndex: 2,
             }}
           />
         )}
@@ -266,7 +264,6 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
           className="flex-shrink-0 flex flex-col relative"
           style={{
             background: mobileBg && isMobile ? (headerVisible ? mobileBg : 'transparent') : 'transparent',
-            zIndex: mobileBg && isMobile ? 3 : undefined,
             borderBottom: 'none',
             boxShadow: 'none',
             paddingTop: mobileBg && isMobile ? (headerVisible ? 'env(safe-area-inset-top)' : '0px') : undefined,
