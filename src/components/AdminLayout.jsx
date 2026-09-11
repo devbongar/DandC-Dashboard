@@ -230,7 +230,7 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
       <div className="relative flex flex-col flex-1 min-w-0 overflow-hidden">
 
         {/* Main content — pages control their own padding/overflow */}
-        <div id="main-scroll" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-24 sm:pb-0 bg-gray-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <div id="main-scroll" className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-x-none pb-24 sm:pb-0 bg-gray-200 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
         {/* App header — scrolls with content on mobile */}
         <header

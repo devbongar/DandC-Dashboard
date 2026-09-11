@@ -104,6 +104,7 @@ html, body {
   background-color: #111111;
   scrollbar-width: none;
   -ms-overflow-style: none;
+  overscroll-behavior-x: none;
 }
 html::-webkit-scrollbar, body::-webkit-scrollbar {
   display: none;
