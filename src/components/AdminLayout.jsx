@@ -305,7 +305,7 @@ export default function AdminLayout({ title, actions, children }) {
         </header>
 
         {/* Main content — pages control their own padding/overflow */}
-        <div className="flex-1 min-h-0 overflow-auto">
+        <div className="flex-1 min-h-0 overflow-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
           {children}
         </div>
       </div>

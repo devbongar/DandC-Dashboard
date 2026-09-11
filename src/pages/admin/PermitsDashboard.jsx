@@ -10,20 +10,32 @@ import * as XLSX from 'xlsx'
 import { exportPermitsToSheet, validatePermitImportSheet } from '../../lib/permitExcelUtils'
 
 
-const CARD_ICONS = {
-  pending:    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm.75-13a.75.75 0 00-1.5 0v5c0 .414.336.75.75.75h4a.75.75 0 000-1.5h-3.25V5z" clipRule="evenodd" />,
-  inProgress: <path fillRule="evenodd" d="M15.312 11.424a5.5 5.5 0 01-9.201 2.466l-.312-.311h2.433a.75.75 0 000-1.5H3.989a.75.75 0 00-.75.75v4.242a.75.75 0 001.5 0v-2.43l.31.31a7 7 0 0011.712-3.138.75.75 0 00-1.449-.39zm1.23-3.723a.75.75 0 00.219-.53V2.929a.75.75 0 00-1.5 0V5.36l-.31-.31A7 7 0 003.239 8.188a.75.75 0 101.448.389A5.5 5.5 0 0113.89 6.11l.311.31h-2.432a.75.75 0 000 1.5h4.243a.75.75 0 00.53-.219z" clipRule="evenodd" />,
-  acquired:   <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.857-9.809a.75.75 0 00-1.214-.882l-3.483 4.79-1.88-1.88a.75.75 0 10-1.06 1.061l2.5 2.5a.75.75 0 001.137-.089l4-5.5z" clipRule="evenodd" />,
-  overdue:    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-5a.75.75 0 01.75.75v4.5a.75.75 0 01-1.5 0v-4.5A.75.75 0 0110 5zm0 10a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />,
-  withIssues: <path fillRule="evenodd" d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z" clipRule="evenodd" />,
-}
-
 const CARDS = [
-  { label: 'Pending',     key: 'pending',    filterKey: 'pending',     color: '#6b7280' },
-  { label: 'In Progress', key: 'inProgress', filterKey: 'in-progress', color: '#fbbf24' },
-  { label: 'Acquired',    key: 'acquired',   filterKey: 'acquired',    color: '#34d399' },
-  { label: 'Overdue',     key: 'overdue',    filterKey: 'overdue',     color: '#f87171' },
-  { label: 'With Issues', key: 'withIssues', filterKey: 'with-issues', color: '#fb923c' },
+  {
+    label: 'Pending', key: 'pending', filterKey: 'pending',
+    bg: 'linear-gradient(135deg, #6b7280 0%, #1f2937 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9"/><path strokeLinecap="round" d="M12 7v5l3 3"/></svg>,
+  },
+  {
+    label: 'In Progress', key: 'inProgress', filterKey: 'in-progress',
+    bg: 'linear-gradient(135deg, #d97706 0%, #451a03 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l4-4 4 4 4-6 4 2"/></svg>,
+  },
+  {
+    label: 'Acquired', key: 'acquired', filterKey: 'acquired',
+    bg: 'linear-gradient(135deg, #16a34a 0%, #052e16 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+  },
+  {
+    label: 'Overdue', key: 'overdue', filterKey: 'overdue',
+    bg: 'linear-gradient(135deg, #dc2626 0%, #1a0000 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>,
+  },
+  {
+    label: 'With Issues', key: 'withIssues', filterKey: 'with-issues',
+    bg: 'linear-gradient(135deg, #ea580c 0%, #431407 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>,
+  },
 ]
 
 function IssueIcon() {
@@ -80,7 +92,8 @@ export default function PermitsDashboard() {
       supabase
         .from('permits')
         .select('*, projects(name), permit_requirements(id, is_complete), permit_issues(id, status)')
-        .order('created_at', { ascending: false }),
+        .order('sort_order', { ascending: true, nullsFirst: false })
+        .order('created_at', { ascending: true }),
       supabase.from('projects').select('id, name').order('name'),
     ])
     setPermits(pData ?? [])
@@ -309,36 +322,28 @@ export default function PermitsDashboard() {
                   const active = filterStatus === c.filterKey
                   const total  = permits.length
                   const pct    = total > 0 ? Math.round((counts[c.key] / total) * 100) : 0
-                  const size   = 52
-                  const sw     = 4
-                  const r      = (size - sw) / 2
-                  const circ   = 2 * Math.PI * r
-                  const dash   = (pct / 100) * circ
                   return (
                     <button
                       key={c.label}
                       onClick={() => setFilterStatus(active ? 'all' : c.filterKey)}
-                      className={`flex-none w-36 sm:w-auto text-left rounded-xl border p-4 transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${
-                        active
-                          ? 'bg-white border-transparent ring-2 ring-[#ed6055] shadow-xl'
-                          : 'bg-white border-gray-100 shadow-md hover:shadow-xl'
-                      }`}
+                      className="flex-none w-36 sm:w-auto text-left rounded-xl border px-4 py-3 flex flex-col gap-2 overflow-hidden transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none"
+                      style={{
+                        background: c.bg,
+                        borderColor: active ? 'rgba(255,255,255,0.6)' : 'transparent',
+                        boxShadow: active
+                          ? '0 0 0 2px rgba(255,255,255,0.5), 0 4px 16px rgba(0,0,0,0.25)'
+                          : '0 2px 8px rgba(0,0,0,0.2)',
+                        transform: active ? 'translateY(-2px)' : undefined,
+                      }}
                     >
-                      <div className="flex items-center justify-between gap-2">
-                        <div>
-                          <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{c.label}</p>
-                          <p className="text-2xl font-bold tabular-nums text-gray-900">{counts[c.key]}</p>
-                        </div>
-                        <svg width={size} height={size} style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
-                          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#f3f4f6" strokeWidth={sw} />
-                          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={c.color} strokeWidth={sw}
-                            strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" />
-                          <text x={size/2} y={size/2} dominantBaseline="middle" textAnchor="middle"
-                            style={{ transform: `rotate(90deg)`, transformOrigin: `${size/2}px ${size/2}px`, fontSize: 10, fontWeight: 700, fill: c.color }}>
-                            {pct}%
-                          </text>
-                        </svg>
+                      <span className="text-xs font-bold tracking-wide leading-tight block" style={{ color: 'rgba(255,255,255,0.6)' }}>{c.label}</span>
+                      <div className="flex flex-row items-center gap-3">
+                        <span className="text-2xl font-bold tabular-nums leading-tight text-white flex-1">{counts[c.key]}</span>
+                        <div className="flex-shrink-0" style={{ color: 'rgba(255,255,255,0.15)' }}>{c.icon}</div>
                       </div>
+                      <span className="text-[10px] leading-tight" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                        {pct}% of total
+                      </span>
                     </button>
                   )
                 })}
@@ -359,22 +364,22 @@ export default function PermitsDashboard() {
 
 
             {/* View toggle */}
-            <div className="flex items-center gap-1.5">
+            <div className="inline-flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
               <button
                 onClick={() => setView('card')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'card' ? 'bg-white shadow border border-gray-200 text-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-white/60'}`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                  <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" />
                 </svg>
-                Card
+                Cards
               </button>
               <button
                 onClick={() => setView('gantt')}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${view === 'gantt' ? 'bg-white shadow border border-gray-200 text-gray-800' : 'text-gray-400 hover:text-gray-600 hover:bg-white/60'}`}
               >
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 4.5h14.25M3 9h9.75M3 13.5h9.75m4.5-4.5v12m0 0l-3.75-3.75M17.25 21L21 17.25" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 6h12M3 12h8M3 18h16" />
                 </svg>
                 Gantt
               </button>
@@ -390,73 +395,7 @@ export default function PermitsDashboard() {
             {/* Card view: mobile list + desktop table */}
             {view === 'card' && (
             <>
-            <div className="md:hidden space-y-2">
-              {rows.length === 0 && (
-                <div className="py-12 text-center bg-white rounded-xl border border-gray-200">
-                  <p className="text-sm font-medium text-gray-500">No permits found</p>
-                  {hasActiveFilter && (
-                    <button onClick={clearFilters} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
-                  )}
-                </div>
-              )}
-              {(() => {
-                const map = {}
-                for (const p of rows) {
-                  const key = p.project_id
-                  if (!map[key]) map[key] = { name: p.projects?.name ?? p.project_id, permits: [] }
-                  map[key].permits.push(p)
-                }
-                return Object.entries(map).map(([pid, group]) => (
-                  <div key={pid}>
-                    <div className="flex items-center gap-2 px-1 py-1.5">
-                      <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{group.name}</span>
-                      <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 font-medium">{group.permits.length}</span>
-                    </div>
-                    <div className="space-y-2">
-                      {group.permits.map(permit => {
-                        const status   = computePermitStatus(permit)
-                        const reqs     = permit.permit_requirements ?? []
-                        const reqDone  = reqs.filter(r => r.is_complete).length
-                        const hasIssue = (permit.permit_issues ?? []).some(i => i.status === 'open')
-                        const delayed  = permit.planned_finish && status !== 'acquired'
-                          ? Math.max(0, Math.floor((Date.now() - new Date(permit.planned_finish).getTime()) / 86400000)) : 0
-                        return (
-                          <button key={permit.id} onClick={() => setSelected(permit)}
-                            className="w-full text-left bg-white rounded-xl border border-gray-200 px-4 py-3 active:scale-[0.99] transition-[transform,box-shadow] shadow-sm hover:shadow-md">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <span className="text-sm font-semibold text-gray-900">{permit.name}</span>
-                                  {hasIssue && (
-                                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[10px] font-semibold flex-shrink-0">
-                                      <IssueIcon />Issue
-                                    </span>
-                                  )}
-                                </div>
-                                <p className="text-[11px] font-mono text-gray-400 mt-0.5">{permit.id}</p>
-                              </div>
-                              <span className={`flex-shrink-0 inline-block text-xs font-semibold px-2 py-0.5 rounded-full ${STATUS_BADGE[status]}`}>{status}</span>
-                            </div>
-                            <div className="flex items-center gap-3 mt-2 flex-wrap">
-                              {reqs.length > 0 && (
-                                <span className={`text-xs ${reqDone === reqs.length ? 'text-emerald-600' : 'text-gray-500'}`}>{reqDone}/{reqs.length} reqs</span>
-                              )}
-                              {permit.planned_finish && <span className="text-xs text-gray-400">Planned {permit.planned_finish}</span>}
-                              {delayed > 0 && <span className="text-xs font-semibold text-red-600">{delayed}d delayed</span>}
-                              {permit.responsible_person && <span className="text-xs text-gray-400 truncate">{permit.responsible_person}</span>}
-                            </div>
-                          </button>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))
-              })()}
-            </div>
-
-            {/* Desktop cards */}
-
-            <div className="hidden md:block space-y-6">
+            <div className="space-y-6">
               {rows.length === 0 && (
                 <div className="py-16 text-center bg-white rounded-xl border border-gray-200">
                   <p className="text-sm font-medium text-gray-500">No permits found</p>
@@ -480,7 +419,7 @@ export default function PermitsDashboard() {
                       <span className="text-[11px] px-1.5 py-0.5 rounded-full bg-gray-200 text-gray-500 font-medium">{group.permits.length}</span>
                     </div>
                     {/* Card grid */}
-                    <div className="grid grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {group.permits.map(permit => {
                         const status   = computePermitStatus(permit)
                         const reqs     = permit.permit_requirements ?? []
@@ -496,14 +435,12 @@ export default function PermitsDashboard() {
                             onClick={() => setSelected(permit)}
                             className="text-left rounded-xl p-4 transition-all duration-200 ease-out flex flex-col gap-3 hover:-translate-y-1 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/50"
                             style={{
-                              background: 'rgba(255,255,255,0.55)',
-                              backdropFilter: 'blur(12px)',
-                              WebkitBackdropFilter: 'blur(12px)',
-                              border: '1px solid rgba(255,255,255,0.7)',
-                              boxShadow: '0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                              background: '#ffffff',
+                              border: '1px solid #e5e7eb',
+                              boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                             }}
-                            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.8)'}
-                            onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)'}
+                            onMouseEnter={e => e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.10)'}
+                            onMouseLeave={e => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)'}
                           >
                             {/* 3-col 2-row layout */}
                             <div className="grid grid-cols-3 gap-x-3 gap-y-2">

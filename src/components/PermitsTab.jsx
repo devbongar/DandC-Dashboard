@@ -44,11 +44,31 @@ function RequirementsRing({ done, total }) {
 }
 
 const CARDS = [
-  { label: 'Pending',     key: 'pending',    filterKey: 'pending',     color: '#6b7280' },
-  { label: 'In Progress', key: 'inProgress', filterKey: 'in-progress', color: '#fbbf24' },
-  { label: 'Acquired',    key: 'acquired',   filterKey: 'acquired',    color: '#34d399' },
-  { label: 'Overdue',     key: 'overdue',    filterKey: 'overdue',     color: '#f87171' },
-  { label: 'With Issues', key: 'withIssues', filterKey: 'with-issues', color: '#fb923c' },
+  {
+    label: 'Pending', key: 'pending', filterKey: 'pending',
+    bg: 'linear-gradient(135deg, #6b7280 0%, #1f2937 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9"/><path strokeLinecap="round" d="M12 7v5l3 3"/></svg>,
+  },
+  {
+    label: 'In Progress', key: 'inProgress', filterKey: 'in-progress',
+    bg: 'linear-gradient(135deg, #d97706 0%, #451a03 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l4-4 4 4 4-6 4 2"/></svg>,
+  },
+  {
+    label: 'Acquired', key: 'acquired', filterKey: 'acquired',
+    bg: 'linear-gradient(135deg, #16a34a 0%, #052e16 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>,
+  },
+  {
+    label: 'Overdue', key: 'overdue', filterKey: 'overdue',
+    bg: 'linear-gradient(135deg, #dc2626 0%, #1a0000 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>,
+  },
+  {
+    label: 'With Issues', key: 'withIssues', filterKey: 'with-issues',
+    bg: 'linear-gradient(135deg, #ea580c 0%, #431407 100%)',
+    icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg>,
+  },
 ]
 
 
@@ -252,36 +272,28 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                 const active = filterStatus === c.filterKey
                 const total  = permits.length
                 const pct    = total > 0 ? Math.round((counts[c.key] / total) * 100) : 0
-                const size   = 52
-                const sw     = 4
-                const r      = (size - sw) / 2
-                const circ   = 2 * Math.PI * r
-                const dash   = (pct / 100) * circ
                 return (
                   <button
                     key={c.label}
                     onClick={() => onFilterStatusChange?.(active ? 'all' : c.filterKey)}
-                    className={`flex-none w-36 sm:w-auto text-left rounded-xl border p-4 transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#ed6055]/60 ${
-                      active
-                        ? 'bg-white border-transparent ring-2 ring-[#ed6055] shadow-xl'
-                        : 'bg-white border-gray-100 shadow-md hover:shadow-xl hover:-translate-y-1'
-                    }`}
+                    className="flex-none w-36 sm:w-auto text-left rounded-xl border px-4 py-3 flex flex-col gap-2 overflow-hidden transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none"
+                    style={{
+                      background: c.bg,
+                      borderColor: active ? 'rgba(255,255,255,0.6)' : 'transparent',
+                      boxShadow: active
+                        ? '0 0 0 2px rgba(255,255,255,0.5), 0 4px 16px rgba(0,0,0,0.25)'
+                        : '0 2px 8px rgba(0,0,0,0.2)',
+                      transform: active ? 'translateY(-2px)' : undefined,
+                    }}
                   >
-                    <div className="flex items-center justify-between gap-2">
-                      <div>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">{c.label}</p>
-                        <p className="text-2xl font-bold tabular-nums text-gray-900">{counts[c.key]}</p>
-                      </div>
-                      <svg width={size} height={size} style={{ flexShrink: 0, transform: 'rotate(-90deg)' }}>
-                        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#f3f4f6" strokeWidth={sw} />
-                        <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={c.color} strokeWidth={sw}
-                          strokeDasharray={`${dash} ${circ}`} strokeLinecap="round" />
-                        <text x={size/2} y={size/2} dominantBaseline="middle" textAnchor="middle"
-                          style={{ transform: `rotate(90deg)`, transformOrigin: `${size/2}px ${size/2}px`, fontSize: 10, fontWeight: 700, fill: c.color }}>
-                          {pct}%
-                        </text>
-                      </svg>
+                    <span className="text-xs font-bold tracking-wide leading-tight block" style={{ color: 'rgba(255,255,255,0.6)' }}>{c.label}</span>
+                    <div className="flex flex-row items-center gap-3">
+                      <span className="text-2xl font-bold tabular-nums leading-tight text-white flex-1">{counts[c.key]}</span>
+                      <div className="flex-shrink-0" style={{ color: 'rgba(255,255,255,0.15)' }}>{c.icon}</div>
                     </div>
+                    <span className="text-[10px] leading-tight" style={{ color: 'rgba(255,255,255,0.5)' }}>
+                      {pct}% of total
+                    </span>
                   </button>
                 )
               })}
@@ -549,18 +561,16 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                   onDragEnd={isAdmin ? onDragEnd : undefined}
                   className="rounded-xl p-4 transition-all duration-200 ease-out flex flex-col gap-3"
                   style={{
-                    background: 'rgba(255,255,255,0.55)',
-                    backdropFilter: 'blur(12px)',
-                    WebkitBackdropFilter: 'blur(12px)',
-                    border: dragOverId === permit.id ? '1px solid #ed6055' : '1px solid rgba(255,255,255,0.7)',
+                    background: '#ffffff',
+                    border: dragOverId === permit.id ? '1px solid #ed6055' : '1px solid #e5e7eb',
                     boxShadow: dragOverId === permit.id
-                      ? '0 0 0 3px rgba(237,96,85,0.15), 0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)'
-                      : '0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+                      ? '0 0 0 3px rgba(237,96,85,0.15), 0 4px 16px rgba(0,0,0,0.08)'
+                      : '0 2px 8px rgba(0,0,0,0.06)',
                     opacity: dragIdRef.current === permit.id ? 0.4 : 1,
                     cursor: isAdmin ? 'grab' : 'default',
                   }}
-                  onMouseEnter={e => { if (dragIdRef.current !== permit.id) e.currentTarget.style.boxShadow = '0 8px 32px rgba(0,0,0,0.10), inset 0 1px 0 rgba(255,255,255,0.8)' }}
-                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 24px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)' }}
+                  onMouseEnter={e => { if (dragIdRef.current !== permit.id) e.currentTarget.style.boxShadow = '0 6px 20px rgba(0,0,0,0.10)' }}
+                  onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.06)' }}
                 >
                   {/* Grip + click area */}
                   <div className="flex items-stretch gap-2">
