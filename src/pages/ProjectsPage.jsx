@@ -499,7 +499,7 @@ export default function ProjectsPage() {
                           />
 
                           {/* Card header image / color band */}
-                          <div className="relative h-[480px] flex-shrink-0 overflow-hidden"
+                          <div className="relative h-[240px] sm:h-[480px] flex-shrink-0 overflow-hidden"
                             style={{ background: project.cover_photo_url ? '#f3f4f6' : `linear-gradient(135deg, ${phaseColor}18 0%, ${phaseColor}38 100%)` }}
                           >
                             {!project.cover_photo_url && (
