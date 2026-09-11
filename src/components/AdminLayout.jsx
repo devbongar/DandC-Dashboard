@@ -256,9 +256,9 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
             background: mobileBg && isMobile ? (headerVisible ? mobileBg : 'transparent') : 'transparent',
             borderBottom: 'none',
             boxShadow: 'none',
-            paddingTop: mobileBg && isMobile ? 'env(safe-area-inset-top)' : undefined,
+            paddingTop: mobileBg && isMobile ? (headerVisible ? 'env(safe-area-inset-top)' : '0px') : undefined,
             borderRadius: mobileBg && isMobile ? (headerVisible ? '0 0 20px 20px' : '0') : undefined,
-            transition: mobileBg && isMobile ? 'background 0.32s ease, border-radius 0.32s ease' : undefined,
+            transition: mobileBg && isMobile ? 'background 0.32s ease, padding-top 0.32s ease, border-radius 0.32s ease' : undefined,
           }}
         >
           {/* Collapsible content — collapses while header bg stays over status bar */}
