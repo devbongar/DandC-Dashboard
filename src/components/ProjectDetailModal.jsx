@@ -4451,21 +4451,18 @@ const fmtPhotoDate = (dateStr) => {
 
 // -- Upload Screen -------------------------------------------------------------
 
-function UploadScreen({ project, showToast, onBack, onUploaded }) {
+function UploadScreen({ project, showToast, onBack, onUploaded, buildings = [], allFloors = [] }) {
   const [files, setFiles]               = useState([])
   const [previews, setPreviews]         = useState([])
   const [uploadDate, setUploadDate]     = useState(() => new Date().toLocaleDateString('en-CA'))
   const [uploadTags, setUploadTags]     = useState([])
   const [uploadBuilding, setUploadBuilding] = useState(null)
-  const [buildings, setBuildings]       = useState([])
+  const [uploadFloor, setUploadFloor]   = useState(null)
   const [uploading, setUploading]       = useState(false)
   const [dragging, setDragging]         = useState(false)
   const fileRef = useRef(null)
 
-  useEffect(() => {
-    supabase.from('project_buildings').select('id, name').eq('project_id', project.id).order('name')
-      .then(({ data }) => setBuildings(data ?? []))
-  }, [project.id])
+  const floors = uploadBuilding ? allFloors.filter(f => f.building_id === uploadBuilding) : []
 
   useEffect(() => () => previews.forEach(u => URL.revokeObjectURL(u)), [previews])
 
@@ -4501,7 +4498,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
       }
       await supabase.from('project_photos').insert({
         project_id: project.id, storage_path: path, file_name: file.name,
-        tags: uploadTags, photo_date: uploadDate, building_id: uploadBuilding,
+        tags: uploadTags, photo_date: uploadDate, building_id: uploadBuilding, floor_id: uploadFloor,
       })
       ok++
     }
@@ -4526,7 +4523,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
             {buildings.length === 0
               ? <p className="text-xs text-gray-400">No towers defined for this project</p>
               : buildings.map(b => (
-                <button key={b.id} onClick={() => setUploadBuilding(b.id)}
+                <button key={b.id} onClick={() => { setUploadBuilding(b.id); setUploadFloor(null) }}
                   className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${uploadBuilding === b.id ? 'bg-[#ed6055] text-white border-[#ed6055]' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}>
                   {b.name}
                 </button>
@@ -4535,6 +4532,27 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
           </div>
           {!uploadBuilding && <p className="text-[10px] text-[#ed6055] mt-1">Select a tower to enable upload</p>}
         </div>
+        {uploadBuilding && (
+          <div>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Floor <span className="text-gray-400 font-normal normal-case">(optional)</span></p>
+            {floors.length === 0
+              ? <p className="text-xs text-gray-400">No floors defined for this tower in M4/M5</p>
+              : (
+                <div className="flex flex-wrap gap-2">
+                  {floors.map(f => {
+                    const label = f.physical_level
+                    return (
+                      <button key={f.id} onClick={() => setUploadFloor(uploadFloor === f.id ? null : f.id)}
+                        className={`text-xs font-semibold px-3 py-1.5 rounded-lg border transition ${uploadFloor === f.id ? 'bg-[#ed6055] text-white border-[#ed6055]' : 'border-gray-200 text-gray-600 hover:border-gray-300 bg-white'}`}>
+                        {label}
+                      </button>
+                    )
+                  })}
+                </div>
+              )
+            }
+          </div>
+        )}
         <div>
           <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1.5">Photo Date</p>
           <input type="date" value={uploadDate} max={new Date().toLocaleDateString('en-CA')}
@@ -4613,14 +4631,16 @@ function UploadScreen({ project, showToast, onBack, onUploaded }) {
 
 // -- Site Plan View ------------------------------------------------------------
 
-function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast }) {
+function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGallery, showToast }) {
   const [plan, setPlan]               = useState(null)
   const [pins, setPins]               = useState([])
   const [loading, setLoading]         = useState(true)
   const [uploading, setUploading]     = useState(false)
   const [editMode, setEditMode]       = useState(false)
-  const [pendingPin, setPendingPin]   = useState(null)      // { x_pct, y_pct }
+  const [pendingPin, setPendingPin]   = useState(null)      // { x_pct, y_pct, clientX, clientY }
+  const [pickerBuilding, setPickerBuilding] = useState(null) // intermediate tower selection in picker
   const [selectedTower, setSelectedTower] = useState(null)
+  const [selectedFloor, setSelectedFloor] = useState(null)
   const [towerPhotos, setTowerPhotos] = useState([])
   const [photosLoading, setPhotosLoading] = useState(false)
   const [lightbox, setLightbox]       = useState(null)
@@ -4664,9 +4684,12 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
   useEffect(() => {
     if (!selectedTower) { setTowerPhotos([]); return }
     setPhotosLoading(true)
-    supabase.from('project_photos').select('*').eq('project_id', project.id).eq('building_id', selectedTower).order('photo_date', { ascending: false })
+    let q = supabase.from('project_photos').select('*, project_location_floors(id, physical_level)')
+      .eq('project_id', project.id).eq('building_id', selectedTower)
+    if (selectedFloor) q = q.eq('floor_id', selectedFloor)
+    q.order('photo_date', { ascending: false })
       .then(({ data }) => { setTowerPhotos(data ?? []); setPhotosLoading(false) })
-  }, [selectedTower, project.id])
+  }, [selectedTower, selectedFloor, project.id])
 
   const uploadPlan = async (file) => {
     setUploading(true)
@@ -4687,12 +4710,13 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
     const rect = imgRef.current.getBoundingClientRect()
     const x_pct = ((e.clientX - rect.left) / rect.width) * 100
     const y_pct = ((e.clientY - rect.top) / rect.height) * 100
-    setPendingPin({ x_pct, y_pct })
+    setPendingPin({ x_pct, y_pct, clientX: e.clientX, clientY: e.clientY })
   }
 
   const handlePinClick = (pin) => {
     if (editMode) return
     setSelectedTower(pin.building_id)
+    setSelectedFloor(pin.floor_id ?? null)
     setZoomOrigin({ x_pct: pin.x_pct, y_pct: pin.y_pct })
     setPhotosVisible(false)
     setPlanMode('zooming')
@@ -4708,17 +4732,20 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
     setPlanMode('plan')
     setZoomOrigin(null)
     setSelectedTower(null)
+    setSelectedFloor(null)
+    setPickerBuilding(null)
     setLightbox(null)
   }
 
-  const assignPin = async (buildingId) => {
+  const assignPin = async (buildingId, floorId = null) => {
     if (!pendingPin || !plan) return
     const { data } = await supabase.from('project_site_plan_pins').insert({
-      site_plan_id: plan.id, building_id: buildingId,
+      site_plan_id: plan.id, building_id: buildingId, floor_id: floorId,
       x_pct: pendingPin.x_pct, y_pct: pendingPin.y_pct,
     }).select().maybeSingle()
     if (data) setPins(prev => [...prev, data])
     setPendingPin(null)
+    setPickerBuilding(null)
   }
 
   const deletePin = async (pinId) => {
@@ -4727,6 +4754,7 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
   }
 
   const buildingName = (buildingId) => buildings.find(b => b.id === buildingId)?.name ?? 'Tower'
+  const floorName = (floorId) => allFloors.find(f => f.id === floorId)?.physical_level ?? null
 
   if (loading) return <TriangleLoader label="Loading site plan..." />
 
@@ -4767,8 +4795,6 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
   )
 
   const planUrl            = getPlanUrl(plan.storage_path)
-  const pinnedBuildingIds  = new Set(pins.map(p => p.building_id))
-  const unpinnedBuildings  = buildings.filter(b => !pinnedBuildingIds.has(b.id))
   const isZooming          = planMode === 'zooming'
   const showPhotos         = planMode === 'photos'
 
@@ -4806,7 +4832,7 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
       {editMode && (
         <div style={{ position: 'absolute', bottom: 12, left: '50%', transform: 'translateX(-50%)', zIndex: 30 }}>
           <div className="px-3 py-1.5 rounded-full backdrop-blur-sm bg-amber-500/80 text-white text-[10px] font-semibold shadow-sm whitespace-nowrap">
-            {unpinnedBuildings.length > 0 ? 'Click on the plan to place a tower pin' : 'All towers pinned — delete a pin to reposition'}
+            Click on the plan to place a pin
           </div>
         </div>
       )}
@@ -4864,7 +4890,7 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
               ) : (
                 <button onClick={() => handlePinClick(pin)} className="flex flex-col items-center group" style={{ marginBottom: 8 }}>
                   <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md mb-1 whitespace-nowrap transition-transform group-hover:scale-110 bg-white text-gray-700 border border-gray-200 group-hover:bg-[#ed6055] group-hover:text-white group-hover:border-[#ed6055]">
-                    {name}
+                    {pin.floor_id && floorName(pin.floor_id) ? `${name} · ${floorName(pin.floor_id)}` : name}
                   </span>
                   <span className="site-pin" />
                 </button>
@@ -4873,27 +4899,62 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
           )
         })}
 
-        {/* Pending pin picker */}
-        {pendingPin && (
-          <div className="absolute z-20" style={{ left: `${pendingPin.x_pct}%`, top: `${pendingPin.y_pct}%`, transform: 'translate(-50%, -110%)' }}>
-            <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-2 min-w-[120px]">
-              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Select tower</p>
-              {unpinnedBuildings.length === 0
-                ? <p className="text-[10px] text-gray-400 px-1 pb-1">All towers pinned</p>
-                : unpinnedBuildings.map(b => (
-                  <button key={b.id} onClick={() => assignPin(b.id)}
-                    className="w-full text-left text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-[#ed6055] hover:text-white transition text-gray-700">
-                    {b.name}
+        {/* Pending pin picker — fixed to viewport, two-step: tower → floor */}
+        {pendingPin && (() => {
+          const PICKER_W = 160, PICKER_H = 200, PAD = 8
+          const vw = window.innerWidth
+          const rawLeft = pendingPin.clientX - PICKER_W / 2
+          const rawTop  = pendingPin.clientY - PICKER_H - 12
+          const left = Math.max(PAD, Math.min(rawLeft, vw - PICKER_W - PAD))
+          const top  = rawTop < PAD ? pendingPin.clientY + 20 : rawTop
+          const pickerFloors = pickerBuilding ? allFloors.filter(f => f.building_id === pickerBuilding) : []
+          return (
+          <div className="z-[100]" style={{ position: 'fixed', left, top, width: PICKER_W }}>
+            <div className="bg-white rounded-xl shadow-xl border border-gray-200 p-2">
+              {!pickerBuilding ? (
+                <>
+                  <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider mb-1.5 px-1">Select tower</p>
+                  {buildings.length === 0
+                    ? <p className="text-[10px] text-gray-400 px-1 pb-1">No towers defined</p>
+                    : buildings.map(b => (
+                      <button key={b.id} onClick={() => setPickerBuilding(b.id)}
+                        className="w-full text-left text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-[#ed6055] hover:text-white transition text-gray-700">
+                        {b.name}
+                      </button>
+                    ))
+                  }
+                </>
+              ) : (
+                <>
+                  <div className="flex items-center gap-1 mb-1.5 px-1">
+                    <button onClick={() => setPickerBuilding(null)} className="text-gray-400 hover:text-gray-600 transition">
+                      <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" /></svg>
+                    </button>
+                    <p className="text-[9px] font-bold text-gray-400 uppercase tracking-wider">Select floor</p>
+                  </div>
+                  <button onClick={() => assignPin(pickerBuilding, null)}
+                    className="w-full text-left text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-gray-100 transition text-gray-500 italic">
+                    No floor
                   </button>
-                ))
-              }
-              <button onClick={() => setPendingPin(null)}
+                  {pickerFloors.length === 0
+                    ? <p className="text-[10px] text-gray-400 px-2 pb-1">No floors defined</p>
+                    : pickerFloors.map(f => (
+                      <button key={f.id} onClick={() => assignPin(pickerBuilding, f.id)}
+                        className="w-full text-left text-xs font-semibold px-2 py-1.5 rounded-lg hover:bg-[#ed6055] hover:text-white transition text-gray-700">
+                        {f.physical_level}
+                      </button>
+                    ))
+                  }
+                </>
+              )}
+              <button onClick={() => { setPendingPin(null); setPickerBuilding(null) }}
                 className="w-full text-left text-[10px] text-gray-400 hover:text-gray-600 px-2 py-1 mt-1 border-t border-gray-100 transition">
                 Cancel
               </button>
             </div>
           </div>
-        )}
+          )
+        })()}
       </div>
     </div>
   )
@@ -4911,7 +4972,12 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
             </svg>
             Site Plan
           </button>
-          <p className="text-xs font-semibold text-gray-700">{buildingName(selectedTower)}</p>
+          <div className="flex items-center gap-1.5">
+            <p className="text-xs font-semibold text-gray-700">{buildingName(selectedTower)}</p>
+            {selectedFloor && floorName(selectedFloor) && (
+              <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-100 text-blue-600">{floorName(selectedFloor)}</span>
+            )}
+          </div>
           {!photosLoading && (
             <span className="text-xs text-gray-400">{towerPhotos.length} photo{towerPhotos.length !== 1 ? 's' : ''}</span>
           )}
@@ -4948,6 +5014,14 @@ function SitePlanView({ project, isAdmin, buildings, onViewGallery, showToast })
                       ))}
                     </div>
                   )}
+                  {(() => {
+                    const floorLabel = photo.project_location_floors?.physical_level ?? null
+                    return floorLabel ? (
+                      <div className="absolute bottom-1.5 left-1.5">
+                        <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/80 text-white backdrop-blur-sm leading-none">{floorLabel}</span>
+                      </div>
+                    ) : null
+                  })()}
                 </div>
               ))}
             </div>
@@ -5016,7 +5090,10 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
   const [imgKey, setImgKey]               = useState(0)
   const [groupMode, setGroupMode]         = useState('date')   // 'date' | 'tower'
   const [filterBuilding, setFilterBuilding] = useState(null)
+  const [filterFloor, setFilterFloor]     = useState(null)
+  const [floors, setFloors]               = useState([])
   const [lbEditBuilding, setLbEditBuilding] = useState(false)
+  const [lbEditFloor, setLbEditFloor]     = useState(false)
   const showUploadScreen = showUpload
   const setShowUpload    = onShowUploadChange
   const setFilterMonth   = onFilterMonthChange
@@ -5025,12 +5102,14 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
 
   const load = async () => {
     setLoading(true)
-    const [{ data: photoData }, { data: bData }] = await Promise.all([
-      supabase.from('project_photos').select('*, project_buildings(id, name)').eq('project_id', project.id).order('photo_date', { ascending: false }),
+    const [{ data: photoData }, { data: bData }, { data: fData }] = await Promise.all([
+      supabase.from('project_photos').select('*, project_buildings(id, name), project_location_floors(id, physical_level)').eq('project_id', project.id).order('photo_date', { ascending: false }),
       supabase.from('project_buildings').select('id, name').eq('project_id', project.id).order('name'),
+      supabase.from('project_location_floors').select('id, building_id, physical_level, sort_order').eq('project_id', project.id).order('sort_order'),
     ])
     setPhotos(photoData ?? [])
     setBuildings(bData ?? [])
+    setFloors(fData ?? [])
     setLoading(false)
   }
 
@@ -5048,13 +5127,28 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
     return [...seen].sort().reverse()
   }, [photos])
 
-  const activeFilterCount = [!!filterMonth, filterTags.length > 0, !!filterBuilding].filter(Boolean).length
+  const getFloorLabel = (photo) => {
+    const f = photo.project_location_floors
+    if (!f) return null
+    return f.physical_level ?? null
+  }
+
+  const updatePhotoFloor = async (photo, newFloorId) => {
+    await supabase.from('project_photos').update({ floor_id: newFloorId }).eq('id', photo.id)
+    const floorObj = floors.find(f => f.id === newFloorId) ?? null
+    setPhotos(prev => prev.map(p => p.id === photo.id
+      ? { ...p, floor_id: newFloorId, project_location_floors: floorObj }
+      : p))
+  }
+
+  const activeFilterCount = [!!filterMonth, filterTags.length > 0, !!filterBuilding, !!filterFloor].filter(Boolean).length
   const filteredPhotos = useMemo(() => {
     const q = search.toLowerCase()
     const result = photos.filter(p => {
       if (filterMonth && !(p.photo_date ?? p.created_at)?.startsWith(filterMonth)) return false
       if (filterTags.length && !filterTags.every(t => (p.tags ?? []).includes(t))) return false
       if (filterBuilding && p.building_id !== filterBuilding) return false
+      if (filterFloor && p.floor_id !== filterFloor) return false
       if (q && !(p.file_name ?? '').toLowerCase().includes(q) && !(p.tags ?? []).some(t => t.toLowerCase().includes(q))) return false
       return true
     })
@@ -5064,7 +5158,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
       return sortOrder === 'newest' ? db.localeCompare(da) : da.localeCompare(db)
     })
     return result
-  }, [photos, filterMonth, filterTags, filterBuilding, sortOrder])
+  }, [photos, filterMonth, filterTags, filterBuilding, filterFloor, sortOrder])
 
   const groupedPhotos = useMemo(() => {
     const map = new Map()
@@ -5119,6 +5213,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
 
   if (showUploadScreen) return (
     <UploadScreen project={project} showToast={showToast}
+      buildings={buildings} allFloors={floors}
       onBack={() => setShowUpload(false)}
       onUploaded={() => { setShowUpload(false); load() }} />
   )
@@ -5128,12 +5223,13 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
       project={project}
       isAdmin={isAdmin}
       buildings={buildings}
+      allFloors={floors}
       showToast={showToast}
       onViewGallery={() => setView('gallery')}
     />
   )
 
-  const hasFilters = !!(filterMonth || filterTags.length || search || filterBuilding)
+  const hasFilters = !!(filterMonth || filterTags.length || search || filterBuilding || filterFloor)
 
   return (
     <div className="pt-4 px-3 sm:px-6">
@@ -5166,12 +5262,25 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
           </div>
           <div className="flex flex-wrap gap-1.5">
             {buildings.map(b => (
-              <button key={b.id} onClick={() => setFilterBuilding(filterBuilding === b.id ? null : b.id)}
+              <button key={b.id} onClick={() => { setFilterBuilding(filterBuilding === b.id ? null : b.id); setFilterFloor(null) }}
                 className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition ${filterBuilding === b.id ? 'bg-[#ed6055] text-white border-[#ed6055]' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
                 {b.name}
               </button>
             ))}
           </div>
+          {filterBuilding && floors.filter(f => f.building_id === filterBuilding).length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-1.5">
+              {floors.filter(f => f.building_id === filterBuilding).map(f => {
+                const label = f.marketing_level ?? f.physical_level
+                return (
+                  <button key={f.id} onClick={() => setFilterFloor(filterFloor === f.id ? null : f.id)}
+                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-full border transition ${filterFloor === f.id ? 'bg-blue-500 text-white border-blue-500' : 'border-gray-200 text-gray-500 hover:border-gray-300'}`}>
+                    {label}
+                  </button>
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
 
@@ -5185,7 +5294,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
           {hasFilters ? (
             <>
               <p className="text-sm text-gray-400">No photos match the current filters</p>
-              <button onClick={() => { setFilterMonth(''); setFilterTags([]); setFilterBuilding(null); onSearchChange?.('') }} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
+              <button onClick={() => { setFilterMonth(''); setFilterTags([]); setFilterBuilding(null); setFilterFloor(null); onSearchChange?.('') }} className="mt-2 text-xs text-[#ed6055] hover:underline">Clear filters</button>
             </>
           ) : (
             <>
@@ -5208,7 +5317,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
                 style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
                 onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'; const img = new Image(); img.src = getUrl(photo.storage_path) }}
                 onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)'}
-                onClick={() => { setSlideDir('open'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLightbox(photo._flatIdx) }}>
+                onClick={() => { setSlideDir('open'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLbEditFloor(false); setLightbox(photo._flatIdx) }}>
                 <img
                   src={getThumbnailUrl(photo.storage_path)}
                   onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = getUrl(photo.storage_path) }}
@@ -5228,9 +5337,10 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
                     </div>
                   )}
                 </div>
-                {getBuildingName(photo) && (
-                  <div className="absolute bottom-2 left-2">
-                    <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ed6055]/80 text-white backdrop-blur-sm leading-none">{getBuildingName(photo)}</span>
+                {(getBuildingName(photo) || getFloorLabel(photo)) && (
+                  <div className="absolute bottom-2 left-2 flex gap-1">
+                    {getBuildingName(photo) && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-[#ed6055]/80 text-white backdrop-blur-sm leading-none">{getBuildingName(photo)}</span>}
+                    {getFloorLabel(photo) && <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-blue-500/80 text-white backdrop-blur-sm leading-none">{getFloorLabel(photo)}</span>}
                   </div>
                 )}
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-all duration-200 flex items-end">
@@ -5292,7 +5402,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
           {lightbox > 0 && (
             <button
               className="absolute left-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
-              onClick={e => { e.stopPropagation(); setSlideDir('prev'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLightbox(l => l - 1) }}>
+              onClick={e => { e.stopPropagation(); setSlideDir('prev'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLbEditFloor(false); setLightbox(l => l - 1) }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
@@ -5301,7 +5411,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
           {lightbox < filteredPhotos.length - 1 && (
             <button
               className="absolute right-4 top-1/2 -translate-y-1/2 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 text-white/70 hover:text-white hover:bg-white/20 transition"
-              onClick={e => { e.stopPropagation(); setSlideDir('next'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLightbox(l => l + 1) }}>
+              onClick={e => { e.stopPropagation(); setSlideDir('next'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLbEditFloor(false); setLightbox(l => l + 1) }}>
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
@@ -5333,26 +5443,50 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
                 ))}
               </div>
             )}
-            {/* Building tag in lightbox */}
-            {buildings.length > 0 && (
-              lbEditBuilding ? (
-                <div className="flex gap-1.5 flex-wrap justify-center">
-                  {buildings.map(b => (
-                    <button key={b.id}
-                      onClick={() => { updatePhotoBuilding(filteredPhotos[lightbox], b.id); setLbEditBuilding(false) }}
-                      className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition ${filteredPhotos[lightbox].building_id === b.id ? 'bg-[#ed6055] text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>
-                      {b.name}
-                    </button>
-                  ))}
-                  <button onClick={() => setLbEditBuilding(false)} className="text-[10px] text-white/50 hover:text-white/80 px-1">✕</button>
-                </div>
-              ) : (
-                <button onClick={() => setLbEditBuilding(true)}
-                  className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#ed6055]/70 text-white backdrop-blur-sm hover:bg-[#ed6055]/90 transition">
-                  {getBuildingName(filteredPhotos[lightbox]) ?? '+ Add Tower'}
-                </button>
-              )
-            )}
+            {/* Building + floor tags in lightbox */}
+            <div className="flex gap-2 justify-center flex-wrap">
+              {buildings.length > 0 && (
+                lbEditBuilding ? (
+                  <div className="flex gap-1.5 flex-wrap justify-center">
+                    {buildings.map(b => (
+                      <button key={b.id}
+                        onClick={() => { updatePhotoBuilding(filteredPhotos[lightbox], b.id); setLbEditBuilding(false); setLbEditFloor(false) }}
+                        className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition ${filteredPhotos[lightbox].building_id === b.id ? 'bg-[#ed6055] text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                        {b.name}
+                      </button>
+                    ))}
+                    <button onClick={() => setLbEditBuilding(false)} className="text-[10px] text-white/50 hover:text-white/80 px-1">✕</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setLbEditBuilding(true); setLbEditFloor(false) }}
+                    className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-[#ed6055]/70 text-white backdrop-blur-sm hover:bg-[#ed6055]/90 transition">
+                    {getBuildingName(filteredPhotos[lightbox]) ?? '+ Tower'}
+                  </button>
+                )
+              )}
+              {filteredPhotos[lightbox].building_id && floors.filter(f => f.building_id === filteredPhotos[lightbox].building_id).length > 0 && (
+                lbEditFloor ? (
+                  <div className="flex gap-1.5 flex-wrap justify-center">
+                    {floors.filter(f => f.building_id === filteredPhotos[lightbox].building_id).map(f => {
+                      const label = f.physical_level
+                      return (
+                        <button key={f.id}
+                          onClick={() => { updatePhotoFloor(filteredPhotos[lightbox], f.id); setLbEditFloor(false) }}
+                          className={`text-[10px] font-semibold px-2.5 py-0.5 rounded-full transition ${filteredPhotos[lightbox].floor_id === f.id ? 'bg-blue-500 text-white' : 'bg-white/20 text-white hover:bg-white/30'}`}>
+                          {label}
+                        </button>
+                      )
+                    })}
+                    <button onClick={() => setLbEditFloor(false)} className="text-[10px] text-white/50 hover:text-white/80 px-1">✕</button>
+                  </div>
+                ) : (
+                  <button onClick={() => { setLbEditFloor(true); setLbEditBuilding(false) }}
+                    className="text-[10px] font-semibold px-2.5 py-0.5 rounded-full bg-blue-500/70 text-white backdrop-blur-sm hover:bg-blue-500/90 transition">
+                    {getFloorLabel(filteredPhotos[lightbox]) ?? '+ Floor'}
+                  </button>
+                )
+              )}
+            </div>
             <div className="flex items-center gap-3 px-4 py-2 rounded-full bg-black/40 backdrop-blur-sm">
               <span className="text-xs text-white/70 max-w-[200px] truncate">{fixEncoding(filteredPhotos[lightbox].file_name)}</span>
               <span className="text-xs text-white/40">·</span>
