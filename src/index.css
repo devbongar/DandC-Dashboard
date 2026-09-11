@@ -120,6 +120,7 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
 .admin-banner-shine {
   animation: admin-banner-shine 3.8s cubic-bezier(0.23, 1, 0.32, 1) infinite;
   animation-delay: 1.8s;
+  animation-fill-mode: both;
 }
 @media (prefers-reduced-motion: reduce) {
   .admin-banner-shine { animation: none; }
