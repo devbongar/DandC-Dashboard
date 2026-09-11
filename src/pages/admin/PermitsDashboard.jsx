@@ -71,14 +71,17 @@ export default function PermitsDashboard() {
   const [importPreview,  setImportPreview]  = useState(null) // { valid, skipped }
   const [importing,      setImporting]      = useState(false)
 
-  const filterRef    = useRef(null)
-  const cardScrollRef = useRef(null)
-  const [cardScrollPos, setCardScrollPos] = useState(0)
+  const filterRef       = useRef(null)
+  const cardScrollRef   = useRef(null)
+  const mobileActionsRef = useRef(null)
+  const [cardScrollPos, setCardScrollPos]     = useState(0)
+  const [showMobileActions, setShowMobileActions] = useState(false)
 
 
   useEffect(() => {
     const handler = (e) => {
       if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false)
+      if (mobileActionsRef.current && !mobileActionsRef.current.contains(e.target)) setShowMobileActions(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -181,7 +184,7 @@ export default function PermitsDashboard() {
   }
 
   const headerActions = (
-    <>
+    <div className="hidden sm:contents">
       {/* Search */}
       <div className="relative">
         <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -303,11 +306,79 @@ export default function PermitsDashboard() {
         Import
       </button>
       <input ref={importInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleImport} />
-    </>
+    </div>
+  )
+
+  const activeFilterCount = [filterStatus !== 'all', filterProjects.size > 0].filter(Boolean).length
+
+  const mobileSearchRow = (
+    <div className="flex items-stretch gap-2 px-0">
+      <div className="relative flex-1">
+        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
+        </svg>
+        <input
+          type="text"
+          placeholder="Search permits..."
+          value={search}
+          onChange={e => setSearch(e.target.value)}
+          className="w-full pl-8 pr-9 py-4 text-sm rounded-lg text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition"
+          style={{ background: '#ffffff' }}
+        />
+        <button
+          onClick={() => setFilterOpen(v => !v)}
+          className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center w-6 h-6 rounded transition-all"
+          style={{ color: activeFilterCount > 0 ? '#ed6055' : filterOpen ? '#ed6055' : '#9ca3af' }}
+        >
+          <span className="relative flex items-center justify-center">
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+            </svg>
+            {activeFilterCount > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 w-3 h-3 rounded-full bg-[#ed6055] text-white text-[7px] font-bold flex items-center justify-center leading-none">{activeFilterCount}</span>
+            )}
+          </span>
+        </button>
+      </div>
+    </div>
+  )
+
+  const mobileTitleActionsBtn = (
+    <div className="relative" ref={mobileActionsRef}>
+      <button
+        onClick={() => setShowMobileActions(v => !v)}
+        className="flex items-center justify-center w-9 h-9 rounded-lg transition-all"
+        style={{ background: 'transparent', color: showMobileActions ? '#ed6055' : 'rgba(255,255,255,0.85)' }}
+      >
+        <svg className="w-7 h-7" fill="currentColor" viewBox="0 0 24 24" stroke="none">
+          <path d="M12 7.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM12 13.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3zM12 19.5a1.5 1.5 0 110-3 1.5 1.5 0 010 3z" />
+        </svg>
+      </button>
+      {showMobileActions && (
+        <div className="absolute right-0 top-full mt-2 w-44 rounded-xl z-50 overflow-hidden"
+          style={{ background: '#ffffff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.12)', animation: 'ph1-dropdown 0.15s ease-out both' }}>
+          <button onClick={() => { setShowMobileActions(false); handleExport() }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left">
+            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+            </svg>
+            <span className="font-medium">Export</span>
+          </button>
+          <div style={{ height: 1, background: '#f3f4f6', margin: '0 12px' }} />
+          <button onClick={() => { setShowMobileActions(false); importInputRef.current?.click() }}
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition text-left">
+            <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 7.5m0 0L7.5 12M12 7.5V21" />
+            </svg>
+            <span className="font-medium">Import</span>
+          </button>
+        </div>
+      )}
+    </div>
   )
 
   return (
-    <AdminLayout title="Permits Monitoring" actions={headerActions}>
+    <AdminLayout title="Permits Monitoring" actions={headerActions} mobileActionsRow={mobileSearchRow} mobileTitleActions={mobileTitleActionsBtn} mobileBg="linear-gradient(180deg, #2e2e2e 0%, #636363 100%)">
       <div className="p-4 sm:p-6">
         <div className="max-w-7xl mx-auto space-y-5">
 
