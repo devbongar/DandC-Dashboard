@@ -378,7 +378,7 @@ export default function PermitsDashboard() {
   )
 
   return (
-    <AdminLayout title="Permits Monitoring" actions={headerActions} mobileActionsRow={mobileSearchRow} mobileTitleActions={mobileTitleActionsBtn} mobileBg="linear-gradient(180deg, #c94040 0%, #ed6055 100%)">
+    <AdminLayout title="Permits Monitoring" actions={headerActions} mobileActionsRow={mobileSearchRow} mobileTitleActions={mobileTitleActionsBtn} mobileBg="linear-gradient(180deg, #2e2e2e 0%, #636363 100%)">
       <div className="p-4 sm:p-6">
         <div className="max-w-7xl mx-auto space-y-5">
 
