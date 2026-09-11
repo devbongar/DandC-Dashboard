@@ -252,7 +252,8 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
             className="flex-shrink-0"
             style={{
               height: 'env(safe-area-inset-top)',
-              background: '#2e2e2e',
+              background: headerVisible ? '#2e2e2e' : 'transparent',
+              transition: 'background 0.32s ease',
             }}
           />
         )}
