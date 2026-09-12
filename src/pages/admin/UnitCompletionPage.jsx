@@ -3,12 +3,13 @@ import UnitCompletionChart from '../../components/UnitCompletionChart'
 import AdminLayout from '../../components/AdminLayout'
 import { supabase } from '../../lib/supabaseClient'
 import SearchDropdown from '../../components/SearchDropdown'
+import SheetMultiDropdown from '../../components/SheetMultiDropdown'
 
 export default function UnitCompletionPage() {
   const [filterOpen,  setFilterOpen]  = useState(false)
   const [allProjects, setAllProjects] = useState(null)
   const [is4ph,       setIs4ph]       = useState('all')
-  const [projectId,   setProjectId]   = useState('all')
+  const [projectIds,  setProjectIds]  = useState([])
   const [province,    setProvince]    = useState('')
   const [city,        setCity]        = useState('')
   const [timeMode,    setTimeMode]    = useState('monthly')
@@ -39,7 +40,7 @@ export default function UnitCompletionPage() {
     )].sort()
   }, [allProjects, is4ph, province])
 
-  const activeFilterCount = [is4ph !== 'all', projectId !== 'all', !!province, !!city, !!filterDate].filter(Boolean).length
+  const activeFilterCount = [is4ph !== 'all', projectIds.length > 0, !!province, !!city, !!filterDate].filter(Boolean).length
 
   // Outside-click closes filter popover
   useEffect(() => {
@@ -91,7 +92,7 @@ export default function UnitCompletionPage() {
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Type</p>
               <div className="flex items-center gap-0.5 p-0.5 rounded-lg w-full" style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}>
                 {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                  <button key={t.key} onClick={() => { setIs4ph(t.key); setProjectId('all'); setProvince(''); setCity('') }}
+                  <button key={t.key} onClick={() => { setIs4ph(t.key); setProjectIds([]); setProvince(''); setCity('') }}
                     className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
                     style={is4ph === t.key ? { background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)', color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)' } : { color: '#6b7280', background: 'transparent' }}
                   >{t.label}</button>
@@ -100,9 +101,10 @@ export default function UnitCompletionPage() {
             </div>
             <div>
               <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest mb-1.5">Project</p>
-              <SearchDropdown fluid
+              <SheetMultiDropdown
                 options={(allProjects ?? []).filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)).sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
-                value={projectId} onChange={setProjectId} emptyValue="all" emptyLabel="All Projects" placeholder="Search projects..."
+                values={projectIds} onChange={setProjectIds}
+                emptyLabel="All Projects" placeholder="Search projects..."
                 icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
               />
             </div>
@@ -134,7 +136,7 @@ export default function UnitCompletionPage() {
               )}
             </div>
             {activeFilterCount > 0 && (
-              <button onClick={() => { setIs4ph('all'); setProjectId('all'); setProvince(''); setCity(''); setFilterDate('') }}
+              <button onClick={() => { setIs4ph('all'); setProjectIds([]); setProvince(''); setCity(''); setFilterDate('') }}
                 className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors">
                 Clear all filters
               </button>
@@ -152,7 +154,7 @@ export default function UnitCompletionPage() {
           <UnitCompletionChart
             expanded
             is4ph={is4ph} setIs4ph={setIs4ph}
-            projectId={projectId} setProjectId={setProjectId}
+            projectIds={projectIds} setProjectIds={setProjectIds}
             province={province} setProvince={setProvince}
             city={city} setCity={setCity}
             timeMode={timeMode} setTimeMode={setTimeMode}

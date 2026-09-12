@@ -361,7 +361,7 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
           )}
         </header>
 
-          <div style={{ marginTop: mobileBg && isMobile && mobileContentOverlap ? -mobileContentOverlap : undefined, position: mobileBg && isMobile && mobileContentOverlap ? 'relative' : undefined, zIndex: mobileBg && isMobile && mobileContentOverlap ? 1 : undefined }}>
+          <div style={{ marginTop: mobileBg && isMobile && mobileContentOverlap ? -mobileContentOverlap : undefined, position: mobileBg && isMobile && mobileContentOverlap ? 'relative' : undefined }}>
             {children}
           </div>
         </div>

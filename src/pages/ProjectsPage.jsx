@@ -894,13 +894,13 @@ function MobileFilterSheet({
     <div className="sm:hidden">
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
+        className={`fixed inset-0 z-[55] bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
         onClick={triggerClose}
       />
       {/* Sheet */}
       <div
         ref={sheetRef}
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
+        className={`fixed bottom-0 left-0 right-0 z-[60] bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
         style={{
           borderRadius: '24px 24px 0 0',
           paddingBottom: 'env(safe-area-inset-bottom)',

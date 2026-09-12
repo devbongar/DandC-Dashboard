@@ -1,6 +1,8 @@
 import { useState, useEffect, useMemo, useRef, Fragment, useLayoutEffect, useCallback } from 'react'
+import GlassToggle from './GlassToggle'
 import { supabase } from '../lib/supabaseClient'
 import SearchDropdown from './SearchDropdown'
+import SheetMultiDropdown from './SheetMultiDropdown'
 import TriangleLoader from './TriangleLoader'
 import useProfile from '../hooks/useProfile'
 
@@ -57,9 +59,9 @@ export default function IssuesTable({ id }) {
   const [saving, setSaving]         = useState(false)
   const [toast, setToast]           = useState(null)
   const [filterStatus, setFilterStatus]       = useState('open')
-  const [filterGroup, setFilterGroup]         = useState('all')
+  const [filterGroup, setFilterGroup]         = useState([])
   const [filterMgmtLevel, setFilterMgmtLevel] = useState(['ESA', 'Management Committee'])
-  const [filterProject, setFilterProject]     = useState('all')
+  const [filterProjects, setFilterProjects]   = useState([])
   const [type4ph, setType4ph]                 = useState('all')
   const [collapsed, setCollapsed]   = useState(new Set())
   const [filtersOpen, setFiltersOpen] = useState(false)
@@ -133,16 +135,16 @@ export default function IssuesTable({ id }) {
 
   const filtered = useMemo(() => issues.filter(issue => {
     const matchStatus    = filterStatus    === 'all' || issue.status           === filterStatus
-    const matchGroup     = filterGroup     === 'all' || issue.issue_group      === filterGroup
+    const matchGroup     = filterGroup.length === 0   || filterGroup.includes(issue.issue_group)
     const matchMgmtLevel = filterMgmtLevel.length === 0 || filterMgmtLevel.includes(issue.management_level)
-    const matchProject   = filterProject   === 'all' || issue.project_id       === filterProject
+    const matchProject   = filterProjects.length === 0 || filterProjects.includes(issue.project_id)
     const proj           = projects.find(p => p.id === issue.project_id)
     const match4ph       = type4ph === 'all' || (proj && (type4ph === 'yes' ? proj.is_4ph_project : !proj.is_4ph_project))
     return matchStatus && matchGroup && matchMgmtLevel && matchProject && match4ph
-  }), [issues, filterStatus, filterGroup, filterMgmtLevel, filterProject, type4ph, projects])
+  }), [issues, filterStatus, filterGroup, filterMgmtLevel, filterProjects, type4ph, projects])
 
-  const hasActiveFilter = filterStatus !== 'open' || filterGroup !== 'all' || filterMgmtLevel.length > 0 || filterProject !== 'all' || type4ph !== 'all'
-  const clearFilters = () => { setFilterStatus('open'); setFilterGroup('all'); setFilterMgmtLevel([]); setFilterProject('all'); setType4ph('all') }
+  const hasActiveFilter = filterStatus !== 'open' || filterGroup.length > 0 || filterMgmtLevel.length > 0 || filterProjects.length > 0 || type4ph !== 'all'
+  const clearFilters = () => { setFilterStatus('open'); setFilterGroup([]); setFilterMgmtLevel([]); setFilterProjects([]); setType4ph('all') }
 
   // Projects that actually have issues (for the dropdown)
   const projectOptions = useMemo(() => {
@@ -184,7 +186,7 @@ export default function IssuesTable({ id }) {
               </svg>
               {hasActiveFilter && (
                 <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                  {[type4ph !== 'all', filterProject !== 'all', filterStatus !== 'open', filterGroup !== 'all', filterMgmtLevel.length > 0].filter(Boolean).length}
+                  {[type4ph !== 'all', filterProjects.length > 0, filterStatus !== 'open', filterGroup.length > 0, filterMgmtLevel.length > 0].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -206,7 +208,7 @@ export default function IssuesTable({ id }) {
               <span className="hidden sm:inline">Filters</span>
               {hasActiveFilter && (
                 <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                  {[type4ph !== 'all', filterProject !== 'all', filterStatus !== 'open', filterGroup !== 'all', filterMgmtLevel.length > 0].filter(Boolean).length}
+                  {[type4ph !== 'all', filterProjects.length > 0, filterStatus !== 'open', filterGroup.length > 0, filterMgmtLevel.length > 0].filter(Boolean).length}
                 </span>
               )}
             </button>
@@ -224,7 +226,7 @@ export default function IssuesTable({ id }) {
                       {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
                         <button
                           key={t.key}
-                          onClick={() => { setType4ph(t.key); setFilterProject('all') }}
+                          onClick={() => { setType4ph(t.key); setFilterProjects([]) }}
                           className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
                           style={type4ph === t.key ? {
                             background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
@@ -236,11 +238,10 @@ export default function IssuesTable({ id }) {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Project</p>
-                    <SearchDropdown
-                      fluid
+                    <SheetMultiDropdown
                       options={projectOptions}
-                      value={filterProject} onChange={setFilterProject}
-                      emptyValue="all" emptyLabel="All Projects" placeholder="Search projects…"
+                      values={filterProjects} onChange={setFilterProjects}
+                      emptyLabel="All Projects" placeholder="Search projects…"
                       icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
                     />
                   </div>
@@ -255,33 +256,19 @@ export default function IssuesTable({ id }) {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Group</p>
-                    <div className="flex flex-wrap gap-1">
-                      {[{ value: 'all', label: 'All' }, ...GROUPS.map(g => ({ value: g, label: g }))].map(o => (
-                        <button key={o.value} onClick={() => setFilterGroup(o.value)} className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                          style={filterGroup === o.value ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}>{o.label}</button>
-                      ))}
-                    </div>
+                    <SheetMultiDropdown
+                      options={GROUPS.map(g => ({ value: g, label: g }))}
+                      values={filterGroup} onChange={setFilterGroup}
+                      emptyLabel="All Groups" placeholder="Search groups…"
+                    />
                   </div>
                   <div>
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Management Level</p>
-                    <div className="flex flex-wrap gap-1">
-                      <button
-                        onClick={() => setFilterMgmtLevel([])}
-                        className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                        style={filterMgmtLevel.length === 0 ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}
-                      >All</button>
-                      {MANAGEMENT_LEVELS.map(l => {
-                        const on = filterMgmtLevel.includes(l)
-                        return (
-                          <button
-                            key={l}
-                            onClick={() => setFilterMgmtLevel(prev => on ? prev.filter(x => x !== l) : [...prev, l])}
-                            className="px-2.5 py-1 rounded-full text-xs font-semibold border transition-all"
-                            style={on ? { background: '#ed6055', color: '#fff', borderColor: '#ed6055' } : { background: '#f9fafb', color: '#6b7280', borderColor: '#e5e7eb' }}
-                          >{l}</button>
-                        )
-                      })}
-                    </div>
+                    <SheetMultiDropdown
+                      options={MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))}
+                      values={filterMgmtLevel} onChange={setFilterMgmtLevel}
+                      emptyLabel="All Levels" placeholder="Search levels…"
+                    />
                   </div>
                   {hasActiveFilter && (
                     <button onClick={clearFilters} className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors">
@@ -582,16 +569,16 @@ export default function IssuesTable({ id }) {
           filterStatus={filterStatus} setFilterStatus={setFilterStatus}
           filterGroup={filterGroup} setFilterGroup={setFilterGroup}
           filterMgmtLevel={filterMgmtLevel} setFilterMgmtLevel={setFilterMgmtLevel}
-          filterProject={filterProject} setFilterProject={setFilterProject}
+          filterProjects={filterProjects} setFilterProjects={setFilterProjects}
           projectOptions={projectOptions}
-          activeCount={[type4ph !== 'all', filterProject !== 'all', filterStatus !== 'open', filterGroup !== 'all', filterMgmtLevel.length > 0].filter(Boolean).length}
+          activeCount={[type4ph !== 'all', filterProjects.length > 0, filterStatus !== 'open', filterGroup.length > 0, filterMgmtLevel.length > 0].filter(Boolean).length}
         />
       )}
     </section>
   )
 }
 
-function IssuesMobileFilterSheet({ open, onClose, type4ph, setType4ph, filterStatus, setFilterStatus, filterGroup, setFilterGroup, filterMgmtLevel, setFilterMgmtLevel, filterProject, setFilterProject, projectOptions, activeCount }) {
+function IssuesMobileFilterSheet({ open, onClose, type4ph, setType4ph, filterStatus, setFilterStatus, filterGroup, setFilterGroup, filterMgmtLevel, setFilterMgmtLevel, filterProjects, setFilterProjects, projectOptions, activeCount }) {
   const sheetRef = useRef(null)
   const dragStartY = useRef(null)
   const dragCurrentY = useRef(0)
@@ -637,7 +624,7 @@ function IssuesMobileFilterSheet({ open, onClose, type4ph, setType4ph, filterSta
     dragCurrentY.current = 0
   }, [])
 
-  const resetAll = () => { setType4ph('all'); setFilterStatus('open'); setFilterGroup('all'); setFilterMgmtLevel([]); setFilterProject('all') }
+  const resetAll = () => { setType4ph('all'); setFilterStatus('open'); setFilterGroup([]); setFilterMgmtLevel([]); setFilterProjects([]) }
 
   if (!open) return null
 
@@ -647,12 +634,12 @@ function IssuesMobileFilterSheet({ open, onClose, type4ph, setType4ph, filterSta
   return (
     <div className="sm:hidden">
       <div
-        className={`fixed inset-0 z-40 bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
+        className={`fixed inset-0 z-[55] bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
         onClick={triggerClose}
       />
       <div
         ref={sheetRef}
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
+        className={`fixed bottom-0 left-0 right-0 z-[60] bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
         style={{ borderRadius: '24px 24px 0 0', paddingBottom: 'env(safe-area-inset-bottom)', maxHeight: '85vh' }}
         onAnimationEnd={handleAnimationEnd}
       >
@@ -672,63 +659,46 @@ function IssuesMobileFilterSheet({ open, onClose, type4ph, setType4ph, filterSta
           {/* Type */}
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Type</p>
-            <div className="flex items-center" style={{ background: 'rgba(0,0,0,0.055)', borderRadius: '0.875rem', padding: '3px' }}>
-              {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                <button key={t.key} onClick={() => { setType4ph(t.key); setFilterProject('all') }}
-                  className="flex-1 flex items-center justify-center py-2.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-xl"
-                  style={type4ph === t.key ? { background: 'linear-gradient(135deg, rgba(75,85,99,0.82), #4b5563)', color: '#fff', boxShadow: '0 2px 10px rgba(75,85,99,0.35)' } : { color: '#6b7280', background: 'transparent' }}
-                >{t.label}</button>
-              ))}
-            </div>
+            <GlassToggle
+              options={[{ value: 'all', label: 'All' }, { value: 'yes', label: '4PH' }, { value: 'no', label: 'Non-4PH' }]}
+              value={type4ph}
+              onChange={v => { setType4ph(v); setFilterProjects([]) }}
+            />
           </div>
           {/* Status */}
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Status</p>
-            <div className="flex flex-wrap gap-1.5">
-              {[{ value: 'all', label: 'All' }, ...Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))].map(o => (
-                <button key={o.value} onClick={() => setFilterStatus(o.value)}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-                  style={filterStatus === o.value ? pillActive : pillIdle}>{o.label}</button>
-              ))}
-            </div>
+            <GlassToggle
+              options={[{ value: 'all', label: 'All' }, ...Object.entries(STATUS_CONFIG).map(([v, c]) => ({ value: v, label: c.label }))]}
+              value={filterStatus}
+              onChange={setFilterStatus}
+            />
           </div>
           {/* Group */}
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Group</p>
-            <div className="flex flex-wrap gap-1.5">
-              {[{ value: 'all', label: 'All' }, ...GROUPS.map(g => ({ value: g, label: g }))].map(o => (
-                <button key={o.value} onClick={() => setFilterGroup(o.value)}
-                  className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-                  style={filterGroup === o.value ? pillActive : pillIdle}>{o.label}</button>
-              ))}
-            </div>
+            <SheetMultiDropdown
+              options={GROUPS.map(g => ({ value: g, label: g }))}
+              values={filterGroup} onChange={setFilterGroup}
+              emptyLabel="All Groups" placeholder="Search groups…"
+            />
           </div>
           {/* Management Level */}
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Management Level</p>
-            <div className="flex flex-wrap gap-1.5">
-              <button onClick={() => setFilterMgmtLevel([])}
-                className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-                style={filterMgmtLevel.length === 0 ? pillActive : pillIdle}>All</button>
-              {MANAGEMENT_LEVELS.map(l => {
-                const on = filterMgmtLevel.includes(l)
-                return (
-                  <button key={l}
-                    onClick={() => setFilterMgmtLevel(prev => on ? prev.filter(x => x !== l) : [...prev, l])}
-                    className="px-3 py-1.5 rounded-full text-xs font-semibold border transition-all"
-                    style={on ? pillActive : pillIdle}>{l}</button>
-                )
-              })}
-            </div>
+            <SheetMultiDropdown
+              options={MANAGEMENT_LEVELS.map(l => ({ value: l, label: l }))}
+              values={filterMgmtLevel} onChange={setFilterMgmtLevel}
+              emptyLabel="All Levels" placeholder="Search levels…"
+            />
           </div>
           {/* Project */}
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Project</p>
-            <SearchDropdown
-              fluid
+            <SheetMultiDropdown
               options={projectOptions}
-              value={filterProject} onChange={setFilterProject}
-              emptyValue="all" emptyLabel="All Projects" placeholder="Search projects…"
+              values={filterProjects} onChange={setFilterProjects}
+              emptyLabel="All Projects" placeholder="Search projects…"
               icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
             />
           </div>

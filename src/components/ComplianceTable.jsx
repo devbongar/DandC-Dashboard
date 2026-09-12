@@ -1,14 +1,16 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
+import GlassToggle from './GlassToggle'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { computePermitStatus } from '../lib/permitUtils'
 import { slugify } from '../pages/ProjectDetailPage'
 import SearchDropdown from './SearchDropdown'
+import SheetMultiDropdown from './SheetMultiDropdown'
 import TriangleLoader from './TriangleLoader'
 
 // -- Multi-select searchable dropdown -----------------------------------------
 
-function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholder, icon, minWidth = 130, fluid = false }) {
+function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholder, icon, minWidth = 130, fluid = false, grayAccent = false }) {
   const [open, setOpen]   = useState(false)
   const [query, setQuery] = useState('')
   const ref               = useRef(null)
@@ -56,9 +58,9 @@ function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholde
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-all select-none"
         style={{
           background: open ? '#fff' : '#fafafa',
-          borderColor: open ? '#ed6055' : (!allSelected ? '#ed6055' : '#e5e7eb'),
+          borderColor: open ? (grayAccent ? '#6b7280' : '#ed6055') : (!allSelected ? (grayAccent ? '#6b7280' : '#ed6055') : '#e5e7eb'),
           color: allSelected ? '#9ca3af' : '#111827',
-          boxShadow: open ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+          boxShadow: open ? (grayAccent ? '0 0 0 3px rgba(107,114,128,0.14)' : '0 0 0 3px rgba(237,96,85,0.12)') : '0 1px 2px rgba(0,0,0,0.04)',
           minWidth: fluid ? undefined : minWidth,
           maxWidth: fluid ? undefined : 220,
           width: fluid ? '100%' : undefined,
@@ -75,7 +77,7 @@ function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholde
           <button
             type="button"
             onClick={e => { e.stopPropagation(); clearAll() }}
-            className="flex-shrink-0 text-gray-400 hover:text-[#ed6055] transition-colors"
+            className={`flex-shrink-0 text-gray-400 transition-colors ${grayAccent ? 'hover:text-gray-600' : 'hover:text-[#ed6055]'}`}
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -135,7 +137,7 @@ function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholde
                 type="button"
                 onClick={clearAll}
                 className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-gray-50 border-b border-gray-50"
-                style={{ color: '#ed6055' }}
+                style={{ color: grayAccent ? '#6b7280' : '#ed6055' }}
               >
                 <span className="font-semibold italic">Clear all</span>
               </button>
@@ -152,14 +154,14 @@ function MultiSearchDropdown({ options, values, onChange, emptyLabel, placeholde
                     type="button"
                     onClick={() => toggle(o.value)}
                     className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-gray-50"
-                    style={{ color: checked ? '#ed6055' : '#111827' }}
+                    style={{ color: checked ? (grayAccent ? '#4b5563' : '#ed6055') : '#111827' }}
                   >
                     {/* Checkbox indicator */}
                     <span
                       className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center border transition-colors"
                       style={{
-                        background: checked ? '#ed6055' : '#fff',
-                        borderColor: checked ? '#ed6055' : '#d1d5db',
+                        background: checked ? (grayAccent ? '#4b5563' : '#ed6055') : '#fff',
+                        borderColor: checked ? (grayAccent ? '#4b5563' : '#ed6055') : '#d1d5db',
                       }}
                     >
                       {checked && (
@@ -645,13 +647,13 @@ function ComplianceMobileFilterSheet({ open, onClose, type4ph, setType4ph, filte
     <div className="sm:hidden">
       {/* Backdrop */}
       <div
-        className={`fixed inset-0 z-40 bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
+        className={`fixed inset-0 z-[55] bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
         onClick={triggerClose}
       />
       {/* Sheet */}
       <div
         ref={sheetRef}
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
+        className={`fixed bottom-0 left-0 right-0 z-[60] bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
         style={{ borderRadius: '24px 24px 0 0', paddingBottom: 'env(safe-area-inset-bottom)', maxHeight: '85vh' }}
         onAnimationEnd={handleAnimationEnd}
       >
@@ -673,20 +675,16 @@ function ComplianceMobileFilterSheet({ open, onClose, type4ph, setType4ph, filte
           {/* Type */}
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Type</p>
-            <div className="flex items-center gap-0.5 p-0.5 rounded-lg w-full" style={{ background: 'rgba(0,0,0,0.055)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.10)', borderRadius: '0.875rem', padding: '3px' }}>
-              {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                <button key={t.key} onClick={() => { setType4ph(t.key); setFilterProjects([]) }}
-                  className="flex-1 flex items-center justify-center py-2.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-xl"
-                  style={type4ph === t.key ? { background: 'linear-gradient(135deg, rgba(75,85,99,0.82), #4b5563)', color: '#fff', boxShadow: '0 2px 10px rgba(75,85,99,0.35)' } : { color: '#6b7280', background: 'transparent' }}
-                >{t.label}</button>
-              ))}
-            </div>
+            <GlassToggle
+              options={[{ value: 'all', label: 'All' }, { value: 'yes', label: '4PH' }, { value: 'no', label: 'Non-4PH' }]}
+              value={type4ph}
+              onChange={v => { setType4ph(v); setFilterProjects([]) }}
+            />
           </div>
           {/* Project */}
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Project</p>
-            <MultiSearchDropdown
-              fluid
+            <SheetMultiDropdown
               options={projectOptions} values={filterProjects} onChange={setFilterProjects}
               emptyLabel="All Projects" placeholder="Search projects…"
               icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"

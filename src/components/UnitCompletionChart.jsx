@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
+import GlassToggle from './GlassToggle'
 import { useNavigate } from 'react-router-dom'
 import { supabase, fetchAll } from '../lib/supabaseClient'
 import TriangleLoader from './TriangleLoader'
@@ -7,6 +8,7 @@ import {
   Tooltip, Legend, ResponsiveContainer,
 } from 'recharts'
 import SearchDropdown from './SearchDropdown'
+import SheetMultiDropdown from './SheetMultiDropdown'
 
 // -- Colors -------------------------------------------------------------------
 const M4_EXP = '#d1d5db'  // gray-300    (expected = gray)
@@ -140,7 +142,7 @@ function CustomTooltip({ active, payload, label }) {
 export default function UnitCompletionChart({
   id, expanded = false,
   is4ph: is4phProp, setIs4ph: setIs4phProp,
-  projectId: projectIdProp, setProjectId: setProjectIdProp,
+  projectIds: projectIdsProp, setProjectIds: setProjectIdsProp,
   province: provinceProp, setProvince: setProvinceProp,
   city: cityProp, setCity: setCityProp,
   timeMode: timeModeProp, setTimeMode: setTimeModeProp,
@@ -155,7 +157,7 @@ export default function UnitCompletionChart({
 
   // Internal fallback state (used when props not provided — standalone/dashboard mode)
   const [_is4ph,       _setIs4ph]       = useState('all')
-  const [_projectId,   _setProjectId]   = useState('all')
+  const [_projectIds,  _setProjectIds]  = useState([])
   const [_province,    _setProvince]    = useState('')
   const [_city,        _setCity]        = useState('')
   const [_timeMode,    _setTimeMode]    = useState('monthly')
@@ -164,8 +166,8 @@ export default function UnitCompletionChart({
 
   const is4ph      = is4phProp      ?? _is4ph
   const setIs4ph   = setIs4phProp   ?? _setIs4ph
-  const projectId  = projectIdProp  ?? _projectId
-  const setProjectId = setProjectIdProp ?? _setProjectId
+  const projectIds   = projectIdsProp  ?? _projectIds
+  const setProjectIds = setProjectIdsProp ?? _setProjectIds
   const province   = provinceProp   ?? _province
   const setProvince = setProvinceProp ?? _setProvince
   const city       = cityProp       ?? _city
@@ -194,7 +196,7 @@ export default function UnitCompletionChart({
 
   const availableProvinces  = availableProvincesProp  ?? _availableProvinces
   const availableCities     = availableCitiesProp     ?? _availableCities
-  const activeFilterCount   = activeFilterCountProp   ?? [is4ph !== 'all', projectId !== 'all', !!province, !!city, !!filterDate].filter(Boolean).length
+  const activeFilterCount   = activeFilterCountProp   ?? [is4ph !== 'all', projectIds.length > 0, !!province, !!city, !!filterDate].filter(Boolean).length
 
   const [floors, setFloors]             = useState([])
   const [completions, setCompletions]   = useState([])
@@ -245,7 +247,7 @@ export default function UnitCompletionChart({
 
       const filteredIds = allProjects
         .filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project))
-        .filter(p => projectId === 'all' || p.id === projectId)
+        .filter(p => projectIds.length === 0 || projectIds.includes(p.id))
         .filter(p => !province  || p.province === province)
         .filter(p => !city      || p.city === city)
         .map(p => p.id)
@@ -273,7 +275,7 @@ export default function UnitCompletionChart({
     }
 
     load()
-  }, [allProjects, is4ph, projectId, province, city])
+  }, [allProjects, is4ph, projectIds, province, city])
 
   // Available years derived from data
   const availableYears = useMemo(() => {
@@ -372,7 +374,7 @@ const chartData = useMemo(
                       {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
                         <button
                           key={t.key}
-                          onClick={() => { setIs4ph(t.key); setProjectId('all'); setProvince(''); setCity('') }}
+                          onClick={() => { setIs4ph(t.key); setProjectIds([]); setProvince(''); setCity('') }}
                           className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
                           style={is4ph === t.key ? {
                             background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
@@ -385,10 +387,10 @@ const chartData = useMemo(
                   {/* Project */}
                   <div>
                     <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Project</p>
-                    <SearchDropdown
-                      fluid
+                    <SheetMultiDropdown
                       options={(allProjects ?? []).filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)).sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
-                      value={projectId} onChange={setProjectId} emptyValue="all" emptyLabel="All Projects"
+                      values={projectIds} onChange={setProjectIds}
+                      emptyLabel="All Projects"
                       placeholder="Search projects…"
                       icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
                     />
@@ -419,7 +421,7 @@ const chartData = useMemo(
                   {/* Clear all */}
                   {activeFilterCount > 0 && (
                     <button
-                      onClick={() => { setIs4ph('all'); setProjectId('all'); setProvince(''); setCity(''); setFilterDate('') }}
+                      onClick={() => { setIs4ph('all'); setProjectIds([]); setProvince(''); setCity(''); setFilterDate('') }}
                       className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors"
                     >
                       Clear all filters
@@ -687,21 +689,21 @@ const chartData = useMemo(
           open={mobileSheetOpen}
           onClose={() => setMobileSheetOpen(false)}
           is4ph={is4ph} setIs4ph={setIs4ph}
-          projectId={projectId} setProjectId={setProjectId}
+          projectIds={projectIds} setProjectIds={setProjectIds}
           province={province} setProvince={setProvince}
           city={city} setCity={setCity}
           allProjects={allProjects}
           availableProvinces={availableProvinces}
           availableCities={availableCities}
           activeCount={activeFilterCount}
-          onClear={() => { setIs4ph('all'); setProjectId('all'); setProvince(''); setCity(''); setFilterDate('') }}
+          onClear={() => { setIs4ph('all'); setProjectIds([]); setProvince(''); setCity(''); setFilterDate('') }}
         />
       )}
     </section>
   )
 }
 
-function UnitCompletionMobileFilterSheet({ open, onClose, is4ph, setIs4ph, projectId, setProjectId, province, setProvince, city, setCity, allProjects, availableProvinces, availableCities, activeCount, onClear }) {
+function UnitCompletionMobileFilterSheet({ open, onClose, is4ph, setIs4ph, projectIds, setProjectIds, province, setProvince, city, setCity, allProjects, availableProvinces, availableCities, activeCount, onClear }) {
   const sheetRef = useRef(null)
   const dragStartY = useRef(null)
   const dragCurrentY = useRef(0)
@@ -757,12 +759,12 @@ function UnitCompletionMobileFilterSheet({ open, onClose, is4ph, setIs4ph, proje
   return (
     <div className="sm:hidden">
       <div
-        className={`fixed inset-0 z-40 bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
+        className={`fixed inset-0 z-[55] bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
         onClick={triggerClose}
       />
       <div
         ref={sheetRef}
-        className={`fixed bottom-0 left-0 right-0 z-50 bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
+        className={`fixed bottom-0 left-0 right-0 z-[60] bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
         style={{ borderRadius: '24px 24px 0 0', paddingBottom: 'env(safe-area-inset-bottom)', maxHeight: '85vh' }}
         onAnimationEnd={handleAnimationEnd}
       >
@@ -782,22 +784,19 @@ function UnitCompletionMobileFilterSheet({ open, onClose, is4ph, setIs4ph, proje
           {/* Type */}
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Type</p>
-            <div className="flex items-center" style={{ background: 'rgba(0,0,0,0.055)', borderRadius: '0.875rem', padding: '3px' }}>
-              {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                <button key={t.key} onClick={() => { setIs4ph(t.key); setProjectId('all'); setProvince(''); setCity('') }}
-                  className="flex-1 flex items-center justify-center py-2.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-xl"
-                  style={is4ph === t.key ? { background: 'linear-gradient(135deg, rgba(75,85,99,0.82), #4b5563)', color: '#fff', boxShadow: '0 2px 10px rgba(75,85,99,0.35)' } : { color: '#6b7280', background: 'transparent' }}
-                >{t.label}</button>
-              ))}
-            </div>
+            <GlassToggle
+              options={[{ value: 'all', label: 'All' }, { value: 'yes', label: '4PH' }, { value: 'no', label: 'Non-4PH' }]}
+              value={is4ph}
+              onChange={v => { setIs4ph(v); setProjectIds([]); setProvince(''); setCity('') }}
+            />
           </div>
           {/* Project */}
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Project</p>
-            <SearchDropdown
-              fluid
+            <SheetMultiDropdown
               options={projectOptions}
-              value={projectId} onChange={setProjectId} emptyValue="all" emptyLabel="All Projects"
+              values={projectIds} onChange={setProjectIds}
+              emptyLabel="All Projects"
               placeholder="Search projects…"
               icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
             />
@@ -806,7 +805,7 @@ function UnitCompletionMobileFilterSheet({ open, onClose, is4ph, setIs4ph, proje
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Province</p>
             <SearchDropdown
-              fluid
+              fluid grayAccent
               options={availableProvinces.map(p => ({ value: p, label: p }))}
               value={province} onChange={v => { setProvince(v); setCity('') }}
               emptyValue="" emptyLabel="All Provinces" placeholder="Search provinces…"
@@ -817,7 +816,7 @@ function UnitCompletionMobileFilterSheet({ open, onClose, is4ph, setIs4ph, proje
           <div>
             <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">City</p>
             <SearchDropdown
-              fluid
+              fluid grayAccent
               options={availableCities.map(c => ({ value: c, label: c }))}
               value={city} onChange={setCity}
               emptyValue="" emptyLabel="All Cities" placeholder="Search cities…"

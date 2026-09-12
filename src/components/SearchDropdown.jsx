@@ -6,7 +6,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 // placeholder: search input placeholder text
 // icon: optional SVG path string shown in the trigger
 // disabled: grays out and disables the control
-export default function SearchDropdown({ options, value, onChange, emptyValue, emptyLabel, placeholder, icon, disabled = false, minWidth = 130, fluid = false, clearable = false }) {
+export default function SearchDropdown({ options, value, onChange, emptyValue, emptyLabel, placeholder, icon, disabled = false, minWidth = 130, fluid = false, clearable = false, grayAccent = false }) {
   const [open, setOpen]       = useState(false)
   const [query, setQuery]     = useState('')
   const [alignRight, setAlignRight] = useState(false)
@@ -51,9 +51,9 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
         className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border transition-all"
         style={{
           background: disabled ? '#f9fafb' : open ? '#fff' : '#fafafa',
-          borderColor: open ? '#ed6055' : '#e5e7eb',
+          borderColor: open ? (grayAccent ? '#6b7280' : '#ed6055') : '#e5e7eb',
           color: disabled ? '#9ca3af' : isEmptyVal ? '#9ca3af' : '#111827',
-          boxShadow: open ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+          boxShadow: open ? (grayAccent ? '0 0 0 3px rgba(107,114,128,0.14)' : '0 0 0 3px rgba(237,96,85,0.12)') : '0 1px 2px rgba(0,0,0,0.04)',
           minWidth: fluid ? undefined : minWidth,
           maxWidth: fluid ? undefined : 200,
           width: fluid ? '100%' : undefined,
@@ -129,9 +129,9 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
               type="button"
               onClick={() => select(emptyValue)}
               className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-gray-50"
-              style={{ color: isEmptyVal ? '#ed6055' : '#6b7280' }}
+              style={{ color: isEmptyVal ? (grayAccent ? '#4b5563' : '#ed6055') : '#6b7280' }}
             >
-              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: isEmptyVal ? '#ed6055' : 'transparent', border: isEmptyVal ? 'none' : '1.5px solid #d1d5db' }} />
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: isEmptyVal ? (grayAccent ? '#4b5563' : '#ed6055') : 'transparent', border: isEmptyVal ? 'none' : '1.5px solid #d1d5db' }} />
               <span className="font-medium italic">{emptyLabel}</span>
             </button>
 
@@ -144,9 +144,9 @@ export default function SearchDropdown({ options, value, onChange, emptyValue, e
                   type="button"
                   onClick={() => select(o.value)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-xs text-left transition-colors hover:bg-gray-50"
-                  style={{ color: value === o.value ? '#ed6055' : '#111827' }}
+                  style={{ color: value === o.value ? (grayAccent ? '#4b5563' : '#ed6055') : '#111827' }}
                 >
-                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: value === o.value ? '#ed6055' : 'transparent', border: value === o.value ? 'none' : '1.5px solid #d1d5db' }} />
+                  <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: value === o.value ? (grayAccent ? '#4b5563' : '#ed6055') : 'transparent', border: value === o.value ? 'none' : '1.5px solid #d1d5db' }} />
                   <span className={value === o.value ? 'font-semibold' : 'font-medium'}>{o.label}</span>
                 </button>
               ))
