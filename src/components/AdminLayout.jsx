@@ -238,7 +238,7 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
           style={{
             borderBottom: 'none',
             boxShadow: 'none',
-            paddingTop: mobileBg && isMobile ? 'env(safe-area-inset-top)' : undefined,
+            paddingTop: isMobile ? 'env(safe-area-inset-top)' : undefined,
             borderRadius: mobileBg && isMobile ? '0 0 20px 20px' : undefined,
           }}
         >
