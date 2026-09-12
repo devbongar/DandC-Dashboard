@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef } from 'react'
+﻿import { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { slugify } from './ProjectDetailPage'
 import { supabase } from '../lib/supabaseClient'
@@ -104,9 +104,9 @@ export default function ProjectsPage() {
   const [projects, setProjects]     = useState([])
   const [loading, setLoading]       = useState(true)
   const [search, setSearch]               = useState('')
-  const [phaseFilter, setPhaseFilter]     = useState('all')
+  const [phaseFilter, setPhaseFilter]     = useState([])   // [] = all
   const [is4phFilter, setIs4phFilter]     = useState('all')
-  const [businessUnitFilter, setBusinessUnitFilter] = useState('all')
+  const [businessUnitFilter, setBusinessUnitFilter] = useState([])  // [] = all
   const [devTypeFilter, setDevTypeFilter] = useState('all')
   const [sortOrder, setSortOrder]         = useState('asc')
 
@@ -156,9 +156,9 @@ export default function ProjectsPage() {
     const matchSearch  = !search ||
       p.name?.toLowerCase().includes(search.toLowerCase()) ||
       p.description?.toLowerCase().includes(search.toLowerCase())
-    const matchPhase   = phaseFilter         === 'all' || p.phase            === phaseFilter
-    const match4ph     = is4phFilter         === 'all' || (is4phFilter === 'yes' ? p.is_4ph_project : !p.is_4ph_project)
-    const matchBU      = businessUnitFilter  === 'all' || p.business_unit    === businessUnitFilter
+    const matchPhase   = phaseFilter.length === 0 || phaseFilter.includes(p.phase)
+    const match4ph     = is4phFilter === 'all' || (is4phFilter === 'yes' ? p.is_4ph_project : !p.is_4ph_project)
+    const matchBU      = businessUnitFilter.length === 0 || businessUnitFilter.includes(p.business_unit)
     const matchDevType = devTypeFilter       === 'all' || p.development_type === devTypeFilter
     return matchSearch && matchPhase && match4ph && matchBU && matchDevType
   }).sort((a, b) => {
@@ -267,10 +267,10 @@ export default function ProjectsPage() {
   }
 
   const activeCount = [
-    phaseFilter !== 'all' ? phaseFilter : '',
-    businessUnitFilter !== 'all' ? businessUnitFilter : '',
-    devTypeFilter !== 'all' ? devTypeFilter : '',
-    is4phFilter !== 'all' ? is4phFilter : '',
+    phaseFilter.length > 0,
+    businessUnitFilter.length > 0,
+    devTypeFilter !== 'all',
+    is4phFilter !== 'all',
   ].filter(Boolean).length
 
   // Shared actions dropdown (used in both mobile + desktop rows)
@@ -339,7 +339,7 @@ export default function ProjectsPage() {
           )}
         </button>
         {activeCount > 0 && (
-          <button onClick={() => { setPhaseFilter('all'); setBusinessUnitFilter('all'); setDevTypeFilter('all'); setIs4phFilter('all') }} className="text-xs text-gray-400 hover:text-gray-600 transition flex-shrink-0">
+          <button onClick={() => { setPhaseFilter([]); setBusinessUnitFilter([]); setDevTypeFilter('all'); setIs4phFilter('all') }} className="text-xs text-gray-400 hover:text-gray-600 transition flex-shrink-0">
             Clear
           </button>
         )}
@@ -395,15 +395,15 @@ export default function ProjectsPage() {
         </button>
       </div>
       {/* Phase count row — -mx-5 bleeds past px-5 container to header edges */}
-      <div className="-mx-5 flex overflow-hidden" style={{ background: 'rgba(0,0,0,0.22)' }}>
+      <div className="-mx-5 flex overflow-hidden" style={{ background: 'rgba(0,0,0,0.22)', borderRadius: '0 0 20px 20px' }}>
         {PHASES.map((ph, i) => {
           const count = projects.filter(p => p.phase === ph.key).length
           const shortLabel = ph.key === 'execution_monitoring' ? 'Execution' : ph.label
-          const active = phaseFilter === ph.key
+          const active = phaseFilter.includes(ph.key)
           return (
             <button
               key={ph.key}
-              onClick={() => setPhaseFilter(f => f === ph.key ? 'all' : ph.key)}
+              onClick={() => setPhaseFilter(f => f.includes(ph.key) ? f.filter(x => x !== ph.key) : [...f, ph.key])}
               className="flex-1 flex flex-col items-center py-2.5 transition-all"
               style={{
                 borderLeft: i > 0 ? '1px solid rgba(255,255,255,0.15)' : 'none',
@@ -447,23 +447,34 @@ export default function ProjectsPage() {
         .project-card:hover .card-shine {
           animation: card-shine 1.4s cubic-bezier(0.23,1,0.32,1) forwards;
         }
-
       `}</style>
 
 
-          {/* Filter panel — below header, above scroll */}
+          {/* Filter panel — desktop only */}
           {showFilters && (
-            <div className="px-5 pb-3">
+            <div className="hidden sm:block px-5 pb-3">
               <div className="p-3 bg-white rounded-xl border border-gray-200 shadow-sm">
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
-                  <SearchDropdown fluid options={PHASES.map(p => ({ value: p.key, label: p.label }))} value={phaseFilter} onChange={setPhaseFilter} emptyValue="all" emptyLabel="All Phases" placeholder="Search phases..." />
-                  <SearchDropdown fluid options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))} value={businessUnitFilter} onChange={setBusinessUnitFilter} emptyValue="all" emptyLabel="All Business Units" placeholder="Search units..." />
+                  <SearchDropdown fluid options={PHASES.map(p => ({ value: p.key, label: p.label }))} value={phaseFilter.length === 1 ? phaseFilter[0] : 'all'} onChange={v => v === 'all' ? setPhaseFilter([]) : setPhaseFilter([v])} emptyValue="all" emptyLabel={phaseFilter.length > 1 ? `${phaseFilter.length} phases` : 'All Phases'} placeholder="Search phases..." />
+                  <SearchDropdown fluid options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.code }))} value={businessUnitFilter.length === 1 ? businessUnitFilter[0] : 'all'} onChange={v => v === 'all' ? setBusinessUnitFilter([]) : setBusinessUnitFilter([v])} emptyValue="all" emptyLabel={businessUnitFilter.length > 1 ? `${businessUnitFilter.length} units` : 'All Business Units'} placeholder="Search units..." />
                   <SearchDropdown fluid options={[{ value: 'housing', label: 'Housing' }, { value: 'condominium', label: 'Condominium' }]} value={devTypeFilter} onChange={setDevTypeFilter} emptyValue="all" emptyLabel="All Dev Types" placeholder="Search types..." />
                   <SearchDropdown fluid options={[{ value: 'yes', label: '4PH' }, { value: 'no', label: 'Non-4PH' }]} value={is4phFilter} onChange={setIs4phFilter} emptyValue="all" emptyLabel="All Types" placeholder="Search..." />
                 </div>
               </div>
             </div>
           )}
+
+          {/* Mobile filter bottom sheet */}
+          <MobileFilterSheet
+            open={showFilters}
+            onClose={() => setShowFilters(false)}
+            phaseFilter={phaseFilter} setPhaseFilter={setPhaseFilter}
+            businessUnitFilter={businessUnitFilter} setBusinessUnitFilter={setBusinessUnitFilter}
+            devTypeFilter={devTypeFilter} setDevTypeFilter={setDevTypeFilter}
+            is4phFilter={is4phFilter} setIs4phFilter={setIs4phFilter}
+            activeCount={activeCount}
+            resultCount={filtered.length}
+          />
 
           <div className="p-4 sm:p-6">
             <div className="max-w-6xl mx-auto">
@@ -800,6 +811,344 @@ export default function ProjectsPage() {
         </div>
       )}
     </AdminLayout>
+  )
+}
+
+function MobileFilterSheet({
+  open, onClose,
+  phaseFilter, setPhaseFilter,
+  businessUnitFilter, setBusinessUnitFilter,
+  devTypeFilter, setDevTypeFilter,
+  is4phFilter, setIs4phFilter,
+  activeCount, resultCount,
+}) {
+  const sheetRef = useRef(null)
+  const dragStartY = useRef(null)
+  const dragCurrentY = useRef(0)
+  const [isClosing, setIsClosing] = useState(false)
+
+  // Reset before paint so second open never starts with closing class
+  useLayoutEffect(() => {
+    if (open) setIsClosing(false)
+  }, [open])
+
+  const triggerClose = useCallback(() => setIsClosing(true), [])
+
+  const handleAnimationEnd = useCallback((e) => {
+    if (e.target !== sheetRef.current) return
+    if (e.animationName === 'mobile-sheet-down') onClose()
+  }, [onClose])
+
+  const onTouchStart = useCallback(e => {
+    if (isClosing) return
+    dragStartY.current = e.touches[0].clientY
+    dragCurrentY.current = 0
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+  }, [isClosing])
+
+  const onTouchMove = useCallback(e => {
+    if (dragStartY.current === null) return
+    const delta = e.touches[0].clientY - dragStartY.current
+    if (delta < 0) return
+    dragCurrentY.current = delta
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${delta}px)`
+  }, [])
+
+  const onTouchEnd = useCallback(() => {
+    if (dragStartY.current === null) return
+    dragStartY.current = null
+    if (dragCurrentY.current > 80) {
+      setIsClosing(true)
+    } else {
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)'
+        sheetRef.current.style.transform = 'translateY(0)'
+      }
+    }
+    dragCurrentY.current = 0
+  }, [])
+
+  const resetAll = () => {
+    setPhaseFilter([])
+    setBusinessUnitFilter([])
+    setDevTypeFilter('all')
+    setIs4phFilter('all')
+  }
+
+  if (!open) return null
+
+  return (
+    <div className="sm:hidden">
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
+        onClick={triggerClose}
+      />
+      {/* Sheet */}
+      <div
+        ref={sheetRef}
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
+        style={{
+          borderRadius: '24px 24px 0 0',
+          paddingBottom: 'env(safe-area-inset-bottom)',
+          maxHeight: '85vh',
+        }}
+        onAnimationEnd={handleAnimationEnd}
+      >
+        {/* Drag handle — touch target covers handle + title row */}
+        <div
+          className="flex-shrink-0"
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
+        >
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="w-9 h-1 rounded-full bg-gray-300" />
+          </div>
+          <div className="flex items-center justify-between px-5 py-3">
+            <h3 className="text-base font-bold text-gray-900">Filters</h3>
+            {activeCount > 0 && (
+              <button onClick={resetAll} className="text-sm font-semibold text-[#ed6055]">
+                Reset
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Scrollable filter content */}
+        <div className="flex-1 overflow-y-auto px-5 pb-2">
+          <FilterSection label="Phase">
+            <MultiSelectDropdown
+              options={PHASES.map(ph => ({ value: ph.key, label: ph.label, color: ph.color }))}
+              value={phaseFilter}
+              onChange={setPhaseFilter}
+              placeholder="All Phases"
+            />
+          </FilterSection>
+
+          <FilterSection label="Business Unit">
+            <MultiSelectDropdown
+              options={BUSINESS_UNITS.map(u => ({ value: u.code, label: u.label }))}
+              value={businessUnitFilter}
+              onChange={setBusinessUnitFilter}
+              placeholder="All Business Units"
+            />
+          </FilterSection>
+
+          <div className="mb-5">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Development Type</p>
+            <GlassToggle
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'housing', label: 'Housing' },
+                { value: 'condominium', label: 'Condo' },
+              ]}
+              value={devTypeFilter}
+              onChange={setDevTypeFilter}
+            />
+          </div>
+
+          <div className="mb-5">
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">4PH Status</p>
+            <GlassToggle
+              options={[
+                { value: 'all', label: 'All' },
+                { value: 'yes', label: '4PH' },
+                { value: 'no', label: 'Non-4PH' },
+              ]}
+              value={is4phFilter}
+              onChange={setIs4phFilter}
+            />
+          </div>
+        </div>
+
+        {/* Apply button */}
+        <div className="flex-shrink-0 px-5 py-4 border-t border-gray-100">
+          <button
+            onClick={triggerClose}
+            className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all active:scale-[0.98]"
+            style={{ background: '#ed6055' }}
+          >
+            {activeCount > 0 ? `Show ${resultCount} result${resultCount !== 1 ? 's' : ''}` : 'Apply'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function MultiSelectDropdown({ options, value, onChange, placeholder }) {
+  const [open, setOpen] = useState(false)
+
+  const toggle = (key) => {
+    onChange(value.includes(key) ? value.filter(x => x !== key) : [...value, key])
+  }
+
+  const triggerLabel = value.length === 0 ? placeholder
+    : value.length === 1 ? options.find(o => o.value === value[0])?.label
+    : `${value.length} selected`
+
+  const hasValue = value.length > 0
+
+  return (
+    <div className="w-full">
+      {/* Trigger — matches SearchDropdown exactly */}
+      <button
+        type="button"
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-1.5 px-3 py-3 text-xs rounded-lg border transition-all"
+        style={{
+          background: open ? '#fff' : '#fafafa',
+          borderColor: open || hasValue ? '#ed6055' : '#e5e7eb',
+          color: hasValue ? '#111827' : '#9ca3af',
+          boxShadow: open ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+        }}
+      >
+        <span className="flex-1 text-left truncate font-medium">{triggerLabel}</span>
+        {hasValue && (
+          <span className="flex-shrink-0 w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none">
+            {value.length}
+          </span>
+        )}
+        <svg
+          className="w-3 h-3 flex-shrink-0 text-gray-400 transition-transform"
+          style={{ transform: open ? 'rotate(180deg)' : 'none' }}
+          fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}
+        >
+          <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
+        </svg>
+      </button>
+
+      {/* Inline list — SearchDropdown popover style, no absolute positioning */}
+      {open && (
+        <div
+          className="mt-1.5 rounded-xl overflow-hidden"
+          style={{
+            background: '#fff',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)',
+          }}
+        >
+          {options.map((opt, i) => {
+            const checked = value.includes(opt.value)
+            return (
+              <button
+                key={opt.value}
+                type="button"
+                onClick={() => toggle(opt.value)}
+                className="w-full flex items-center gap-2 px-3 py-3 text-xs text-left transition-colors hover:bg-gray-50"
+                style={{
+                  borderTop: i > 0 ? '1px solid #f3f4f6' : 'none',
+                  color: checked ? '#ed6055' : '#111827',
+                }}
+              >
+                <span
+                  className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center"
+                  style={{
+                    background: checked ? '#ed6055' : '#fff',
+                    border: checked ? '1.5px solid #ed6055' : '1.5px solid #d1d5db',
+                    flexShrink: 0,
+                  }}
+                >
+                  {checked && (
+                    <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                      <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  )}
+                </span>
+                {opt.color && <span className="flex-shrink-0 w-1.5 h-1.5 rounded-full" style={{ background: opt.color }} />}
+                <span className={checked ? 'font-semibold' : 'font-medium'}>{opt.label}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
+
+function FilterSection({ label, children }) {
+  return (
+    <div className="mb-5">
+      <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">{label}</p>
+      <div className="flex flex-wrap gap-2">{children}</div>
+    </div>
+  )
+}
+
+function GlassToggle({ options, value, onChange }) {
+  const idx = options.findIndex(o => o.value === value)
+  const selectedIdx = idx === -1 ? 0 : idx
+  const count = options.length
+
+  return (
+    <div
+      className="relative flex w-full overflow-hidden"
+      style={{
+        borderRadius: '0.875rem',
+        background: 'rgba(0,0,0,0.055)',
+        boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.10), inset 0 -1px 1px rgba(255,255,255,0.8)',
+        padding: '3px',
+      }}
+    >
+      {/* Sliding glider */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '3px',
+          bottom: '3px',
+          left: '3px',
+          width: `calc(${100 / count}% - 6px / ${count})`,
+          transform: `translateX(calc(${selectedIdx * 100}% + ${selectedIdx * 6 / count}px))`,
+          transition: 'transform 0.46s cubic-bezier(0.37, 1.95, 0.66, 0.56)',
+          borderRadius: '0.65rem',
+          background: 'linear-gradient(135deg, rgba(237,96,85,0.82), #ed6055)',
+          boxShadow: '0 2px 10px rgba(237,96,85,0.38), 0 0 0 1px rgba(237,96,85,0.2), inset 0 1px 0 rgba(255,200,195,0.3)',
+          pointerEvents: 'none',
+          zIndex: 0,
+        }}
+      />
+      {options.map((opt, i) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onChange(opt.value)}
+          className="flex-1 flex items-center justify-center transition-colors"
+          style={{
+            position: 'relative',
+            zIndex: 1,
+            padding: '0.65rem 0.5rem',
+            fontSize: '0.75rem',
+            fontWeight: 600,
+            letterSpacing: '0.01em',
+            color: value === opt.value ? '#ffffff' : '#6b7280',
+            borderRadius: '0.65rem',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            transition: 'color 0.2s ease',
+          }}
+        >
+          {opt.label}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+function FilterPill({ active, color, onClick, children }) {
+  return (
+    <button
+      onClick={onClick}
+      className="px-3.5 py-2 rounded-full text-sm font-semibold transition-all active:scale-95"
+      style={{
+        background: active ? (color ? `${color}20` : '#ed6055') : '#f3f4f6',
+        color: active ? (color ?? '#ffffff') : '#6b7280',
+        border: `1.5px solid ${active ? (color ?? '#ed6055') : 'transparent'}`,
+      }}
+    >
+      {children}
+    </button>
   )
 }
 

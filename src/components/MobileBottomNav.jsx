@@ -47,7 +47,32 @@ export default function MobileBottomNav({ profile }) {
     ] : []),
   ]
 
+  const scrollToTop = () => {
+    const el = document.getElementById('main-scroll')
+    if (el) el.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
   return (
+    <>
+      {/* Back to top — appears when nav hides (scrolling down) */}
+      <div
+        className="btt-wrap sm:hidden"
+        style={{
+          transform: `translateX(-50%) translateY(${visible ? 'calc(100% + 2rem)' : '0'})`,
+          pointerEvents: visible ? 'none' : 'auto',
+        }}
+      >
+        <div className="btt-shadow" />
+        <button className="btt-btn" onClick={scrollToTop} aria-label="Back to top">
+          <span>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 19V5M5 12l7-7 7 7" />
+            </svg>
+            Top
+          </span>
+        </button>
+      </div>
+
     <nav
       className="fixed bottom-4 left-1/2 z-50 sm:hidden flex items-center gap-0.5 px-2 py-1.5"
       style={{
@@ -86,6 +111,7 @@ export default function MobileBottomNav({ profile }) {
         </NavLink>
       ))}
     </nav>
+    </>
   )
 }
 
