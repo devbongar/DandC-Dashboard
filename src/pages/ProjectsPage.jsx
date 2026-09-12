@@ -19,12 +19,12 @@ const PHASES = [
 const PHASE_MAP = Object.fromEntries(PHASES.map(p => [p.key, p]))
 
 const BUSINESS_UNITS = [
-  { code: 'FPI',    label: 'Famtech Properties Inc.' },
-  { code: 'MDRI',   label: 'Megawide Dreamrise Residences Inc.' },
-  { code: 'PCI',    label: 'Plushomes Inc.' },
-  { code: 'PH1VEL', label: 'PH1VEL Properties Inc.' },
-  { code: 'PH1',    label: 'PH1 World Developers Inc.' },
-  { code: 'PH1L',   label: 'PH1 World Landscapes Inc.' },
+  { code: 'FPI',    label: 'Famtech Properties Inc.',              bg: '#dbeafe', fg: '#1d4ed8' },
+  { code: 'MDRI',   label: 'Megawide Dreamrise Residences Inc.',   bg: '#ede9fe', fg: '#6d28d9' },
+  { code: 'PCI',    label: 'Plushomes Inc.',                       bg: '#dcfce7', fg: '#15803d' },
+  { code: 'PH1VEL', label: 'PH1VEL Properties Inc.',              bg: '#fef3c7', fg: '#b45309' },
+  { code: 'PH1',    label: 'PH1 World Developers Inc.',            bg: '#fce7f3', fg: '#be185d' },
+  { code: 'PH1L',   label: 'PH1 World Landscapes Inc.',            bg: '#ccfbf1', fg: '#0f766e' },
 ]
 
 const BU_LABEL_TO_CODE = Object.fromEntries(
@@ -121,6 +121,7 @@ export default function ProjectsPage() {
   const [showReportBuilder, setShowReportBuilder] = useState(false)
   const [showFilters, setShowFilters]   = useState(false)
   const [showActions, setShowActions]   = useState(false)
+  const [showAllBU,   setShowAllBU]     = useState(false)
 
   const actionsRef = useRef(null)
   const importRef  = useRef(null)
@@ -479,6 +480,14 @@ export default function ProjectsPage() {
           <div className="p-4 sm:p-6">
             <div className="max-w-6xl mx-auto">
 
+              {/* Business Unit section — mobile only */}
+              <BUSectionMobile
+                businessUnitFilter={businessUnitFilter}
+                setBusinessUnitFilter={setBusinessUnitFilter}
+                showAllBU={showAllBU}
+                setShowAllBU={setShowAllBU}
+              />
+
               {/* Card grid */}
               {loading ? (
                 <div className="flex items-center justify-center py-12">
@@ -504,6 +513,10 @@ export default function ProjectsPage() {
                 </div>
               ) : (
                 <>
+                  <div className="flex items-baseline gap-2 mb-4 mt-6">
+                    <span className="text-sm font-bold text-gray-800">Projects</span>
+                    <span className="text-xs font-semibold text-gray-400">{filtered.length}</span>
+                  </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-10">
                     {filtered.map((project, idx) => {
                       const ph = PHASE_MAP[project.phase]
@@ -1063,6 +1076,96 @@ function MultiSelectDropdown({ options, value, onChange, placeholder }) {
           })}
         </div>
       )}
+    </div>
+  )
+}
+
+function BUSectionMobile({ businessUnitFilter, setBusinessUnitFilter, showAllBU, setShowAllBU }) {
+  const [logoLoaded, setLogoLoaded] = useState({}) // code -> true|false
+
+  useEffect(() => {
+    BUSINESS_UNITS.forEach(u => {
+      const img = new Image()
+      img.onload  = () => setLogoLoaded(s => ({ ...s, [u.code]: true }))
+      img.onerror = () => setLogoLoaded(s => ({ ...s, [u.code]: false }))
+      img.src = `/bu-logos/${u.code}.png`
+    })
+  }, [])
+
+  const sorted = [...BUSINESS_UNITS].sort((a, b) => {
+    const al = logoLoaded[a.code] === true
+    const bl = logoLoaded[b.code] === true
+    return al === bl ? 0 : al ? -1 : 1
+  })
+
+  const visible = showAllBU ? sorted : sorted.slice(0, 4)
+
+  return (
+    <div className="sm:hidden mt-6 mb-5">
+      <div className="flex items-center justify-between mb-3">
+        <span className="text-sm font-bold text-gray-800">Business Units</span>
+        <button onClick={() => setShowAllBU(v => !v)} className="text-xs font-semibold text-gray-400">
+          {showAllBU ? 'Show less' : 'See all'}
+        </button>
+      </div>
+      <div className="grid grid-cols-4 gap-3">
+        {visible.map(u => {
+          const active  = businessUnitFilter.includes(u.code)
+          const hasLogo = logoLoaded[u.code] === true
+          const toggle  = () => setBusinessUnitFilter(f =>
+            f.includes(u.code) ? f.filter(x => x !== u.code) : [...f, u.code]
+          )
+          return (
+            <button key={u.code} type="button" onClick={toggle} className="flex flex-col items-center gap-1.5">
+              <div className="relative w-full aspect-square">
+                {/* Circle */}
+                <div
+                  className="w-full h-full rounded-full flex items-center justify-center overflow-hidden transition-all"
+                  style={{
+                    background: '#ffffff',
+                    boxShadow: active
+                      ? '0 4px 14px rgba(237,96,85,0.2), 0 1px 4px rgba(237,96,85,0.12)'
+                      : '0 4px 12px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.07), inset 0 1px 0 rgba(255,255,255,0.9)',
+                    border: active ? '2.5px solid #ed6055' : '1.5px solid rgba(0,0,0,0.07)',
+                  }}
+                >
+                  {hasLogo ? (
+                    <img
+                      src={`/bu-logos/${u.code}.png`}
+                      alt={u.code}
+                      className="w-[65%] h-[65%] object-contain"
+                    />
+                  ) : (
+                    <span
+                      className="font-bold leading-none select-none"
+                      style={{ color: u.fg, fontSize: u.code.length > 4 ? 14 : 18, fontWeight: 800 }}
+                    >
+                      {u.code}
+                    </span>
+                  )}
+                </div>
+                {/* Check badge */}
+                {active && (
+                  <div
+                    className="absolute top-0 right-0 w-4 h-4 rounded-full flex items-center justify-center"
+                    style={{ background: '#ed6055', boxShadow: '0 1px 4px rgba(237,96,85,0.5)' }}
+                  >
+                    <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
+                      <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                )}
+              </div>
+              <span
+                className="text-[10px] font-semibold text-center leading-tight w-full truncate"
+                style={{ color: active ? '#ed6055' : '#6b7280' }}
+              >
+                {u.code}
+              </span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
