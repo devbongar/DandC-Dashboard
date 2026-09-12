@@ -240,16 +240,15 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
             boxShadow: 'none',
             paddingTop: mobileBg && isMobile ? 'env(safe-area-inset-top)' : undefined,
             borderRadius: mobileBg && isMobile ? '0 0 20px 20px' : undefined,
-            overflow: mobileBg && isMobile ? 'hidden' : undefined,
           }}
         >
-          {/* Gradient background */}
+          {/* Gradient background — clip-path clips to rounded shape without overflow:hidden (which would cut dropdowns) */}
           {mobileBg && isMobile && (
             <div
               className="pointer-events-none absolute inset-0"
               style={{
                 background: mobileBg,
-                borderRadius: 'inherit',
+                clipPath: 'inset(0 0 0 0 round 0 0 20px 20px)',
               }}
             />
           )}
