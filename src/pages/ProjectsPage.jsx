@@ -908,7 +908,7 @@ function MobileFilterSheet({
           <div className="flex items-center justify-between px-5 py-3">
             <h3 className="text-base font-bold text-gray-900">Filters</h3>
             {activeCount > 0 && (
-              <button onClick={resetAll} className="text-sm font-semibold text-[#ed6055]">
+              <button onClick={resetAll} className="text-sm font-semibold text-gray-500">
                 Reset
               </button>
             )}
@@ -967,7 +967,7 @@ function MobileFilterSheet({
           <button
             onClick={triggerClose}
             className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all active:scale-[0.98]"
-            style={{ background: '#ed6055' }}
+            style={{ background: '#374151' }}
           >
             {activeCount > 0 ? `Show ${resultCount} result${resultCount !== 1 ? 's' : ''}` : 'Apply'}
           </button>
@@ -999,14 +999,14 @@ function MultiSelectDropdown({ options, value, onChange, placeholder }) {
         className="w-full flex items-center gap-1.5 px-3 py-3 text-xs rounded-lg border transition-all"
         style={{
           background: open ? '#fff' : '#fafafa',
-          borderColor: open || hasValue ? '#ed6055' : '#e5e7eb',
+          borderColor: open || hasValue ? '#6b7280' : '#e5e7eb',
           color: hasValue ? '#111827' : '#9ca3af',
-          boxShadow: open ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+          boxShadow: open ? '0 0 0 3px rgba(107,114,128,0.14)' : '0 1px 2px rgba(0,0,0,0.04)',
         }}
       >
         <span className="flex-1 text-left truncate font-medium">{triggerLabel}</span>
         {hasValue && (
-          <span className="flex-shrink-0 w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none">
+          <span className="flex-shrink-0 w-4 h-4 rounded-full bg-gray-600 text-white text-[10px] font-bold flex items-center justify-center leading-none">
             {value.length}
           </span>
         )}
@@ -1036,17 +1036,17 @@ function MultiSelectDropdown({ options, value, onChange, placeholder }) {
                 key={opt.value}
                 type="button"
                 onClick={() => toggle(opt.value)}
-                className="w-full flex items-center gap-2 px-3 py-3 text-xs text-left transition-colors hover:bg-gray-50"
+                className="w-full flex items-center gap-2 px-3 py-4 text-xs text-left transition-colors hover:bg-gray-50"
                 style={{
                   borderTop: i > 0 ? '1px solid #f3f4f6' : 'none',
-                  color: checked ? '#ed6055' : '#111827',
+                  color: checked ? '#374151' : '#111827',
                 }}
               >
                 <span
                   className="w-3.5 h-3.5 rounded flex-shrink-0 flex items-center justify-center"
                   style={{
-                    background: checked ? '#ed6055' : '#fff',
-                    border: checked ? '1.5px solid #ed6055' : '1.5px solid #d1d5db',
+                    background: checked ? '#4b5563' : '#fff',
+                    border: checked ? '1.5px solid #4b5563' : '1.5px solid #d1d5db',
                     flexShrink: 0,
                   }}
                 >
@@ -1102,8 +1102,8 @@ function GlassToggle({ options, value, onChange }) {
           transform: `translateX(calc(${selectedIdx * 100}% + ${selectedIdx * 6 / count}px))`,
           transition: 'transform 0.46s cubic-bezier(0.37, 1.95, 0.66, 0.56)',
           borderRadius: '0.65rem',
-          background: 'linear-gradient(135deg, rgba(237,96,85,0.82), #ed6055)',
-          boxShadow: '0 2px 10px rgba(237,96,85,0.38), 0 0 0 1px rgba(237,96,85,0.2), inset 0 1px 0 rgba(255,200,195,0.3)',
+          background: 'linear-gradient(135deg, rgba(75,85,99,0.82), #4b5563)',
+          boxShadow: '0 2px 10px rgba(75,85,99,0.35), 0 0 0 1px rgba(75,85,99,0.18), inset 0 1px 0 rgba(200,210,220,0.25)',
           pointerEvents: 'none',
           zIndex: 0,
         }}
