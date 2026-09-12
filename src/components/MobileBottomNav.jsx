@@ -74,7 +74,7 @@ export default function MobileBottomNav({ profile }) {
       </div>
 
     <nav
-      className="fixed bottom-4 left-1/2 z-50 sm:hidden flex items-center gap-0.5 px-2 py-1.5"
+      className="fixed bottom-4 left-1/2 z-50 sm:hidden flex items-center gap-1 px-3 py-2.5"
       style={{
         background: 'rgba(30, 30, 40, 0.72)',
         backdropFilter: 'blur(12px) saturate(160%)',
@@ -91,17 +91,17 @@ export default function MobileBottomNav({ profile }) {
           key={path}
           to={path}
           end={path === dashboardPath}
-          className="flex flex-col items-center gap-0.5 px-3.5 py-1.5 rounded-full"
+          className="flex flex-col items-center gap-1 px-4 py-2 rounded-full"
         >
           {({ isActive }) => (
             <>
               <Icon
-                className="w-5 h-5 flex-shrink-0 transition-all duration-150"
+                className="w-6 h-6 flex-shrink-0 transition-all duration-150"
                 style={{ color: '#fff', opacity: isActive ? 1 : 0.35 }}
                 solid={isActive}
               />
               <span
-                className="text-[9px] font-semibold leading-none tracking-wide transition-all duration-150"
+                className="text-[10px] font-semibold leading-none tracking-wide transition-all duration-150"
                 style={{ color: '#fff', opacity: isActive ? 1 : 0.35 }}
               >
                 {label}
