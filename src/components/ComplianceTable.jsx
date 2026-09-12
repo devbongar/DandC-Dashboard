@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react'
+import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { computePermitStatus } from '../lib/permitUtils'
@@ -238,6 +238,7 @@ export default function ComplianceTable({ id }) {
   const [sortOrder, setSortOrder] = useState('asc')
   const [type4ph, setType4ph]     = useState('all')
   const [filtersOpen, setFiltersOpen] = useState(false)
+  const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
   const filtersRef = useRef(null)
 
   useEffect(() => { fetchAll() }, [])
@@ -316,7 +317,7 @@ export default function ComplianceTable({ id }) {
   const isEmpty = !loading && (projects.length === 0 || permitNames.length === 0)
 
   return (
-    <section id={id} className="mb-0 bg-white rounded-xl border border-gray-200 shadow p-4 flex flex-col h-[600px]">
+    <section id={id} className="mb-0 bg-white border border-gray-200 shadow p-4 flex flex-col h-[600px]" style={{ borderRadius: 30 }}>
 
       {/* Header */}
       <div className="flex items-center justify-between mb-3">
@@ -328,7 +329,29 @@ export default function ComplianceTable({ id }) {
           {!loading && !isEmpty && (() => {
           const activeCount = [type4ph !== 'all', filterProjects.length > 0, sortOrder !== 'asc'].filter(Boolean).length
           return (
-            <div ref={filtersRef} className="relative flex-shrink-0">
+            <>
+              {/* Mobile filter button */}
+              <button
+                onClick={() => setMobileSheetOpen(true)}
+                className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                style={{
+                  background: activeCount > 0 ? '#fff' : '#fafafa',
+                  borderColor: activeCount > 0 ? '#ed6055' : '#e5e7eb',
+                  color: activeCount > 0 ? '#ed6055' : '#6b7280',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+                }}
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+                </svg>
+                {activeCount > 0 && (
+                  <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+                    {activeCount}
+                  </span>
+                )}
+              </button>
+              {/* Desktop filter dropdown */}
+              <div ref={filtersRef} className="relative flex-shrink-0 hidden sm:flex">
               <button
                 onClick={() => setFiltersOpen(v => !v)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
@@ -342,7 +365,7 @@ export default function ComplianceTable({ id }) {
                 <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
                 </svg>
-                Filters
+                <span className="hidden sm:inline">Filters</span>
                 {activeCount > 0 && (
                   <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
                     {activeCount}
@@ -406,7 +429,8 @@ export default function ComplianceTable({ id }) {
                   </div>
                 </div>
               )}
-            </div>
+              </div>
+            </>
           )
         })()}
           <button
@@ -551,6 +575,149 @@ export default function ComplianceTable({ id }) {
         )}
       </div>
 
+      {/* Mobile filter sheet */}
+      {mobileSheetOpen && (
+        <ComplianceMobileFilterSheet
+          open={mobileSheetOpen}
+          onClose={() => setMobileSheetOpen(false)}
+          type4ph={type4ph} setType4ph={setType4ph}
+          filterProjects={filterProjects} setFilterProjects={setFilterProjects}
+          projectOptions={projectOptions}
+          sortOrder={sortOrder} setSortOrder={setSortOrder}
+          activeCount={[type4ph !== 'all', filterProjects.length > 0, sortOrder !== 'asc'].filter(Boolean).length}
+        />
+      )}
     </section>
+  )
+}
+
+function ComplianceMobileFilterSheet({ open, onClose, type4ph, setType4ph, filterProjects, setFilterProjects, projectOptions, sortOrder, setSortOrder, activeCount }) {
+  const sheetRef = useRef(null)
+  const dragStartY = useRef(null)
+  const dragCurrentY = useRef(0)
+  const [isClosing, setIsClosing] = useState(false)
+
+  useLayoutEffect(() => {
+    if (open) setIsClosing(false)
+  }, [open])
+
+  const triggerClose = useCallback(() => setIsClosing(true), [])
+
+  const handleAnimationEnd = useCallback((e) => {
+    if (e.target !== sheetRef.current) return
+    if (e.animationName === 'mobile-sheet-down') onClose()
+  }, [onClose])
+
+  const onTouchStart = useCallback(e => {
+    if (isClosing) return
+    dragStartY.current = e.touches[0].clientY
+    dragCurrentY.current = 0
+    if (sheetRef.current) sheetRef.current.style.transition = 'none'
+  }, [isClosing])
+
+  const onTouchMove = useCallback(e => {
+    if (dragStartY.current === null) return
+    const delta = e.touches[0].clientY - dragStartY.current
+    if (delta < 0) return
+    dragCurrentY.current = delta
+    if (sheetRef.current) sheetRef.current.style.transform = `translateY(${delta}px)`
+  }, [])
+
+  const onTouchEnd = useCallback(() => {
+    if (dragStartY.current === null) return
+    dragStartY.current = null
+    if (dragCurrentY.current > 80) {
+      setIsClosing(true)
+    } else {
+      if (sheetRef.current) {
+        sheetRef.current.style.transition = 'transform 0.3s cubic-bezier(0.32, 0.72, 0, 1)'
+        sheetRef.current.style.transform = 'translateY(0)'
+      }
+    }
+    dragCurrentY.current = 0
+  }, [])
+
+  const resetAll = () => { setType4ph('all'); setFilterProjects([]); setSortOrder('asc') }
+
+  if (!open) return null
+
+  return (
+    <div className="sm:hidden">
+      {/* Backdrop */}
+      <div
+        className={`fixed inset-0 z-40 bg-black/50 ${isClosing ? 'mobile-sheet-backdrop-closing' : 'mobile-sheet-backdrop-opening'}`}
+        onClick={triggerClose}
+      />
+      {/* Sheet */}
+      <div
+        ref={sheetRef}
+        className={`fixed bottom-0 left-0 right-0 z-50 bg-white flex flex-col ${isClosing ? 'mobile-sheet-closing' : 'mobile-sheet-opening'}`}
+        style={{ borderRadius: '24px 24px 0 0', paddingBottom: 'env(safe-area-inset-bottom)', maxHeight: '85vh' }}
+        onAnimationEnd={handleAnimationEnd}
+      >
+        {/* Drag handle */}
+        <div className="flex-shrink-0" onTouchStart={onTouchStart} onTouchMove={onTouchMove} onTouchEnd={onTouchEnd}>
+          <div className="flex justify-center pt-3 pb-1">
+            <div className="w-9 h-1 rounded-full bg-gray-300" />
+          </div>
+          <div className="flex items-center justify-between px-5 py-3">
+            <h3 className="text-base font-bold text-gray-900">Filters</h3>
+            {activeCount > 0 && (
+              <button onClick={resetAll} className="text-sm font-semibold text-gray-500">Reset</button>
+            )}
+          </div>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-y-auto px-5 pb-2 space-y-5">
+          {/* Type */}
+          <div>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Type</p>
+            <div className="flex items-center gap-0.5 p-0.5 rounded-lg w-full" style={{ background: 'rgba(0,0,0,0.055)', boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.10)', borderRadius: '0.875rem', padding: '3px' }}>
+              {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
+                <button key={t.key} onClick={() => { setType4ph(t.key); setFilterProjects([]) }}
+                  className="flex-1 flex items-center justify-center py-2.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-xl"
+                  style={type4ph === t.key ? { background: 'linear-gradient(135deg, rgba(75,85,99,0.82), #4b5563)', color: '#fff', boxShadow: '0 2px 10px rgba(75,85,99,0.35)' } : { color: '#6b7280', background: 'transparent' }}
+                >{t.label}</button>
+              ))}
+            </div>
+          </div>
+          {/* Project */}
+          <div>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Project</p>
+            <MultiSearchDropdown
+              fluid
+              options={projectOptions} values={filterProjects} onChange={setFilterProjects}
+              emptyLabel="All Projects" placeholder="Search projects…"
+              icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
+            />
+          </div>
+          {/* Sort */}
+          <div>
+            <p className="text-[11px] font-bold text-gray-400 uppercase tracking-wider mb-2.5">Sort</p>
+            <button
+              onClick={() => setSortOrder(o => o === 'asc' ? 'desc' : 'asc')}
+              className="w-full flex items-center gap-1.5 px-3 py-3 rounded-xl border border-gray-200 text-sm font-semibold text-gray-600 bg-white hover:bg-gray-50 transition"
+            >
+              <svg className="w-4 h-4 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M7 12h10M11 17h2" />
+              </svg>
+              {sortOrder === 'asc' ? 'A → Z' : 'Z → A'}
+            </button>
+          </div>
+        </div>
+
+        {/* Apply */}
+        <div className="flex-shrink-0 px-5 py-4 border-t border-gray-100">
+          <button
+            onClick={triggerClose}
+            className="w-full py-3.5 rounded-2xl text-sm font-bold text-white transition-all active:scale-[0.98]"
+            style={{ background: '#374151' }}
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
   )
 }

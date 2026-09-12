@@ -37,7 +37,7 @@ function SidebarTooltip({ label }) {
  *   actions  — optional ReactNode rendered between title and notification bell
  *   children — main scrollable content
  */
-export default function AdminLayout({ title, actions, mobileActionsRow, mobileTitleActions, children, mobileBg }) {
+export default function AdminLayout({ title, actions, mobileActionsRow, mobileTitleActions, children, mobileBg, showGreeting, mobileContentOverlap = 0 }) {
   const { profile, loading } = useProfile()
   const showLoading = useMinLoading(loading)
   const navigate    = useNavigate()
@@ -239,6 +239,7 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
             borderBottom: 'none',
             boxShadow: 'none',
             paddingTop: isMobile ? 'env(safe-area-inset-top)' : undefined,
+            paddingBottom: mobileBg && isMobile && mobileContentOverlap ? mobileContentOverlap : undefined,
             borderRadius: mobileBg && isMobile ? '0 0 20px 20px' : undefined,
           }}
         >
@@ -330,7 +331,18 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
           )}
           </div>{/* end row 1 */}
 
-          {/* Row 2: mobile search row */}
+          {/* Row 2: greeting (mobile only) */}
+          {showGreeting && isMobile && (
+            <div className="pb-5 pt-1">
+              <p className="leading-snug" style={{ fontSize: 20 }}>
+                <span className="text-white/70">Hi </span>
+                <span className="text-white font-semibold">{profile?.full_name?.split(' ')[0] ?? 'there'},</span>
+              </p>
+              <p className="text-white/55 mt-0.5" style={{ fontSize: 16 }}>here are the current project updates</p>
+            </div>
+          )}
+
+          {/* Row 3: mobile search row */}
           {mobileActionsRow && (
             <div className="sm:hidden pt-6 pb-0">
               {mobileActionsRow}
@@ -349,7 +361,9 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
           )}
         </header>
 
-          {children}
+          <div style={{ marginTop: mobileBg && isMobile && mobileContentOverlap ? -mobileContentOverlap : undefined, position: mobileBg && isMobile && mobileContentOverlap ? 'relative' : undefined, zIndex: mobileBg && isMobile && mobileContentOverlap ? 1 : undefined }}>
+            {children}
+          </div>
         </div>
       </div>
     </div>

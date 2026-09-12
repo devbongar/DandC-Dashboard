@@ -67,7 +67,7 @@ export default function ProjectPhasesBoard({ id }) {
   const byPhase = (key) => projects.filter(p => p.phase === key)
 
   return (
-    <section id={id} className="mb-0 flex flex-col bg-white rounded-xl border border-gray-200 shadow p-4">
+    <section id={id} className="mb-0 flex flex-col bg-white border border-gray-200 shadow p-4" style={{ borderRadius: 30 }}>
 
       {/* -- Section header -- */}
       <div className="flex items-center justify-between mb-3">

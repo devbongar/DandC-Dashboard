@@ -6,7 +6,7 @@ import UnitCompletionChart from '../../components/UnitCompletionChart'
 
 export default function AdminDashboard() {
   return (
-    <AdminLayout title="Dashboard">
+    <AdminLayout title="Dashboard" mobileBg="linear-gradient(180deg, #555555 0%, #909090 100%)" showGreeting mobileContentOverlap={180}>
       <main className="p-4">
         <div id="dashboard-content" className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           <div className="flex flex-col gap-3 h-full">
