@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo, useRef, useLayoutEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import GlassToggle from './GlassToggle'
 import { useNavigate } from 'react-router-dom'
 import { supabase, fetchAll } from '../lib/supabaseClient'
@@ -104,6 +105,108 @@ function extractYears(floors, completions) {
 }
 
 
+// -- Per-period drilldown rows -------------------------------------------------
+function buildDrilldownRows(period, section, floors, completions, allProjects, timeMode) {
+  const projectMap = Object.fromEntries((allProjects ?? []).map(p => [p.id, p.name]))
+  const plannedByProject = {}
+  for (const f of floors) {
+    const dateField = section === 'm4' ? f.m4_planned_end : f.m5_planned_end
+    if (toPeriodKey(dateField, timeMode) === period) {
+      plannedByProject[f.project_id] = (plannedByProject[f.project_id] ?? 0) + (f.num_units ?? 0)
+    }
+  }
+  const actualByProject = {}
+  for (const c of completions) {
+    const dateField = section === 'm4' ? c.m4_date : c.m5_date
+    if (toPeriodKey(dateField, timeMode) === period) {
+      actualByProject[c.project_id] = (actualByProject[c.project_id] ?? 0) + 1
+    }
+  }
+  const ids = [...new Set([...Object.keys(plannedByProject), ...Object.keys(actualByProject)])]
+  return ids
+    .map((id, i) => {
+      const planned = plannedByProject[id] ?? 0
+      const actual  = actualByProject[id]  ?? 0
+      return { no: i + 1, name: projectMap[id] ?? id, planned, actual, variance: actual - planned }
+    })
+    .sort((a, b) => a.name.localeCompare(b.name))
+    .map((r, i) => ({ ...r, no: i + 1 }))
+}
+
+// -- Drilldown Panel -----------------------------------------------------------
+function DrilldownPanel({ data, onClose }) {
+  if (!data) return null
+  const { label, section, rows, x, y } = data
+
+  // Clamp position so panel stays in viewport
+  const panelW = 480
+  const panelH = Math.min(rows.length * 36 + 100, 420)
+  const vw = window.innerWidth
+  const vh = window.innerHeight
+  const left = Math.min(Math.max(x - panelW / 2, 8), vw - panelW - 8)
+  const top  = y + panelH + 16 > vh ? Math.max(y - panelH - 8, 8) : y + 16
+
+  return createPortal(
+    <>
+      {/* Backdrop */}
+      <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={onClose} />
+      {/* Panel */}
+      <div style={{
+        position: 'fixed', left, top, zIndex: 1000, width: panelW,
+        background: '#fff', borderRadius: 16,
+        boxShadow: '0 8px 32px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
+        overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #f3f4f6' }}>
+          <div>
+            <span style={{ fontSize: 11, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+              {section === 'm4' ? 'M4 Unit Completion' : 'M5 Handover to PMO'}
+            </span>
+            <p style={{ fontSize: 14, fontWeight: 700, color: '#111827', marginTop: 1 }}>{label}</p>
+          </div>
+          <button onClick={onClose} style={{ width: 28, height: 28, borderRadius: 8, border: '1px solid #e5e7eb', background: '#f9fafb', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6b7280' }}>
+            <svg width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+        {/* Table */}
+        <div style={{ overflowY: 'auto', maxHeight: 340 }}>
+          {rows.length === 0 ? (
+            <p style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>No data for this period.</p>
+          ) : (
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
+              <thead>
+                <tr style={{ background: '#f9fafb' }}>
+                  {['#', 'Project', 'Planned', 'Actual', 'Variance'].map(h => (
+                    <th key={h} style={{ padding: '8px 12px', textAlign: h === '#' || h === 'Planned' || h === 'Actual' || h === 'Variance' ? 'center' : 'left', fontSize: 10, fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.05em', borderBottom: '1px solid #f3f4f6', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={r.no} style={{ borderBottom: i < rows.length - 1 ? '1px solid #f9fafb' : 'none', background: i % 2 === 0 ? '#fff' : '#fafafa' }}>
+                    <td style={{ padding: '9px 12px', textAlign: 'center', color: '#9ca3af', fontWeight: 600 }}>{r.no}</td>
+                    <td style={{ padding: '9px 12px', color: '#111827', fontWeight: 500, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'center', color: '#374151', fontWeight: 600 }}>{r.planned}</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'center', color: '#374151', fontWeight: 600 }}>{r.actual}</td>
+                    <td style={{ padding: '9px 12px', textAlign: 'center', fontWeight: 700, color: r.variance > 0 ? '#16a34a' : r.variance < 0 ? '#dc2626' : '#6b7280' }}>
+                      {r.variance > 0 ? `+${r.variance}` : r.variance}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      </div>
+    </>,
+    document.body
+  )
+}
+
+
 // -- Styles --------------------------------------------------------------------
 const selectCls = 'px-2.5 py-1.5 text-xs rounded-lg border border-gray-200 text-black bg-white focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent'
 
@@ -200,18 +303,18 @@ function ViewToggle({ view, onChange }) {
       }}
     >
       {isCumulative ? (
-        /* line/area icon */
+        /* showing cumulative → button offers to switch to periodic (bar icon) */
+        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 20h18M7 20V10m5 10V4m5 16v-7" />
+        </svg>
+      ) : (
+        /* showing periodic → button offers to switch to cumulative (line icon) */
         <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l4-5 4 3 4-6 4 3" />
           <path strokeLinecap="round" strokeLinejoin="round" d="M3 20h18" opacity={0.35} />
         </svg>
-      ) : (
-        /* bar chart icon */
-        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M3 20h18M7 20V10m5 10V4m5 16v-7" />
-        </svg>
       )}
-      <span>{isCumulative ? 'Cumulative' : 'Periodic'}</span>
+      <span>{isCumulative ? 'Periodic' : 'Cumulative'}</span>
     </button>
   )
 }
@@ -368,6 +471,23 @@ const chartData = useMemo(
 
   const [m4View, setM4View] = useState('periodic')
   const [m5View, setM5View] = useState('periodic')
+
+  const [drilldown, setDrilldown] = useState(null)
+  const lastMousePos = useRef({ x: 0, y: 0 })
+  useEffect(() => {
+    const handler = (e) => { lastMousePos.current = { x: e.clientX, y: e.clientY } }
+    document.addEventListener('mousemove', handler)
+    return () => document.removeEventListener('mousemove', handler)
+  }, [])
+  const handleChartClick = useCallback((point, section) => {
+    if (!point?.period) return
+    const rows = buildDrilldownRows(point.period, section, floors, completions, allProjects, timeMode)
+    const { x, y } = lastMousePos.current
+    setDrilldown(prev =>
+      prev?.period === point.period && prev?.section === section ? null
+        : { period: point.period, label: point.label, section, rows, x, y }
+    )
+  }, [floors, completions, allProjects, timeMode])
 
   const cumulativeData = useMemo(() => {
     let m4Exp = 0, m4Act = 0, m5Exp = 0, m5Act = 0
@@ -746,7 +866,8 @@ const chartData = useMemo(
                   <div style={{ width: chartWidthPct }}>
                     <ResponsiveContainer width="100%" height={chartHeight}>
                       {expanded && m4View === 'cumulative'
-                        ? <AreaChart data={cumulativeData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                        ? <AreaChart data={cumulativeData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} style={{ cursor: 'pointer' }}
+                            onClick={(e) => { const point = e?.activeLabel && chartData.find(d => d.label === e.activeLabel); if (point) handleChartClick(point, 'm4') }}>
                             <defs>
                               <linearGradient id="m4GradExp" x1="0" y1="0" x2="0" y2="1">
                                 <stop offset="5%"  stopColor={M4_EXP} stopOpacity={0.25} />
@@ -764,7 +885,8 @@ const chartData = useMemo(
                             <Area type="monotone" dataKey="m4Expected" name="Planned" stroke={M4_EXP} strokeWidth={2} fill="url(#m4GradExp)" dot={false} activeDot={{ r: 4, fill: M4_EXP }} />
                             <Area type="monotone" dataKey="m4Actual"   name="Actual"  stroke={M4_ACT} strokeWidth={2.5} fill="url(#m4GradAct)" dot={false} activeDot={{ r: 4, fill: M4_ACT }} />
                           </AreaChart>
-                        : <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                        : <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} style={{ cursor: 'pointer' }}
+                            onClick={(e) => { const point = e?.activeLabel && chartData.find(d => d.label === e.activeLabel); if (point) handleChartClick(point, 'm4') }}>
                             <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                             <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
                             <YAxis hide />
@@ -925,7 +1047,8 @@ const chartData = useMemo(
                 <div style={{ width: chartWidthPct }}>
                   <ResponsiveContainer width="100%" height={380}>
                     {m5View === 'cumulative'
-                      ? <AreaChart data={cumulativeData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                      ? <AreaChart data={cumulativeData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} style={{ cursor: 'pointer' }}
+                          onClick={(e) => { const point = e?.activeLabel && chartData.find(d => d.label === e.activeLabel); if (point) handleChartClick(point, 'm5') }}>
                           <defs>
                             <linearGradient id="m5GradExp" x1="0" y1="0" x2="0" y2="1">
                               <stop offset="5%"  stopColor={M5_EXP} stopOpacity={0.25} />
@@ -943,7 +1066,8 @@ const chartData = useMemo(
                           <Area type="monotone" dataKey="m5Expected" name="Planned" stroke={M5_EXP} strokeWidth={2}   fill="url(#m5GradExp)" dot={false} activeDot={{ r: 4, fill: M5_EXP }} />
                           <Area type="monotone" dataKey="m5Actual"   name="Actual"  stroke={M5_ACT} strokeWidth={2.5} fill="url(#m5GradAct)" dot={false} activeDot={{ r: 4, fill: M5_ACT }} />
                         </AreaChart>
-                      : <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                      : <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }} style={{ cursor: 'pointer' }}
+                          onClick={(e) => { const point = e?.activeLabel && chartData.find(d => d.label === e.activeLabel); if (point) handleChartClick(point, 'm5') }}>
                           <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
                           <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
                           <YAxis hide />
@@ -965,7 +1089,8 @@ const chartData = useMemo(
         )}
       </section>
     )}
-    </>
+    <DrilldownPanel data={drilldown} onClose={() => setDrilldown(null)} />
+</>
   )
 }
 
