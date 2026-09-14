@@ -4605,11 +4605,32 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
   const zoomTimer     = useRef(null)
   const fadeTimer     = useRef(null)
   const [imgBounds, setImgBounds] = useState(null) // rendered image area within container
+  const [photoView, setPhotoView] = useState('carousel') // 'carousel' | 'grid'
+  const [carouselIdx, setCarouselIdx] = useState(0)
+  const [slideDir, setSlideDir] = useState('next') // 'next' | 'prev'
+  const [prevCarouselIdx, setPrevCarouselIdx] = useState(null)
+  const [isCarouselTransitioning, setIsCarouselTransitioning] = useState(false)
+  const carouselTransitionTimer = useRef(null)
+  const carouselSwipeStart = useRef(null)
+  const thumbnailStripRef  = useRef(null)
 
   const getPlanUrl  = (path) => supabase.storage.from('project-photos').getPublicUrl(path).data.publicUrl
   const getThumbUrl = (path) => supabase.storage.from('project-photos').getPublicUrl(`thumbs/${path}`).data.publicUrl
 
-  useEffect(() => () => { clearTimeout(zoomTimer.current); clearTimeout(fadeTimer.current) }, [])
+  useEffect(() => () => { clearTimeout(zoomTimer.current); clearTimeout(fadeTimer.current); clearTimeout(carouselTransitionTimer.current) }, [])
+
+  const navigateCarousel = useCallback((newIdx, dir) => {
+    if (newIdx === carouselIdx) return
+    clearTimeout(carouselTransitionTimer.current)
+    setSlideDir(dir)
+    setPrevCarouselIdx(carouselIdx)
+    setIsCarouselTransitioning(true)
+    setCarouselIdx(newIdx)
+    carouselTransitionTimer.current = setTimeout(() => {
+      setIsCarouselTransitioning(false)
+      setPrevCarouselIdx(null)
+    }, 350)
+  }, [carouselIdx])
 
   // Track the actual rendered image area within the container (accounts for object-fit: contain letterboxing)
   const updateImgBounds = useCallback(() => {
@@ -4663,6 +4684,17 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
   }
 
   useEffect(() => { load() }, [project.id])
+
+  // Reset carousel to first photo whenever towerPhotos changes (new pin clicked)
+  useEffect(() => { setCarouselIdx(0); setPhotoView('carousel') }, [towerPhotos])
+
+  // Scroll active thumbnail into view when carousel index changes
+  useEffect(() => {
+    if (!thumbnailStripRef.current) return
+    const strip = thumbnailStripRef.current
+    const thumb = strip.children[carouselIdx]
+    if (thumb) thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' })
+  }, [carouselIdx])
 
   useEffect(() => {
     if (!selectedTower) { setTowerPhotos([]); return }
@@ -5016,7 +5048,145 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
     </div>
   )
 
-  // ── Photos view (after zoom) — normal card layout ────────────────────────────
+  // ── Carousel: full-screen portal ────────────────────────────────────────────
+  if (photoView === 'carousel' && !photosLoading && towerPhotos.length > 0) {
+    const photo = towerPhotos[carouselIdx]
+    const formatCarouselDate = (d) => {
+      if (!d || d === 'Unknown') return ''
+      const dt = new Date(d + 'T00:00:00')
+      return dt.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+    }
+    return createPortal(
+      <div className="fixed inset-0 z-[9998] flex flex-col"
+        style={{ background: '#000', opacity: photosVisible ? 1 : 0, transition: 'opacity 0.3s ease', pointerEvents: photosVisible ? 'auto' : 'none' }}>
+        {/* Header */}
+        <div className="grid flex-shrink-0 px-4 py-3" style={{ gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+          {/* Left: back */}
+          <button onClick={() => backToPlan()}
+            className="flex items-center gap-1.5 text-xs font-semibold text-white/60 hover:text-white transition justify-self-start">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+            </svg>
+            Site Plan
+          </button>
+          {/* Center: date */}
+          <div className="flex flex-col items-center gap-0.5">
+            <div className="flex items-center gap-1.5">
+              <p className="text-[10px] font-semibold text-white/50">{buildingName(selectedTower)}</p>
+              {selectedFloor && floorName(selectedFloor) && (
+                <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-blue-500/25 text-blue-300">{floorName(selectedFloor)}</span>
+              )}
+            </div>
+            {photo.photo_date && (
+              <span className="text-xs font-semibold text-white/80">{formatCarouselDate(photo.photo_date)}</span>
+            )}
+          </div>
+          {/* Right: grid toggle */}
+          <button onClick={() => setPhotoView('grid')}
+            className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg transition text-white/50 hover:text-white justify-self-end"
+            style={{ background: 'rgba(255,255,255,0.1)' }}>
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+            </svg>
+            Grid
+          </button>
+        </div>
+        {/* Main photo */}
+        <div className="flex-1 relative flex items-center justify-center select-none overflow-hidden"
+          style={{ background: '#111' }}
+          onTouchStart={e => { carouselSwipeStart.current = e.touches[0].clientX }}
+          onTouchEnd={e => {
+            if (carouselSwipeStart.current === null) return
+            const dx = e.changedTouches[0].clientX - carouselSwipeStart.current
+            carouselSwipeStart.current = null
+            if (Math.abs(dx) < 40) return
+            if (dx < 0 && carouselIdx < towerPhotos.length - 1) navigateCarousel(carouselIdx + 1, 'next')
+            if (dx > 0 && carouselIdx > 0) navigateCarousel(carouselIdx - 1, 'prev')
+          }}>
+          <style>{`
+            @keyframes carouselInRight  { from { transform: translateX(60px);  opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+            @keyframes carouselInLeft   { from { transform: translateX(-60px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+            @keyframes carouselOutLeft  { from { transform: translateX(0); opacity: 1; } to { transform: translateX(-60px); opacity: 0; } }
+            @keyframes carouselOutRight { from { transform: translateX(0); opacity: 1; } to { transform: translateX(60px);  opacity: 0; } }
+          `}</style>
+          {/* Outgoing photo (exit animation) */}
+          {isCarouselTransitioning && prevCarouselIdx !== null && towerPhotos[prevCarouselIdx] && (
+            <img
+              key={`prev-${prevCarouselIdx}`}
+              src={getPlanUrl(towerPhotos[prevCarouselIdx].storage_path)}
+              className="absolute max-w-full max-h-full object-contain pointer-events-none"
+              style={{
+                display: 'block',
+                borderRadius: 16,
+                maskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)',
+                maskComposite: 'intersect',
+                WebkitMaskImage: 'linear-gradient(to right, transparent 0%, black 5%, black 95%, transparent 100%), linear-gradient(to bottom, transparent 0%, black 5%, black 95%, transparent 100%)',
+                WebkitMaskComposite: 'source-in',
+                filter: 'drop-shadow(0 0 28px rgba(255,255,255,0.13))',
+                animation: `${slideDir === 'next' ? 'carouselOutLeft' : 'carouselOutRight'} 0.32s cubic-bezier(0.23,1,0.32,1) both`,
+              }}
+              draggable={false}
+              alt=""
+            />
+          )}
+          {/* Incoming photo (enter animation) */}
+          <img key={`curr-${carouselIdx}`}
+            src={getPlanUrl(photo.storage_path)}
+            alt={fixEncoding(photo.file_name)}
+            className="max-w-full max-h-full object-contain"
+            style={{
+              display: 'block',
+              borderRadius: 16,
+              animation: isCarouselTransitioning
+                ? `${slideDir === 'next' ? 'carouselInRight' : 'carouselInLeft'} 0.32s cubic-bezier(0.23,1,0.32,1) both`
+                : 'none',
+            }}
+            draggable={false}
+          />
+          {/* Left arrow */}
+          {carouselIdx > 0 && (
+            <button className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full transition"
+              style={{ background: 'rgba(255,255,255,0.14)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+              onClick={() => navigateCarousel(carouselIdx - 1, 'prev')}>
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+              </svg>
+            </button>
+          )}
+          {/* Right arrow */}
+          {carouselIdx < towerPhotos.length - 1 && (
+            <button className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 flex items-center justify-center rounded-full transition"
+              style={{ background: 'rgba(255,255,255,0.14)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}
+              onClick={() => navigateCarousel(carouselIdx + 1, 'next')}>
+              <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+              </svg>
+            </button>
+          )}
+          {/* Counter badge */}
+          <div className="absolute top-4 right-4 px-2.5 py-1 rounded-full text-xs font-semibold text-white/70"
+            style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+            {carouselIdx + 1} / {towerPhotos.length}
+          </div>
+        </div>
+        {/* Thumbnail strip */}
+        <div ref={thumbnailStripRef} className="flex gap-1.5 overflow-x-auto flex-shrink-0 px-4 py-3"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderTop: '1px solid rgba(255,255,255,0.07)' }}>
+          {towerPhotos.map((p, i) => (
+            <button key={p.id} onClick={() => navigateCarousel(i, i > carouselIdx ? 'next' : 'prev')}
+              className="flex-shrink-0 relative rounded-lg overflow-hidden transition-all duration-150"
+              style={{ width: 60, height: 60, outline: i === carouselIdx ? '2px solid #fff' : '2px solid transparent', outlineOffset: 1, opacity: i === carouselIdx ? 1 : 0.4 }}>
+              <img src={getThumbUrl(p.storage_path)}
+                onError={e => { e.currentTarget.onerror = null; e.currentTarget.src = getPlanUrl(p.storage_path) }}
+                alt="" className="w-full h-full object-cover" draggable={false} />
+            </button>
+          ))}
+        </div>
+      </div>
+    , document.body)
+  }
+
+  // ── Photos view (after zoom) — card layout: grid / loading / empty ──────────
   return (
     <div style={{ opacity: photosVisible ? 1 : 0, transition: 'opacity 0.3s ease', pointerEvents: photosVisible ? 'auto' : 'none' }}>
     <div className="pt-4 px-3 sm:px-6">
@@ -5037,7 +5207,19 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
             )}
           </div>
           {!photosLoading && (
-            <span className="text-xs text-gray-400">{towerPhotos.length} photo{towerPhotos.length !== 1 ? 's' : ''}</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-gray-400">{towerPhotos.length} photo{towerPhotos.length !== 1 ? 's' : ''}</span>
+              {towerPhotos.length > 0 && (
+                <button onClick={() => setPhotoView('carousel')}
+                  className="flex items-center gap-1 text-xs font-semibold px-2 py-1 rounded-lg transition"
+                  style={{ background: '#f3f4f6', color: '#6b7280' }}>
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 12h16.5m-16.5 3.75h16.5M3.75 19.5h16.5M5.625 4.5h12.75a1.875 1.875 0 010 3.75H5.625a1.875 1.875 0 010-3.75z" />
+                  </svg>
+                  Carousel
+                </button>
+              )}
+            </div>
           )}
         </div>
 
