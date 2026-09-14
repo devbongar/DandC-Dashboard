@@ -53,8 +53,8 @@ export default function UnitCompletionPage() {
 
   const headerActions = (
     <>
-      {/* Search (decorative) */}
-      <div className="relative">
+      {/* Search (decorative) — desktop only */}
+      <div className="relative hidden sm:block">
         <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 11A6 6 0 115 11a6 6 0 0112 0z" />
         </svg>
@@ -65,8 +65,8 @@ export default function UnitCompletionPage() {
         />
       </div>
 
-      {/* Filter button + popover */}
-      <div className="relative" ref={filterRef}>
+      {/* Filter button + popover — desktop only; mobile handled by UnitCompletionChart's own sheet */}
+      <div className="relative hidden sm:block" ref={filterRef}>
         <button
           onClick={() => setFilterOpen(v => !v)}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
@@ -148,7 +148,7 @@ export default function UnitCompletionPage() {
   )
 
   return (
-    <AdminLayout title="Unit Completion Status" actions={headerActions}>
+    <AdminLayout title="Unit Status" actions={headerActions} mobileBg="linear-gradient(180deg, #555555 0%, #909090 100%)" mobileContentOverlap={180}>
       <main className="flex-1 overflow-auto p-4">
         <div className="max-w-5xl mx-auto">
           <UnitCompletionChart

@@ -4,8 +4,9 @@ import { useNavigate } from 'react-router-dom'
 import { supabase, fetchAll } from '../lib/supabaseClient'
 import TriangleLoader from './TriangleLoader'
 import {
-  BarChart, Bar, XAxis, YAxis, CartesianGrid,
-  Tooltip, Legend, ResponsiveContainer,
+  BarChart, Bar, AreaChart, Area,
+  XAxis, YAxis, CartesianGrid,
+  Tooltip, Legend, ResponsiveContainer, LabelList,
 } from 'recharts'
 import SearchDropdown from './SearchDropdown'
 import SheetMultiDropdown from './SheetMultiDropdown'
@@ -129,12 +130,89 @@ function CustomTooltip({ active, payload, label }) {
   return (
     <div className="bg-white border border-gray-200 rounded-xl shadow-lg px-3 py-2 text-xs">
       <p className="font-bold text-gray-700 mb-1">{label}</p>
-      {payload.map(p => (
+      {payload.filter(p => p.value !== null && p.value !== undefined).map(p => (
         <p key={p.name} style={{ color: p.fill }} className="font-semibold">
           {p.name}: <span className="text-black">{p.value}</span>
         </p>
       ))}
     </div>
+  )
+}
+
+// -- Custom Legend -------------------------------------------------------------
+function CustomLegend({ payload }) {
+  if (!payload?.length) return null
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '2px 4px 8px' }}>
+      {payload.map(entry => (
+        <div key={entry.value} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{
+            display: 'inline-block', width: 10, height: 10, borderRadius: 3,
+            background: entry.color, flexShrink: 0,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.12)',
+          }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', letterSpacing: '0.02em' }}>
+            {entry.value}
+          </span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// -- Floating Legend -----------------------------------------------------------
+function FloatingLegend({ expColor, actColor }) {
+  return (
+    <div style={{
+      position: 'absolute', top: 8, left: 8, zIndex: 10,
+      display: 'flex', alignItems: 'center', gap: 10,
+      background: 'rgba(255,255,255,0.88)',
+      backdropFilter: 'blur(6px)',
+      WebkitBackdropFilter: 'blur(6px)',
+      borderRadius: 8,
+      padding: '4px 10px',
+      boxShadow: '0 1px 6px rgba(0,0,0,0.10), 0 0 0 1px rgba(0,0,0,0.04)',
+      pointerEvents: 'none',
+    }}>
+      {[{ label: 'Planned', color: expColor }, { label: 'Actual', color: actColor }].map(({ label, color }) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+          <span style={{ display: 'inline-block', width: 10, height: 10, borderRadius: 3, background: color, flexShrink: 0, boxShadow: '0 1px 2px rgba(0,0,0,0.12)' }} />
+          <span style={{ fontSize: 11, fontWeight: 600, color: '#6b7280', letterSpacing: '0.02em' }}>{label}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// -- View Toggle Button --------------------------------------------------------
+function ViewToggle({ view, onChange }) {
+  const isCumulative = view === 'cumulative'
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(isCumulative ? 'periodic' : 'cumulative')}
+      className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
+      style={{
+        background: isCumulative ? '#f8fafc' : '#fafafa',
+        borderColor: isCumulative ? '#6b7280' : '#e5e7eb',
+        color: isCumulative ? '#374151' : '#6b7280',
+        boxShadow: isCumulative ? '0 0 0 3px rgba(107,114,128,0.10)' : '0 1px 2px rgba(0,0,0,0.04)',
+      }}
+    >
+      {isCumulative ? (
+        /* line/area icon */
+        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 17l4-5 4 3 4-6 4 3" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 20h18" opacity={0.35} />
+        </svg>
+      ) : (
+        /* bar chart icon */
+        <svg className="w-3.5 h-3.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M3 20h18M7 20V10m5 10V4m5 16v-7" />
+        </svg>
+      )}
+      <span>{isCumulative ? 'Cumulative' : 'Periodic'}</span>
+    </button>
   )
 }
 
@@ -288,6 +366,26 @@ const chartData = useMemo(
     [floors, completions, timeMode, availableYears],
   )
 
+  const [m4View, setM4View] = useState('periodic')
+  const [m5View, setM5View] = useState('periodic')
+
+  const cumulativeData = useMemo(() => {
+    let m4Exp = 0, m4Act = 0, m5Exp = 0, m5Act = 0
+    const raw = chartData.map(d => {
+      m4Exp += d.m4Expected; m4Act += d.m4Actual
+      m5Exp += d.m5Expected; m5Act += d.m5Actual
+      return { ...d, m4Expected: m4Exp, m4Actual: m4Act, m5Expected: m5Exp, m5Actual: m5Act }
+    })
+    // Stop drawing actual line after last period that has actual data
+    const lastM4 = chartData.reduce((last, d, i) => d.m4Actual > 0 ? i : last, -1)
+    const lastM5 = chartData.reduce((last, d, i) => d.m5Actual > 0 ? i : last, -1)
+    return raw.map((d, i) => ({
+      ...d,
+      m4Actual: lastM4 === -1 || i > lastM4 ? null : d.m4Actual,
+      m5Actual: lastM5 === -1 || i > lastM5 ? null : d.m5Actual,
+    }))
+  }, [chartData])
+
   const totals = useMemo(() => {
     const today = new Date()
     today.setHours(23, 59, 59, 999)
@@ -330,15 +428,17 @@ const chartData = useMemo(
   }, [availableYears, timeMode])
 
   return (
-    <section id={id} className={`bg-white border border-gray-200 shadow p-4 flex flex-col${expanded ? ' min-h-[calc(100dvh-5.5rem)]' : ''}`} style={{ borderRadius: 30 }}>
+    <>
+    <section id={id} className="bg-white border border-gray-200 shadow p-4 flex flex-col" style={{ borderRadius: 30 }}>
       {/* Title row */}
       <div className="flex items-center justify-between gap-2 mb-3">
         <div className="flex items-center gap-2">
           <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />
-          <h2 className="text-sm font-bold text-black">Unit Completion Overview</h2>
+          <h2 className="text-sm font-bold text-black">{expanded ? 'M4 Unit Completion' : 'Unit Completion Overview'}</h2>
         </div>
-        {/* Desktop: filter + timescale buttons */}
+        {/* Desktop: view toggle + filter + timescale buttons */}
         <div className="hidden sm:flex items-center gap-2">
+          {expanded && <ViewToggle view={m4View} onChange={setM4View} />}
           {/* Filter button */}
           <div className="relative flex-shrink-0" ref={filterRef}>
             <button
@@ -476,6 +576,7 @@ const chartData = useMemo(
 
       {/* Mobile toolbar — filter button + timescale */}
       <div className="flex items-center gap-2 mb-4 sm:hidden">
+        {expanded && <ViewToggle view={m4View} onChange={setM4View} />}
         {/* Filter button */}
         <button
           onClick={() => setMobileSheetOpen(true)}
@@ -535,26 +636,30 @@ const chartData = useMemo(
 
       {/* Summary pills */}
       {!loading && allProjects !== null && (floors.length > 0 || completions.length > 0) && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
-          {[
-            { label: 'M4 -- Unit Completion',    actual: totals.m4Actual, planned: totals.m4PlannedToday, total: totals.m4Total, rate: totals.m4Rate, status: totals.m4Status },
-            { label: 'M5 -- Handover to PMO', actual: totals.m5Actual, planned: totals.m5PlannedToday, total: totals.m5Total, rate: totals.m5Rate, status: totals.m5Status },
-          ].map(({ label, actual, planned, total, rate, status }) => (
+        <div className={`grid gap-3 mb-4 ${expanded ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
+          {(expanded
+            ? [{ label: 'M4 -- Unit Completion', actual: totals.m4Actual, planned: totals.m4PlannedToday, total: totals.m4Total, rate: totals.m4Rate, status: totals.m4Status }]
+            : [
+                { label: 'M4 -- Unit Completion',  actual: totals.m4Actual, planned: totals.m4PlannedToday, total: totals.m4Total, rate: totals.m4Rate, status: totals.m4Status },
+                { label: 'M5 -- Handover to PMO',  actual: totals.m5Actual, planned: totals.m5PlannedToday, total: totals.m5Total, rate: totals.m5Rate, status: totals.m5Status },
+              ]
+          ).map(({ label, actual, planned, total, rate, status }) => (
             <div key={label} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
               {/* Header row */}
               <div className="flex items-start justify-between gap-2 mb-3">
                 <div>
-                  <p className="text-xs font-bold text-gray-700 mb-1.5">{label}</p>
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: M4_EXP }} />
-                      <span className="text-xs text-gray-400 font-medium">Planned</span>
+                  {!expanded && (
+                    <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: M4_EXP }} />
+                        <span className="text-xs text-gray-400 font-medium">Planned</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: M4_ACT }} />
+                        <span className="text-xs text-gray-400 font-medium">Actual</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: M4_ACT }} />
-                      <span className="text-xs text-gray-400 font-medium">Actual</span>
-                    </div>
-                  </div>
+                  )}
                 </div>
                 {status !== null ? (
                   <span
@@ -605,46 +710,82 @@ const chartData = useMemo(
           No unit completion data recorded yet.
         </div>
       ) : (
-        <div className={expanded ? 'flex-1 min-h-0 flex flex-col' : ''}>
-          <div className={`grid lg:grid-cols-2 gap-4${expanded ? ' flex-1 min-h-0' : ''}`}>
+        <div>
+          <div className={expanded ? '' : 'grid lg:grid-cols-2 gap-4'}>
             {/* M4 */}
-            <div className={expanded ? 'flex flex-col' : ''}>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="text-xs font-bold text-gray-700">M4</span>
-                <span className="text-xs text-gray-400">Unit Completion</span>
-                <div className="flex-1 h-px bg-gray-100" />
-              </div>
-              <div className={`flex${expanded ? ' flex-1 min-h-0' : ''}`}>
+            <div>
+              {!expanded && (
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-xs font-bold text-gray-700">M4</span>
+                  <span className="text-xs text-gray-400">Unit Completion</span>
+                  <div className="flex-1 h-px bg-gray-100" />
+                </div>
+              )}
+              <div className="flex">
                 {/* Fixed Y-axis */}
-                <div style={{ width: 45, flexShrink: 0 }} className={expanded ? 'h-full' : ''}>
-                  <ResponsiveContainer width={45} height={expanded ? '100%' : chartHeight}>
-                    <BarChart data={chartData} margin={{ top: 4, right: 0, left: -10, bottom: 36 }}>
-                      <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                      <Bar dataKey="m4Expected" fill="transparent" isAnimationActive={false} />
-                      <Bar dataKey="m4Actual"   fill="transparent" isAnimationActive={false} />
-                    </BarChart>
+                <div style={{ width: 45, flexShrink: 0 }}>
+                  <ResponsiveContainer width={45} height={chartHeight}>
+                    {expanded && m4View === 'cumulative'
+                      ? <AreaChart data={cumulativeData} margin={{ top: 4, right: 0, left: -10, bottom: 36 }}>
+                          <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <Area dataKey="m4Expected" fill="transparent" stroke="transparent" isAnimationActive={false} />
+                          <Area dataKey="m4Actual"   fill="transparent" stroke="transparent" isAnimationActive={false} />
+                        </AreaChart>
+                      : <BarChart data={chartData} margin={{ top: 4, right: 0, left: -10, bottom: 36 }}>
+                          <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <Bar dataKey="m4Expected" fill="transparent" isAnimationActive={false} />
+                          <Bar dataKey="m4Actual"   fill="transparent" isAnimationActive={false} />
+                        </BarChart>
+                    }
                   </ResponsiveContainer>
                 </div>
-                {/* Scrollable bars */}
-                <div className={`overflow-x-auto flex-1 min-w-0${expanded ? ' h-full' : ''}`} ref={m4Ref}>
-                  <div style={{ width: chartWidthPct }} className={expanded ? 'h-full' : ''}>
-                    <ResponsiveContainer width="100%" height={expanded ? '100%' : chartHeight}>
-                      <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                        <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
-                        <YAxis hide />
-                        <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(237, 96, 85, 0.08)' }} />
-                        <Bar dataKey="m4Expected" name="Planned" fill={M4_EXP} radius={[3, 3, 0, 0]} maxBarSize={40} />
-                        <Bar dataKey="m4Actual"   name="Actual"   fill={M4_ACT} radius={[3, 3, 0, 0]} maxBarSize={40} />
-                      </BarChart>
+                {/* Scrollable chart */}
+                <div className="relative flex-1 min-w-0">
+                  {expanded && <FloatingLegend expColor={M4_EXP} actColor={M4_ACT} />}
+                  <div className="overflow-x-auto" ref={m4Ref}>
+                  <div style={{ width: chartWidthPct }}>
+                    <ResponsiveContainer width="100%" height={chartHeight}>
+                      {expanded && m4View === 'cumulative'
+                        ? <AreaChart data={cumulativeData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                            <defs>
+                              <linearGradient id="m4GradExp" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%"  stopColor={M4_EXP} stopOpacity={0.25} />
+                                <stop offset="95%" stopColor={M4_EXP} stopOpacity={0.04} />
+                              </linearGradient>
+                              <linearGradient id="m4GradAct" x1="0" y1="0" x2="0" y2="1">
+                                <stop offset="5%"  stopColor={M4_ACT} stopOpacity={0.25} />
+                                <stop offset="95%" stopColor={M4_ACT} stopOpacity={0.04} />
+                              </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                            <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
+                            <YAxis hide />
+                            <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '4 2' }} />
+                            <Area type="monotone" dataKey="m4Expected" name="Planned" stroke={M4_EXP} strokeWidth={2} fill="url(#m4GradExp)" dot={false} activeDot={{ r: 4, fill: M4_EXP }} />
+                            <Area type="monotone" dataKey="m4Actual"   name="Actual"  stroke={M4_ACT} strokeWidth={2.5} fill="url(#m4GradAct)" dot={false} activeDot={{ r: 4, fill: M4_ACT }} />
+                          </AreaChart>
+                        : <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                            <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
+                            <YAxis hide />
+                            <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(237, 96, 85, 0.08)' }} />
+                            <Bar dataKey="m4Expected" name="Planned" fill={M4_EXP} radius={[3, 3, 0, 0]} maxBarSize={40}>
+                              <LabelList dataKey="m4Expected" position="top" style={{ fontSize: 9, fill: '#9ca3af', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
+                            </Bar>
+                            <Bar dataKey="m4Actual"   name="Actual"   fill={M4_ACT} radius={[3, 3, 0, 0]} maxBarSize={40}>
+                              <LabelList dataKey="m4Actual" position="top" style={{ fontSize: 9, fill: '#16a34a', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
+                            </Bar>
+                          </BarChart>
+                      }
                     </ResponsiveContainer>
+                  </div>
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* M5 */}
-            <div className={expanded ? 'flex flex-col' : ''}>
+            {/* M5 — only in non-expanded (dashboard) mode; in expanded mode M5 lives in its own section below */}
+            {!expanded && <div>
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-bold text-gray-700">M5</span>
                 <span className="text-xs text-gray-400">Handover to PMO</span>
@@ -670,14 +811,18 @@ const chartData = useMemo(
                         <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
                         <YAxis hide />
                         <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(237, 96, 85, 0.08)' }} />
-                        <Bar dataKey="m5Expected" name="Planned" fill={M5_EXP} radius={[3, 3, 0, 0]} maxBarSize={40} />
-                        <Bar dataKey="m5Actual"   name="Actual"   fill={M5_ACT} radius={[3, 3, 0, 0]} maxBarSize={40} />
+                        <Bar dataKey="m5Expected" name="Planned" fill={M5_EXP} radius={[3, 3, 0, 0]} maxBarSize={40}>
+                          <LabelList dataKey="m5Expected" position="top" style={{ fontSize: 9, fill: '#9ca3af', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
+                        </Bar>
+                        <Bar dataKey="m5Actual"   name="Actual"   fill={M5_ACT} radius={[3, 3, 0, 0]} maxBarSize={40}>
+                          <LabelList dataKey="m5Actual" position="top" style={{ fontSize: 9, fill: '#16a34a', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
+                        </Bar>
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
                 </div>
               </div>
-            </div>
+            </div>}
           </div>
 
         </div>
@@ -700,6 +845,127 @@ const chartData = useMemo(
         />
       )}
     </section>
+
+    {/* M5 Handover to PMO — second section, expanded mode only */}
+    {expanded && !loading && allProjects !== null && (
+      <section className="mt-4 bg-white border border-gray-200 shadow p-4 flex flex-col" style={{ borderRadius: 30 }}>
+        {/* Title row */}
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2">
+            <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />
+            <h2 className="text-sm font-bold text-black">M5 Handover to PMO</h2>
+          </div>
+          <ViewToggle view={m5View} onChange={setM5View} />
+        </div>
+
+        {/* M5 summary pill */}
+        {(floors.length > 0 || completions.length > 0) && (
+          <div className="mb-4">
+            <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+              <div className="flex items-start justify-between gap-2 mb-3">
+                <div>
+                </div>
+                {totals.m5Status !== null ? (
+                  <span className={`text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0 ${
+                    totals.m5Status === 'ahead'    ? 'bg-green-100 text-green-700 border border-green-200' :
+                    totals.m5Status === 'on-track' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
+                                                    'bg-red-100 text-red-600 border border-red-200'
+                  }`}>
+                    {totals.m5Rate}% &bull; {totals.m5Status === 'ahead' ? 'Ahead' : totals.m5Status === 'on-track' ? 'On Track' : 'Delayed'}
+                  </span>
+                ) : (
+                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0 bg-gray-100 text-gray-500 border border-gray-200">
+                    {totals.m5Total > 0 ? Math.round((totals.m5Actual / totals.m5Total) * 100) : 0}% Complete
+                  </span>
+                )}
+              </div>
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
+                <div className="text-center">
+                  <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{totals.m5Actual.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Actual so far</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{totals.m5PlannedToday.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Planned to date</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{totals.m5Total.toLocaleString()}</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Total units</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* M5 chart */}
+        {floors.length === 0 && completions.length === 0 ? (
+          <div className="py-16 text-center text-sm text-gray-400 italic">No unit completion data recorded yet.</div>
+        ) : (
+          <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex flex-1 min-h-0">
+              <div style={{ width: 45, flexShrink: 0 }}>
+                <ResponsiveContainer width={45} height={380}>
+                  {m5View === 'cumulative'
+                    ? <AreaChart data={cumulativeData} margin={{ top: 4, right: 0, left: -10, bottom: 36 }}>
+                        <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Area dataKey="m5Expected" fill="transparent" stroke="transparent" isAnimationActive={false} />
+                        <Area dataKey="m5Actual"   fill="transparent" stroke="transparent" isAnimationActive={false} />
+                      </AreaChart>
+                    : <BarChart data={chartData} margin={{ top: 4, right: 0, left: -10, bottom: 36 }}>
+                        <YAxis allowDecimals={false} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <Bar dataKey="m5Expected" fill="transparent" isAnimationActive={false} />
+                        <Bar dataKey="m5Actual"   fill="transparent" isAnimationActive={false} />
+                      </BarChart>
+                  }
+                </ResponsiveContainer>
+              </div>
+              <div className="relative flex-1 min-w-0">
+                <FloatingLegend expColor={M5_EXP} actColor={M5_ACT} />
+                <div className="overflow-x-auto" ref={m5Ref}>
+                <div style={{ width: chartWidthPct }}>
+                  <ResponsiveContainer width="100%" height={380}>
+                    {m5View === 'cumulative'
+                      ? <AreaChart data={cumulativeData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="m5GradExp" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%"  stopColor={M5_EXP} stopOpacity={0.25} />
+                              <stop offset="95%" stopColor={M5_EXP} stopOpacity={0.04} />
+                            </linearGradient>
+                            <linearGradient id="m5GradAct" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%"  stopColor={M5_ACT} stopOpacity={0.25} />
+                              <stop offset="95%" stopColor={M5_ACT} stopOpacity={0.04} />
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                          <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
+                          <YAxis hide />
+                          <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '4 2' }} />
+                          <Area type="monotone" dataKey="m5Expected" name="Planned" stroke={M5_EXP} strokeWidth={2}   fill="url(#m5GradExp)" dot={false} activeDot={{ r: 4, fill: M5_EXP }} />
+                          <Area type="monotone" dataKey="m5Actual"   name="Actual"  stroke={M5_ACT} strokeWidth={2.5} fill="url(#m5GradAct)" dot={false} activeDot={{ r: 4, fill: M5_ACT }} />
+                        </AreaChart>
+                      : <BarChart data={chartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                          <XAxis dataKey="label" tick={<CustomXTick />} interval={0} height={36} axisLine={false} tickLine={false} />
+                          <YAxis hide />
+                          <Tooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(237, 96, 85, 0.08)' }} />
+                          <Bar dataKey="m5Expected" name="Planned" fill={M5_EXP} radius={[3, 3, 0, 0]} maxBarSize={40}>
+                            <LabelList dataKey="m5Expected" position="top" style={{ fontSize: 9, fill: '#9ca3af', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
+                          </Bar>
+                          <Bar dataKey="m5Actual"   name="Actual"   fill={M5_ACT} radius={[3, 3, 0, 0]} maxBarSize={40}>
+                            <LabelList dataKey="m5Actual" position="top" style={{ fontSize: 9, fill: '#16a34a', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
+                          </Bar>
+                        </BarChart>
+                    }
+                  </ResponsiveContainer>
+                </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </section>
+    )}
+    </>
   )
 }
 
