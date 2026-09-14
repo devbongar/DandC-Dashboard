@@ -565,55 +565,29 @@ const chartData = useMemo(
 
 
 
-      {/* Summary pills */}
-      {!loading && allProjects !== null && (floors.length > 0 || completions.length > 0) && (
-        <div className={`grid gap-3 mb-4 ${expanded ? 'grid-cols-1' : 'grid-cols-1 sm:grid-cols-2'}`}>
-          {(expanded
-            ? [{ label: 'M4 -- Unit Completion', actual: totals.m4Actual, planned: totals.m4PlannedToday, total: totals.m4Total, rate: totals.m4Rate, status: totals.m4Status }]
-            : [
-                { label: 'M4 -- Unit Completion',  actual: totals.m4Actual, planned: totals.m4PlannedToday, total: totals.m4Total, rate: totals.m4Rate, status: totals.m4Status },
-                { label: 'M5 -- Handover to PMO',  actual: totals.m5Actual, planned: totals.m5PlannedToday, total: totals.m5Total, rate: totals.m5Rate, status: totals.m5Status },
-              ]
-          ).map(({ label, actual, planned, total, rate, status }) => (
-            <div key={label} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-              {/* Header row */}
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div>
-                  {!expanded && (
-                    <div className="flex items-center gap-3">
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: M4_EXP }} />
-                        <span className="text-xs text-gray-400 font-medium">Planned</span>
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span className="w-2.5 h-2.5 rounded-sm inline-block flex-shrink-0" style={{ background: M4_ACT }} />
-                        <span className="text-xs text-gray-400 font-medium">Actual</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
+      {/* Summary card — expanded mode only (M4); non-expanded cards live inside each chart block) */}
+      {expanded && !loading && allProjects !== null && (floors.length > 0 || completions.length > 0) && (
+        <div className="mb-4">
+          <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
+            <div className="grid grid-cols-4 gap-2">
+              <div>
+                <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Planned PTD</p>
+                <p className="text-base sm:text-xl font-bold text-gray-400 leading-none">{totals.m4PlannedToday.toLocaleString()}</p>
               </div>
-              {/* Four stats */}
-              <div className="grid grid-cols-4 gap-2">
-                <div>
-                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Planned PTD</p>
-                  <p className="text-base sm:text-xl font-bold text-gray-400 leading-none">{planned.toLocaleString()}</p>
-                </div>
-                <div className="border-l border-gray-200 pl-2 sm:pl-3">
-                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Actual PTD</p>
-                  <p className="text-base sm:text-xl font-bold text-[#ed6055] leading-none">{actual.toLocaleString()}</p>
-                </div>
-                <div className="border-l border-gray-200 pl-2 sm:pl-3">
-                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Variance</p>
-                  <p className={`text-base sm:text-xl font-bold leading-none ${actual - planned >= 0 ? 'text-green-600' : 'text-red-500'}`}>{(actual - planned >= 0 ? '+' : '')}{(actual - planned).toLocaleString()}</p>
-                </div>
-                <div className="border-l border-gray-200 pl-2 sm:pl-3">
-                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Total units</p>
-                  <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{total.toLocaleString()}</p>
-                </div>
+              <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Actual PTD</p>
+                <p className="text-base sm:text-xl font-bold text-[#ed6055] leading-none">{totals.m4Actual.toLocaleString()}</p>
+              </div>
+              <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Variance</p>
+                <p className={`text-base sm:text-xl font-bold leading-none ${totals.m4Actual - totals.m4PlannedToday >= 0 ? 'text-green-600' : 'text-red-500'}`}>{(totals.m4Actual - totals.m4PlannedToday >= 0 ? '+' : '')}{(totals.m4Actual - totals.m4PlannedToday).toLocaleString()}</p>
+              </div>
+              <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Total units</p>
+                <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{totals.m4Total.toLocaleString()}</p>
               </div>
             </div>
-          ))}
+          </div>
         </div>
       )}
 
@@ -634,6 +608,28 @@ const chartData = useMemo(
           <div className={expanded ? '' : 'grid lg:grid-cols-2 gap-4'}>
             {/* M4 */}
             <div>
+              {!expanded && !loading && allProjects !== null && (floors.length > 0 || completions.length > 0) && (
+                <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 mb-3">
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <p className="text-[10px] text-gray-400 mb-1 leading-snug">Planned PTD</p>
+                      <p className="text-base font-bold text-gray-400 leading-none">{totals.m4PlannedToday.toLocaleString()}</p>
+                    </div>
+                    <div className="border-l border-gray-200 pl-2">
+                      <p className="text-[10px] text-gray-400 mb-1 leading-snug">Actual PTD</p>
+                      <p className="text-base font-bold text-[#ed6055] leading-none">{totals.m4Actual.toLocaleString()}</p>
+                    </div>
+                    <div className="border-l border-gray-200 pl-2">
+                      <p className="text-[10px] text-gray-400 mb-1 leading-snug">Variance</p>
+                      <p className={`text-base font-bold leading-none ${totals.m4Actual - totals.m4PlannedToday >= 0 ? 'text-green-600' : 'text-red-500'}`}>{(totals.m4Actual - totals.m4PlannedToday >= 0 ? '+' : '')}{(totals.m4Actual - totals.m4PlannedToday).toLocaleString()}</p>
+                    </div>
+                    <div className="border-l border-gray-200 pl-2">
+                      <p className="text-[10px] text-gray-400 mb-1 leading-snug">Total units</p>
+                      <p className="text-base font-bold text-gray-900 leading-none">{totals.m4Total.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               {!expanded && (
                 <div className="flex items-center gap-2 mb-2">
                   <span className="text-xs font-bold text-gray-700">M4</span>
@@ -708,6 +704,28 @@ const chartData = useMemo(
 
             {/* M5 — only in non-expanded (dashboard) mode; in expanded mode M5 lives in its own section below */}
             {!expanded && <div>
+              {!loading && allProjects !== null && (floors.length > 0 || completions.length > 0) && (
+                <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 mb-3">
+                  <div className="grid grid-cols-4 gap-2">
+                    <div>
+                      <p className="text-[10px] text-gray-400 mb-1 leading-snug">Planned PTD</p>
+                      <p className="text-base font-bold text-gray-400 leading-none">{totals.m5PlannedToday.toLocaleString()}</p>
+                    </div>
+                    <div className="border-l border-gray-200 pl-2">
+                      <p className="text-[10px] text-gray-400 mb-1 leading-snug">Actual PTD</p>
+                      <p className="text-base font-bold text-[#ed6055] leading-none">{totals.m5Actual.toLocaleString()}</p>
+                    </div>
+                    <div className="border-l border-gray-200 pl-2">
+                      <p className="text-[10px] text-gray-400 mb-1 leading-snug">Variance</p>
+                      <p className={`text-base font-bold leading-none ${totals.m5Actual - totals.m5PlannedToday >= 0 ? 'text-green-600' : 'text-red-500'}`}>{(totals.m5Actual - totals.m5PlannedToday >= 0 ? '+' : '')}{(totals.m5Actual - totals.m5PlannedToday).toLocaleString()}</p>
+                    </div>
+                    <div className="border-l border-gray-200 pl-2">
+                      <p className="text-[10px] text-gray-400 mb-1 leading-snug">Total units</p>
+                      <p className="text-base font-bold text-gray-900 leading-none">{totals.m5Total.toLocaleString()}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-xs font-bold text-gray-700">M5</span>
                 <span className="text-xs text-gray-400">Handover to PMO</span>

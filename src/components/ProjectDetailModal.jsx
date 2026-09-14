@@ -1017,9 +1017,9 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 
   return (
-    <div className="relative min-h-full flex flex-col overflow-hidden rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div className="relative min-h-full flex flex-col sm:overflow-hidden sm:rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       {/* Cover photo: full width on top, in front */}
-      <div className="w-full h-[70vh] flex-shrink-0 overflow-hidden bg-gray-100 relative z-0 rounded-tl-2xl rounded-tr-2xl rounded-bl-2xl rounded-br-2xl">
+      <div className="w-full h-[70vh] flex-shrink-0 overflow-hidden bg-gray-100 relative z-0 sm:rounded-tl-2xl sm:rounded-tr-2xl sm:rounded-bl-2xl sm:rounded-br-2xl">
         <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} />
         {/* Dark gradient — top (header fade) */}
         <div className="absolute inset-x-0 top-0 pointer-events-none" style={{ height: '8rem', background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)' }} />
@@ -1116,57 +1116,6 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           </div>
         )}
 
-        {/* Tab shortcuts — mobile only (desktop uses sidebar nav) */}
-        {onSectionChange && (
-          <div className="sm:hidden px-8 py-5 border-t border-gray-100">
-            <style>{`
-              @keyframes tabCardIn {
-                from { opacity: 0; transform: translateY(14px) scale(0.97); }
-                to   { opacity: 1; transform: translateY(0)   scale(1); }
-              }
-              .tab-card {
-                animation: tabCardIn 0.35s cubic-bezier(0.23,1,0.32,1) backwards;
-                transition: transform 0.22s cubic-bezier(0.23,1,0.32,1),
-                            box-shadow 0.22s cubic-bezier(0.23,1,0.32,1);
-              }
-              .tab-card:hover {
-                transform: translateY(-5px) scale(1.05);
-                box-shadow: 0 20px 48px rgba(0,0,0,0.32), 0 8px 16px rgba(0,0,0,0.12), 0 1px 0 rgba(255,255,255,0.4) inset, 0 -1px 0 rgba(0,0,0,0.2) inset !important;
-              }
-              .tab-card:active {
-                transform: translateY(-1px) scale(0.97) !important;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.18), 0 1px 0 rgba(255,255,255,0.3) inset, 0 -1px 0 rgba(0,0,0,0.15) inset !important;
-              }
-            `}</style>
-            <p className="text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-3">Sections</p>
-            <div className="grid grid-cols-2 gap-3">
-              {OVERVIEW_TABS.map((tab, i) => (
-                <button
-                  key={tab.key}
-                  onClick={() => onSectionChange(tab.key)}
-                  className="tab-card relative overflow-hidden rounded-2xl text-left"
-                  style={{ height: 120, background: tab.gradient, backdropFilter: 'blur(16px) saturate(160%)', WebkitBackdropFilter: 'blur(16px) saturate(160%)', border: '1px solid rgba(255,255,255,0.25)', boxShadow: '0 8px 24px rgba(0,0,0,0.22), 0 1px 0 rgba(255,255,255,0.35) inset, 0 -1px 0 rgba(0,0,0,0.18) inset', animationDelay: `${i * 0.06}s` }}
-                >
-                  {/* decorative lines */}
-                  <div className="absolute inset-0 pointer-events-none" style={{ opacity: 0.18 }}>
-                    <div className="absolute bg-white rounded-lg" style={{ height: 5, width: 44, top: 16, left: 20 }} />
-                    <div className="absolute bg-white rounded-lg" style={{ height: 5, width: 112, top: 27, left: 20 }} />
-                    <div className="absolute bg-white rounded-lg" style={{ height: 5, width: 28, bottom: 20, left: 20 }} />
-                    <div className="absolute bg-white rounded-lg" style={{ height: 5, width: 68, bottom: 33, left: 52 }} />
-                  </div>
-                  {/* sparkle */}
-                  <span className="absolute text-white" style={{ opacity: 0.35, fontSize: 18, top: 16, right: 108 }}>✦</span>
-                  {/* title */}
-                  <div className="absolute inset-0 flex flex-col justify-center px-5" style={{ zIndex: 20 }}>
-                    <span className="text-white drop-shadow" style={{ fontSize: 17, fontWeight: 600, lineHeight: 1.1, letterSpacing: '-0.5px', maxWidth: '58%', whiteSpace: 'pre-line' }}>{tab.label}</span>
-                  </div>
-                  {/* illustration */}
-                  {tab.deco}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Spacer so content clears mobile bottom nav */}
         <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
@@ -6523,7 +6472,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         {/* Content */}
         {activeSection === null ? (
           <div key="home" className={`flex-1 overflow-hidden flex flex-col ${asPage ? '-mt-14 sm:-mt-14' : ''}`} style={{ animation: 'fade-in 180ms ease-out both' }}>
-            <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col min-h-0 px-3 sm:px-6">
+            <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col min-h-0 sm:px-6">
               <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} onSectionChange={asPage ? navigate : undefined} />
             </div>
           </div>

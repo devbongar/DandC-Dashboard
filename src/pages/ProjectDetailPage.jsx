@@ -104,9 +104,11 @@ export default function ProjectDetailPage() {
   const [showLabels,        setShowLabels]        = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [mobileSearchOpen,  setMobileSearchOpen]  = useState(false)
+  const [bottomNavVisible,  setBottomNavVisible]  = useState(true)
   const sidebarExpanded   = mobileSidebarOpen || expanded
   const sidebarShowLabels = mobileSidebarOpen || showLabels
   const tooltipRef    = useRef(null)
+  const bottomNavLastY = useRef(0)
   const filterPopRef        = useRef(null)
   const actionsPopRef       = useRef(null)
   const photosFilterPopRef   = useRef(null)
@@ -194,10 +196,24 @@ export default function ProjectDetailPage() {
   useEffect(() => {
     const el = mainScrollRef.current
     if (!el) return
+    const onBottomNavScroll = () => {
+      const currentY = el.scrollTop
+      const delta = currentY - bottomNavLastY.current
+      if (Math.abs(delta) < 8) return
+      setBottomNavVisible(delta < 0 || currentY < 40)
+      bottomNavLastY.current = currentY
+    }
+    el.addEventListener('scroll', onBottomNavScroll, { passive: true })
+    return () => el.removeEventListener('scroll', onBottomNavScroll)
+  }, [loading, profileLoading])
+
+  useEffect(() => {
+    const el = mainScrollRef.current
+    if (!el) return
     const onScroll = () => setHeaderScrolled(el.scrollTop > 10)
     el.addEventListener('scroll', onScroll, { passive: true })
     return () => el.removeEventListener('scroll', onScroll)
-  }, [section])
+  }, [section, loading, profileLoading])
 
   if (loading || profileLoading) return <LoadingScreen />
   if (!project) return <LoadingScreen />
@@ -1131,39 +1147,55 @@ export default function ProjectDetailPage() {
             />
           {/* Spacer so content clears mobile bottom nav */}
           {section !== 'Work Program' && (
-            <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
+            <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(72px + env(safe-area-inset-bottom))' }} />
           )}
         </main>
       </div>
 
-      {/* Mobile bottom nav â€" app-level navigation */}
+      {/* Mobile bottom nav — project section tabs, same style as MobileBottomNav */}
       <nav
-        className="sm:hidden fixed bottom-0 left-0 right-0 z-40 flex items-center justify-around"
+        className="fixed bottom-4 left-1/2 z-50 sm:hidden flex items-center gap-1 px-3 py-2.5"
         style={{
-          background: 'rgba(255,255,255,0.95)',
-          backdropFilter: 'blur(24px)',
-          WebkitBackdropFilter: 'blur(24px)',
-          height: 'calc(64px + env(safe-area-inset-bottom))',
-          paddingBottom: 'env(safe-area-inset-bottom)',
-          borderTop: '1px solid rgba(0,0,0,0.08)',
-          boxShadow: '0 -4px 20px rgba(0,0,0,0.08)',
+          background: 'rgba(30, 30, 40, 0.72)',
+          backdropFilter: 'blur(12px) saturate(160%)',
+          WebkitBackdropFilter: 'blur(12px) saturate(160%)',
+          border: '1px solid rgba(255,255,255,0.18)',
+          borderRadius: 9999,
+          boxShadow: '0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.14)',
+          transform: `translateX(-50%) translateY(${bottomNavVisible ? '0' : 'calc(100% + 1.5rem)'})`,
+          transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
         }}
       >
-        <div className="flex items-center justify-around w-full px-2">
-          {mobileBottomNav.map(item => (
-            <NavLink
-              key={item.path}
-              to={item.path}
+        {[
+          { key: null,                label: 'Info',    Icon: InfoIcon },
+          { key: 'Work Program',      label: 'Program', Icon: WorkProgramIcon },
+          { key: 'Permits',           label: 'Permits', Icon: PermitsIcon },
+          { key: 'Photos',            label: 'Photos',  Icon: PhotosIcon },
+          { key: 'Issues & Concerns', label: 'Issues',  Icon: IssuesIcon },
+        ].map(item => {
+          const isActive = section === item.key
+          return (
+            <button
+              key={String(item.key)}
+              onClick={() => { setSection(item.key); setSearchParams({ tab: item.key ?? 'Project Info' }) }}
+              className="flex flex-col items-center gap-1 px-4 py-2 rounded-full"
+              style={{ border: 'none', background: 'transparent', flexShrink: 0 }}
               aria-label={item.label}
-              className={({ isActive }) =>
-                `flex items-center justify-center rounded-full transition-all duration-300 hover:-translate-y-1 active:scale-95 focus-visible:ring-2 focus-visible:ring-black/20 ${isActive ? 'bg-[#ed6055]/10' : ''}`
-              }
-              style={({ isActive }) => ({ width: 44, height: 44, color: isActive ? '#ed6055' : 'rgba(0,0,0,0.35)', flexShrink: 0, border: 'none' })}
             >
-              <item.Icon className="w-5 h-5" />
-            </NavLink>
-          ))}
-        </div>
+              <item.Icon
+                className="w-6 h-6 flex-shrink-0 transition-all duration-150"
+                style={{ color: '#fff', opacity: isActive ? 1 : 0.35 }}
+                solid={isActive}
+              />
+              <span
+                className="text-[10px] font-semibold leading-none tracking-wide transition-all duration-150"
+                style={{ color: '#fff', opacity: isActive ? 1 : 0.35 }}
+              >
+                {item.label}
+              </span>
+            </button>
+          )
+        })}
       </nav>
     </div>
   )
@@ -1196,12 +1228,23 @@ function SettingsIcon({ className }) {
 }
 
 // -- Project-level icons --------------------------------------------------------
-function InfoIcon({ className }) {
-  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+function InfoIcon({ className, style, solid }) {
+  return solid ? (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor">
+      <path fillRule="evenodd" d="M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm8.706-1.442c1.146-.573 2.437.463 2.126 1.706l-.709 2.836.042-.02a.75.75 0 01.67 1.34l-.04.022c-1.147.573-2.438-.463-2.127-1.706l.71-2.836-.042.02a.75.75 0 11-.671-1.34l.041-.022zM12 9a.75.75 0 100-1.5A.75.75 0 0012 9z" clipRule="evenodd" />
+    </svg>
+  ) : (
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
+  )
 }
-function WorkProgramIcon({ className }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+function WorkProgramIcon({ className, style, solid }) {
+  return solid ? (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M12.75 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM7.5 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM8.25 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM9.75 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM10.5 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM12 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM12.75 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM14.25 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM15 17.25a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 15.75a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5ZM15 12.75a.75.75 0 1 1-1.5 0 .75.75 0 0 1 1.5 0ZM16.5 13.5a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" />
+      <path fillRule="evenodd" d="M6.75 2.25A.75.75 0 0 1 7.5 3v1.5h9V3A.75.75 0 0 1 18 3v1.5h.75a3 3 0 0 1 3 3v11.25a3 3 0 0 1-3 3H5.25a3 3 0 0 1-3-3V7.5a3 3 0 0 1 3-3H6V3a.75.75 0 0 1 .75-.75Zm13.5 9a1.5 1.5 0 0 0-1.5-1.5H5.25a1.5 1.5 0 0 0-1.5 1.5v7.5a1.5 1.5 0 0 0 1.5 1.5h13.5a1.5 1.5 0 0 0 1.5-1.5v-7.5Z" clipRule="evenodd" />
+    </svg>
+  ) : (
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
       <path strokeLinecap="round" strokeLinejoin="round" d="M8 13h2.5M8 16.5h5.5" />
     </svg>
@@ -1210,9 +1253,14 @@ function WorkProgramIcon({ className }) {
 function CalendarIcon({ className }) {
   return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" /></svg>
 }
-function PermitsIcon({ className }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+function PermitsIcon({ className, style, solid }) {
+  return solid ? (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor">
+      <path fillRule="evenodd" d="M7.502 6h7.128A3.375 3.375 0 0 1 18 9.375v9.375a3 3 0 0 0 3-3V6.108c0-1.505-1.125-2.811-2.664-2.94a48.972 48.972 0 0 0-.673-.05A3 3 0 0 0 15 1.5h-1.5a3 3 0 0 0-2.663 1.618c-.225.015-.45.032-.673.05C8.662 3.295 7.554 4.542 7.502 6ZM13.5 3A1.5 1.5 0 0 0 12 4.5h4.5A1.5 1.5 0 0 0 15 3h-1.5Z" clipRule="evenodd" />
+      <path fillRule="evenodd" d="M3 9.375C3 8.339 3.84 7.5 4.875 7.5h9.75c1.036 0 1.875.84 1.875 1.875v11.25c0 1.035-.84 1.875-1.875 1.875h-9.75A1.875 1.875 0 0 1 3 20.625V9.375Zm9.586 4.594a.75.75 0 0 0-1.172-.938l-2.476 3.096-.908-.907a.75.75 0 0 0-1.06 1.06l1.5 1.5a.75.75 0 0 0 1.116-.062l3-3.75Z" clipRule="evenodd" />
+    </svg>
+  ) : (
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
     </svg>
   )
@@ -1234,11 +1282,23 @@ function UnitCompletionIcon({ className }) {
     </svg>
   )
 }
-function PhotosIcon({ className }) {
-  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+function PhotosIcon({ className, style, solid }) {
+  return solid ? (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor">
+      <path fillRule="evenodd" d="M1.5 6a2.25 2.25 0 0 1 2.25-2.25h16.5A2.25 2.25 0 0 1 22.5 6v12a2.25 2.25 0 0 1-2.25 2.25H3.75A2.25 2.25 0 0 1 1.5 18V6ZM3 16.06V18c0 .414.336.75.75.75h16.5A.75.75 0 0 0 21 18v-1.94l-2.69-2.689a1.5 1.5 0 0 0-2.12 0l-.88.879.97.97a.75.75 0 1 1-1.06 1.06l-5.16-5.159a1.5 1.5 0 0 0-2.12 0L3 16.061Zm10.125-7.81a1.125 1.125 0 1 1 2.25 0 1.125 1.125 0 0 1-2.25 0Z" clipRule="evenodd" />
+    </svg>
+  ) : (
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+  )
 }
-function IssuesIcon({ className }) {
-  return <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+function IssuesIcon({ className, style, solid }) {
+  return solid ? (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor">
+      <path fillRule="evenodd" d="M9.401 3.003c1.155-2 4.043-2 5.197 0l7.355 12.748c1.154 2-.29 4.5-2.599 4.5H4.645c-2.309 0-3.752-2.5-2.598-4.5L9.4 3.003ZM12 8.25a.75.75 0 0 1 .75.75v3.75a.75.75 0 0 1-1.5 0V9a.75.75 0 0 1 .75-.75Zm0 8.25a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Z" clipRule="evenodd" />
+    </svg>
+  ) : (
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+  )
 }
 
 
