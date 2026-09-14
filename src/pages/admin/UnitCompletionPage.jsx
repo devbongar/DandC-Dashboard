@@ -6,7 +6,9 @@ import SearchDropdown from '../../components/SearchDropdown'
 import SheetMultiDropdown from '../../components/SheetMultiDropdown'
 
 export default function UnitCompletionPage() {
-  const [filterOpen,  setFilterOpen]  = useState(false)
+  const [filterOpen,       setFilterOpen]       = useState(false)
+  const [timescaleOpen,    setTimescaleOpen]    = useState(false)
+  const [mobileFilterOpen, setMobileFilterOpen] = useState(false)
   const [allProjects, setAllProjects] = useState(null)
   const [is4ph,       setIs4ph]       = useState('all')
   const [projectIds,  setProjectIds]  = useState([])
@@ -14,7 +16,8 @@ export default function UnitCompletionPage() {
   const [city,        setCity]        = useState('')
   const [timeMode,    setTimeMode]    = useState('monthly')
   const [filterDate,  setFilterDate]  = useState('')
-  const filterRef = useRef(null)
+  const filterRef    = useRef(null)
+  const timescaleRef = useRef(null)
 
   useEffect(() => {
     supabase.from('projects').select('id, name, is_4ph_project, province, city')
@@ -42,10 +45,11 @@ export default function UnitCompletionPage() {
 
   const activeFilterCount = [is4ph !== 'all', projectIds.length > 0, !!province, !!city, !!filterDate].filter(Boolean).length
 
-  // Outside-click closes filter popover
+  // Outside-click closes popovers
   useEffect(() => {
     const handler = (e) => {
-      if (filterRef.current && !filterRef.current.contains(e.target)) setFilterOpen(false)
+      if (filterRef.current    && !filterRef.current.contains(e.target))    setFilterOpen(false)
+      if (timescaleRef.current && !timescaleRef.current.contains(e.target)) setTimescaleOpen(false)
     }
     document.addEventListener('mousedown', handler)
     return () => document.removeEventListener('mousedown', handler)
@@ -65,7 +69,56 @@ export default function UnitCompletionPage() {
         />
       </div>
 
-      {/* Filter button + popover — desktop only; mobile handled by UnitCompletionChart's own sheet */}
+      {/* Timescale dropdown */}
+      <div className="relative flex-shrink-0" ref={timescaleRef}>
+        <button
+          onClick={() => setTimescaleOpen(v => !v)}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+          style={{
+            background: timescaleOpen ? '#fff' : '#f9fafb',
+            borderColor: timescaleOpen ? '#ed6055' : '#e5e7eb',
+            color: '#6b7280',
+            boxShadow: timescaleOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
+          }}
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
+          </svg>
+          <span className="hidden sm:inline">{['Monthly','Quarterly','Yearly'].find((_, i) => ['monthly','quarterly','yearly'][i] === timeMode) ?? 'Monthly'}</span>
+        </button>
+        {timescaleOpen && (
+          <div className="absolute top-full right-0 mt-1.5 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-36">
+            {[{ key: 'monthly', label: 'Monthly' }, { key: 'quarterly', label: 'Quarterly' }, { key: 'yearly', label: 'Yearly' }].map(m => (
+              <button key={m.key} onClick={() => { setTimeMode(m.key); setTimescaleOpen(false) }}
+                className={`w-full text-left px-3 py-2 text-xs font-semibold transition-colors ${timeMode === m.key ? 'text-[#ed6055] bg-[#ed6055]/5' : 'text-gray-600 hover:bg-gray-50'}`}
+              >{m.label}</button>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Filter button — mobile: opens bottom sheet */}
+      <button
+        className="sm:hidden flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+        style={{
+          background: activeFilterCount > 0 ? '#fff' : '#f9fafb',
+          borderColor: activeFilterCount > 0 ? '#ed6055' : '#e5e7eb',
+          color: activeFilterCount > 0 ? '#ed6055' : '#6b7280',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+        }}
+        onClick={() => setMobileFilterOpen(true)}
+      >
+        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
+        </svg>
+        {activeFilterCount > 0 && (
+          <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
+            {activeFilterCount}
+          </span>
+        )}
+      </button>
+
+      {/* Filter button + popover — desktop */}
       <div className="relative hidden sm:block" ref={filterRef}>
         <button
           onClick={() => setFilterOpen(v => !v)}
@@ -163,6 +216,8 @@ export default function UnitCompletionPage() {
             availableProvinces={availableProvinces}
             availableCities={availableCities}
             activeFilterCount={activeFilterCount}
+            mobileFilterOpen={mobileFilterOpen}
+            setMobileFilterOpen={setMobileFilterOpen}
           />
         </div>
       </main>

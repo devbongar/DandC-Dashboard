@@ -14,9 +14,9 @@ import SheetMultiDropdown from './SheetMultiDropdown'
 
 // -- Colors -------------------------------------------------------------------
 const M4_EXP = '#d1d5db'  // gray-300    (expected = gray)
-const M4_ACT = '#16a34a'  // green-600   (actual   = green)
+const M4_ACT = '#ed6055'  // red         (actual   = red)
 const M5_EXP = '#d1d5db'  // gray-300    (expected = gray)
-const M5_ACT = '#16a34a'  // green-600   (actual   = green)
+const M5_ACT = '#ed6055'  // red         (actual   = red)
 
 const MONTH_LABELS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec']
 
@@ -138,25 +138,39 @@ function DrilldownPanel({ data, onClose }) {
   if (!data) return null
   const { label, section, rows, x, y } = data
 
-  // Clamp position so panel stays in viewport
-  const panelW = 480
-  const panelH = Math.min(rows.length * 36 + 100, 420)
   const vw = window.innerWidth
   const vh = window.innerHeight
-  const left = Math.min(Math.max(x - panelW / 2, 8), vw - panelW - 8)
-  const top  = y + panelH + 16 > vh ? Math.max(y - panelH - 8, 8) : y + 16
+  const isMobile = vw < 640
+
+  // Mobile: full-width sheet anchored to bottom
+  // Desktop: floating near cursor, clamped to viewport
+  let panelStyle
+  if (isMobile) {
+    panelStyle = {
+      position: 'fixed', left: 8, right: 8, top: '50%', transform: 'translateY(-50%)', zIndex: 1000,
+      background: '#fff', borderRadius: 20,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
+      overflow: 'hidden', maxHeight: vh * 0.7,
+    }
+  } else {
+    const panelW = 480
+    const panelH = Math.min(rows.length * 36 + 100, 420)
+    const left   = Math.min(Math.max(x - panelW / 2, 8), vw - panelW - 8)
+    const top    = y + panelH + 16 > vh ? Math.max(y - panelH - 8, 8) : y + 16
+    panelStyle = {
+      position: 'fixed', left, top, zIndex: 1000, width: panelW,
+      background: '#fff', borderRadius: 16,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
+      overflow: 'hidden',
+    }
+  }
 
   return createPortal(
     <>
       {/* Backdrop */}
-      <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onClick={onClose} />
+      <div style={{ position: 'fixed', inset: 0, zIndex: 999, background: isMobile ? 'rgba(0,0,0,0.3)' : 'transparent' }} onClick={onClose} />
       {/* Panel */}
-      <div style={{
-        position: 'fixed', left, top, zIndex: 1000, width: panelW,
-        background: '#fff', borderRadius: 16,
-        boxShadow: '0 8px 32px rgba(0,0,0,0.14), 0 0 0 1px rgba(0,0,0,0.06)',
-        overflow: 'hidden',
-      }}>
+      <div style={panelStyle}>
         {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', borderBottom: '1px solid #f3f4f6' }}>
           <div>
@@ -172,7 +186,7 @@ function DrilldownPanel({ data, onClose }) {
           </button>
         </div>
         {/* Table */}
-        <div style={{ overflowY: 'auto', maxHeight: 340 }}>
+        <div style={{ overflowY: 'auto', maxHeight: isMobile ? 'calc(70vh - 80px)' : 340 }}>
           {rows.length === 0 ? (
             <p style={{ padding: '24px 16px', textAlign: 'center', fontSize: 12, color: '#9ca3af', fontStyle: 'italic' }}>No data for this period.</p>
           ) : (
@@ -332,6 +346,8 @@ export default function UnitCompletionChart({
   availableProvinces: availableProvincesProp,
   availableCities: availableCitiesProp,
   activeFilterCount: activeFilterCountProp,
+  mobileFilterOpen: mobileFilterOpenProp,
+  setMobileFilterOpen: setMobileFilterOpenProp,
 }) {
   const navigate = useNavigate()
   const chartHeight = expanded ? 380 : 240
@@ -382,9 +398,9 @@ export default function UnitCompletionChart({
   const [floors, setFloors]             = useState([])
   const [completions, setCompletions]   = useState([])
   const [loading, setLoading]           = useState(true)
-  const [timescaleOpen, setTimescaleOpen] = useState(false)
-  const [filterOpen,    setFilterOpen]    = useState(false)
-  const [mobileSheetOpen, setMobileSheetOpen] = useState(false)
+  const [_mobileSheetOpen, _setMobileSheetOpen] = useState(false)
+  const mobileSheetOpen    = mobileFilterOpenProp    ?? _mobileSheetOpen
+  const setMobileSheetOpen = setMobileFilterOpenProp ?? _setMobileSheetOpen
 
   // Load projects in standalone mode (when not provided via props)
   useEffect(() => {
@@ -393,33 +409,8 @@ export default function UnitCompletionChart({
       .then(({ data }) => _setAllProjects(data ?? []))
   }, [allProjectsProp])
 
-  const m4Ref           = useRef(null)
-  const m5Ref           = useRef(null)
-  const timescaleRef    = useRef(null)
-  const timescaleMobRef = useRef(null)
-  const filterRef       = useRef(null)
-
-  // Close timescale popover on outside click
-  useEffect(() => {
-    if (!timescaleOpen) return
-    const handler = (e) => {
-      const inDesktop = timescaleRef.current?.contains(e.target)
-      const inMobile  = timescaleMobRef.current?.contains(e.target)
-      if (!inDesktop && !inMobile) setTimescaleOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [timescaleOpen])
-
-  // Close filter popover on outside click
-  useEffect(() => {
-    if (!filterOpen) return
-    const handler = (e) => {
-      if (!filterRef.current?.contains(e.target)) setFilterOpen(false)
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [filterOpen])
+  const m4Ref = useRef(null)
+  const m5Ref = useRef(null)
 
   useEffect(() => {
     const load = async () => {
@@ -556,131 +547,9 @@ const chartData = useMemo(
           <div className="w-1 h-3.5 rounded-full bg-[#ed6055]" />
           <h2 className="text-sm font-bold text-black">{expanded ? 'M4 Unit Completion' : 'Unit Completion Overview'}</h2>
         </div>
-        {/* Desktop: view toggle + filter + timescale buttons */}
-        <div className="hidden sm:flex items-center gap-2">
+        <div className="flex items-center gap-2">
           {expanded && <ViewToggle view={m4View} onChange={setM4View} />}
-          {/* Filter button */}
-          <div className="relative flex-shrink-0" ref={filterRef}>
-            <button
-              onClick={() => setFilterOpen(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
-              style={{
-                background: filterOpen || activeFilterCount > 0 ? '#fff' : '#fafafa',
-                borderColor: activeFilterCount > 0 ? '#ed6055' : (filterOpen ? '#ed6055' : '#e5e7eb'),
-                color: activeFilterCount > 0 ? '#ed6055' : '#6b7280',
-                boxShadow: filterOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-              }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-              </svg>
-              <span className="hidden sm:inline">Filters</span>
-              {activeFilterCount > 0 && (
-                <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-            {filterOpen && (
-              <div className="absolute right-0 top-full mt-1.5 z-50 rounded-xl"
-                style={{ width: 260, background: '#fff', border: '1px solid #e5e7eb', boxShadow: '0 8px 24px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06)' }}
-              >
-                <div className="p-3 space-y-3">
-                  {/* Type toggle */}
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Type</p>
-                    <div className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
-                      style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}>
-                      {[{ key: 'all', label: 'All' }, { key: 'yes', label: '4PH' }, { key: 'no', label: 'Non-4PH' }].map(t => (
-                        <button
-                          key={t.key}
-                          onClick={() => { setIs4ph(t.key); setProjectIds([]); setProvince(''); setCity('') }}
-                          className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
-                          style={is4ph === t.key ? {
-                            background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
-                            color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
-                          } : { color: '#6b7280', background: 'transparent' }}
-                        >{t.label}</button>
-                      ))}
-                    </div>
-                  </div>
-                  {/* Project */}
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Project</p>
-                    <SheetMultiDropdown
-                      options={(allProjects ?? []).filter(p => is4ph === 'all' || (is4ph === 'yes' ? p.is_4ph_project : !p.is_4ph_project)).sort((a, b) => a.name.localeCompare(b.name)).map(p => ({ value: p.id, label: p.name }))}
-                      values={projectIds} onChange={setProjectIds}
-                      emptyLabel="All Projects"
-                      placeholder="Search projects…"
-                      icon="M2.25 12.75V12A2.25 2.25 0 014.5 9.75h15A2.25 2.25 0 0121.75 12v.75m-8.69-6.44l-2.12-2.12a1.5 1.5 0 00-1.061-.44H4.5A2.25 2.25 0 002.25 6v12a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9a2.25 2.25 0 00-2.25-2.25h-5.379a1.5 1.5 0 01-1.06-.44z"
-                    />
-                  </div>
-                  {/* Province */}
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">Province</p>
-                    <SearchDropdown
-                      fluid
-                      options={availableProvinces.map(p => ({ value: p, label: p }))}
-                      value={province} onChange={v => { setProvince(v); setCity('') }}
-                      emptyValue="" emptyLabel="All Provinces" placeholder="Search provinces…"
-                      icon="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z"
-                    />
-                  </div>
-                  {/* City */}
-                  <div>
-                    <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-1.5">City</p>
-                    <SearchDropdown
-                      fluid
-                      options={availableCities.map(c => ({ value: c, label: c }))}
-                      value={city} onChange={setCity}
-                      emptyValue="" emptyLabel="All Cities" placeholder="Search cities…"
-                      icon="M2.25 21h19.5m-18-18v18m10.5-18v18m6-13.5V21M6.75 6.75h.75m-.75 3h.75m-.75 3h.75m3-6h.75m-.75 3h.75m-.75 3h.75M6.75 21v-3.375c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21M3 3h12m-.75 4.5H21m-3.75 3.75h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008zm0 3h.008v.008h-.008v-.008z"
-                      disabled={!province || availableCities.length === 0}
-                    />
-                  </div>
-                  {/* Clear all */}
-                  {activeFilterCount > 0 && (
-                    <button
-                      onClick={() => { setIs4ph('all'); setProjectIds([]); setProvince(''); setCity(''); setFilterDate('') }}
-                      className="w-full py-1.5 text-xs font-semibold text-[#ed6055] border border-[#ed6055]/30 rounded-lg hover:bg-[#ed6055]/5 transition-colors"
-                    >
-                      Clear all filters
-                    </button>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          {/* Timescale button */}
-          <div className="relative flex-shrink-0" ref={timescaleRef}>
-            <button
-              onClick={() => setTimescaleOpen(v => !v)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
-              style={{
-                background: timescaleOpen ? '#fff' : '#fafafa',
-                borderColor: timescaleOpen ? '#ed6055' : '#e5e7eb',
-                color: '#6b7280',
-                boxShadow: timescaleOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-              }}
-            >
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
-              </svg>
-              {TIME_MODES.find(m => m.key === timeMode)?.label ?? 'Monthly'}
-              <svg className={`w-3 h-3 transition-transform ${timescaleOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-              </svg>
-            </button>
-            {timescaleOpen && (
-              <div className="absolute top-full right-0 mt-1.5 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-36">
-                {TIME_MODES.map(m => (
-                  <button key={m.key} onClick={() => { setTimeMode(m.key); setTimescaleOpen(false) }}
-                    className={`w-full text-left px-3 py-2 text-xs font-semibold transition-colors ${timeMode === m.key ? 'text-[#ed6055] bg-[#ed6055]/5' : 'text-gray-600 hover:bg-gray-50'}`}
-                  >{m.label}</button>
-                ))}
-              </div>
-            )}
-          </div>
+          {/* Desktop: expand button */}
           {!expanded && <button
             onClick={() => navigate('/unit-completion')}
             title="Full screen"
@@ -694,64 +563,6 @@ const chartData = useMemo(
         </div>
       </div>
 
-      {/* Mobile toolbar — filter button + timescale */}
-      <div className="flex items-center gap-2 mb-4 sm:hidden">
-        {expanded && <ViewToggle view={m4View} onChange={setM4View} />}
-        {/* Filter button */}
-        <button
-          onClick={() => setMobileSheetOpen(true)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
-          style={{
-            background: activeFilterCount > 0 ? '#fff' : '#fafafa',
-            borderColor: activeFilterCount > 0 ? '#ed6055' : '#e5e7eb',
-            color: activeFilterCount > 0 ? '#ed6055' : '#6b7280',
-            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
-          }}
-        >
-          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 6h9.75M10.5 6a1.5 1.5 0 11-3 0m3 0a1.5 1.5 0 10-3 0M3.75 6H7.5m3 12h9.75m-9.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-3.75 0H7.5m9-6h3.75m-3.75 0a1.5 1.5 0 01-3 0m3 0a1.5 1.5 0 00-3 0m-9.75 0h9.75" />
-          </svg>
-          {activeFilterCount > 0 && (
-            <span className="w-4 h-4 rounded-full bg-[#ed6055] text-white text-[10px] font-bold flex items-center justify-center leading-none flex-shrink-0">
-              {activeFilterCount}
-            </span>
-          )}
-        </button>
-        {/* Timescale button — mobile */}
-        <div className="relative flex-1" ref={timescaleMobRef}>
-          <button
-            onClick={() => setTimescaleOpen(v => !v)}
-            className="w-full flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
-            style={{
-              background: timescaleOpen ? '#fff' : '#fafafa',
-              borderColor: timescaleOpen ? '#ed6055' : '#e5e7eb',
-              color: '#6b7280',
-              boxShadow: timescaleOpen ? '0 0 0 3px rgba(237,96,85,0.12)' : '0 1px 2px rgba(0,0,0,0.04)',
-            }}
-          >
-            <span className="flex items-center gap-1.5">
-              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5" />
-              </svg>
-              {TIME_MODES.find(m => m.key === timeMode)?.label ?? 'Monthly'}
-            </span>
-            <svg className={`w-3 h-3 transition-transform ${timescaleOpen ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5" />
-            </svg>
-          </button>
-          {timescaleOpen && (
-            <div className="absolute top-full left-0 mt-1.5 z-50 bg-white border border-gray-200 rounded-xl shadow-lg py-1 w-36">
-              {TIME_MODES.map(m => (
-                <button
-                  key={m.key}
-                  onClick={() => { setTimeMode(m.key); setTimescaleOpen(false) }}
-                  className={`w-full text-left px-3 py-2 text-xs font-semibold transition-colors ${timeMode === m.key ? 'text-[#ed6055] bg-[#ed6055]/5' : 'text-gray-600 hover:bg-gray-50'}`}
-                >{m.label}</button>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
 
 
       {/* Summary pills */}
@@ -781,35 +592,24 @@ const chartData = useMemo(
                     </div>
                   )}
                 </div>
-                {status !== null ? (
-                  <span
-                    className={`text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0 ${
-                      status === 'ahead'    ? 'bg-green-100 text-green-700 border border-green-200' :
-                      status === 'on-track' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
-                                             'bg-red-100 text-red-600 border border-red-200'
-                    }`}
-                  >
-                    {rate}% &bull; {status === 'ahead' ? 'Ahead' : status === 'on-track' ? 'On Track' : 'Delayed'}
-                  </span>
-                ) : (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0 bg-gray-100 text-gray-500 border border-gray-200">
-                    {total > 0 ? Math.round((actual / total) * 100) : 0}% Complete
-                  </span>
-                )}
               </div>
-              {/* Three stats */}
-              <div className="grid grid-cols-3 gap-2">
+              {/* Four stats */}
+              <div className="grid grid-cols-4 gap-2">
                 <div>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Planned PTD</p>
                   <p className="text-base sm:text-xl font-bold text-gray-400 leading-none">{planned.toLocaleString()}</p>
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Planned PTD</p>
                 </div>
                 <div className="border-l border-gray-200 pl-2 sm:pl-3">
-                  <p className="text-base sm:text-xl font-bold text-green-600 leading-none">{actual.toLocaleString()}</p>
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Actual PTD</p>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Actual PTD</p>
+                  <p className="text-base sm:text-xl font-bold text-[#ed6055] leading-none">{actual.toLocaleString()}</p>
                 </div>
                 <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Variance</p>
+                  <p className={`text-base sm:text-xl font-bold leading-none ${actual - planned >= 0 ? 'text-green-600' : 'text-red-500'}`}>{(actual - planned >= 0 ? '+' : '')}{(actual - planned).toLocaleString()}</p>
+                </div>
+                <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Total units</p>
                   <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{total.toLocaleString()}</p>
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Total units</p>
                 </div>
               </div>
             </div>
@@ -895,7 +695,7 @@ const chartData = useMemo(
                               <LabelList dataKey="m4Expected" position="top" style={{ fontSize: 9, fill: '#9ca3af', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
                             </Bar>
                             <Bar dataKey="m4Actual"   name="Actual"   fill={M4_ACT} radius={[3, 3, 0, 0]} maxBarSize={40}>
-                              <LabelList dataKey="m4Actual" position="top" style={{ fontSize: 9, fill: '#16a34a', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
+                              <LabelList dataKey="m4Actual" position="top" style={{ fontSize: 9, fill: '#ed6055', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
                             </Bar>
                           </BarChart>
                       }
@@ -937,7 +737,7 @@ const chartData = useMemo(
                           <LabelList dataKey="m5Expected" position="top" style={{ fontSize: 9, fill: '#9ca3af', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
                         </Bar>
                         <Bar dataKey="m5Actual"   name="Actual"   fill={M5_ACT} radius={[3, 3, 0, 0]} maxBarSize={40}>
-                          <LabelList dataKey="m5Actual" position="top" style={{ fontSize: 9, fill: '#16a34a', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
+                          <LabelList dataKey="m5Actual" position="top" style={{ fontSize: 9, fill: '#ed6055', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
                         </Bar>
                       </BarChart>
                     </ResponsiveContainer>
@@ -980,39 +780,27 @@ const chartData = useMemo(
           <ViewToggle view={m5View} onChange={setM5View} />
         </div>
 
-        {/* M5 summary pill */}
+        {/* M5 summary card */}
         {(floors.length > 0 || completions.length > 0) && (
           <div className="mb-4">
             <div className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3">
-              <div className="flex items-start justify-between gap-2 mb-3">
+              {/* Four stats */}
+              <div className="grid grid-cols-4 gap-2">
                 <div>
+                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Planned PTD</p>
+                  <p className="text-base sm:text-xl font-bold text-gray-400 leading-none">{totals.m5PlannedToday.toLocaleString()}</p>
                 </div>
-                {totals.m5Status !== null ? (
-                  <span className={`text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0 ${
-                    totals.m5Status === 'ahead'    ? 'bg-green-100 text-green-700 border border-green-200' :
-                    totals.m5Status === 'on-track' ? 'bg-amber-100 text-amber-700 border border-amber-200' :
-                                                    'bg-red-100 text-red-600 border border-red-200'
-                  }`}>
-                    {totals.m5Rate}% &bull; {totals.m5Status === 'ahead' ? 'Ahead' : totals.m5Status === 'on-track' ? 'On Track' : 'Delayed'}
-                  </span>
-                ) : (
-                  <span className="text-xs font-bold px-2.5 py-1 rounded-lg flex-shrink-0 bg-gray-100 text-gray-500 border border-gray-200">
-                    {totals.m5Total > 0 ? Math.round((totals.m5Actual / totals.m5Total) * 100) : 0}% Complete
-                  </span>
-                )}
-              </div>
-              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-gray-100">
-                <div className="text-center">
-                  <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{totals.m5Actual.toLocaleString()}</p>
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Actual so far</p>
+                <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Actual PTD</p>
+                  <p className="text-base sm:text-xl font-bold text-[#ed6055] leading-none">{totals.m5Actual.toLocaleString()}</p>
                 </div>
-                <div className="text-center">
-                  <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{totals.m5PlannedToday.toLocaleString()}</p>
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Planned to date</p>
+                <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Variance</p>
+                  <p className={`text-base sm:text-xl font-bold leading-none ${totals.m5Actual - totals.m5PlannedToday >= 0 ? 'text-green-600' : 'text-red-500'}`}>{(totals.m5Actual - totals.m5PlannedToday >= 0 ? '+' : '')}{(totals.m5Actual - totals.m5PlannedToday).toLocaleString()}</p>
                 </div>
-                <div className="text-center">
+                <div className="border-l border-gray-200 pl-2 sm:pl-3">
+                  <p className="text-[10px] sm:text-xs text-gray-400 mb-1 leading-snug">Total units</p>
                   <p className="text-base sm:text-xl font-bold text-gray-900 leading-none">{totals.m5Total.toLocaleString()}</p>
-                  <p className="text-[10px] sm:text-xs text-gray-400 mt-1 leading-snug">Total units</p>
                 </div>
               </div>
             </div>
@@ -1076,7 +864,7 @@ const chartData = useMemo(
                             <LabelList dataKey="m5Expected" position="top" style={{ fontSize: 9, fill: '#9ca3af', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
                           </Bar>
                           <Bar dataKey="m5Actual"   name="Actual"   fill={M5_ACT} radius={[3, 3, 0, 0]} maxBarSize={40}>
-                            <LabelList dataKey="m5Actual" position="top" style={{ fontSize: 9, fill: '#16a34a', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
+                            <LabelList dataKey="m5Actual" position="top" style={{ fontSize: 9, fill: '#ed6055', fontWeight: 600 }} formatter={v => v > 0 ? v : ''} />
                           </Bar>
                         </BarChart>
                     }
