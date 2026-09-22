@@ -233,7 +233,7 @@ export default function ProjectDetailPage() {
 
       {/* -- Sidebar -- */}
       <aside
-        className={`sidebar-frost ${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} sm:relative sm:flex sm:z-20 flex-shrink-0 flex-col py-3 gap-1`}
+        className={`sidebar-frost ${mobileSidebarOpen ? 'fixed inset-y-0 left-0 z-40 flex' : 'hidden'} lg:relative lg:flex lg:z-20 flex-shrink-0 flex-col py-3 gap-1`}
         style={{
           width: sidebarExpanded ? 240 : 80,
           background: 'transparent',

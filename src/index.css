@@ -36,6 +36,18 @@ body.plan-fullscreen header {
 body.plan-fullscreen #layout-root {
   background: #000 !important;
 }
+body.plan-fullscreen #layout-root > * {
+  background: #000 !important;
+}
+
+/* Site plan pin label — scale down on mobile */
+@media (max-width: 1023px) {
+  .site-pin-label {
+    transform: scale(0.5) !important;
+    transform-origin: bottom center;
+    display: inline-block;
+  }
+}
 
 /* Site plan map pin */
 .site-pin {

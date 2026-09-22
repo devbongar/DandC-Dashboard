@@ -4853,7 +4853,7 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
 
   // ── Full-screen plan view (planMode !== 'photos') ───────────────────────────
   if (!showPhotos) return (
-    <div style={{ position: 'relative', width: '100%', overflow: (isZooming || isZoomingBack) ? 'hidden' : 'visible' }}>
+    <div style={{ position: 'relative', width: '100%', height: '100dvh', display: 'flex', flexDirection: 'column', background: '#000', overflow: (isZooming || isZoomingBack) ? 'hidden' : 'visible' }}>
       {/* Floating controls overlay */}
       {planActive && (
         <>
@@ -4926,8 +4926,11 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
         </div>
       )}
 
+      {/* Black top bar */}
+      <div style={{ flexShrink: 0, height: 'calc(env(safe-area-inset-top, 0px) + 48px)', background: '#000' }} />
+
       {/* Image + pins */}
-      <div ref={containerRef} className="relative" style={{ cursor: editMode ? 'crosshair' : 'default', height: '100dvh', background: '#000' }}>
+      <div ref={containerRef} className="relative" style={{ cursor: editMode ? 'crosshair' : 'default', flex: 1, minHeight: 0, width: '100%', overflow: 'hidden', background: '#000' }}>
         <img
           ref={imgRef}
           src={planUrl}
@@ -4973,7 +4976,7 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
                 </button>
               ) : (
                 <button onClick={() => handlePinClick(pin)} className="flex flex-col items-center group" style={{ marginBottom: 8 }}>
-                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md mb-1 whitespace-nowrap transition-transform group-hover:scale-110 bg-white text-gray-700 border border-gray-200 group-hover:bg-[#ed6055] group-hover:text-white group-hover:border-[#ed6055]">
+                  <span className="site-pin-label text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md mb-1 whitespace-nowrap transition-transform group-hover:scale-110 bg-white text-gray-700 border border-gray-200 group-hover:bg-[#ed6055] group-hover:text-white group-hover:border-[#ed6055]">
                     {pin.floor_id && floorName(pin.floor_id) ? `${name} · ${floorName(pin.floor_id)}` : name}
                   </span>
                   <span className="site-pin" />
@@ -5060,7 +5063,7 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
       <div className="fixed inset-0 z-[9998] flex flex-col"
         style={{ background: '#000', opacity: photosVisible ? 1 : 0, transition: 'opacity 0.3s ease', pointerEvents: photosVisible ? 'auto' : 'none' }}>
         {/* Header */}
-        <div className="grid flex-shrink-0 px-4 py-3" style={{ gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+        <div className="grid flex-shrink-0 px-4" style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)', paddingBottom: 12, gridTemplateColumns: '1fr auto 1fr', alignItems: 'center', background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(14px)', WebkitBackdropFilter: 'blur(14px)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
           {/* Left: back */}
           <button onClick={() => backToPlan()}
             className="flex items-center gap-1.5 text-xs font-semibold text-white/60 hover:text-white transition justify-self-start">
@@ -6555,6 +6558,14 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   const [toastIn, setToastIn] = useState(false)
   const toastTimerRef = useRef(null)
 
+  const [isPortrait, setIsPortrait] = useState(() => window.innerWidth < 768 && window.innerHeight > window.innerWidth)
+  useEffect(() => {
+    const update = () => setIsPortrait(window.innerWidth < 768 && window.innerHeight > window.innerWidth)
+    window.addEventListener('resize', update)
+    window.addEventListener('orientationchange', update)
+    return () => { window.removeEventListener('resize', update); window.removeEventListener('orientationchange', update) }
+  }, [])
+
   useEffect(() => {
     if (asPage) return
     const prev = document.body.style.overflow
@@ -6668,8 +6679,22 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} search={permitsSearch} onSearchChange={onPermitsSearchChange} filterStatus={permitsFilter} onFilterStatusChange={onPermitsFilterChange} creating={permitsCreating} onCreatingChange={onPermitsCreatingChange} />
           </div>
         ) : activeSection === 'Photos' ? (
-          <div key="Photos" className="section-slide-in">
+          <div key="Photos" className="section-slide-in relative">
             <PhotosTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} search={photosSearch} onSearchChange={onPhotosSearchChange} filterTags={photosFilterTags} onFilterTagsChange={onPhotosFilterTagsChange} filterMonth={photosFilterMonth} onFilterMonthChange={onPhotosFilterMonthChange} sortOrder={photosSortOrder} onSortOrderChange={onPhotosSortOrderChange} showUpload={photosShowUpload} onShowUploadChange={onPhotosShowUploadChange} />
+            {isPortrait && (
+              <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 sm:hidden"
+                style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+                <svg className="w-14 h-14 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2}>
+                  <rect x="4" y="2" width="16" height="20" rx="2" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 18h6" />
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 7l3 3-3 3M7 10h10" style={{ transform: 'rotate(90deg)', transformOrigin: '12px 10px' }} />
+                </svg>
+                <div className="text-center px-8">
+                  <p className="text-white text-base font-semibold mb-1">Rotate your device</p>
+                  <p className="text-white/50 text-sm">Turn to landscape for the best viewing experience</p>
+                </div>
+              </div>
+            )}
           </div>
         ) : activeSection === 'Issues & Concerns' ? (
           <div key="Issues & Concerns" className="section-slide-in">
