@@ -551,7 +551,7 @@ function RemDurCell({ remDur, plannedStart, plannedEnd, projectedEnd, projectedS
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '' }) {
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, rowNumW = ROW_NUM_W, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '' }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
 
@@ -565,7 +565,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
   const bgBase     = hasViolation ? '#fff1f2' : '#ffffff'
   const bgHover    = hasViolation ? '#fecdd3' : '#e5e7eb'
 
-  const frozenW = ROW_NUM_W + labelW
+  const frozenW = rowNumW + labelW
     + (showDuration ? durColW : 0)
     + (showRemDur ? remDurColW : 0)
     + (showPredecessor ? predColW : 0)
@@ -592,14 +592,17 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         className="sticky left-0 z-30 flex items-center flex-shrink-0 self-stretch"
       >
         {/* # column */}
-        <div
-          style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
-          className={`flex items-center justify-center flex-shrink-0 self-stretch${showDragHandle ? ' cursor-grab' : ''}`}
-          title={showDragHandle ? 'Drag to reorder' : undefined}
-        >
-          <span className="text-[10px] font-mono text-gray-700 tabular-nums select-none">{rowNum}</span>
-        </div>
+        {rowNumW > 0 && (
+          <div
+            style={{ width: rowNumW, minWidth: rowNumW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+            className={`flex items-center justify-center flex-shrink-0 self-stretch${showDragHandle ? ' cursor-grab' : ''}`}
+            title={showDragHandle ? 'Drag to reorder' : undefined}
+          >
+            <span className="text-[10px] font-mono text-gray-700 tabular-nums select-none">{rowNum}</span>
+          </div>
+        )}
         {/* Activity name */}
+        {labelW > 0 && (
         <div
           style={{ width: labelW, minWidth: labelW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
           className="flex items-center pr-2 flex-shrink-0 self-stretch"
@@ -650,6 +653,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
             </button>
           )}
         </div>
+        )}
         {/* Duration column */}
         {showDuration && (
           <div
@@ -787,8 +791,9 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
 // Memoized so SortableMilestoneRow re-renders (from useSortable) don't cascade into the expensive row content
 const MilestoneRowMemo = memo(MilestoneRow)
 
-function SortableMilestoneRow({ id, isAdmin, canEdit, isSelected, onSelect, ...props }) {
+function SortableMilestoneRow({ id, isAdmin, canEdit, isSelected, onSelect, disableDrag = false, ...props }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
+  const dragActive = isAdmin && !disableDrag
   return (
     <div
       ref={setNodeRef}
@@ -798,14 +803,14 @@ function SortableMilestoneRow({ id, isAdmin, canEdit, isSelected, onSelect, ...p
         opacity: isDragging ? 0.4 : 1,
         position: 'relative',
         zIndex: isDragging ? 1 : undefined,
-        touchAction: isAdmin ? 'none' : undefined,
+        touchAction: dragActive ? 'none' : undefined,
         boxShadow: isSelected ? 'inset 0 0 0 2px #3b82f6' : undefined,
       }}
-      {...(isAdmin ? listeners : {})}
-      {...(isAdmin ? attributes : {})}
+      {...(dragActive ? listeners : {})}
+      {...(dragActive ? attributes : {})}
       onClick={() => onSelect?.(id)}
     >
-      <MilestoneRowMemo {...props} isAdmin={isAdmin} canEdit={canEdit} showDragHandle={isAdmin} />
+      <MilestoneRowMemo {...props} isAdmin={isAdmin} canEdit={canEdit} showDragHandle={dragActive} />
     </div>
   )
 }
@@ -1023,7 +1028,7 @@ function DragResizeHandle({ onMouseDown }) {
   )
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, colVisibility = { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {}, dataDate = '' }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, rowNumW = ROW_NUM_W, disableDrag = false, colVisibility = { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {}, dataDate = '' }) {
   const [durColW,    setDurColW]    = useState(DUR_COL_W)
   const [remDurColW, setRemDurColW] = useState(DUR_COL_W)
   const [predColW,   setPredColW]   = useState(PRED_COL_W)
@@ -1045,7 +1050,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
   }
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 2 } }))
+  const sensors = useSensors(...(disableDrag ? [] : [useSensor(PointerSensor, { activationConstraint: { distance: 2 } })]))
   const handleDragEnd = ({ active, over }) => {
     if (over && active.id !== over.id) onReorder(String(active.id), String(over.id))
   }
@@ -1111,7 +1116,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const todayPx      = refDatePx
 
   const { duration: showDuration, remDur: showRemDur, predecessor: showPredecessor, planned: showPlanned, actual: showActual, projected: showProjected, gantt: showGantt } = colVisibility
-  const frozenW = ROW_NUM_W + labelW
+  const frozenW = rowNumW + labelW
     + (showDuration ? durColW : 0)
     + (showRemDur ? remDurColW : 0)
     + (showPredecessor ? predColW : 0)
@@ -1138,14 +1143,18 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
           className="flex-shrink-0 flex items-center"
         >
           {/* # column header */}
-          <div style={{ width: ROW_NUM_W, minWidth: ROW_NUM_W }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0">
-            <span className="text-[10px] font-bold text-gray-300">#</span>
-          </div>
+          {rowNumW > 0 && (
+            <div style={{ width: rowNumW, minWidth: rowNumW }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0">
+              <span className="text-[10px] font-bold text-gray-300">#</span>
+            </div>
+          )}
           {/* Activity name column */}
-          <div style={{ width: labelW, minWidth: labelW, position: 'relative' }} className="flex items-center pl-3 pr-1 self-stretch border-r border-gray-500 flex-shrink-0">
-            <span className="text-xs font-bold text-gray-200 flex-1 min-w-0">Activity</span>
-            <DragResizeHandle onMouseDown={e => startColDrag(e, labelW, setLabelW, 120)} />
-          </div>
+          {labelW > 0 && (
+            <div style={{ width: labelW, minWidth: labelW, position: 'relative' }} className="flex items-center pl-3 pr-1 self-stretch border-r border-gray-500 flex-shrink-0">
+              <span className="text-xs font-bold text-gray-200 flex-1 min-w-0">Activity</span>
+              <DragResizeHandle onMouseDown={e => startColDrag(e, labelW, setLabelW, 120)} />
+            </div>
+          )}
           {/* Duration -- always its own column */}
           {showDuration && (
             <div style={{ width: durColW, minWidth: durColW, position: 'relative' }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0 px-1">
@@ -1303,6 +1312,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         toPx, chartPxWidth: showGantt ? chartPxWidth : 0, gridDates,
         todayPx, showToday, todayStr: refDateStr,
         isChild: node.depth > 0, isLastChild: false,
+        rowNumW,
         labelW, durColW, remDurColW, predColW, dateColWidths, showDuration, showRemDur, showPredecessor, showPlanned, showActual, showProjected,
         showPlannedBar: barVisibility.planned, showActualBar: barVisibility.actual, showProjectedBar: barVisibility.projected, showBarLabels,
         draftName: drafts[node.id] ?? displayM.milestone_name,
@@ -1318,7 +1328,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         barColors,
         dataDate,
       }
-      const items = [<SortableMilestoneRow key={node.id} id={node.id} isAdmin={isAdmin} isSelected={selectedId === node.id} onSelect={onSelect} {...rowProps} />]
+      const items = [<SortableMilestoneRow key={node.id} id={node.id} isAdmin={isAdmin} disableDrag={disableDrag} isSelected={selectedId === node.id} onSelect={onSelect} {...rowProps} />]
       if (inlineAdd?.parentId === node.id) {
         items.push(
           <InlineAddRow key={`inline-${node.id}`} depth={node.depth + 1} name={inlineAddName}
@@ -1478,6 +1488,7 @@ function BaselineStartDateField({ startDate, isAutoMode, onSave }) {
 
 export function GanttContent({ project, isAdmin = false, showToast = () => {}, onRegisterFns, onActiveBLChange }) {
   const { profile } = useProfile()
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640)
   const [labelW, setLabelW] = useState(() => window.innerWidth < 640 ? 160 : LABEL_W)
   const [baselines, setBaselines]     = useState([])
   const [activeBL, setActiveBL]       = useState(null)
@@ -1528,7 +1539,12 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     else sessionStorage.removeItem(`gantt-drafts-${project.id}`)
   }, [drafts])
   const [deleteId, setDeleteId]   = useState(null)
-  const [colVisibility, setColVisibility] = useState({ duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true })
+  const [colVisibility, setColVisibility] = useState(() => {
+    const mobile = window.innerWidth < 640
+    return mobile
+      ? { duration: false, remDur: false, predecessor: false, planned: false, actual: false, projected: false, gantt: true }
+      : { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }
+  })
   const [barVisibility, setBarVisibility] = useState({ planned: true, actual: true, projected: true })
   const [barColors, setBarColors]         = useState({ planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' })
   const [showBarLabels, setShowBarLabels] = useState(true)
@@ -1580,7 +1596,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       .then(({ data, error }) => {
         if (error || !data) return
         const s = data.settings ?? {}
-        if (s.colVisibility  !== undefined) setColVisibility(prev => ({ ...prev, ...s.colVisibility }))
+        if (s.colVisibility !== undefined) {
+          const merged = { ...s.colVisibility }
+          if (window.innerWidth < 640) {
+            merged.duration = false; merged.remDur = false; merged.predecessor = false
+            merged.planned = false; merged.actual = false; merged.projected = false
+          }
+          setColVisibility(prev => ({ ...prev, ...merged }))
+        }
         if (s.barVisibility  !== undefined) setBarVisibility(s.barVisibility)
         if (s.barColors      !== undefined) setBarColors(s.barColors)
         if (s.showBarLabels  !== undefined) setShowBarLabels(s.showBarLabels)
@@ -2173,10 +2196,17 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   }
 
   useEffect(() => {
-    const update = () => setLabelW(window.innerWidth < 640 ? 160 : LABEL_W)
+    const update = () => {
+      const mobile = window.innerWidth < 640
+      setIsMobile(mobile)
+      setLabelW(mobile ? 160 : LABEL_W)
+    }
     window.addEventListener('resize', update)
     return () => window.removeEventListener('resize', update)
   }, [])
+
+  const effectiveLabelW = isMobile ? 0 : labelW
+  const effectiveRowNumW = isMobile ? 0 : ROW_NUM_W
 
   const handleToggleCollapse = (id) => {
     setCollapsedIds(prev => {
@@ -2521,65 +2551,39 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         {/* -- Mobile layout (< sm) -- */}
         <div className="flex flex-col gap-2 px-3 py-2.5 sm:hidden bg-white border-b border-gray-100">
 
-          {/* Time scale toggle -- full width */}
-          <div
-            className="flex items-center gap-0.5 p-0.5 rounded-lg w-full"
-            style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
-          >
-            {TIME_SCALES.map(s => (
-              <button
-                key={s.key}
-                onClick={() => setTimeScale(s.key)}
-                className="relative flex-1 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
-                style={timeScale === s.key ? {
-                  background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
-                  color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
-                } : { color: '#6b7280', background: 'transparent' }}
-              >
-                {s.label}
-              </button>
-            ))}
-          </div>
-
-          {/* Baseline selector -- full width (if present) */}
-          {baselines.length > 0 && (
-            <GToolbarSelect
-              fullWidth
-              value={activeBL ?? ''}
-              onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
-              options={baselines.map(b => ({ value: b.id, label: b.name }))}
-            />
-          )}
-
-          {/* Start date -- always visible (used by scheduler in both Auto and Manual mode) */}
-          {activeBL && (
-            <div className="flex items-center gap-2">
-              <BaselineStartDateField
-                startDate={blStartDate}
-                isAutoMode={isAutoMode}
-                onSave={handleSaveStartDate}
-              />
-            </div>
-          )}
-          {/* Date range -- From / To on one row */}
+          {/* Time scale + baseline on one row */}
           <div className="flex items-center gap-2">
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">From</label>
-            <div className="flex-1 min-w-0">
-              <MonthYearPicker fluid value={fromMonth} onChange={setFromMonth} max={toMonth} />
+            <div
+              className="flex items-center gap-0.5 p-0.5 rounded-lg flex-shrink-0"
+              style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
+            >
+              {TIME_SCALES.map(s => (
+                <button
+                  key={s.key}
+                  onClick={() => setTimeScale(s.key)}
+                  className="relative px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
+                  style={timeScale === s.key ? {
+                    background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
+                    color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
+                  } : { color: '#6b7280', background: 'transparent' }}
+                >
+                  {s.label}
+                </button>
+              ))}
             </div>
-            <label className="text-[11px] font-bold text-gray-500 uppercase tracking-widest flex-shrink-0">To</label>
-            <div className="flex-1 min-w-0">
-              <MonthYearPicker fluid value={toMonth} onChange={setToMonth} min={fromMonth} />
-            </div>
-            {hasFilter && (
-              <button
-                onClick={() => { setFromMonth(''); setToMonth('') }}
-                className="flex-shrink-0 text-xs text-gray-400 hover:text-[#ed6055] transition font-medium"
-              >
-                Clear
-              </button>
+            {baselines.length > 0 && (
+              <div className="flex-1 min-w-0">
+                <GToolbarSelect
+                  fullWidth
+                  value={activeBL ?? ''}
+                  onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
+                  options={baselines.map(b => ({ value: b.id, label: b.name }))}
+                />
+              </div>
             )}
           </div>
+
+
         </div>
 
         {/* -- Desktop layout (sm+) -- settings panel anchor only -- */}
@@ -2941,8 +2945,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
               overrideMax={overrideMax}
               timeScale={timeScale}
               colPx={colPx}
-              labelW={labelW}
+              labelW={effectiveLabelW}
               setLabelW={setLabelW}
+              rowNumW={effectiveRowNumW}
+              disableDrag={isMobile}
               colVisibility={colVisibility}
               barVisibility={barVisibility}
               barColors={barColors}
