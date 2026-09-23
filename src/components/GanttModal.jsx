@@ -2603,7 +2603,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
 
       {/* Mobile hero card */}
       <div className="sm:hidden flex-shrink-0" style={{ boxShadow: 'rgba(0,0,0,0.15) 2px 3px 8px' }}>
-        <div className="relative flex flex-col w-full" style={{ background: 'linear-gradient(115deg, #7c3aed 0%, #6d28d9 50%, #5b21b6 100%)' }}>
+        <div className="relative flex flex-col w-full" style={{ background: 'linear-gradient(115deg, #6b7280 0%, #4b5563 50%, #374151 100%)' }}>
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
             <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.12)', width: 300, height: 300, top: '-40%', right: '-50%' }} />
             <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.12)', width: 210, height: 210, top: '-30%', right: '-30%' }} />
@@ -2626,7 +2626,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           )}
           {baselines.length === 0 && <div className="pb-4" />}
         </div>
-        <div className="flex items-stretch w-full rounded-b-3xl overflow-hidden" style={{ height: 52, background: '#4c1d95' }}>
+        <div className="flex items-stretch w-full rounded-b-3xl overflow-hidden" style={{ height: 52, background: '#1f2937' }}>
           {TIME_SCALES.map(s => (
             <button
               key={s.key}
