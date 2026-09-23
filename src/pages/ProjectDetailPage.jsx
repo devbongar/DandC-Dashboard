@@ -436,7 +436,7 @@ export default function ProjectDetailPage() {
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${section === 'Work Program' ? 'sm:overflow-hidden overflow-x-hidden' : 'overflow-y-auto'}`}>
+        <main id="main-scroll" ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${section === 'Work Program' ? 'sm:overflow-hidden overflow-x-hidden' : 'overflow-y-auto'}`}>
 
           {/* Header â€" transparent + sticky on Project Info so cover photo shows through */}
           <header
