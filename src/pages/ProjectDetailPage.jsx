@@ -6,6 +6,7 @@ import LoadingScreen from '../components/LoadingScreen'
 import ProjectDetailModal from '../components/ProjectDetailModal'
 import Logo from '../components/Logo'
 import NotificationBell from '../components/NotificationBell'
+import MobileBottomNav from '../components/MobileBottomNav'
 import { ROLE_LABELS } from '../lib/roles'
 
 export const slugify = (str) =>
@@ -71,7 +72,9 @@ export default function ProjectDetailPage() {
   const [project,   setProject]   = useState(null)
   const [loading,   setLoading]   = useState(true)
   const [section,   setSection]   = useState(() => {
-    const tab = new URLSearchParams(window.location.search).get('tab') || 'Project Info'
+    const isMobile = window.innerWidth < 640
+    const defaultTab = isMobile ? 'Project Home' : 'Project Info'
+    const tab = new URLSearchParams(window.location.search).get('tab') || defaultTab
     return tab === 'Project Info' ? null : tab
   })
   const [reportOpen,       setReportOpen]       = useState(false)
@@ -104,11 +107,9 @@ export default function ProjectDetailPage() {
   const [showLabels,        setShowLabels]        = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false)
   const [mobileSearchOpen,  setMobileSearchOpen]  = useState(false)
-  const [bottomNavVisible,  setBottomNavVisible]  = useState(true)
   const sidebarExpanded   = mobileSidebarOpen || expanded
   const sidebarShowLabels = mobileSidebarOpen || showLabels
   const tooltipRef    = useRef(null)
-  const bottomNavLastY = useRef(0)
   const filterPopRef        = useRef(null)
   const actionsPopRef       = useRef(null)
   const photosFilterPopRef   = useRef(null)
@@ -192,20 +193,6 @@ export default function ProjectDetailPage() {
     setMobileSearchOpen(false)
     setHeaderScrolled(false)
   }, [section])
-
-  useEffect(() => {
-    const el = mainScrollRef.current
-    if (!el) return
-    const onBottomNavScroll = () => {
-      const currentY = el.scrollTop
-      const delta = currentY - bottomNavLastY.current
-      if (Math.abs(delta) < 8) return
-      setBottomNavVisible(delta < 0 || currentY < 40)
-      bottomNavLastY.current = currentY
-    }
-    el.addEventListener('scroll', onBottomNavScroll, { passive: true })
-    return () => el.removeEventListener('scroll', onBottomNavScroll)
-  }, [loading, profileLoading])
 
   useEffect(() => {
     const el = mainScrollRef.current
@@ -466,7 +453,7 @@ export default function ProjectDetailPage() {
             <button
               className={`sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 active:scale-90 transition-all ${ganttHeroGone ? 'text-gray-600' : 'text-white'}`}
               style={{ background: ganttHeroGone ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.18)' }}
-              onClick={() => section === null ? navigate('/projects') : (setSection(null), setSearchParams({ tab: 'Project Info' }))}
+              onClick={() => (section === null || section === 'Project Home') ? navigate('/projects') : (setSection('Project Home'), setSearchParams({ tab: 'Project Home' }))}
               aria-label="Back"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1153,52 +1140,8 @@ export default function ProjectDetailPage() {
         </main>
       </div>
 
-      {/* Mobile bottom nav — project section tabs, same style as MobileBottomNav */}
-      <nav
-        className="fixed bottom-4 left-1/2 z-50 sm:hidden flex items-center gap-1 px-3 py-2.5"
-        style={{
-          background: 'rgba(30, 30, 40, 0.72)',
-          backdropFilter: 'blur(12px) saturate(160%)',
-          WebkitBackdropFilter: 'blur(12px) saturate(160%)',
-          border: '1px solid rgba(255,255,255,0.18)',
-          borderRadius: 9999,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.28), 0 2px 8px rgba(0,0,0,0.16), inset 0 1px 0 rgba(255,255,255,0.14)',
-          transform: `translateX(-50%) translateY(${bottomNavVisible ? '0' : 'calc(100% + 1.5rem)'})`,
-          transition: 'transform 300ms cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-      >
-        {[
-          { key: null,                label: 'Info',    Icon: InfoIcon },
-          { key: 'Work Program',      label: 'Program', Icon: WorkProgramIcon },
-          { key: 'Permits',           label: 'Permits', Icon: PermitsIcon },
-          { key: 'S-Curve',           label: 'S-Curve', Icon: SCurveIcon },
-          { key: 'Photos',            label: 'Photos',  Icon: PhotosIcon },
-          { key: 'Issues & Concerns', label: 'Issues',  Icon: IssuesIcon },
-        ].map(item => {
-          const isActive = section === item.key
-          return (
-            <button
-              key={String(item.key)}
-              onClick={() => { setSection(item.key); setSearchParams({ tab: item.key ?? 'Project Info' }) }}
-              className="flex flex-col items-center gap-1 px-4 py-2 rounded-full"
-              style={{ border: 'none', background: 'transparent', flexShrink: 0 }}
-              aria-label={item.label}
-            >
-              <item.Icon
-                className="w-6 h-6 flex-shrink-0 transition-all duration-150"
-                style={{ color: '#fff', opacity: isActive ? 1 : 0.35 }}
-                solid={isActive}
-              />
-              <span
-                className="text-[10px] font-semibold leading-none tracking-wide transition-all duration-150"
-                style={{ color: '#fff', opacity: isActive ? 1 : 0.35 }}
-              >
-                {item.label}
-              </span>
-            </button>
-          )
-        })}
-      </nav>
+      {/* Mobile bottom nav — same global nav as /projects page */}
+      {section !== 'Project Home' && <MobileBottomNav profile={profile} />}
     </div>
   )
 }
