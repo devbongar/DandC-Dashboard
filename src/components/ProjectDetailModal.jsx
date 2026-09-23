@@ -4721,7 +4721,7 @@ function UploadScreen({ project, showToast, onBack, onUploaded, buildings = [], 
 // -- Site Plan View ------------------------------------------------------------
 
 
-function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGallery, showToast }) {
+function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGallery, showToast, onGoHome }) {
   const [plan, setPlan]               = useState(null)
   const [pins, setPins]               = useState([])
   const [loading, setLoading]         = useState(true)
@@ -5006,6 +5006,14 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
 
           {/* Upper-left: hamburger + All Photos */}
           <div style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', left: 16, zIndex: 30, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+            {onGoHome && (
+              <button onClick={onGoHome} aria-label="Back to Project Home"
+                className="planMenuButton sm:hidden">
+                <svg style={{ width: 16, height: 16, color: 'rgb(220,220,220)' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                </svg>
+              </button>
+            )}
             {isAdmin && (
               <>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden"
@@ -5486,7 +5494,7 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
 
 // -- Photos Gallery ------------------------------------------------------------
 
-function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearchChange, filterTags = [], onFilterTagsChange, filterMonth = '', onFilterMonthChange, sortOrder = 'newest', onSortOrderChange, showUpload = false, onShowUploadChange }) {
+function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearchChange, filterTags = [], onFilterTagsChange, filterMonth = '', onFilterMonthChange, sortOrder = 'newest', onSortOrderChange, showUpload = false, onShowUploadChange, onGoHome }) {
   const [view, setView]                   = useState('site-plan')  // 'site-plan' | 'gallery'
   const [photos, setPhotos]               = useState([])
   const [buildings, setBuildings]         = useState([])
@@ -5634,6 +5642,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
       allFloors={floors}
       showToast={showToast}
       onViewGallery={() => setView('gallery')}
+      onGoHome={onGoHome}
     />
   )
 
@@ -6817,7 +6826,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           </div>
         ) : activeSection === 'Photos' ? (
           <div key="Photos" className="section-slide-in">
-            <PhotosTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} search={photosSearch} onSearchChange={onPhotosSearchChange} filterTags={photosFilterTags} onFilterTagsChange={onPhotosFilterTagsChange} filterMonth={photosFilterMonth} onFilterMonthChange={onPhotosFilterMonthChange} sortOrder={photosSortOrder} onSortOrderChange={onPhotosSortOrderChange} showUpload={photosShowUpload} onShowUploadChange={onPhotosShowUploadChange} />
+            <PhotosTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} search={photosSearch} onSearchChange={onPhotosSearchChange} filterTags={photosFilterTags} onFilterTagsChange={onPhotosFilterTagsChange} filterMonth={photosFilterMonth} onFilterMonthChange={onPhotosFilterMonthChange} sortOrder={photosSortOrder} onSortOrderChange={onPhotosSortOrderChange} showUpload={photosShowUpload} onShowUploadChange={onPhotosShowUploadChange} onGoHome={() => navigate('Project Home')} />
           </div>
         ) : activeSection === 'Issues & Concerns' ? (
           <div key="Issues & Concerns" className="section-slide-in permits-hero-pull">
