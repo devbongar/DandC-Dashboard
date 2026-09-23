@@ -47,6 +47,9 @@ body.plan-fullscreen #layout-root > * {
     transform-origin: bottom center;
     display: inline-block;
   }
+  .scurve-yaxis-label {
+    display: none;
+  }
 }
 
 /* Site plan map pin */

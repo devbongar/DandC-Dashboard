@@ -1057,13 +1057,6 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     setBaselineDataMap(prev => ({ ...prev, [primaryBaselineId]: data ?? [] }))
   }
 
-  // Y-axis panel lives outside the scroll container so it never scrolls away.
-  // When showTable: panel = LABEL_W so it visually aligns with the sticky table label column.
-  // When table hidden: panel = Y_AXIS_W + left-margin so the axis has the same offset as before.
-  const yAxisPanelW = showTable ? LABEL_W : Y_AXIS_W + 20
-  // totalW is the width of the scrollable content area (inside scurve-scroll, excluding Y-axis panel)
-  const totalW = (showTable ? LABEL_W : 0) + colWidth * filteredPeriods.length
-
   const containerRef   = useRef(null)
   const [containerWidth, setContainerWidth] = useState(0)
   useEffect(() => {
@@ -1072,6 +1065,13 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     ro.observe(containerRef.current)
     return () => ro.disconnect()
   }, [])
+
+  // Y-axis panel lives outside the scroll container so it never scrolls away.
+  // When showTable: panel = LABEL_W so it visually aligns with the sticky table label column.
+  // When table hidden: panel = Y_AXIS_W + left-margin so the axis has the same offset as before.
+  const yAxisPanelW = showTable ? LABEL_W : (containerWidth < 640 ? 38 : Y_AXIS_W + 20)
+  // totalW is the width of the scrollable content area (inside scurve-scroll, excluding Y-axis panel)
+  const totalW = (showTable ? LABEL_W : 0) + colWidth * filteredPeriods.length
 
   const [chartSlotHeight, setChartSlotHeight] = useState(0)
   const _chartSlotRO = useRef(null)
@@ -1638,6 +1638,12 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
             icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l4-4 4 4 4-6 4 2" /></svg>,
           },
           {
+            label: 'Periodic POC', value: currentMonthActual, accent: '#6366f1', trend: periodicTrend,
+            bg: 'linear-gradient(135deg, #ed6055 0%, #111111 100%)',
+            sublabel: latestActualDate ? new Date(latestActualDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null,
+            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 8v4l3 3" /></svg>,
+          },
+          {
             label: 'Planned POC', value: summaryPlanned, accent: blColor(refBaseline?.id, 0), sublabel: refBaseline?.name,
             bg: 'linear-gradient(135deg, #4b5563 0%, #111111 100%)',
             icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><rect x="3" y="4" width="18" height="18" rx="2" /><path strokeLinecap="round" d="M16 2v4M8 2v4M3 10h18" /></svg>,
@@ -1653,18 +1659,12 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
               ? <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 17l5-5 4 4 9-9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 7h5v5" /></svg>
               : <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M3 7l5 5 4-4 9 9" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5v-5" /></svg>,
           },
-          {
-            label: 'Periodic POC', value: currentMonthActual, accent: '#6366f1', trend: periodicTrend,
-            bg: 'linear-gradient(135deg, #ed6055 0%, #111111 100%)',
-            sublabel: latestActualDate ? new Date(latestActualDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' }) : null,
-            icon: <svg className="w-10 h-10" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><circle cx="12" cy="12" r="9" /><path strokeLinecap="round" d="M12 8v4l3 3" /></svg>,
-          },
         ]
         return (
-          <div className="flex-shrink-0 flex flex-row gap-3">
+          <div className="flex-shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3">
           {cards.map(card => (
             <div key={card.label || 'placeholder'}
-              className="flex-1 rounded-xl border px-4 py-3 flex flex-col gap-2 overflow-hidden"
+              className="flex-1 rounded-3xl border px-4 py-3 flex flex-col gap-2 overflow-hidden"
               style={{
                 borderColor: card.bg ? 'transparent' : '#e5e7eb',
                 background: card.bg || '#ffffff',
@@ -1914,39 +1914,11 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
         })()
 
         return (
-          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-xl shadow-md overflow-hidden pb-2">
+          <div className="flex-1 min-h-0 flex flex-col bg-white rounded-3xl shadow-md overflow-hidden pb-2">
             {/* Legend */}
-            <div className="flex-shrink-0 flex items-center gap-2 px-4 pt-2.5 pb-2.5 flex-wrap border-b border-gray-100">
-              {selectedBaselineIds.map((id, i) => {
-                const bl    = baselines.find(b => b.id === id)
-                const color = blColor(id, i)
-                return (
-                  <span key={id} className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1">
-                    <svg width="18" height="10" style={{ display: 'block', flexShrink: 0 }}>
-                      <rect x="0" y="4" width="18" height="6" rx="1" fill={color} fillOpacity={0.18} />
-                      <line x1="0" y1="5" x2="18" y2="5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
-                    </svg>
-                    <span className="text-[11px] font-medium text-gray-600 leading-none">{bl?.name ?? 'Baseline'}</span>
-                  </span>
-                )
-              })}
-              {showActual && (
-                <span className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1">
-                  <svg width="18" height="10" style={{ display: 'block', flexShrink: 0 }}>
-                    <line x1="0" y1="5" x2="18" y2="5" stroke={actualColor} strokeWidth="1.5" strokeLinecap="round" />
-                  </svg>
-                  <span className="text-[11px] font-medium text-gray-600 leading-none">Actual</span>
-                </span>
-              )}
-              {showForecast && (
-                <span className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1">
-                  <svg width="18" height="10" style={{ display: 'block', flexShrink: 0 }}>
-                    <line x1="0" y1="5" x2="18" y2="5" stroke={forecastColor} strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4 3" />
-                  </svg>
-                  <span className="text-[11px] font-medium text-gray-600 leading-none">Forecast</span>
-                </span>
-              )}
-              <div className="ml-auto flex items-center gap-2">
+            <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center border-b border-gray-100">
+              {/* Controls row — above legends on mobile, inline-right on desktop */}
+              <div className="order-1 sm:order-2 flex items-center justify-end gap-2 px-4 pt-2.5 pb-1 sm:pb-2.5 sm:ml-auto flex-shrink-0">
                 {/* Tower scope selector */}
                 {buildings.length > 0 && (() => {
                   const scopeLabel = selectedBuildingId
@@ -2006,6 +1978,30 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                   {(selectedActivityIds.length > 0 || wpMarkerSelectedIds.length > 0) && <span className="w-1.5 h-1.5 rounded-full bg-[#ed6055] flex-shrink-0" />}
                 </button>
               </div>
+              {/* Legends row — below controls on mobile, left of controls on desktop */}
+              <div className="order-2 sm:order-1 flex items-center justify-between gap-2 px-4 pt-0 sm:pt-2.5 pb-2.5 flex-1 min-w-0">
+              {selectedBaselineIds.map((id, i) => {
+                const bl    = baselines.find(b => b.id === id)
+                const color = blColor(id, i)
+                return (
+                  <span key={id} className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1 min-w-0">
+                    <svg width="18" height="10" style={{ display: 'block', flexShrink: 0 }}>
+                      <rect x="0" y="4" width="18" height="6" rx="1" fill={color} fillOpacity={0.18} />
+                      <line x1="0" y1="5" x2="18" y2="5" stroke={color} strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                    <span className="text-[11px] font-medium text-gray-600 leading-none truncate">{bl?.name ?? 'Baseline'}</span>
+                  </span>
+                )
+              })}
+              {showActual && (
+                <span className="flex items-center gap-1.5 bg-gray-50 border border-gray-100 rounded-full px-2.5 py-1">
+                  <svg width="18" height="10" style={{ display: 'block', flexShrink: 0 }}>
+                    <line x1="0" y1="5" x2="18" y2="5" stroke={actualColor} strokeWidth="1.5" strokeLinecap="round" />
+                  </svg>
+                  <span className="text-[11px] font-medium text-gray-600 leading-none">Actual</span>
+                </span>
+              )}
+              </div>
             </div>
             {/* flex row: combined left panel (Y-axis + row labels) + scrollable chart+table area */}
             <div className="flex-1 min-h-0 flex overflow-hidden">
@@ -2020,6 +2016,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                   <div style={{ height: chartSlotHeight, flexShrink: 0 }}>
                     <svg width={yAxisPanelW} height={chartSlotHeight} style={{ display: 'block' }}>
                       <text x={10} y={chartSlotHeight / 2} textAnchor="middle" fontSize={10} fill="#9ca3af"
+                        className="scurve-yaxis-label"
                         transform={`rotate(-90,10,${chartSlotHeight / 2})`}>% Complete</text>
                       {[0, 20, 40, 60, 80, 100].map(v => {
                         const y = plotTop + plotH * (1 - (v - (-8)) / (110 - (-8)))
@@ -2082,6 +2079,23 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                           <feMergeNode in="SourceGraphic" />
                         </feMerge>
                       </filter>
+                      {selectedBaselineIds.map((id, i) => {
+                        const color = blColor(id, i)
+                        return (
+                          <linearGradient key={id} id={`scGradBl_${id}`} x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%"  stopColor={color} stopOpacity={0.18} />
+                            <stop offset="95%" stopColor={color} stopOpacity={0.02} />
+                          </linearGradient>
+                        )
+                      })}
+                      <linearGradient id="scGradActual" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor={actualColor} stopOpacity={0.25} />
+                        <stop offset="95%" stopColor={actualColor} stopOpacity={0.03} />
+                      </linearGradient>
+                      <linearGradient id="scGradForecast" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%"  stopColor={forecastColor} stopOpacity={0.15} />
+                        <stop offset="95%" stopColor={forecastColor} stopOpacity={0.02} />
+                      </linearGradient>
                     </defs>
                     <YAxis domain={[-8, 110]} hide width={0} />
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
@@ -2104,7 +2118,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                           >{payload.value}</text>
                         </g>
                       )} />
-                    <Tooltip formatter={val => val != null ? val.toFixed(2) + '%' : '--'} />
+                    <Tooltip formatter={val => val != null ? val.toFixed(2) + '%' : '--'} cursor={{ stroke: '#9ca3af', strokeWidth: 1, strokeDasharray: '4 2' }} />
                     {selectedBaselineIds.map((id, i) => {
                       const color = blColor(id, i)
                       const el    = endLabelMap[`bl_${id}`]
@@ -2114,10 +2128,10 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                           dataKey={`bl_${id}`}
                           name={baselines.find(b => b.id === id)?.name ?? 'Baseline'}
                           stroke={color}
-                          fill="none"
-                          fillOpacity={0}
+                          fill={`url(#scGradBl_${id})`}
                           strokeWidth={2}
                           dot={false}
+                          activeDot={{ r: 4, fill: color, strokeWidth: 0 }}
                           connectNulls
                           filter="url(#line-glow)"
                           label={el && showLabelBaselinesMap[id] !== false ? { content: makeSeriesLabel(color, el.yOffsets, viewMode === 'monthly' ? labelStep : 1) } : undefined}
@@ -2125,12 +2139,14 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                       )
                     })}
                     {showForecast && (
-                      <Line type="monotone" dataKey="forecast" name="Forecast" stroke={forecastColor} strokeWidth={2} strokeDasharray="5 3" dot={false} connectNulls
+                      <Area type="monotone" dataKey="forecast" name="Forecast" stroke={forecastColor} strokeWidth={2} strokeDasharray="5 3"
+                        fill="url(#scGradForecast)" dot={false} activeDot={{ r: 4, fill: forecastColor, strokeWidth: 0 }} connectNulls
                         filter="url(#line-glow)"
                         label={endLabelMap['forecast'] && showLabelForecast ? { content: makeSeriesLabel(forecastColor, endLabelMap['forecast'].yOffsets, viewMode === 'monthly' ? labelStep : 1) } : undefined} />
                     )}
                     {showActual && (
-                      <Line type="monotone" dataKey="actual" name="Actual" stroke={actualColor} strokeWidth={2} dot={{ r: 3, fill: actualColor, strokeWidth: 0 }} connectNulls
+                      <Area type="monotone" dataKey="actual" name="Actual" stroke={actualColor} strokeWidth={2.5}
+                        fill="url(#scGradActual)" dot={false} activeDot={{ r: 4, fill: actualColor, strokeWidth: 0 }} connectNulls
                         filter="url(#line-glow)"
                         label={endLabelMap['actual'] && showLabelActual ? { content: makeSeriesLabel(actualColor, endLabelMap['actual'].yOffsets, viewMode === 'monthly' ? labelStep : 1) } : undefined} />
                     )}

@@ -6558,13 +6558,6 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
   const [toastIn, setToastIn] = useState(false)
   const toastTimerRef = useRef(null)
 
-  const [isPortrait, setIsPortrait] = useState(() => window.innerWidth < 768 && window.innerHeight > window.innerWidth)
-  useEffect(() => {
-    const update = () => setIsPortrait(window.innerWidth < 768 && window.innerHeight > window.innerWidth)
-    window.addEventListener('resize', update)
-    window.addEventListener('orientationchange', update)
-    return () => { window.removeEventListener('resize', update); window.removeEventListener('orientationchange', update) }
-  }, [])
 
   useEffect(() => {
     if (asPage) return
@@ -6679,22 +6672,8 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             <PermitsTab project={project} isAdmin={isAdmin} isHead={profile?.role === 'head'} isReporter={profile?.role === 'reporter'} isViewer={profile?.role === 'viewer'} currentUserId={profile?.id} showToast={showToast} search={permitsSearch} onSearchChange={onPermitsSearchChange} filterStatus={permitsFilter} onFilterStatusChange={onPermitsFilterChange} creating={permitsCreating} onCreatingChange={onPermitsCreatingChange} />
           </div>
         ) : activeSection === 'Photos' ? (
-          <div key="Photos" className="section-slide-in relative">
+          <div key="Photos" className="section-slide-in">
             <PhotosTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} search={photosSearch} onSearchChange={onPhotosSearchChange} filterTags={photosFilterTags} onFilterTagsChange={onPhotosFilterTagsChange} filterMonth={photosFilterMonth} onFilterMonthChange={onPhotosFilterMonthChange} sortOrder={photosSortOrder} onSortOrderChange={onPhotosSortOrderChange} showUpload={photosShowUpload} onShowUploadChange={onPhotosShowUploadChange} />
-            {isPortrait && (
-              <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center gap-4 sm:hidden"
-                style={{ background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
-                <svg className="w-14 h-14 text-white/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.2}>
-                  <rect x="4" y="2" width="16" height="20" rx="2" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 18h6" />
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M14 7l3 3-3 3M7 10h10" style={{ transform: 'rotate(90deg)', transformOrigin: '12px 10px' }} />
-                </svg>
-                <div className="text-center px-8">
-                  <p className="text-white text-base font-semibold mb-1">Rotate your device</p>
-                  <p className="text-white/50 text-sm">Turn to landscape for the best viewing experience</p>
-                </div>
-              </div>
-            )}
           </div>
         ) : activeSection === 'Issues & Concerns' ? (
           <div key="Issues & Concerns" className="section-slide-in">

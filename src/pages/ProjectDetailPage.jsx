@@ -990,7 +990,7 @@ export default function ProjectDetailPage() {
             {section !== 'Permits' && section !== 'Photos' && section !== 'Issues & Concerns' && section !== 'Work Program' && (
               <button
                 onClick={() => setReportOpen(true)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
+                className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all flex-shrink-0"
                 style={{ background: '#f9fafb', borderColor: '#e5e7eb', color: '#6b7280', boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}
               >
                 <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1170,6 +1170,7 @@ export default function ProjectDetailPage() {
           { key: null,                label: 'Info',    Icon: InfoIcon },
           { key: 'Work Program',      label: 'Program', Icon: WorkProgramIcon },
           { key: 'Permits',           label: 'Permits', Icon: PermitsIcon },
+          { key: 'S-Curve',           label: 'S-Curve', Icon: SCurveIcon },
           { key: 'Photos',            label: 'Photos',  Icon: PhotosIcon },
           { key: 'Issues & Concerns', label: 'Issues',  Icon: IssuesIcon },
         ].map(item => {
@@ -1265,9 +1266,9 @@ function PermitsIcon({ className, style, solid }) {
     </svg>
   )
 }
-function SCurveIcon({ className }) {
+function SCurveIcon({ className, style }) {
   return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M3 20h18M3 20V8l4 3 4-6 4 4 4-5v16" />
     </svg>
   )
