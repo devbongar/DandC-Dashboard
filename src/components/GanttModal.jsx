@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, memo } from 'react'
+import { createPortal } from 'react-dom'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -33,6 +34,8 @@ const LABEL_W = 320
 const ROW_NUM_W  = 36   // # column (sequential row number)
 const PRED_COL_W = 96   // Predecessors editable column
 const DEFAULT_COL_PX = { day: 20, week: 20, month: 20 }
+const MOBILE_DEFAULT_COL_PX = { day: 30, week: 30, month: 30 }
+const getDefaultColPx = () => window.innerWidth < 640 ? MOBILE_DEFAULT_COL_PX : DEFAULT_COL_PX
 const DUR_COL_W = 72   // Duration column -- visible in Auto mode only
 
 const DATE_COL_W   = 100  // width of each individual date cell (px)
@@ -962,19 +965,27 @@ function BarsDropdown({ barVisibility, onChange }) {
   )
 }
 
-function GToolbarSelect({ options = [], value, onChange, fullWidth = false }) {
-  const [open, setOpen]   = useState(false)
-  const [dropUp, setDropUp] = useState(false)
-  const containerRef      = useRef(null)
+function GToolbarSelect({ options = [], value, onChange, fullWidth = false, ghost = false }) {
+  const [open, setOpen]     = useState(false)
+  const [dropStyle, setDropStyle] = useState({})
+  const containerRef        = useRef(null)
 
-  const checkFlip = () => {
-    if (!containerRef.current) return
-    const rect = containerRef.current.getBoundingClientRect()
-    setDropUp(window.innerHeight - rect.bottom < 180)
+  const handleToggle = () => {
+    if (!open && containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect()
+      const spaceBelow = window.innerHeight - rect.bottom
+      const dropUp = spaceBelow < 180
+      setDropStyle({
+        position: 'fixed',
+        left: rect.left,
+        width: rect.width,
+        zIndex: 999999,
+        ...(dropUp ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+      })
+    }
+    setOpen(o => !o)
   }
-
-  const handleToggle = () => { checkFlip(); setOpen(o => !o) }
-  const handleBlur   = (e) => { if (!containerRef.current?.contains(e.relatedTarget)) setOpen(false) }
+  const handleBlur = (e) => { if (!containerRef.current?.contains(e.relatedTarget)) setOpen(false) }
 
   const dropdownShadow = { boxShadow: '0 8px 32px rgba(0,0,0,0.10), 0 2px 8px rgba(0,0,0,0.06)' }
   const selected = options.find(o => o.value === value)
@@ -984,19 +995,20 @@ function GToolbarSelect({ options = [], value, onChange, fullWidth = false }) {
       <button
         type="button"
         onClick={handleToggle}
-        className={`flex items-center justify-between gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/30 transition-colors cursor-pointer active:scale-[0.97] ${fullWidth ? 'w-full' : ''}`}
+        className={`flex items-center justify-between gap-2 text-xs font-semibold px-2.5 py-1.5 rounded-lg focus:outline-none transition-colors cursor-pointer active:scale-[0.97] ${fullWidth ? 'w-full' : ''} ${ghost ? 'border border-white/10 text-white hover:bg-white/5' : 'border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 focus:ring-2 focus:ring-[#ed6055]/30'}`}
+        style={ghost ? { background: 'rgba(255,255,255,0.02)' } : undefined}
       >
-        <span>{selected?.label ?? '--'}</span>
-        <svg className="w-3 h-3 text-gray-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <span className="truncate">{selected?.label ?? '--'}</span>
+        <svg className={`w-3 h-3 flex-shrink-0 ${ghost ? 'text-white/60' : 'text-gray-400'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
           <path strokeLinecap="round" strokeLinejoin="round" d={open ? 'M5 15l7-7 7 7' : 'M19 9l-7 7-7-7'} />
         </svg>
       </button>
-      {open && (
+      {open && createPortal(
         <div
-          className={`absolute z-[80] min-w-full bg-white border border-gray-100 rounded-xl overflow-hidden ${dropUp ? 'bottom-full mb-1' : 'mt-1'}`}
-          style={{ animation: 'gmenu-in 150ms ease-out forwards', ...dropdownShadow }}
+          className="bg-white border border-gray-100 rounded-xl overflow-hidden"
+          style={{ animation: 'gmenu-in 150ms ease-out forwards', ...dropdownShadow, ...dropStyle }}
         >
-          <ul className="py-1 text-xs">
+          <ul className="py-1 text-xs max-h-48 overflow-y-auto">
             {options.map(opt => (
               <li
                 key={opt.value}
@@ -1012,7 +1024,8 @@ function GToolbarSelect({ options = [], value, onChange, fullWidth = false }) {
               </li>
             ))}
           </ul>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   )
@@ -1034,6 +1047,21 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const [predColW,   setPredColW]   = useState(PRED_COL_W)
   const [dateColWidths, setDateColWidths] = useState({ plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W })
   const dragRef = useRef(null)
+  const ganttScrollRef = useRef(null)
+  const mobileStickyInnerRef = useRef(null)
+
+  useEffect(() => {
+    const scrollEl = ganttScrollRef.current
+    if (!scrollEl) return
+    const onScroll = () => {
+      if (mobileStickyInnerRef.current) {
+        mobileStickyInnerRef.current.style.transform = `translateX(-${scrollEl.scrollLeft}px)`
+      }
+    }
+    scrollEl.addEventListener('scroll', onScroll, { passive: true })
+    return () => scrollEl.removeEventListener('scroll', onScroll)
+  }, [])
+
   const startColDrag = (e, currentW, setter, minW = 40) => {
     e.preventDefault()
     dragRef.current = { startX: e.clientX, startW: currentW, setter, minW }
@@ -1050,7 +1078,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
   }
-  const sensors = useSensors(...(disableDrag ? [] : [useSensor(PointerSensor, { activationConstraint: { distance: 2 } })]))
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: disableDrag ? 999999 : 2 } }))
   const handleDragEnd = ({ active, over }) => {
     if (over && active.id !== over.id) onReorder(String(active.id), String(over.id))
   }
@@ -1257,7 +1285,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
                   <div key={i} className="absolute flex flex-col items-center" style={{ left, top: 0, transform: 'translateX(-50%)' }}>
                     <div className="w-px h-1 bg-gray-400" />
                     <span className="text-xs font-medium text-gray-300 whitespace-nowrap leading-none">
-                      {mo.toLocaleDateString('en-PH', { month: 'short' })}
+                      <span className="hidden sm:inline">{mo.toLocaleDateString('en-PH', { month: 'short' })}</span>
+                      <span className="sm:hidden">{'JFMAMJJASOND'[mo.getMonth()]}</span>
                     </span>
                   </div>
                 )
@@ -1358,12 +1387,30 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const svgH = yAcc
 
   return (
+    <>
+    {/* Mobile sticky axis header — outside gantt-scroll so CSS sticky works relative to main */}
+    <div
+      className="sm:hidden flex-shrink-0"
+      style={{
+        position: 'sticky',
+        top: 'calc(3.5rem + env(safe-area-inset-top, 0px))',
+        zIndex: 9,
+        backgroundColor: '#4b5563',
+        borderRadius: '12px 12px 0 0',
+      }}
+    >
+      <div style={{ overflow: 'hidden', borderRadius: '12px 12px 0 0' }}>
+        <div ref={mobileStickyInnerRef} style={{ width: totalW, minWidth: totalW }}>
+          {axisHeader}
+        </div>
+      </div>
+    </div>
     <div className="flex-1 min-h-0 rounded-xl overflow-hidden shadow-lg">
-    <div className="gantt-scroll h-full overflow-auto" style={{ scrollbarWidth: 'none' }}>
+    <div ref={ganttScrollRef} className="gantt-scroll h-full overflow-auto" style={{ scrollbarWidth: 'none' }}>
       <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
         <div style={{ width: totalW, minWidth: totalW, position: 'relative' }}>
-          {/* Sticky axis header */}
-          <div className="sticky top-0 z-40" style={{ backgroundColor: '#4b5563' }}>
+          {/* Desktop-only axis header inside gantt-scroll (sticky within gantt-scroll) */}
+          <div className="hidden sm:block sticky top-0 z-40" style={{ backgroundColor: '#4b5563' }}>
             {axisHeader}
           </div>
           {/* Rows -- phase headers and sortable milestone rows (single SortableContext spans all phases for correct cross-phase collision detection) */}
@@ -1391,6 +1438,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
       </DndContext>
     </div>
     </div>
+    </>
   )
 }
 
@@ -1511,25 +1559,33 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     try { localStorage.setItem(dateRangeKey, JSON.stringify({ from: fromMonth, to: v })) } catch {}
   }
   const [timeScale, setTimeScale]     = useState('month')
+  const isMobileGantt = window.innerWidth < 640
   const [colPxMap, setColPxMap] = useState(() => {
+    if (isMobileGantt) return { ...MOBILE_DEFAULT_COL_PX }
     try {
       const saved = localStorage.getItem('gantt_colPxMap')
       if (saved) return { ...DEFAULT_COL_PX, ...JSON.parse(saved) }
     } catch {}
     return { ...DEFAULT_COL_PX }
   })
-  const colPx    = colPxMap[timeScale]
-  const isDefaultWidth = colPx === DEFAULT_COL_PX[timeScale]
-  const setColPx = (fn) => setColPxMap(prev => {
-    const next = { ...prev, [timeScale]: typeof fn === 'function' ? fn(prev[timeScale]) : fn }
-    try { localStorage.setItem('gantt_colPxMap', JSON.stringify(next)) } catch {}
-    return next
-  })
-  const resetColPx = () => setColPxMap(prev => {
-    const next = { ...prev, [timeScale]: DEFAULT_COL_PX[timeScale] }
-    try { localStorage.setItem('gantt_colPxMap', JSON.stringify(next)) } catch {}
-    return next
-  })
+  const colPx    = isMobileGantt ? MOBILE_DEFAULT_COL_PX[timeScale] : colPxMap[timeScale]
+  const isDefaultWidth = colPx === getDefaultColPx()[timeScale]
+  const setColPx = (fn) => {
+    if (isMobileGantt) return
+    setColPxMap(prev => {
+      const next = { ...prev, [timeScale]: typeof fn === 'function' ? fn(prev[timeScale]) : fn }
+      try { localStorage.setItem('gantt_colPxMap', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
+  const resetColPx = () => {
+    if (isMobileGantt) return
+    setColPxMap(prev => {
+      const next = { ...prev, [timeScale]: DEFAULT_COL_PX[timeScale] }
+      try { localStorage.setItem('gantt_colPxMap', JSON.stringify(next)) } catch {}
+      return next
+    })
+  }
 
   const [drafts, setDrafts] = useState(() => {
     try { const s = sessionStorage.getItem(`gantt-drafts-${project.id}`); return s ? JSON.parse(s) : {} } catch { return {} }
@@ -2545,46 +2601,47 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       `}</style>
       <GImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
 
+      {/* Mobile hero card */}
+      <div className="sm:hidden flex-shrink-0" style={{ boxShadow: 'rgba(0,0,0,0.15) 2px 3px 8px' }}>
+        <div className="relative flex flex-col w-full" style={{ background: 'linear-gradient(115deg, #7c3aed 0%, #6d28d9 50%, #5b21b6 100%)' }}>
+          <div className="absolute inset-0 overflow-hidden pointer-events-none">
+            <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.12)', width: 300, height: 300, top: '-40%', right: '-50%' }} />
+            <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.12)', width: 210, height: 210, top: '-30%', right: '-30%' }} />
+            <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.20)', width: 100, height: 100, top: '10%',  right: '-8%'  }} />
+          </div>
+          <div className="flex-shrink-0" style={{ height: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }} />
+          <div className="relative z-10 pl-5 pb-1">
+            <span className="text-2xl font-bold text-white tracking-wide">Work Program</span>
+          </div>
+          {baselines.length > 0 && (
+            <div className="relative z-10 px-5 pb-4">
+              <GToolbarSelect
+                fullWidth
+                ghost
+                value={activeBL ?? ''}
+                onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
+                options={baselines.map(b => ({ value: b.id, label: b.name }))}
+              />
+            </div>
+          )}
+          {baselines.length === 0 && <div className="pb-4" />}
+        </div>
+        <div className="flex items-stretch w-full rounded-b-3xl overflow-hidden" style={{ height: 52, background: '#4c1d95' }}>
+          {TIME_SCALES.map(s => (
+            <button
+              key={s.key}
+              onClick={() => setTimeScale(s.key)}
+              className="flex-1 flex flex-col items-center justify-center transition-all duration-200"
+              style={timeScale === s.key ? { background: 'rgba(255,255,255,0.18)' } : { background: 'transparent' }}
+            >
+              <span className="font-bold leading-none" style={{ fontSize: 14, color: timeScale === s.key ? '#fff' : 'rgba(255,255,255,0.55)' }}>{s.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Toolbar */}
       <div className="flex-shrink-0 relative">
-
-        {/* -- Mobile layout (< sm) -- */}
-        <div className="flex flex-col gap-2 px-3 py-2.5 sm:hidden bg-white border-b border-gray-100">
-
-          {/* Time scale + baseline on one row */}
-          <div className="flex items-center gap-2">
-            <div
-              className="flex items-center gap-0.5 p-0.5 rounded-lg flex-shrink-0"
-              style={{ background: '#f3f4f6', border: '1px solid #e5e7eb', boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.06)' }}
-            >
-              {TIME_SCALES.map(s => (
-                <button
-                  key={s.key}
-                  onClick={() => setTimeScale(s.key)}
-                  className="relative px-3 py-1.5 text-xs font-bold tracking-wide transition-all duration-200 rounded-md"
-                  style={timeScale === s.key ? {
-                    background: 'linear-gradient(135deg, #ed6055 0%, #c94f45 100%)',
-                    color: '#fff', boxShadow: '0 1px 4px rgba(237,96,85,0.35)',
-                  } : { color: '#6b7280', background: 'transparent' }}
-                >
-                  {s.label}
-                </button>
-              ))}
-            </div>
-            {baselines.length > 0 && (
-              <div className="flex-1 min-w-0">
-                <GToolbarSelect
-                  fullWidth
-                  value={activeBL ?? ''}
-                  onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
-                  options={baselines.map(b => ({ value: b.id, label: b.name }))}
-                />
-              </div>
-            )}
-          </div>
-
-
-        </div>
 
         {/* -- Desktop layout (sm+) -- settings panel anchor only -- */}
         <div className="hidden sm:block relative" ref={settingsWrapRef}>

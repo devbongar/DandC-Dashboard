@@ -219,6 +219,7 @@ export default function ProjectDetailPage() {
   if (!project) return <LoadingScreen />
 
   const activeLabel = section === null ? 'Project Info' : section
+  const ganttHeroGone = section === 'Work Program' && headerScrolled
   const headerSearchCls = headerScrolled
     ? 'pl-9 pr-3 py-1.5 text-sm rounded-lg bg-white/[0.15] text-white placeholder-white/50 outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/[0.22] transition w-96'
     : 'pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96'
@@ -448,12 +449,12 @@ export default function ProjectDetailPage() {
 
       {/* -- Right column -- */}
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${section === 'Work Program' ? 'overflow-hidden' : 'overflow-y-auto'}`}>
+        <main ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${section === 'Work Program' ? 'sm:overflow-hidden overflow-x-hidden' : 'overflow-y-auto'}`}>
 
           {/* Header â€" transparent + sticky on Project Info so cover photo shows through */}
           <header
             className={`flex flex-col sticky top-0 z-10`}
-            style={{ background: headerScrolled ? 'linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0) 100%)' : 'transparent', transition: 'background 200ms ease' }}
+            style={{ background: ganttHeroGone ? '#e5e7eb' : headerScrolled ? 'linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0) 100%)' : 'transparent', transition: 'background 200ms ease' }}
           >
             {/* Safe area spacer â€" pushes header content below iOS status bar on mobile */}
             <div className="sm:hidden flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
@@ -463,8 +464,8 @@ export default function ProjectDetailPage() {
             <div className="w-full flex items-center gap-4 h-full">
             {/* Back button â€" mobile only */}
             <button
-              className="sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 text-white active:scale-90 transition-all"
-              style={{ background: 'rgba(255,255,255,0.18)' }}
+              className={`sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 active:scale-90 transition-all ${ganttHeroGone ? 'text-gray-600' : 'text-white'}`}
+              style={{ background: ganttHeroGone ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.18)' }}
               onClick={() => section === null ? navigate('/projects') : (setSection(null), setSearchParams({ tab: 'Project Info' }))}
               aria-label="Back"
             >
@@ -1001,7 +1002,7 @@ export default function ProjectDetailPage() {
               </button>
             )}
 
-            <NotificationBell userId={profile?.id} />
+            <NotificationBell userId={profile?.id} variant={ganttHeroGone ? 'light' : undefined} />
 
             {/* User menu â€" hidden on mobile */}
             <div className="relative flex-shrink-0 hidden sm:block">

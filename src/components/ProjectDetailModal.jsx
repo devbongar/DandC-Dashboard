@@ -4088,7 +4088,7 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
       ) : (
         <>
           {/* Mobile cards — grouped by management level */}
-          <div className="sm:hidden flex flex-col gap-6">
+          <div className="sm:hidden flex flex-col gap-6 pb-24">
             {(() => {
               const ORDER = ['ESA', 'Management Committee', 'D&C Head']
               const map = {}
@@ -6744,7 +6744,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === null || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && activeSection === 'Work Program' ? 'bg-gray-200 flex-1 min-h-0' : asPage && (activeSection === null || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -6765,7 +6765,8 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             </div>
           </div>
         ) : activeSection === 'Work Program' ? (
-          <div key="Work Program" className="flex-1 overflow-hidden flex flex-col section-slide-in">
+          <div key="Work Program" className="flex-1 flex flex-col section-slide-in permits-hero-pull sm:overflow-hidden">
+            <style>{`@media(max-width:639px){.permits-hero-pull{margin-top:calc(-3.5rem - env(safe-area-inset-top,0px))}}`}</style>
             <GanttContent project={project} isAdmin={isAdmin} showToast={showToast} onRegisterFns={onGanttRegisterFns} onActiveBLChange={onGanttActiveBLChange} />
           </div>
         ) : activeSection === 'Permits' ? (

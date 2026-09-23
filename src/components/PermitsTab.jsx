@@ -482,7 +482,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
 
         {/* Mobile: list */}
         {rows.length > 0 && view === 'card' && (
-          <div className="md:hidden space-y-2">
+          <div className="md:hidden space-y-2 pb-24">
             {rows.map(permit => {
               const status   = computePermitStatus(permit)
               const reqs     = permit.permit_requirements ?? []
