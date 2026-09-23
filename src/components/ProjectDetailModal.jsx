@@ -3974,9 +3974,59 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
 
   return (
     <div className="pt-4 px-3 sm:px-6">
-      {/* Summary cards */}
+      {/* Mobile hero card */}
       {!loading && rows.length > 0 && (
-        <div className="relative -mx-3 sm:mx-0 mb-4 max-w-7xl sm:mx-auto">
+        <div className="sm:hidden -mx-3 -mt-4 rounded-b-3xl overflow-hidden mb-4" style={{ boxShadow: 'rgba(0,0,0,0.15) 2px 3px 8px' }}>
+          <div className="relative flex flex-col w-full" style={{ background: '#ed6055', overflow: 'hidden' }}>
+            <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 300, height: 300, top: '-40%', right: '-50%' }} />
+            <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 210, height: 210, top: '-30%', right: '-30%' }} />
+            <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.25)', width: 100, height: 100, top: '10%',  right: '-8%'  }} />
+            <div className="flex-shrink-0" style={{ height: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }} />
+            <div className="relative z-10 pl-5">
+              <span className="text-2xl font-bold text-white tracking-wide">Issues & Concerns</span>
+            </div>
+            <div className="relative flex items-baseline justify-between w-full z-10 pl-5 pr-5 pt-1 flex-1">
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-medium text-white leading-none tabular-nums">{countClose}</span>
+                <span className="text-2xl font-medium text-white/60 leading-none tabular-nums">/ {total}</span>
+              </div>
+              <span className="text-4xl font-medium text-white leading-none tabular-nums">
+                {total > 0 ? Math.round((countClose / total) * 100) : 0}%
+              </span>
+            </div>
+            <div className="relative flex items-center justify-between w-full z-10 pl-5 pr-5 pb-4 pt-1">
+              <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Closed Issues</span>
+              <span className="text-[10px] text-white/60 uppercase tracking-widest">Closed</span>
+            </div>
+          </div>
+          <div className="flex items-stretch w-full" style={{ height: 52, background: '#c94a3f', gap: 2 }}>
+            {[
+              { label: 'Open',    value: countOpen,    filterKey: 'open',    isAging: false },
+              { label: 'Closed',  value: countClose,   filterKey: 'close',   isAging: false },
+              { label: 'On Hold', value: countHold,    filterKey: 'hold',    isAging: false },
+            ].map(s => {
+              const active = s.isAging ? agingFilter === s.agingVal : filterStatus === s.filterKey
+              return (
+                <button
+                  key={s.label}
+                  onClick={() => {
+                    if (s.isAging) setAgingFilter(active ? null : s.agingVal)
+                    else onFilterStatusChange?.(active ? 'all' : s.filterKey)
+                  }}
+                  className="flex flex-col items-center justify-center flex-1 h-full transition-all duration-100 active:scale-90 active:rounded-xl"
+                  style={{ background: active ? '#9c3a30' : '#b8453a', boxShadow: 'inset 0px 2px 5px #c94a3f' }}
+                >
+                  <span className="text-white font-bold leading-none tabular-nums" style={{ fontSize: 15 }}>{s.value}</span>
+                  <span className="text-white/70 font-medium leading-none mt-0.5" style={{ fontSize: 8 }}>{s.label}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
+      {/* Summary cards — desktop only */}
+      {!loading && rows.length > 0 && (
+        <div className="relative -mx-3 sm:mx-0 mb-4 max-w-7xl sm:mx-auto hidden sm:block">
           <div className="flex gap-3 overflow-x-auto py-2 px-3 sm:grid sm:grid-cols-5 sm:overflow-visible sm:py-0 sm:px-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             {ISSUE_CARDS.map(({ label, value, color, filterKey }) => {
               const pct  = total > 0 ? Math.round((value / total) * 100) : 0
@@ -4020,7 +4070,7 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
           </div>
         </div>
       )}
-      <div className="bg-white rounded-xl border border-gray-200 shadow-sm mb-4 max-w-7xl mx-auto">
+      <div className="mb-4 max-w-7xl mx-auto">
         {importErrors.length > 0 && (
           <div className="px-4 pt-3 pb-0 border-b border-gray-100">
             <ImportErrorPanel errors={importErrors} onDismiss={() => setImportErrors([])} />
@@ -4036,40 +4086,92 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
       ) : filtered.length === 0 ? (
         <div className="text-center py-10 text-xs text-gray-400 italic">No issues match the selected filters.</div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs border border-gray-200 rounded-xl overflow-hidden">
-            <thead>
-              <tr className="sticky top-0 z-10 bg-gray-600 border-b border-gray-700">
-                {['No.', 'Issue', 'Group', 'Management Level', 'Status', 'Date Presented', 'Days Aging'].map(h => (
-                  <th key={h} className={`px-4 py-3 text-xs font-bold text-gray-200 ${h === 'Management Level' || h === 'Group' || h === 'Days Aging' ? 'whitespace-normal text-center' : h === 'Issue' ? 'text-left w-full' : 'text-left whitespace-nowrap'}`}>
-                    {h === 'Days Aging' ? <><span>Days</span><br /><span>Aging</span></> : h}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filtered.map((row, idx) => {
-                const sc    = ISSUE_STATUS_CONFIG[row.status] ?? ISSUE_STATUS_CONFIG.open
-                const aging = issueAgingDays(row.date_presented)
-                return (
-                  <tr key={row.id} onClick={() => openView(row)} className="hover:bg-gray-50/60 cursor-pointer">
-                    <td className="px-4 py-4 text-gray-400 whitespace-nowrap tabular-nums">{idx + 1}</td>
-                    <td className="px-4 py-4 text-black w-full"><p className="line-clamp-2">{row.details}</p></td>
-                    <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center">{row.issue_group || '--'}</td>
-                    <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center">{row.management_level || '--'}</td>
-                    <td className="px-4 py-4 whitespace-nowrap">
-                      <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
-                    </td>
-                    <td className="px-4 py-4 text-gray-500 whitespace-nowrap">{fmtIssueDate(row.date_presented)}</td>
-                    <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center tabular-nums">
-                      {aging !== null ? `${aging}d` : '--'}
-                    </td>
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+        <>
+          {/* Mobile cards — grouped by management level */}
+          <div className="sm:hidden flex flex-col gap-6">
+            {(() => {
+              const ORDER = ['ESA', 'Management Committee', 'D&C Head']
+              const map = {}
+              filtered.forEach(row => {
+                const key = row.management_level || 'Other'
+                if (!map[key]) map[key] = []
+                map[key].push(row)
+              })
+              const groups = [...ORDER.filter(k => map[k]), ...Object.keys(map).filter(k => !ORDER.includes(k))]
+                .map(label => ({ label, rows: map[label] }))
+              let globalIdx = 0
+              return groups.map(group => (
+                <div key={group.label}>
+                  <p className="text-lg font-bold text-gray-700 mb-3 px-1">{group.label}</p>
+                  <div className="flex flex-col gap-5">
+                    {group.rows.map(row => {
+                      const sc    = ISSUE_STATUS_CONFIG[row.status] ?? ISSUE_STATUS_CONFIG.open
+                      const aging = issueAgingDays(row.date_presented)
+                      const idx   = globalIdx++
+                      return (
+                        <div key={row.id} onClick={() => openView(row)}
+                          className="bg-white border border-gray-100 rounded-3xl p-3.5 active:scale-[0.98] transition-transform cursor-pointer"
+                          style={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.07), 0 10px 24px -4px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.04)', animation: `issue-card-in 0.35s cubic-bezier(0.23,1,0.32,1) both`, animationDelay: `${idx * 50}ms` }}>
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <span className="text-[10px] font-bold text-gray-400 tabular-nums">#{idx + 1}</span>
+                            <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
+                          </div>
+                          <p className="text-sm font-medium text-gray-900 line-clamp-2 mb-2.5">{row.details}</p>
+                          <div className="flex flex-wrap gap-x-4 gap-y-1">
+                            {row.issue_group && (
+                              <span className="text-[10px] text-gray-500"><span className="font-semibold text-gray-400 uppercase tracking-wide">Group </span>{row.issue_group}</span>
+                            )}
+                            {row.date_presented && (
+                              <span className="text-[10px] text-gray-500"><span className="font-semibold text-gray-400 uppercase tracking-wide">Date </span>{fmtIssueDate(row.date_presented)}</span>
+                            )}
+                            {aging !== null && (
+                              <span className="text-[10px] text-gray-500"><span className="font-semibold text-gray-400 uppercase tracking-wide">Aging </span>{aging}d</span>
+                            )}
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))
+            })()}
+          </div>
+          {/* Desktop table */}
+          <div className="hidden sm:block overflow-x-auto bg-white border border-gray-200 rounded-xl shadow-sm">
+            <table className="w-full text-xs rounded-xl overflow-hidden">
+              <thead>
+                <tr className="sticky top-0 z-10 bg-gray-600 border-b border-gray-700">
+                  {['No.', 'Issue', 'Group', 'Management Level', 'Status', 'Date Presented', 'Days Aging'].map(h => (
+                    <th key={h} className={`px-4 py-3 text-xs font-bold text-gray-200 ${h === 'Management Level' || h === 'Group' || h === 'Days Aging' ? 'whitespace-normal text-center' : h === 'Issue' ? 'text-left w-full' : 'text-left whitespace-nowrap'}`}>
+                      {h === 'Days Aging' ? <><span>Days</span><br /><span>Aging</span></> : h}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {filtered.map((row, idx) => {
+                  const sc    = ISSUE_STATUS_CONFIG[row.status] ?? ISSUE_STATUS_CONFIG.open
+                  const aging = issueAgingDays(row.date_presented)
+                  return (
+                    <tr key={row.id} onClick={() => openView(row)} className="hover:bg-gray-50/60 cursor-pointer">
+                      <td className="px-4 py-4 text-gray-400 whitespace-nowrap tabular-nums">{idx + 1}</td>
+                      <td className="px-4 py-4 text-black w-full"><p className="line-clamp-2">{row.details}</p></td>
+                      <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center">{row.issue_group || '--'}</td>
+                      <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center">{row.management_level || '--'}</td>
+                      <td className="px-4 py-4 whitespace-nowrap">
+                        <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${sc.cls}`}>{sc.label}</span>
+                      </td>
+                      <td className="px-4 py-4 text-gray-500 whitespace-nowrap">{fmtIssueDate(row.date_presented)}</td>
+                      <td className="px-4 py-4 text-gray-500 whitespace-nowrap text-center tabular-nums">
+                        {aging !== null ? `${aging}d` : '--'}
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
       )}
 
       {!loading && rows.length > 0 && (
@@ -6676,7 +6778,8 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
             <PhotosTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} search={photosSearch} onSearchChange={onPhotosSearchChange} filterTags={photosFilterTags} onFilterTagsChange={onPhotosFilterTagsChange} filterMonth={photosFilterMonth} onFilterMonthChange={onPhotosFilterMonthChange} sortOrder={photosSortOrder} onSortOrderChange={onPhotosSortOrderChange} showUpload={photosShowUpload} onShowUploadChange={onPhotosShowUploadChange} />
           </div>
         ) : activeSection === 'Issues & Concerns' ? (
-          <div key="Issues & Concerns" className="section-slide-in">
+          <div key="Issues & Concerns" className="section-slide-in permits-hero-pull">
+            <style>{`@media(max-width:639px){.permits-hero-pull{margin-top:calc(-3.5rem - env(safe-area-inset-top,0px))}}`}</style>
             <IssuesTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} search={issuesSearch} onSearchChange={onIssuesSearchChange} filterStatus={issuesFilterStatus} onFilterStatusChange={onIssuesFilterStatusChange} filterGroup={issuesFilterGroup} onFilterGroupChange={onIssuesFilterGroupChange} filterMgmtLevel={issuesFilterMgmtLevel} onFilterMgmtLevelChange={onIssuesFilterMgmtLevelChange} showAdd={issuesShowAdd} onShowAddChange={onIssuesShowAddChange} onRegisterFns={onIssuesRegisterFns} />
           </div>
         ) : activeSection === 'Unit Completion' ? (

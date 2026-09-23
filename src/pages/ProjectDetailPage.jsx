@@ -473,8 +473,8 @@ export default function ProjectDetailPage() {
               </svg>
             </button>
             {section !== null && (
-              <div className={`flex flex-col justify-center flex-shrink-0 ${section === 'Permits' ? 'hidden sm:flex' : ''}`}>
-                <span className="text-lg font-extrabold text-gray-800 tracking-wide leading-tight">{project.name}</span>
+              <div className="hidden sm:flex flex-col justify-center flex-shrink-0">
+                <span className="text-lg font-extrabold text-white sm:text-gray-800 tracking-wide leading-tight">{project.name}</span>
                 {activeLabel !== 'Project Info' && (
                   <span className="text-xs font-semibold text-[#ed6055] hidden sm:flex items-center gap-1.5 mt-0.5">
                     {activeLabel}
@@ -626,7 +626,7 @@ export default function ProjectDetailPage() {
 
             {/* Issues & Concerns controls â€" only visible on Issues tab */}
             {section === 'Issues & Concerns' && (
-              <>
+              <div className="flex items-center gap-0 sm:gap-4 flex-shrink-0 -mr-3 sm:mr-0">
                 {/* Mobile search toggle */}
                 <button
                   className="sm:hidden flex items-center justify-center w-8 h-8 rounded-lg transition-all flex-shrink-0"
@@ -659,7 +659,7 @@ export default function ProjectDetailPage() {
                 <div ref={issuesFilterPopRef} className="relative flex-shrink-0">
                   <button
                     onClick={() => setIssuesFiltersOpen(v => !v)}
-                    className="relative flex items-center justify-center w-8 h-8 rounded-lg border transition-all flex-shrink-0"
+                    className="issues-ghost-btn relative flex items-center justify-center w-8 h-8 rounded-lg border transition-all flex-shrink-0"
                     style={{
                       background: issuesFiltersOpen || issuesFilterStatus !== 'all' || issuesFilterGroup !== 'all' || issuesFilterMgmtLevel !== 'all' ? '#fff' : '#f9fafb',
                       borderColor: (issuesFilterStatus !== 'all' || issuesFilterGroup !== 'all' || issuesFilterMgmtLevel !== 'all') ? '#ed6055' : issuesFiltersOpen ? '#ed6055' : '#e5e7eb',
@@ -730,7 +730,7 @@ export default function ProjectDetailPage() {
                 <div ref={issuesActionsPopRef} className="relative flex-shrink-0">
                   <button
                     onClick={() => setIssuesActionsOpen(v => !v)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
+                    className="issues-ghost-btn flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-semibold transition-all"
                     style={{
                       background: issuesActionsOpen ? '#fff' : '#f9fafb',
                       borderColor: issuesActionsOpen ? '#ed6055' : '#e5e7eb',
@@ -784,7 +784,7 @@ export default function ProjectDetailPage() {
                     </div>
                   )}
                 </div>
-              </>
+              </div>
             )}
 
             {/* Work Program controls â€" only visible on Work Program tab */}
