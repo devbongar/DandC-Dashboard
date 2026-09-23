@@ -208,7 +208,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
         {permits.length > 0 && (
           <div className="sm:hidden -mx-4 -mt-4 rounded-b-3xl overflow-hidden" style={{ boxShadow: 'rgba(0,0,0,0.15) 2px 3px 8px' }}>
             {/* Info section — extends behind transparent header */}
-            <div className="relative flex flex-col w-full" style={{ background: '#ed6055', overflow: 'hidden' }}>
+            <div className="relative flex flex-col w-full" style={{ background: '#16a34a', overflow: 'hidden' }}>
               {/* Circle decorations span full info section height */}
               <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 300, height: 300, top: '-40%', right: '-50%' }} />
               <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 210, height: 210, top: '-30%', right: '-30%' }} />
@@ -236,7 +236,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
               </div>
             </div>{/* end outer info section */}
             {/* Status buttons section — 25% height */}
-            <div className="flex items-stretch w-full" style={{ height: 52, background: '#c94a3f', gap: 2 }}>
+            <div className="flex items-stretch w-full" style={{ height: 52, background: '#15803d', gap: 2 }}>
               {[
                 { label: 'Pending',     key: 'pending',    filterKey: 'pending'     },
                 { label: 'In Progress', key: 'inProgress', filterKey: 'in-progress' },
@@ -249,7 +249,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                     key={s.key}
                     onClick={() => onFilterStatusChange?.(active ? 'all' : s.filterKey)}
                     className="flex flex-col items-center justify-center flex-1 h-full transition-all duration-100 active:scale-90 active:rounded-xl"
-                    style={{ background: active ? '#9c3a30' : '#b8453a', boxShadow: 'inset 0px 2px 5px #c94a3f' }}
+                    style={{ background: active ? '#14532d' : '#166534', boxShadow: 'inset 0px 2px 5px #15803d' }}
                   >
                     <span className="text-white font-bold leading-none tabular-nums" style={{ fontSize: 15 }}>{counts[s.key]}</span>
                     <span className="text-white/70 font-medium leading-none mt-0.5" style={{ fontSize: 8 }}>{s.label}</span>
@@ -276,7 +276,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                   <button
                     key={c.label}
                     onClick={() => onFilterStatusChange?.(active ? 'all' : c.filterKey)}
-                    className="flex-none w-36 sm:w-auto text-left rounded-xl border px-4 py-3 flex flex-col gap-2 overflow-hidden transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none"
+                    className="flex-none w-36 sm:w-auto text-left rounded-3xl border px-4 py-3 flex flex-col gap-2 overflow-hidden transition-all duration-150 ease-out active:scale-[0.97] focus-visible:outline-none"
                     style={{
                       background: c.bg,
                       borderColor: active ? 'rgba(255,255,255,0.6)' : 'transparent',
@@ -497,11 +497,13 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                   onDragOver={isAdmin ? e => onDragOver(e, permit.id) : undefined}
                   onDrop={isAdmin ? e => onDrop(e, permit.id) : undefined}
                   onDragEnd={isAdmin ? onDragEnd : undefined}
-                  className="w-full text-left bg-white rounded-xl border px-4 py-3 transition-[transform,box-shadow,border-color,opacity] shadow-sm hover:shadow-md"
+                  className="w-full text-left bg-white rounded-3xl border px-4 py-3 transition-[transform,box-shadow,border-color,opacity] shadow-sm hover:shadow-md"
                   style={{
                     borderColor: dragOverId === permit.id ? '#ed6055' : '#e5e7eb',
                     opacity: dragIdRef.current === permit.id ? 0.4 : 1,
                     cursor: isAdmin ? 'grab' : 'default',
+                    animation: 'issue-card-in 0.35s cubic-bezier(0.23,1,0.32,1) both',
+                    animationDelay: `${rows.indexOf(permit) * 50}ms`,
                   }}>
                   <div className="flex items-stretch gap-2">
                   {isAdmin && (
@@ -559,7 +561,7 @@ export default function PermitsTab({ project, isAdmin, isHead, isReporter, isVie
                   onDragOver={isAdmin ? e => onDragOver(e, permit.id) : undefined}
                   onDrop={isAdmin ? e => onDrop(e, permit.id) : undefined}
                   onDragEnd={isAdmin ? onDragEnd : undefined}
-                  className="rounded-xl p-4 transition-all duration-200 ease-out flex flex-col gap-3"
+                  className="rounded-3xl p-4 transition-all duration-200 ease-out flex flex-col gap-3"
                   style={{
                     background: '#ffffff',
                     border: dragOverId === permit.id ? '1px solid #ed6055' : '1px solid #e5e7eb',

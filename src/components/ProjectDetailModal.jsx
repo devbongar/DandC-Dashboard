@@ -3975,7 +3975,7 @@ function IssuesTab({ project, isAdmin, profile, showToast, search = '', onSearch
   return (
     <div className="pt-4 px-3 sm:px-6">
       {/* Mobile hero card */}
-      {!loading && rows.length > 0 && (
+      {!loading && (
         <div className="sm:hidden -mx-3 -mt-4 rounded-b-3xl overflow-hidden mb-4" style={{ boxShadow: 'rgba(0,0,0,0.15) 2px 3px 8px' }}>
           <div className="relative flex flex-col w-full" style={{ background: '#ed6055', overflow: 'hidden' }}>
             <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 300, height: 300, top: '-40%', right: '-50%' }} />
