@@ -14,6 +14,13 @@ import useProfile from '../hooks/useProfile'
 import ReportBuilderModal from './ReportBuilderModal'
 import SearchDropdown from './SearchDropdown'
 import PermitsTab from './PermitsTab'
+import workProgramIconImg from '../assets/workProgramIcon.png'
+import permitsIconImg from '../assets/permitsIcon.png'
+import scurveIconImg from '../assets/scurveIcon.png'
+import unitCompletionIconImg from '../assets/unitCompletionIcon.png'
+import photosIconImg from '../assets/photosIcon.png'
+import issuesIconImg from '../assets/issuesIcon.png'
+import projectInfoIconImg from '../assets/projectInfoIcon.png'
 
 // -- Constants -----------------------------------------------------------------
 
@@ -451,7 +458,7 @@ function InlineInput({ value, onChange, type = 'text', placeholder = '', min, ma
 
 // -- Cover Photo Panel --------------------------------------------------------
 
-function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = false, onPendingRemove = null, onPendingUpload = null }) {
+function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = false, onPendingRemove = null, onPendingUpload = null, clickable = true }) {
   const [uploading, setUploading] = useState(false)
   const [preview, setPreview]     = useState(false)
   const inputRef = useRef(null)
@@ -514,17 +521,27 @@ function CoverPhotoPanel({ project, isAdmin, onUpdated, showToast, editing = fal
         {url ? (
           <>
             {/* Click image to open preview */}
-            <button
-              onClick={() => setPreview(true)}
-              className="absolute inset-0 w-full h-full flex items-center justify-center cursor-zoom-in"
-              aria-label="View full photo"
-            >
-              <img
-                src={url}
-                alt={`${project.name} cover photo`}
-                className="w-full h-full object-cover cover-reveal"
-              />
-            </button>
+            {clickable ? (
+              <button
+                onClick={() => setPreview(true)}
+                className="absolute inset-0 w-full h-full flex items-center justify-center cursor-zoom-in"
+                aria-label="View full photo"
+              >
+                <img
+                  src={url}
+                  alt={`${project.name} cover photo`}
+                  className="w-full h-full object-cover cover-reveal"
+                />
+              </button>
+            ) : (
+              <div className="absolute inset-0 w-full h-full flex items-center justify-center">
+                <img
+                  src={url}
+                  alt={`${project.name} cover photo`}
+                  className="w-full h-full object-cover cover-reveal"
+                />
+              </div>
+            )}
 
             {/* Admin: change photo -- pill button bottom-left on hover (edit mode only) */}
             {isAdmin && editing && (
@@ -779,7 +796,7 @@ const OVERVIEW_TABS = [
   },
 ]
 
-function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false, onSectionChange }) {
+function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = false, onSectionChange, readOnly = false }) {
   const navigate = useNavigate()
   const buildForm = () => ({
     name:             project.name ?? '',
@@ -1017,10 +1034,10 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
   )
 
   return (
-    <div className="relative min-h-full flex flex-col sm:overflow-hidden sm:rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div className={`relative flex flex-col sm:overflow-hidden sm:rounded-2xl [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] min-h-full`}>
       {/* Cover photo: full width on top, in front */}
-      <div className="w-full h-[70vh] flex-shrink-0 overflow-hidden bg-gray-100 relative z-0 sm:rounded-tl-2xl sm:rounded-tr-2xl sm:rounded-bl-2xl sm:rounded-br-2xl">
-        <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} />
+      <div className={`w-full flex-shrink-0 overflow-hidden bg-gray-100 relative z-0 sm:rounded-tl-2xl sm:rounded-tr-2xl sm:rounded-bl-2xl sm:rounded-br-2xl ${readOnly ? 'h-[40vh]' : 'h-[70vh]'}`}>
+        <CoverPhotoPanel project={project} isAdmin={isAdmin} onUpdated={onUpdated} showToast={showToast} clickable={!readOnly} />
         {/* Dark gradient — top (header fade) */}
         <div className="absolute inset-x-0 top-0 pointer-events-none" style={{ height: '8rem', background: 'linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 100%)' }} />
         {/* Dark gradient — bottom */}
@@ -1062,12 +1079,35 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         </div>
       </div>
 
-      {/* Content panel: below cover photo */}
-      <div className="flex-1 flex flex-col bg-white relative z-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      {/* Black strip -- overlaps bottom of cover photo */}
+      {readOnly && <div className="w-full bg-black relative z-10 rounded-b-[30px]" style={{ height: 180, marginTop: -5, animation: 'fade-in 300ms ease-out both' }} />}
 
+      {/* Content panel: below cover photo */}
+      <div className={`flex-1 flex flex-col relative [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${readOnly ? 'bg-transparent z-20' : 'bg-white z-0'}`}>
+
+        {/* Section shortcuts -- Project Home only */}
+        {readOnly && (
+          <div className="mx-4 relative z-20" style={{ marginTop: -150 }}>
+            <div className="bg-white border border-gray-200 shadow-lg p-4 transition-shadow duration-300" style={{ borderRadius: 30, animation: 'fade-in-up 320ms 80ms cubic-bezier(0.23,1,0.32,1) both' }}>
+            <div className="grid grid-cols-3 gap-2">
+              {HOME_SHORTCUTS.map(({ key, label, Icon }, i) => (
+                <button
+                  key={key}
+                  onClick={() => onSectionChange?.(key)}
+                  className="flex flex-col items-center gap-1.5 py-2 rounded-xl text-gray-500 hover:text-[#ed6055] hover:bg-red-50 hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.97]"
+                  style={{ animation: `fade-in-up 300ms ${120 + i * 40}ms cubic-bezier(0.23,1,0.32,1) both` }}
+                >
+                  <Icon />
+                  <span className="text-[11px] font-medium text-center leading-tight">{label}</span>
+                </button>
+              ))}
+            </div>
+            </div>
+          </div>
+        )}
 
         {/* Brief */}
-        {project.project_brief && (
+        {!readOnly && project.project_brief && (
           <div className="px-8 py-5 border-b border-gray-100" style={{ animation: 'fade-in-up 220ms 60ms ease-out both' }}>
             <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">{project.project_brief}</p>
           </div>
@@ -1075,7 +1115,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
 
 
         {/* Development Scale */}
-        {(project.num_towers != null || project.floors_per_tower != null || project.units_per_floor != null || project.total_units != null) && (() => {
+        {!readOnly && (project.num_towers != null || project.floors_per_tower != null || project.units_per_floor != null || project.total_units != null) && (() => {
           const devCols = [project.num_towers, project.floors_per_tower, project.units_per_floor, project.total_units].filter(v => v != null).length
           return (
           <div className="px-8 py-6 grid gap-x-8 border-t border-gray-100" style={{ animation: 'fade-in-up 220ms 160ms ease-out both', gridTemplateColumns: `repeat(${devCols}, 1fr)` }}>
@@ -1088,13 +1128,13 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
         })()}
 
         {/* Unit Types */}
-        <UnitTypesSectionView projectId={project.id} />
+        {!readOnly && <UnitTypesSectionView projectId={project.id} />}
 
         {/* Project Plans */}
-        <ProjectPlansSection projectId={project.id} isAdmin={isAdmin} editing={editing} showToast={showToast} />
+        {!readOnly && <ProjectPlansSection projectId={project.id} isAdmin={isAdmin} editing={editing} showToast={showToast} />}
 
         {/* Edit + Delete buttons pinned to bottom */}
-        {isAdmin && (
+        {isAdmin && !readOnly && (
           <div className="px-8 py-4 border-t border-gray-100 flex items-center justify-end gap-2 mt-auto" style={{ animation: 'fade-in-up 220ms 180ms ease-out both' }}>
             <button
               onClick={startEdit}
@@ -1118,7 +1158,7 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
 
 
         {/* Spacer so content clears mobile bottom nav */}
-        <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />
+        {!readOnly && <div className="sm:hidden flex-shrink-0" style={{ height: 'calc(64px + env(safe-area-inset-bottom))' }} />}
 
         {/* Confirm delete project */}
         {confirmDelete && (
@@ -6744,7 +6784,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && activeSection === 'Work Program' ? 'bg-gray-200 flex-1 min-h-0' : asPage && (activeSection === null || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && activeSection === 'Work Program' ? 'bg-gray-200 flex-1 min-h-0' : asPage && (activeSection === null || activeSection === 'Project Home' || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -6758,10 +6798,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         )}
 
         {/* Content */}
-        {activeSection === null ? (
-          <div key="home" className={`flex-1 overflow-hidden flex flex-col ${asPage ? '-mt-14 sm:-mt-14' : ''}`} style={{ animation: 'fade-in 180ms ease-out both' }}>
+        {(activeSection === null || activeSection === 'Project Home') ? (
+          <div key={activeSection ?? 'home'} className={`flex-1 flex flex-col section-slide-in ${activeSection === 'Project Home' ? 'overflow-visible' : 'overflow-hidden'} ${asPage ? '-mt-14 sm:-mt-14' : ''}`}>
             <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col min-h-0 sm:px-6">
-              <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} onSectionChange={asPage ? navigate : undefined} />
+              <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} onSectionChange={asPage ? navigate : undefined} readOnly={activeSection === 'Project Home'} />
             </div>
           </div>
         ) : activeSection === 'Work Program' ? (
@@ -6898,6 +6938,36 @@ const TrashIcon = () => (
     <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
   </svg>
 )
+const HomeShortcutProjectInfoIcon = () => (
+  <img src={projectInfoIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
+)
+const HomeShortcutWorkProgramIcon = () => (
+  <img src={workProgramIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
+)
+const HomeShortcutPermitsIcon = () => (
+  <img src={permitsIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
+)
+const HomeShortcutSCurveIcon = () => (
+  <img src={scurveIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
+)
+const HomeShortcutUnitCompletionIcon = () => (
+  <img src={unitCompletionIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
+)
+const HomeShortcutPhotosIcon = () => (
+  <img src={photosIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
+)
+const HomeShortcutIssuesIcon = () => (
+  <img src={issuesIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
+)
+const HOME_SHORTCUTS = [
+  { key: null,                label: 'Project Info',       Icon: HomeShortcutProjectInfoIcon },
+  { key: 'Work Program',      label: 'Work Program',      Icon: HomeShortcutWorkProgramIcon },
+  { key: 'Permits',           label: 'Permits',            Icon: HomeShortcutPermitsIcon },
+  { key: 'S-Curve',           label: 'S-Curve',            Icon: HomeShortcutSCurveIcon },
+  { key: 'Unit Completion',   label: 'Unit Completion',    Icon: HomeShortcutUnitCompletionIcon },
+  { key: 'Photos',            label: 'Photos',             Icon: HomeShortcutPhotosIcon },
+  { key: 'Issues & Concerns', label: 'Issues & Concerns',  Icon: HomeShortcutIssuesIcon },
+]
 const GripIcon = () => (
   <svg className="w-3 h-3" viewBox="0 0 20 20" fill="currentColor">
     <circle cx="7" cy="4" r="1.5"/><circle cx="13" cy="4" r="1.5"/>
