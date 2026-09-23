@@ -5005,7 +5005,7 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
           )}
 
           {/* Upper-left: hamburger + All Photos */}
-          <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 30, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
+          <div style={{ position: 'absolute', top: 'calc(16px + env(safe-area-inset-top, 0px))', left: 16, zIndex: 30, display: 'flex', alignItems: 'flex-start', gap: 8 }}>
             {isAdmin && (
               <>
                 <input ref={fileRef} type="file" accept="image/*" className="hidden"
