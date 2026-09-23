@@ -1141,7 +1141,7 @@ export default function ProjectDetailPage() {
       </div>
 
       {/* Mobile bottom nav — same global nav as /projects page */}
-      {section !== 'Project Home' && <MobileBottomNav profile={profile} />}
+      <MobileBottomNav profile={profile} />
     </div>
   )
 }
