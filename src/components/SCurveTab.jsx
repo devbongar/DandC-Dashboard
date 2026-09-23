@@ -1192,6 +1192,58 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   return (
     <div ref={containerRef} className="flex flex-col overflow-hidden px-4 sm:px-8 pt-3 sm:pt-4 pb-6 gap-3 h-full">
 
+      {/* Mobile hero card */}
+      {(summaryActual != null || summaryPlanned != null) && (
+        <div className="sm:hidden -mx-4 -mt-3 rounded-b-3xl overflow-hidden flex-shrink-0" style={{ boxShadow: 'rgba(0,0,0,0.15) 2px 3px 8px' }}>
+          <div className="relative flex flex-col w-full" style={{ background: 'linear-gradient(115deg, #ed6055 0%, #111111 100%)', overflow: 'hidden' }}>
+            <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 300, height: 300, top: '-40%', right: '-50%' }} />
+            <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.15)', width: 210, height: 210, top: '-30%', right: '-30%' }} />
+            <div className="absolute rounded-full" style={{ background: 'rgba(255,255,255,0.25)', width: 100, height: 100, top: '10%',  right: '-8%'  }} />
+            <div className="flex-shrink-0" style={{ height: 'calc(3.5rem + env(safe-area-inset-top, 0px))' }} />
+            <div className="relative z-10 pl-5">
+              <span className="text-2xl font-bold text-white tracking-wide">S-Curve</span>
+            </div>
+            <div className="relative flex items-baseline justify-between w-full z-10 pl-5 pr-5 pt-1 flex-1">
+              <div className="flex items-baseline gap-1">
+                <span className="text-5xl font-medium text-white leading-none tabular-nums">
+                  {summaryActual != null ? summaryActual.toFixed(1) : '--'}
+                </span>
+                <span className="text-2xl font-medium text-white/60 leading-none tabular-nums">%</span>
+              </div>
+              {summaryVariance != null && (
+                <span className="text-4xl font-medium text-white leading-none tabular-nums">
+                  {summaryVariance >= 0 ? '+' : ''}{summaryVariance.toFixed(1)}%
+                </span>
+              )}
+            </div>
+            <div className="relative flex items-center justify-between w-full z-10 pl-5 pr-5 pb-4 pt-1">
+              <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">
+                Actual POC{latestActualDate ? ` · as of ${new Date(latestActualDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}` : ''}
+              </span>
+              <span className="text-[10px] text-white/60 uppercase tracking-widest">vs planned</span>
+            </div>
+          </div>
+          <div className="flex items-stretch w-full" style={{ height: 52, background: '#8a2e26', gap: 2 }}>
+            {[
+              { label: 'Actual',   value: summaryActual },
+              { label: 'Planned',  value: summaryPlanned },
+              { label: 'Periodic', value: currentMonthActual },
+            ].map(s => (
+              <div
+                key={s.label}
+                className="flex flex-col items-center justify-center flex-1 h-full"
+                style={{ background: '#6d241d' }}
+              >
+                <span className="text-white font-bold leading-none tabular-nums" style={{ fontSize: 15 }}>
+                  {s.value != null ? `${s.value.toFixed(1)}%` : '--'}
+                </span>
+                <span className="text-white/70 font-medium leading-none mt-0.5" style={{ fontSize: 8 }}>{s.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Toolbar: hidden file inputs only */}
       <div className="flex-shrink-0 flex items-center gap-3 flex-wrap">
         <input ref={existingImportRef} type="file" accept=".xlsx,.xls,.csv"
@@ -1661,7 +1713,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
           },
         ]
         return (
-          <div className="flex-shrink-0 grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="flex-shrink-0 hidden sm:grid grid-cols-2 lg:grid-cols-4 gap-3">
           {cards.map(card => (
             <div key={card.label || 'placeholder'}
               className="flex-1 rounded-3xl border px-4 py-3 flex flex-col gap-2 overflow-hidden"

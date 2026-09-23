@@ -6784,7 +6784,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && activeSection === 'Work Program' ? 'bg-gray-200 flex-1 min-h-0' : asPage && (activeSection === null || activeSection === 'Project Home' || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Work Program' || activeSection === 'S-Curve') ? 'bg-gray-200 flex-1 min-h-0' : asPage && (activeSection === null || activeSection === 'Project Home' || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -6799,7 +6799,8 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
 
         {/* Content */}
         {(activeSection === null || activeSection === 'Project Home') ? (
-          <div key={activeSection ?? 'home'} className={`flex-1 flex flex-col section-slide-in ${activeSection === 'Project Home' ? 'overflow-visible' : 'overflow-hidden'} ${asPage ? '-mt-14 sm:-mt-14' : ''}`}>
+          <div key={activeSection ?? 'home'} className={`flex-1 flex flex-col section-slide-in permits-hero-pull ${activeSection === 'Project Home' ? 'overflow-visible' : 'overflow-hidden'} ${asPage ? 'sm:-mt-14' : ''}`}>
+            {asPage && <style>{`@media(max-width:639px){.permits-hero-pull{margin-top:calc(-3.5rem - env(safe-area-inset-top,0px))}}`}</style>}
             <div className="w-full max-w-7xl mx-auto flex-1 flex flex-col min-h-0 sm:px-6">
               <OverviewTab project={project} isAdmin={isAdmin} showToast={showToast} onUpdated={handleUpdated} startEditing={startEditing} onSectionChange={asPage ? navigate : undefined} readOnly={activeSection === 'Project Home'} />
             </div>
@@ -6827,13 +6828,17 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
           <div key="Unit Completion" className="section-slide-in">
             <CompletionTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} />
           </div>
+        ) : activeSection === 'S-Curve' ? (
+          <div key="S-Curve" className="section-slide-in permits-hero-pull flex-1 flex flex-col bg-[#e4e7ec] sm:overflow-hidden">
+            <style>{`@media(max-width:639px){.permits-hero-pull{margin-top:calc(-3.5rem - env(safe-area-inset-top,0px))}}`}</style>
+            <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'} showToast={showToast} />
+          </div>
         ) : (
           <div
             key={activeSection}
-            className={`section-slide-in flex-1 bg-[#e4e7ec] ${activeSection === 'S-Curve' ? 'overflow-hidden' : 'overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5'}`}
+            className="section-slide-in flex-1 bg-[#e4e7ec] overflow-y-auto px-3 sm:px-6 pb-4 sm:pb-5"
           >
             {activeSection === 'Planned M4/M5'      && <DevelopmentTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} />}
-            {activeSection === 'S-Curve'            && <SCurveTab project={project} isAdmin={isAdmin} canEdit={isAdmin || profile?.role === 'reporter' || profile?.role === 'endorser'} showToast={showToast} />}
           </div>
         )}
       </div>

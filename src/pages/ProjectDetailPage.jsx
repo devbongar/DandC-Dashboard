@@ -453,7 +453,7 @@ export default function ProjectDetailPage() {
             <button
               className={`sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 active:scale-90 transition-all ${ganttHeroGone ? 'text-gray-600' : 'text-white'}`}
               style={{ background: ganttHeroGone ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.18)' }}
-              onClick={() => (section === null || section === 'Project Home') ? navigate('/projects') : (setSection('Project Home'), setSearchParams({ tab: 'Project Home' }))}
+              onClick={() => section === 'Project Home' ? navigate('/projects') : (setSection('Project Home'), setSearchParams({ tab: 'Project Home' }))}
               aria-label="Back"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
