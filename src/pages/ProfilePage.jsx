@@ -55,7 +55,8 @@ function AvatarSection({ profile, showToast }) {
     if (uploadErr) { showToast('Upload failed: ' + uploadErr.message, 'error'); setUploading(false); return }
     const { data } = supabase.storage.from('avatars').getPublicUrl(path)
     const url = `${data.publicUrl}?t=${Date.now()}`
-    await supabase.from('profiles').update({ avatar_url: url }).eq('id', session.user.id)
+    const { error: dbErr } = await supabase.from('profiles').update({ avatar_url: url }).eq('id', session.user.id)
+    if (dbErr) { showToast('Failed to save profile picture: ' + dbErr.message, 'error'); setUploading(false); return }
     setAvatarUrl(url)
     setUploading(false)
     showToast('Profile picture updated.', 'success')

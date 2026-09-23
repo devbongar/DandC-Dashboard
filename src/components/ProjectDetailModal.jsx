@@ -1090,13 +1090,18 @@ function OverviewTab({ project, isAdmin, onUpdated, showToast, startEditing = fa
           <div className="mx-4 relative z-20" style={{ marginTop: -150 }}>
             <div className="bg-white border border-gray-200 shadow-lg p-4 transition-shadow duration-300" style={{ borderRadius: 30, animation: 'fade-in-up 320ms 80ms cubic-bezier(0.23,1,0.32,1) both' }}>
             <div className="grid grid-cols-3 gap-2">
-              {HOME_SHORTCUTS.map(({ key, label, Icon }, i) => (
+              {HOME_SHORTCUTS.map(({ key, label, Icon, soon }, i) => (
                 <button
                   key={key}
                   onClick={() => onSectionChange?.(key)}
-                  className="flex flex-col items-center gap-1.5 py-2 rounded-xl text-gray-500 hover:text-[#ed6055] hover:bg-red-50 hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.97]"
+                  className="relative flex flex-col items-center gap-1.5 py-2 rounded-xl text-gray-500 hover:text-[#ed6055] hover:bg-red-50 hover:-translate-y-0.5 transition-all duration-200 active:scale-[0.97]"
                   style={{ animation: `fade-in-up 300ms ${120 + i * 40}ms cubic-bezier(0.23,1,0.32,1) both` }}
                 >
+                  {soon && (
+                    <span className="absolute top-0 right-1 px-1.5 py-0.5 rounded-full bg-[#ed6055] text-white text-[8px] font-bold uppercase tracking-wide leading-none">
+                      Soon
+                    </span>
+                  )}
                   <Icon />
                   <span className="text-[11px] font-medium text-center leading-tight">{label}</span>
                 </button>
@@ -6978,7 +6983,7 @@ const HOME_SHORTCUTS = [
   { key: 'Work Program',      label: 'Work Program',      Icon: HomeShortcutWorkProgramIcon },
   { key: 'Permits',           label: 'Permits',            Icon: HomeShortcutPermitsIcon },
   { key: 'S-Curve',           label: 'S-Curve',            Icon: HomeShortcutSCurveIcon },
-  { key: 'Unit Completion',   label: 'Unit Completion',    Icon: HomeShortcutUnitCompletionIcon },
+  { key: 'Unit Completion',   label: 'Unit Completion',    Icon: HomeShortcutUnitCompletionIcon, soon: true },
   { key: 'Photos',            label: 'Photos',             Icon: HomeShortcutPhotosIcon },
   { key: 'Issues & Concerns', label: 'Issues & Concerns',  Icon: HomeShortcutIssuesIcon },
 ]
