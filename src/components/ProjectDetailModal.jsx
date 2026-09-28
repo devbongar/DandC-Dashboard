@@ -14,6 +14,7 @@ import useProfile from '../hooks/useProfile'
 import ReportBuilderModal from './ReportBuilderModal'
 import SearchDropdown from './SearchDropdown'
 import PermitsTab from './PermitsTab'
+import { buildQAReportPdf } from '../lib/qaReportPdf'
 import workProgramIconImg from '../assets/workProgramIcon.png'
 import permitsIconImg from '../assets/permitsIcon.png'
 import scurveIconImg from '../assets/scurveIcon.png'
@@ -21,6 +22,7 @@ import unitCompletionIconImg from '../assets/unitCompletionIcon.png'
 import photosIconImg from '../assets/photosIcon.png'
 import issuesIconImg from '../assets/issuesIcon.png'
 import claimsIconImg from '../assets/claimsIcon.png'
+import qualityAssuranceIconImg from '../assets/qualityAssuranceIcon.png'
 import projectInfoIconImg from '../assets/projectInfoIcon.png'
 
 // -- Constants -----------------------------------------------------------------
@@ -5499,6 +5501,1042 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
   )
 }
 
+// -- Quality Assurance ----------------------------------------------------------
+
+function QualityAssuranceTab({ project, isAdmin, profile, showToast, onRegisterBack }) {
+  const [form, setForm] = useState(null) // null | 'ncr' | 'qor'
+  const childBackRef = useRef(null)
+  const registerChildBack = useCallback(fn => { childBackRef.current = fn }, [])
+
+  // Let the app header's back button pop one level of this tab before leaving it
+  useEffect(() => {
+    onRegisterBack?.(() => {
+      if (childBackRef.current) { childBackRef.current(); return true }
+      if (form) { setForm(null); return true }
+      return false
+    })
+    return () => onRegisterBack?.(null)
+  }, [form, onRegisterBack])
+
+  const FORMS = [
+    {
+      key: 'ncr',
+      title: 'NCR',
+      subtitle: 'Non-Conformance Report',
+      accent: '#dc2626',
+      bg: 'linear-gradient(135deg, #ef4444 0%, #7f1d1d 100%)',
+      icon: (
+        <svg className="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" />
+        </svg>
+      ),
+    },
+    {
+      key: 'qor',
+      title: 'QOR',
+      subtitle: 'Quality Observation Report',
+      accent: '#2563eb',
+      bg: 'linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%)',
+      icon: (
+        <svg className="w-9 h-9" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+          <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z" />
+        </svg>
+      ),
+    },
+  ]
+
+  if (form) {
+    return (
+      <div className="pt-4 px-3 sm:px-6 pb-10">
+        <BackToQA onClick={() => setForm(null)} />
+        <QAReportSection
+          project={project}
+          showToast={showToast}
+          type={QA_REPORT_TYPES[form]}
+          canDelete={isAdmin || ['admin', 'head', 'reporter', 'endorser'].includes(profile?.role)}
+          onRegisterBack={registerChildBack}
+        />
+      </div>
+    )
+  }
+
+  return (
+    <div className="pt-4 px-3 sm:px-6 pb-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+        {FORMS.map(f => (
+          <button
+            key={f.key}
+            onClick={() => setForm(f.key)}
+            className="flex flex-col items-start gap-4 rounded-3xl p-6 text-left text-white shadow-lg transition-transform duration-200 active:scale-[0.97] hover:-translate-y-1"
+            style={{ background: f.bg }}
+          >
+            <div className="w-14 h-14 rounded-2xl bg-white/15 flex items-center justify-center">
+              {f.icon}
+            </div>
+            <div>
+              <p className="text-2xl font-bold tracking-wide">{f.title}</p>
+              <p className="text-sm text-white/70 mt-0.5">{f.subtitle}</p>
+            </div>
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function BackToQA({ onClick }) {
+  return (
+    <button
+      onClick={onClick}
+      className="hidden sm:flex items-center gap-1.5 mb-4 text-sm font-semibold text-gray-500 hover:text-[#ed6055] transition-colors"
+    >
+      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+      </svg>
+      Quality Assurance
+    </button>
+  )
+}
+
+function QASectionBar({ children }) {
+  return (
+    <div className="bg-red-600 text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2 -mx-5 sm:-mx-6 mt-6 mb-4 first:mt-0">
+      {children}
+    </div>
+  )
+}
+
+function QAField({ label, value, onChange, type = 'text', textarea = false, placeholder = '' }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{label}</label>
+      {textarea ? (
+        <textarea
+          rows={4}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent resize-none"
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full min-h-[44px] px-3 py-2 text-sm rounded-lg border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent"
+        />
+      )}
+    </div>
+  )
+}
+
+function QASignaturePad({ value, onChange }) {
+  const canvasRef = useRef(null)
+  const drawing   = useRef(false)
+  const dirty     = useRef(false)
+  const [hasInk, setHasInk] = useState(!!value)
+
+  // Size the canvas to its box and restore any existing signature after a resize
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+
+    const resize = () => {
+      const rect = canvas.getBoundingClientRect()
+      if (!rect.width) return
+      const dpr = window.devicePixelRatio || 1
+      const prev = dirty.current ? canvas.toDataURL() : value
+      canvas.width  = rect.width * dpr
+      canvas.height = rect.height * dpr
+      const ctx = canvas.getContext('2d')
+      ctx.scale(dpr, dpr)
+      ctx.lineWidth   = 1.8
+      ctx.lineCap     = 'round'
+      ctx.lineJoin    = 'round'
+      ctx.strokeStyle = '#111111'
+      if (prev) {
+        const img = new Image()
+        img.onload = () => ctx.drawImage(img, 0, 0, rect.width, rect.height)
+        img.src = prev
+      }
+    }
+
+    resize()
+    window.addEventListener('resize', resize)
+    return () => window.removeEventListener('resize', resize)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const pos = (e) => {
+    const rect = canvasRef.current.getBoundingClientRect()
+    return { x: e.clientX - rect.left, y: e.clientY - rect.top }
+  }
+
+  const start = (e) => {
+    e.preventDefault()
+    const ctx = canvasRef.current.getContext('2d')
+    const { x, y } = pos(e)
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+    drawing.current = true
+    canvasRef.current.setPointerCapture?.(e.pointerId)
+  }
+
+  const move = (e) => {
+    if (!drawing.current) return
+    e.preventDefault()
+    const ctx = canvasRef.current.getContext('2d')
+    const { x, y } = pos(e)
+    ctx.lineTo(x, y)
+    ctx.stroke()
+    if (!dirty.current) { dirty.current = true; setHasInk(true) }
+  }
+
+  const end = (e) => {
+    if (!drawing.current) return
+    drawing.current = false
+    canvasRef.current.releasePointerCapture?.(e.pointerId)
+    if (dirty.current) onChange(canvasRef.current.toDataURL('image/png'))
+  }
+
+  const clear = () => {
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext('2d')
+    const dpr = window.devicePixelRatio || 1
+    ctx.clearRect(0, 0, canvas.width / dpr, canvas.height / dpr)
+    dirty.current = false
+    setHasInk(false)
+    onChange('')
+  }
+
+  return (
+    <div className="relative">
+      <canvas
+        ref={canvasRef}
+        onPointerDown={start}
+        onPointerMove={move}
+        onPointerUp={end}
+        onPointerLeave={end}
+        onPointerCancel={end}
+        className="w-full h-[84px] rounded-lg border border-dashed border-gray-300 bg-white touch-none cursor-crosshair"
+      />
+      {!hasInk && (
+        <span className="absolute inset-0 flex items-center justify-center text-xs text-gray-300 pointer-events-none">
+          Sign here
+        </span>
+      )}
+      {hasInk && (
+        <button
+          type="button"
+          onClick={clear}
+          className="absolute top-1 right-1 px-2 py-0.5 rounded-md bg-gray-100 text-[10px] font-semibold text-gray-500 hover:bg-gray-200 hover:text-gray-700 transition-colors"
+        >
+          Clear
+        </button>
+      )}
+    </div>
+  )
+}
+
+function QASignatureRow({ label, name, onNameChange, sign, onSignChange, date, onDateChange }) {
+  const inputCls = 'w-full min-h-[44px] px-3 py-2 text-sm rounded-lg border border-gray-200 text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent'
+  const labelCls = 'text-[11px] font-bold text-gray-500 uppercase tracking-wide'
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className={labelCls}>{label}</label>
+      <QASignaturePad value={sign} onChange={onSignChange} />
+      <div className="grid grid-cols-1 sm:grid-cols-[1fr_150px] gap-3">
+        <input value={name} onChange={e => onNameChange(e.target.value)} placeholder="Printed name" className={inputCls} />
+        <input type="date" value={date} onChange={e => onDateChange(e.target.value)} className={inputCls} />
+      </div>
+    </div>
+  )
+}
+
+function QACheckOption({ label, checked, onToggle }) {
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      className="flex items-center gap-2 text-sm text-gray-700"
+    >
+      <span className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center transition-colors ${checked ? 'bg-[#ed6055] border-[#ed6055]' : 'border-gray-300'}`}>
+        {checked && (
+          <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+          </svg>
+        )}
+      </span>
+      {label}
+    </button>
+  )
+}
+
+function QAYesNo({ value, onChange }) {
+  return (
+    <div className="flex items-center gap-4">
+      {['yes', 'no'].map(v => (
+        <QACheckOption key={v} label={v.toUpperCase()} checked={value === v} onToggle={() => onChange(v)} />
+      ))}
+    </div>
+  )
+}
+
+function QAActionTable({ title, rows, onRowChange }) {
+  return (
+    <div className="rounded-lg border border-gray-200 overflow-hidden">
+      <div className="bg-gray-100 px-3 py-1.5 text-[11px] font-bold text-gray-500 uppercase tracking-wide">{title}</div>
+      {rows.map((row, i) => (
+        <div key={i} className={`flex gap-2 px-3 py-2 ${i > 0 ? 'border-t border-gray-100' : ''}`}>
+          <textarea
+            rows={3}
+            value={row.action}
+            onChange={e => onRowChange(i, 'action', e.target.value)}
+            placeholder={`Action ${i + 1}`}
+            className="flex-1 min-w-0 text-sm px-2 py-1.5 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent resize-none"
+          />
+          <input
+            type="date"
+            value={row.dueDate}
+            onChange={e => onRowChange(i, 'dueDate', e.target.value)}
+            className="w-36 flex-shrink-0 self-start text-sm px-2 py-1.5 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent"
+          />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function QAReviewBlock({ title, review, onChange }) {
+  return (
+    <div className="rounded-lg border border-gray-200 p-3 flex flex-col gap-3">
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        <span className="text-xs font-bold text-gray-600 uppercase tracking-wide">{title}</span>
+        <div className="flex items-center gap-4">
+          <QACheckOption label="Accepted" checked={review.status === 'accepted'} onToggle={() => onChange({ ...review, status: 'accepted' })} />
+          <QACheckOption label="Rejected" checked={review.status === 'rejected'} onToggle={() => onChange({ ...review, status: 'rejected' })} />
+        </div>
+      </div>
+      <QAField label="Details" textarea value={review.details} onChange={v => onChange({ ...review, details: v })} />
+      <QASignatureRow
+        label="Reviewed By"
+        name={review.reviewedBy}
+        onNameChange={v => onChange({ ...review, reviewedBy: v })}
+        sign={review.sign}
+        onSignChange={v => onChange({ ...review, sign: v })}
+        date={review.signDate}
+        onDateChange={v => onChange({ ...review, signDate: v })}
+      />
+    </div>
+  )
+}
+
+const QA_REPORT_TYPES = {
+  ncr: {
+    abbr:      'NCR',
+    title:     'Non-Conformance Report',
+    listTitle: 'Non-Conformance Reports',
+    table:     'project_ncr_reports',
+    bucket:    'ncr-photos',
+    rowTitle:  (r) => r.data?.defect || [r.data?.group, r.data?.itemName].filter(Boolean).join(': ') || null,
+  },
+  qor: {
+    abbr:      'QOR',
+    title:     'Quality Observation Report',
+    listTitle: 'Quality Observation Reports',
+    table:     'project_qor_reports',
+    bucket:    'qor-photos',
+    refColumn: 'qor_ref_no',
+    categories: ['Potential NCR', 'Workmanship Issues', 'Procedural Issues', 'Improvement Needed', 'Material Handling'],
+  },
+}
+
+function QAReportSection({ project, showToast, type, canDelete = false, onRegisterBack }) {
+  const [rows, setRows]       = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(null) // null = list | 'new' | row object
+  const [deleting, setDeleting] = useState(null)
+
+  // Back out of an open report before the tab itself handles back
+  useEffect(() => {
+    onRegisterBack?.(editing ? () => setEditing(null) : null)
+    return () => onRegisterBack?.(null)
+  }, [editing, onRegisterBack])
+
+  const load = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from(type.table)
+      .select('*')
+      .eq('project_id', project.id)
+      .order('created_at', { ascending: false })
+    setRows(data ?? [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const confirmDelete = async () => {
+    const row = deleting
+    setDeleting(null)
+
+    // Clean up the report's uploaded evidence photos so they don't orphan
+    const marker = `/public/${type.bucket}/`
+    const paths = (row.data?.photos ?? [])
+      .map(url => url.split(marker)[1])
+      .filter(Boolean)
+      .map(p => decodeURIComponent(p.split('?')[0]))
+    if (paths.length) await supabase.storage.from(type.bucket).remove(paths)
+
+    const { error } = await supabase.from(type.table).delete().eq('id', row.id)
+    if (error) { showToast(`Failed to delete ${type.abbr}: ` + error.message, 'error'); return }
+    showToast(`${type.abbr} deleted.`, 'success')
+    load()
+  }
+
+  if (editing) {
+    const FormComponent = type.abbr === 'NCR' ? NCRForm : QAReportForm
+    return (
+      <FormComponent
+        project={project}
+        showToast={showToast}
+        type={type}
+        existing={editing === 'new' ? null : editing}
+        onBack={() => setEditing(null)}
+        onSaved={() => { setEditing(null); load() }}
+      />
+    )
+  }
+
+  if (loading) return <TriangleLoader label={`Loading ${type.abbr}s...`} />
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-lg font-bold text-gray-700">{type.listTitle}</p>
+        <button
+          onClick={() => setEditing('new')}
+          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97]"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+          </svg>
+          New {type.abbr}
+        </button>
+      </div>
+
+      {rows.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center">
+          <p className="text-sm font-semibold text-gray-500 mb-1">No {type.abbr}s yet</p>
+          <p className="text-xs text-gray-400">Create one with the New {type.abbr} button.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          {rows.map((r, i) => (
+            <div key={r.id} className={`flex items-center ${i > 0 ? 'border-t border-gray-100' : ''}`}>
+            <button
+              onClick={() => setEditing(r)}
+              className="flex-1 min-w-0 text-left px-4 py-3 hover:bg-gray-50 transition-colors"
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-semibold text-gray-800 truncate">
+                    {(type.rowTitle ? type.rowTitle(r) : r[type.refColumn]) || `Untitled ${type.abbr}`}
+                  </span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide flex-shrink-0 ${
+                    r.status === 'closed'
+                      ? 'bg-emerald-50 text-emerald-600'
+                      : 'bg-amber-50 text-amber-600'
+                  }`}>
+                    {r.status === 'closed' ? 'Closed' : 'Open'}
+                  </span>
+                </div>
+                <span className="text-[11px] text-gray-400 flex-shrink-0">
+                  {r.date_of_inspection
+                    ? new Date(r.date_of_inspection + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+              {r.description && (
+                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>
+              )}
+            </button>
+            {canDelete && (
+              <button
+                onClick={() => setDeleting(r)}
+                className="flex-shrink-0 p-3 mr-1 text-gray-300 hover:text-red-500 transition-colors"
+                title={`Delete ${type.abbr}`}
+                aria-label={`Delete ${type.abbr}`}
+              >
+                <TrashIcon />
+              </button>
+            )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {deleting && createPortal(
+        <ConfirmDeleteModal onConfirm={confirmDelete} onCancel={() => setDeleting(null)} />
+      , document.body)}
+    </div>
+  )
+}
+
+const NCR_GROUP_OPTIONS = [
+  { value: 'Document',  label: 'Document' },
+  { value: 'Materials', label: 'Materials' },
+  { value: 'Activity',  label: 'Activity' },
+]
+const NCR_ROOT_CAUSE_OPTIONS = [
+  'Design', 'Specification', 'Material', 'Method', 'Workmanship', 'Leadership',
+].map(v => ({ value: v, label: v }))
+const NCR_STATUS_OPTIONS = [
+  { value: 'open',   label: 'Open' },
+  { value: 'closed', label: 'Closed' },
+]
+
+function QASelectField({ label, value, onChange, options, placeholder = 'Select...' }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{label}</label>
+      <div className="[&>div>button]:min-h-[44px] [&>div>button]:text-sm">
+        <SearchDropdown
+          options={options}
+          value={value}
+          onChange={onChange}
+          emptyValue=""
+          emptyLabel={placeholder}
+          fluid
+        />
+      </div>
+    </div>
+  )
+}
+
+// Redesigned, simplified NCR form -- group/item, non-conformance details, resolution.
+function NCRForm({ project, showToast, type, existing = null, onBack, onSaved }) {
+  const [f, setF] = useState(() => {
+    const d = existing?.data ?? {}
+    return {
+      group: d.group ?? '',
+      itemName: d.itemName ?? '',
+      dateIssued: existing?.date_of_inspection ?? '',
+      defect: d.defect ?? '',
+      description: existing?.description ?? '',
+      rootCause: existing?.root_cause ?? '',
+      reasons: d.reasons ?? '',
+      affectedActivity: d.affectedActivity ?? '',
+      correctiveAction: d.correctiveAction ?? '',
+      preventiveMeasure: d.preventiveMeasure ?? '',
+      dateRectified: d.dateRectified ?? '',
+      status: existing?.status ?? 'open',
+    }
+  })
+  const [photos, setPhotos] = useState([])
+  const [savedPhotos, setSavedPhotos] = useState(existing?.data?.photos ?? [])
+  const [saving, setSaving] = useState(false)
+  const fileRef = useRef(null)
+  const cameraRef = useRef(null)
+  const [lightbox, setLightbox] = useState(null)
+  const set = (key, value) => setF(prev => ({ ...prev, [key]: value }))
+
+  const addPhotos = (e) => {
+    const files = Array.from(e.target.files ?? [])
+    setPhotos(prev => [...prev, ...files.map(file => ({ file, url: URL.createObjectURL(file) }))])
+    e.target.value = ''
+  }
+  const removePhoto = (i) => {
+    setPhotos(prev => {
+      URL.revokeObjectURL(prev[i].url)
+      return prev.filter((_, idx) => idx !== i)
+    })
+  }
+
+  const itemLabel = f.group === 'Document' ? 'Document' : f.group === 'Materials' ? 'Material' : 'Activity'
+
+  const handleSave = async () => {
+    setSaving(true)
+    const { data: { session } } = await supabase.auth.getSession()
+
+    const photoUrls = []
+    for (const p of photos) {
+      const safeName = p.file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+      const path = `${project.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+      const { error: upErr } = await supabase.storage.from(type.bucket).upload(path, p.file)
+      if (upErr) { showToast('Photo upload failed: ' + upErr.message, 'error'); setSaving(false); return }
+      photoUrls.push(supabase.storage.from(type.bucket).getPublicUrl(path).data.publicUrl)
+    }
+
+    const payload = {
+      project_id:         project.id,
+      project_code:       project.project_code ?? null,
+      description:        f.description || null,
+      root_cause:         f.rootCause || null,
+      date_of_inspection: f.dateIssued || null,
+      status:             f.status || 'open',
+      data: {
+        group:              f.group,
+        itemName:           f.itemName,
+        defect:             f.defect,
+        reasons:            f.reasons,
+        affectedActivity:   f.affectedActivity,
+        correctiveAction:   f.correctiveAction,
+        preventiveMeasure:  f.preventiveMeasure,
+        dateRectified:      f.dateRectified,
+        photos:             [...savedPhotos, ...photoUrls],
+      },
+    }
+
+    const { error } = existing
+      ? await supabase.from(type.table)
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+      : await supabase.from(type.table).insert({ ...payload, created_by: session?.user?.id ?? null })
+
+    setSaving(false)
+    if (error) { showToast(`Failed to save ${type.abbr}: ` + error.message, 'error'); return }
+    showToast(existing ? `${type.abbr} updated.` : `${type.abbr} saved.`, 'success')
+    onSaved?.()
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-6 sm:px-6">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="hidden sm:flex items-center gap-1.5 mb-3 text-sm font-semibold text-gray-500 hover:text-[#ed6055] transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          All {type.abbr}s
+        </button>
+      )}
+      <p className="text-lg font-bold text-gray-800 mb-4">{type.title} ({type.abbr})</p>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <QASelectField label="Group" value={f.group} onChange={v => set('group', v)} options={NCR_GROUP_OPTIONS} />
+        <QAField label={itemLabel} value={f.itemName} onChange={v => set('itemName', v)} />
+        <QAField label="Date Issued" type="date" value={f.dateIssued} onChange={v => set('dateIssued', v)} />
+      </div>
+
+      <QASectionBar>Non-Conformance</QASectionBar>
+      <div className="flex flex-col gap-3">
+        <QAField label="Defect" value={f.defect} onChange={v => set('defect', v)} />
+        <QAField label="Description" textarea value={f.description} onChange={v => set('description', v)} />
+        <QASelectField label="Root Cause" value={f.rootCause} onChange={v => set('rootCause', v)} options={NCR_ROOT_CAUSE_OPTIONS} />
+        <QAField label="Reasons" textarea value={f.reasons} onChange={v => set('reasons', v)} />
+        <QAField label="Affected Activity" value={f.affectedActivity} onChange={v => set('affectedActivity', v)} />
+
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Photos</label>
+          <div className="flex flex-wrap gap-2 mt-1">
+            {savedPhotos.map((url, i) => (
+              <button key={url} type="button" onClick={() => setLightbox(url)} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0 cursor-zoom-in">
+                <img src={url} alt="" className="w-full h-full object-cover" />
+                <span onClick={e => { e.stopPropagation(); setSavedPhotos(prev => prev.filter((_, idx) => idx !== i)) }} className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center leading-none">×</span>
+              </button>
+            ))}
+            {photos.map((p, i) => (
+              <button key={i} type="button" onClick={() => setLightbox(p.url)} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0 cursor-zoom-in">
+                <img src={p.url} alt="" className="w-full h-full object-cover" />
+                <span onClick={e => { e.stopPropagation(); removePhoto(i) }} className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center leading-none">×</span>
+              </button>
+            ))}
+            <button
+              onClick={() => cameraRef.current?.click()}
+              className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors flex items-center justify-center flex-shrink-0"
+              title="Take photo"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+            </button>
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors flex items-center justify-center flex-shrink-0"
+              title="Choose from gallery"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={addPhotos} />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={addPhotos} />
+          </div>
+        </div>
+      </div>
+
+      <QASectionBar>Resolution</QASectionBar>
+      <div className="flex flex-col gap-3">
+        <QAField label="Corrective Action" textarea value={f.correctiveAction} onChange={v => set('correctiveAction', v)} />
+        <QAField label="Preventive Measure" textarea value={f.preventiveMeasure} onChange={v => set('preventiveMeasure', v)} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <QAField label="Date Rectified" type="date" value={f.dateRectified} onChange={v => set('dateRectified', v)} />
+          <QASelectField label="Status" value={f.status} onChange={v => set('status', v)} options={NCR_STATUS_OPTIONS} />
+        </div>
+      </div>
+
+      <div className="flex justify-end mt-6">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97] disabled:opacity-60"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+
+      {lightbox && createPortal(
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md cursor-zoom-out"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shadow-lg active:scale-[0.97]"
+            aria-label="Close preview"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={lightbox}
+            alt=""
+            className="max-w-[92vw] max-h-[92vh] object-contain rounded-2xl shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      , document.body)}
+    </div>
+  )
+}
+
+function QAReportForm({ project, showToast, type, existing = null, onBack, onSaved }) {
+  const [f, setF] = useState(() => {
+    const d = existing?.data ?? {}
+    const sg = d.signatories ?? {}
+    const rv = d.reviews ?? {}
+    const co = d.closeOut ?? {}
+    const person = (p) => ({ name: p?.name ?? '', sign: p?.sign ?? '', date: p?.date ?? '' })
+    const review = (r) => ({
+      status:     r?.status ?? null,
+      details:    r?.details ?? '',
+      reviewedBy: r?.reviewedBy ?? '',
+      sign:       r?.sign ?? '',
+      signDate:   r?.signDate ?? '',
+    })
+    const issued   = person(sg.issuedBy)
+    const approved = person(sg.approvedBy)
+    const issuedTo = person(sg.issuedTo)
+    const received = person(sg.receivedBy)
+    const proposed = person(d.proposedBy)
+    const blankRows = (n) => Array.from({ length: n }, () => ({ action: '', dueDate: '' }))
+    return {
+      projectName: existing?.project_name ?? project.name ?? '',
+      refNo: existing?.[type.refColumn] ?? '',
+      contractWorkPkg: existing?.contract_work_pkg ?? '',
+      contractScope: existing?.contract_scope ?? '',
+      projectLocation: existing?.project_location ?? [project.city, project.province].filter(Boolean).join(', '),
+      dateOfInspection: existing?.date_of_inspection ?? '',
+      issuedBy: issued.name, issuedBySign: issued.sign, issuedByDate: issued.date,
+      approvedBy: approved.name, approvedBySign: approved.sign, approvedByDate: approved.date,
+      issuedTo: issuedTo.name, issuedToSign: issuedTo.sign, issuedToDate: issuedTo.date,
+      receivedBy: received.name, receivedBySign: received.sign, receivedByDate: received.date,
+      description: existing?.description ?? '',
+      categories: d.categories ?? {},
+      rootCause: existing?.root_cause ?? '',
+      correctiveType: d.correctiveType ?? { demolish: false, repair: false, others: false, othersText: '' },
+      correctiveRows: d.correctiveRows?.length ? d.correctiveRows : blankRows(3),
+      preventiveRows: d.preventiveRows?.length ? d.preventiveRows : blankRows(3),
+      proposedBy: proposed.name, proposedBySign: proposed.sign, proposedByDate: proposed.date,
+      reviewCause: review(rv.cause),
+      reviewCorrective: review(rv.corrective),
+      reviewPreventive: review(rv.preventive),
+      closeOutClosed: co.allClosed ?? null,
+      closeOutVerified: co.allVerified ?? null,
+      closeOutBy: co.name ?? '', closeOutSign: co.sign ?? '', closeOutDate: co.date ?? '',
+    }
+  })
+  const [photos, setPhotos] = useState([])
+  const [savedPhotos, setSavedPhotos] = useState(existing?.data?.photos ?? [])
+  const [saving, setSaving] = useState(false)
+  const [downloading, setDownloading] = useState(false)
+  const fileRef = useRef(null)
+  const set = (key, value) => setF(prev => ({ ...prev, [key]: value }))
+
+  const setCorrectiveRow = (i, field, value) => {
+    setF(prev => {
+      const rows = [...prev.correctiveRows]
+      rows[i] = { ...rows[i], [field]: value }
+      return { ...prev, correctiveRows: rows }
+    })
+  }
+  const setPreventiveRow = (i, field, value) => {
+    setF(prev => {
+      const rows = [...prev.preventiveRows]
+      rows[i] = { ...rows[i], [field]: value }
+      return { ...prev, preventiveRows: rows }
+    })
+  }
+
+  const addPhotos = (e) => {
+    const files = Array.from(e.target.files ?? [])
+    setPhotos(prev => [...prev, ...files.map(file => ({ file, url: URL.createObjectURL(file) }))])
+    e.target.value = ''
+  }
+  const removePhoto = (i) => {
+    setPhotos(prev => {
+      URL.revokeObjectURL(prev[i].url)
+      return prev.filter((_, idx) => idx !== i)
+    })
+  }
+
+  const handleSave = async () => {
+    setSaving(true)
+    const { data: { session } } = await supabase.auth.getSession()
+
+    const photoUrls = []
+    for (const p of photos) {
+      const safeName = p.file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+      const path = `${project.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+      const { error: upErr } = await supabase.storage.from(type.bucket).upload(path, p.file)
+      if (upErr) { showToast('Photo upload failed: ' + upErr.message, 'error'); setSaving(false); return }
+      photoUrls.push(supabase.storage.from(type.bucket).getPublicUrl(path).data.publicUrl)
+    }
+
+    const payload = {
+      project_id:         project.id,
+      project_code:       project.project_code ?? null,
+      [type.refColumn]:   f.refNo || null,
+      project_name:       f.projectName || null,
+      contract_work_pkg:  f.contractWorkPkg || null,
+      contract_scope:     f.contractScope || null,
+      project_location:   f.projectLocation || null,
+      date_of_inspection: f.dateOfInspection || null,
+      description:        f.description || null,
+      root_cause:         f.rootCause || null,
+      status:             f.closeOutVerified === 'yes' ? 'closed' : 'open',
+      data: {
+        signatories: {
+          issuedBy:   { name: f.issuedBy,   sign: f.issuedBySign,   date: f.issuedByDate },
+          approvedBy: { name: f.approvedBy, sign: f.approvedBySign, date: f.approvedByDate },
+          issuedTo:   { name: f.issuedTo,   sign: f.issuedToSign,   date: f.issuedToDate },
+          receivedBy: { name: f.receivedBy, sign: f.receivedBySign, date: f.receivedByDate },
+        },
+        photos:         [...savedPhotos, ...photoUrls],
+        categories:     f.categories,
+        correctiveType: f.correctiveType,
+        correctiveRows: f.correctiveRows,
+        preventiveRows: f.preventiveRows,
+        proposedBy:     { name: f.proposedBy, sign: f.proposedBySign, date: f.proposedByDate },
+        reviews: {
+          cause:      f.reviewCause,
+          corrective: f.reviewCorrective,
+          preventive: f.reviewPreventive,
+        },
+        closeOut: {
+          allClosed:   f.closeOutClosed,
+          allVerified: f.closeOutVerified,
+          name:        f.closeOutBy,
+          sign:        f.closeOutSign,
+          date:        f.closeOutDate,
+        },
+      },
+    }
+
+    const { error } = existing
+      ? await supabase.from(type.table)
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+      : await supabase.from(type.table).insert({ ...payload, created_by: session?.user?.id ?? null })
+
+    setSaving(false)
+    if (error) { showToast(`Failed to save ${type.abbr}: ` + error.message, 'error'); return }
+    showToast(existing ? `${type.abbr} updated.` : `${type.abbr} saved.`, 'success')
+    onSaved?.()
+  }
+
+  const handleDownloadPdf = async () => {
+    if (downloading) return
+    setDownloading(true)
+    try {
+      const pdf = await buildQAReportPdf({
+        type,
+        f,
+        photoUrls: [...savedPhotos, ...photos.map(p => p.url)],
+      })
+      pdf.save(`${type.abbr}-${(f.refNo || 'draft').replace(/[^a-zA-Z0-9.\-_]/g, '_')}.pdf`)
+    } catch (err) {
+      showToast('PDF export failed: ' + err.message, 'error')
+    } finally {
+      setDownloading(false)
+    }
+  }
+
+  return (
+    <div className="max-w-3xl mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-6 sm:px-6 overflow-hidden">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="hidden sm:flex items-center gap-1.5 mb-3 text-sm font-semibold text-gray-500 hover:text-[#ed6055] transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          All {type.abbr}s
+        </button>
+      )}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <p className="text-lg font-bold text-gray-800">{type.title} ({type.abbr})</p>
+        <button
+          onClick={handleDownloadPdf}
+          disabled={downloading}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors disabled:opacity-50 flex-shrink-0"
+        >
+          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+          </svg>
+          {downloading ? 'Generating...' : 'Download PDF'}
+        </button>
+      </div>
+
+      <QASectionBar>Section 1: General Information</QASectionBar>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <QAField label="Project Name" value={f.projectName} onChange={v => set('projectName', v)} />
+        <QAField label={`${type.abbr} Reference No.`} value={f.refNo} onChange={v => set('refNo', v)} placeholder="PH1.D&C.Code.Month.Year.No" />
+        <QAField label="Contract Work Pkg." value={f.contractWorkPkg} onChange={v => set('contractWorkPkg', v)} />
+        <QAField label="Contract Scope/Activity" value={f.contractScope} onChange={v => set('contractScope', v)} />
+        <QAField label="Project Location" value={f.projectLocation} onChange={v => set('projectLocation', v)} />
+        <QAField label="Date of Inspection" type="date" value={f.dateOfInspection} onChange={v => set('dateOfInspection', v)} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+        <QASignatureRow label="Issued By" name={f.issuedBy} onNameChange={v => set('issuedBy', v)} sign={f.issuedBySign} onSignChange={v => set('issuedBySign', v)} date={f.issuedByDate} onDateChange={v => set('issuedByDate', v)} />
+        <QASignatureRow label="Approved By" name={f.approvedBy} onNameChange={v => set('approvedBy', v)} sign={f.approvedBySign} onSignChange={v => set('approvedBySign', v)} date={f.approvedByDate} onDateChange={v => set('approvedByDate', v)} />
+        <QASignatureRow label="Issued To" name={f.issuedTo} onNameChange={v => set('issuedTo', v)} sign={f.issuedToSign} onSignChange={v => set('issuedToSign', v)} date={f.issuedToDate} onDateChange={v => set('issuedToDate', v)} />
+        <QASignatureRow label="Received By" name={f.receivedBy} onNameChange={v => set('receivedBy', v)} sign={f.receivedBySign} onSignChange={v => set('receivedBySign', v)} date={f.receivedByDate} onDateChange={v => set('receivedByDate', v)} />
+      </div>
+
+      <QASectionBar>Section 2: Details of Non-Conformance</QASectionBar>
+      {type.categories && (
+        <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">2.1 Description</p>
+      )}
+      <QAField
+        label="Description of Non-Compliance (What, Where, When, How big, Quantify)"
+        textarea
+        value={f.description}
+        onChange={v => set('description', v)}
+      />
+      <div className="mt-3">
+        <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Attached Photos</label>
+        <div className="flex flex-wrap gap-2 mt-1">
+          {savedPhotos.map((url, i) => (
+            <div key={url} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
+              <img src={url} alt="" className="w-full h-full object-cover" />
+              <button onClick={() => setSavedPhotos(prev => prev.filter((_, idx) => idx !== i))} className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center leading-none">×</button>
+            </div>
+          ))}
+          {photos.map((p, i) => (
+            <div key={i} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
+              <img src={p.url} alt="" className="w-full h-full object-cover" />
+              <button onClick={() => removePhoto(i)} className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center leading-none">×</button>
+            </div>
+          ))}
+          <button
+            onClick={() => fileRef.current?.click()}
+            className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors flex items-center justify-center flex-shrink-0"
+          >
+            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+          </button>
+          <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={addPhotos} />
+        </div>
+      </div>
+
+      {type.categories && (
+        <div className="mt-4">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">
+            2.2 Category / Classification of {type.abbr}
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {type.categories.map(c => (
+              <QACheckOption
+                key={c}
+                label={c}
+                checked={!!f.categories[c]}
+                onToggle={() => set('categories', { ...f.categories, [c]: !f.categories[c] })}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
+      <QASectionBar>Section 3: Root Cause Analysis</QASectionBar>
+      <QAField label="Root Cause" textarea value={f.rootCause} onChange={v => set('rootCause', v)} />
+
+      <QASectionBar>Section 4: Proposed Corrective and Preventive Actions</QASectionBar>
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-2">4.1 Proposed Corrective Action/s</p>
+      <div className="flex flex-wrap items-center gap-4 mb-3">
+        <QACheckOption label="Demolish" checked={f.correctiveType.demolish} onToggle={() => set('correctiveType', { ...f.correctiveType, demolish: !f.correctiveType.demolish })} />
+        <QACheckOption label="Repair" checked={f.correctiveType.repair} onToggle={() => set('correctiveType', { ...f.correctiveType, repair: !f.correctiveType.repair })} />
+        <QACheckOption label="Others" checked={f.correctiveType.others} onToggle={() => set('correctiveType', { ...f.correctiveType, others: !f.correctiveType.others })} />
+        {f.correctiveType.others && (
+          <input
+            value={f.correctiveType.othersText}
+            onChange={e => set('correctiveType', { ...f.correctiveType, othersText: e.target.value })}
+            placeholder="Please specify"
+            className="flex-1 min-w-[140px] text-sm px-2 py-1 rounded border border-gray-200 focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent"
+          />
+        )}
+      </div>
+      <QAActionTable title="Corrective Actions" rows={f.correctiveRows} onRowChange={setCorrectiveRow} />
+
+      <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mt-4 mb-2">4.2 Proposed Preventive Action/s</p>
+      <QAActionTable title="Preventive Actions" rows={f.preventiveRows} onRowChange={setPreventiveRow} />
+
+      <div className="mt-3">
+        <QASignatureRow label="Proposed By" name={f.proposedBy} onNameChange={v => set('proposedBy', v)} sign={f.proposedBySign} onSignChange={v => set('proposedBySign', v)} date={f.proposedByDate} onDateChange={v => set('proposedByDate', v)} />
+      </div>
+
+      <QASectionBar>Section 5: Corrective &amp; Preventive Action/s Review &amp; Acceptance</QASectionBar>
+      <div className="flex flex-col gap-3">
+        <QAReviewBlock title="5.1 Cause of Non-Conformance" review={f.reviewCause} onChange={v => set('reviewCause', v)} />
+        <QAReviewBlock title="5.2 Proposed Corrective Action/s" review={f.reviewCorrective} onChange={v => set('reviewCorrective', v)} />
+        <QAReviewBlock title="5.3 Proposed Preventive Action/s" review={f.reviewPreventive} onChange={v => set('reviewPreventive', v)} />
+      </div>
+
+      <QASectionBar>Section 6: Action Verification, Acceptance &amp; {type.abbr} Close Out</QASectionBar>
+      <div className="flex flex-col gap-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-sm text-gray-700">6.1 All action items were closed</span>
+          <QAYesNo value={f.closeOutClosed} onChange={v => set('closeOutClosed', v)} />
+        </div>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <span className="text-sm text-gray-700">6.2 All actions were verified and accepted</span>
+          <QAYesNo value={f.closeOutVerified} onChange={v => set('closeOutVerified', v)} />
+        </div>
+        <QASignatureRow label={`${type.abbr} Close Out By`} name={f.closeOutBy} onNameChange={v => set('closeOutBy', v)} sign={f.closeOutSign} onSignChange={v => set('closeOutSign', v)} date={f.closeOutDate} onDateChange={v => set('closeOutDate', v)} />
+      </div>
+
+      <div className="mt-6 pt-4 border-t border-gray-100 text-[11px] text-gray-400 leading-relaxed">
+        <p className="font-bold text-red-500 mb-1">NOTES:</p>
+        <p>1. Evidence (Photos/Documents) of the closed action item must be attached to the {type.abbr} upon submission.</p>
+        <p>2. After the {type.abbr} closed-out, Construction Management team keeps the hard copy and encode the {type.abbr} on the {type.abbr} Log.</p>
+        <p>3. Compliance of the Contractor in the issued {type.abbr} does not construe as acceptance of the project and does not relieve the Contractor from their responsibilities pertaining to the Guarantee of the completed items of works, as stipulated in the Contract.</p>
+        <p>4. {type.abbr} Reference Number: PH1.D&amp;C.Project Code.Current Month.Current Year.{type.abbr} no.</p>
+      </div>
+
+      <div className="flex justify-end mt-6">
+        <button
+          onClick={handleSave}
+          disabled={saving}
+          className="px-6 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97] disabled:opacity-60"
+        >
+          {saving ? 'Saving...' : 'Save'}
+        </button>
+      </div>
+    </div>
+  )
+}
+
 // -- Photos Gallery ------------------------------------------------------------
 
 function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearchChange, filterTags = [], onFilterTagsChange, filterMonth = '', onFilterMonthChange, sortOrder = 'newest', onSortOrderChange, showUpload = false, onShowUploadChange, onGoHome }) {
@@ -6695,7 +7733,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
 
 // -- Main Modal ----------------------------------------------------------------
 
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange, photosSearch = '', onPhotosSearchChange, photosFilterTags = [], onPhotosFilterTagsChange, photosFilterMonth = '', onPhotosFilterMonthChange, photosSortOrder = 'newest', onPhotosSortOrderChange, photosShowUpload = false, onPhotosShowUploadChange, issuesSearch = '', onIssuesSearchChange, issuesFilterStatus = 'all', onIssuesFilterStatusChange, issuesFilterGroup = 'all', onIssuesFilterGroupChange, issuesFilterMgmtLevel = 'all', onIssuesFilterMgmtLevelChange, issuesShowAdd = false, onIssuesShowAddChange, onIssuesRegisterFns, onGanttRegisterFns, onGanttActiveBLChange }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange, photosSearch = '', onPhotosSearchChange, photosFilterTags = [], onPhotosFilterTagsChange, photosFilterMonth = '', onPhotosFilterMonthChange, photosSortOrder = 'newest', onPhotosSortOrderChange, photosShowUpload = false, onPhotosShowUploadChange, issuesSearch = '', onIssuesSearchChange, issuesFilterStatus = 'all', onIssuesFilterStatusChange, issuesFilterGroup = 'all', onIssuesFilterGroupChange, issuesFilterMgmtLevel = 'all', onIssuesFilterMgmtLevelChange, issuesShowAdd = false, onIssuesShowAddChange, onIssuesRegisterFns, onGanttRegisterFns, onGanttActiveBLChange, onQARegisterBack }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
 
@@ -6800,7 +7838,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Work Program' || activeSection === 'S-Curve') ? 'bg-gray-200 flex-1 min-h-0' : asPage && (activeSection === null || activeSection === 'Project Home' || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Work Program' || activeSection === 'S-Curve') ? 'bg-gray-200 flex-1 min-h-0' : asPage && (activeSection === null || activeSection === 'Project Home' || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion' || activeSection === 'Quality Assurance') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -6843,6 +7881,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         ) : activeSection === 'Unit Completion' ? (
           <div key="Unit Completion" className="section-slide-in">
             <CompletionTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} />
+          </div>
+        ) : activeSection === 'Quality Assurance' ? (
+          <div key="Quality Assurance" className="section-slide-in">
+            <QualityAssuranceTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} onRegisterBack={onQARegisterBack} />
           </div>
         ) : activeSection === 'S-Curve' ? (
           <div key="S-Curve" className="section-slide-in permits-hero-pull flex-1 flex flex-col bg-[#e4e7ec] sm:overflow-hidden">
@@ -6983,6 +8025,9 @@ const HomeShortcutIssuesIcon = () => (
 const HomeShortcutClaimsIcon = () => (
   <img src={claimsIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
 )
+const HomeShortcutQualityIcon = () => (
+  <img src={qualityAssuranceIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
+)
 const HOME_SHORTCUTS = [
   { key: null,                label: 'Project Info',       Icon: HomeShortcutProjectInfoIcon },
   { key: 'Work Program',      label: 'Work Program',      Icon: HomeShortcutWorkProgramIcon },
@@ -6991,6 +8036,7 @@ const HOME_SHORTCUTS = [
   { key: 'Unit Completion',   label: 'Unit Completion',    Icon: HomeShortcutUnitCompletionIcon, soon: true },
   { key: 'Photos',            label: 'Photos',             Icon: HomeShortcutPhotosIcon },
   { key: 'Issues & Concerns', label: 'Issues & Concerns',  Icon: HomeShortcutIssuesIcon },
+  { key: 'Quality Assurance', label: 'Quality Assurance',  Icon: HomeShortcutQualityIcon },
   { key: 'claims',            label: 'Claims',             Icon: HomeShortcutClaimsIcon, soon: true },
 ]
 const GripIcon = () => (

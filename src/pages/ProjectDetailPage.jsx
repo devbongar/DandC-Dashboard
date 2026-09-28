@@ -32,6 +32,7 @@ const PROJECT_NAV = [
   { key: 'Unit Completion',  label: 'Unit Completion',    Icon: UnitCompletionIcon },
   { key: 'Photos',           label: 'Photos',             Icon: PhotosIcon },
   { key: 'Issues & Concerns',label: 'Issues & Concerns',  Icon: IssuesIcon },
+  { key: 'Quality Assurance',label: 'Quality Assurance',  Icon: QualityIcon },
 ]
 
 const PROJECT_BOTTOM_NAV = PROJECT_NAV
@@ -99,6 +100,7 @@ export default function ProjectDetailPage() {
   const [issuesShowAdd,         setIssuesShowAdd]         = useState(false)
   const issuesFnsRef     = useRef({})
   const ganttFnsRef      = useRef({})
+  const qaBackRef        = useRef(null)
   const mainScrollRef    = useRef(null)
   const [ganttActionsOpen, setGanttActionsOpen] = useState(false)
   const ganttActionsRef  = useRef(null)
@@ -207,6 +209,8 @@ export default function ProjectDetailPage() {
 
   const activeLabel = section === null ? 'Project Info' : section
   const ganttHeroGone = section === 'Work Program' && headerScrolled
+  // Sections with no dark hero behind the header need dark-on-light header chrome
+  const headerOnLight = ganttHeroGone || section === 'Quality Assurance'
   const headerSearchCls = headerScrolled
     ? 'pl-9 pr-3 py-1.5 text-sm rounded-lg bg-white/[0.15] text-white placeholder-white/50 outline-none focus:ring-2 focus:ring-white/30 focus:bg-white/[0.22] transition w-96'
     : 'pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96'
@@ -441,7 +445,7 @@ export default function ProjectDetailPage() {
           {/* Header â€" transparent + sticky on Project Info so cover photo shows through */}
           <header
             className={`flex flex-col sticky top-0 z-10`}
-            style={{ background: ganttHeroGone ? '#e5e7eb' : headerScrolled ? 'linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0) 100%)' : 'transparent', transition: 'background 200ms ease' }}
+            style={{ background: headerOnLight ? '#e5e7eb' : headerScrolled ? 'linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0) 100%)' : 'transparent', transition: 'background 200ms ease' }}
           >
             {/* Safe area spacer â€" pushes header content below iOS status bar on mobile */}
             <div className="sm:hidden flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
@@ -451,15 +455,25 @@ export default function ProjectDetailPage() {
             <div className="w-full flex items-center gap-4 h-full">
             {/* Back button â€" mobile only */}
             <button
-              className={`sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 active:scale-90 transition-all ${ganttHeroGone ? 'text-gray-600' : 'text-white'}`}
-              style={{ background: ganttHeroGone ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.18)' }}
-              onClick={() => section === 'Project Home' ? navigate('/projects') : (setSection('Project Home'), setSearchParams({ tab: 'Project Home' }))}
+              className={`sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 active:scale-90 transition-all ${headerOnLight ? 'text-gray-600' : 'text-white'}`}
+              style={{ background: headerOnLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.18)' }}
+              onClick={() => {
+                if (qaBackRef.current?.()) return
+                if (section === 'Project Home') navigate('/projects')
+                else { setSection('Project Home'); setSearchParams({ tab: 'Project Home' }) }
+              }}
               aria-label="Back"
             >
               <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
             </button>
+            {/* Tab title â€" mobile only (the cover photo already titles Home/Info) */}
+            {section !== null && section !== 'Project Home' && (
+              <span className={`sm:hidden text-base font-bold tracking-wide truncate min-w-0 ${headerOnLight ? 'text-gray-800' : 'text-white'}`}>
+                {activeLabel}
+              </span>
+            )}
             {section !== null && (
               <div className="hidden sm:flex flex-col justify-center flex-shrink-0">
                 <span className="text-lg font-extrabold text-white sm:text-gray-800 tracking-wide leading-tight">{project.name}</span>
@@ -989,7 +1003,7 @@ export default function ProjectDetailPage() {
               </button>
             )}
 
-            <NotificationBell userId={profile?.id} variant={ganttHeroGone ? 'light' : undefined} />
+            <NotificationBell userId={profile?.id} variant={headerOnLight ? 'light' : undefined} />
 
             {/* User menu â€" hidden on mobile */}
             <div className="relative flex-shrink-0 hidden sm:block">
@@ -1131,6 +1145,7 @@ export default function ProjectDetailPage() {
               onIssuesShowAddChange={setIssuesShowAdd}
               onIssuesRegisterFns={fns => { issuesFnsRef.current = fns }}
               onGanttRegisterFns={fns => { ganttFnsRef.current = fns }}
+              onQARegisterBack={fn => { qaBackRef.current = fn }}
               onGanttActiveBLChange={setGanttBLName}
             />
           {/* Spacer so content clears mobile bottom nav */}
@@ -1243,6 +1258,17 @@ function IssuesIcon({ className, style, solid }) {
     </svg>
   ) : (
     <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z" /></svg>
+  )
+}
+function QualityIcon({ className, style, solid }) {
+  return solid ? (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor">
+      <path fillRule="evenodd" d="M12 1.5c.176 0 .352.05.503.15l6.5 4.286A2.25 2.25 0 0120 7.828V12c0 5.006-3.194 9.108-7.343 10.617a1.5 1.5 0 01-1.314 0C7.194 21.108 4 17.006 4 12V7.828a2.25 2.25 0 011-1.892l6.5-4.286A.995.995 0 0112 1.5Zm3.03 8.53a.75.75 0 00-1.06-1.06l-3.97 3.97-1.47-1.47a.75.75 0 00-1.06 1.06l2 2a.75.75 0 001.06 0l4.5-4.5Z" clipRule="evenodd" />
+    </svg>
+  ) : (
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75l1.5 1.5 4-4.5m5-1.086c0 5.006-3.194 9.108-7.342 10.617a1.5 1.5 0 01-1.316 0C7.194 21.108 4 17.006 4 12V7.828a2.25 2.25 0 011.242-2.011l5.25-2.625a2.25 2.25 0 012.016 0l5.25 2.625A2.25 2.25 0 0120 7.828v2.586z" />
+    </svg>
   )
 }
 
