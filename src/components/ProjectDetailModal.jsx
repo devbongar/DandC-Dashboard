@@ -5928,12 +5928,12 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
       , document.body)}
 
       </div>{/* end grid padding */}
-      {deletePhoto && (
+      {deletePhoto && createPortal(
         <ConfirmDeleteModal
           onConfirm={confirmDeletePhoto}
           onCancel={() => setDeletePhoto(null)}
         />
-      )}
+      , document.body)}
       </div>{/* end white card */}
     </div>
   )
