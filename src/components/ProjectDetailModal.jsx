@@ -5503,14 +5503,21 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
 
 // -- Quality Assurance ----------------------------------------------------------
 
+// Mirrors the RLS on project_ncr_reports: every signed-in user reads, only
+// these roles write (either team). Keep both in sync -- the UI only hides the
+// controls, the database is what actually enforces it.
+export const canWriteQA = (profile) => ['admin', 'head', 'reporter', 'endorser'].includes(profile?.role)
+
 function QualityAssuranceTab({ project, isAdmin, profile, showToast, onRegisterBack }) {
+  const canEdit = isAdmin || canWriteQA(profile)
   return (
     <div className="pt-4 px-3 sm:px-6 pb-10">
       <QAReportSection
         project={project}
         showToast={showToast}
         type={QA_REPORT_TYPES.ncr}
-        canDelete={isAdmin || ['admin', 'head', 'reporter', 'endorser'].includes(profile?.role)}
+        canEdit={canEdit}
+        canDelete={canEdit}
         onRegisterBack={onRegisterBack}
       />
     </div>
@@ -5578,7 +5585,7 @@ const QA_REPORT_TYPES = {
   },
 }
 
-function QAReportSection({ project, showToast, type, canDelete = false, onRegisterBack }) {
+function QAReportSection({ project, showToast, type, canEdit = false, canDelete = false, onRegisterBack }) {
   const [rows, setRows]       = useState([])
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null) // null = list | 'new' | row object
@@ -5661,6 +5668,7 @@ function QAReportSection({ project, showToast, type, canDelete = false, onRegist
         showToast={showToast}
         type={type}
         existing={editing === 'new' ? null : editing}
+        canEdit={canEdit}
         onBack={() => setEditing(null)}
         onSaved={() => { setEditing(null); load() }}
       />
@@ -5690,15 +5698,17 @@ function QAReportSection({ project, showToast, type, canDelete = false, onRegist
               </svg>
             </button>
           )}
-          <button
-            onClick={() => { exitPrintMode(); setEditing('new') }}
-            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97]"
-          >
-            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-            </svg>
-            {type.newLabel ?? `New ${type.abbr}`}
-          </button>
+          {canEdit && (
+            <button
+              onClick={() => { exitPrintMode(); setEditing('new') }}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97]"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+              </svg>
+              {type.newLabel ?? `New ${type.abbr}`}
+            </button>
+          )}
         </div>
       </div>
 
@@ -5727,7 +5737,11 @@ function QAReportSection({ project, showToast, type, canDelete = false, onRegist
       {rows.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center">
           <p className="text-sm font-semibold text-gray-500 mb-1">No {type.abbr}s yet</p>
-          <p className="text-xs text-gray-400">Create one with the {type.newLabel ?? `New ${type.abbr}`} button.</p>
+          <p className="text-xs text-gray-400">
+            {canEdit
+              ? `Create one with the ${type.newLabel ?? `New ${type.abbr}`} button.`
+              : 'None have been raised for this project yet.'}
+          </p>
         </div>
       ) : (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
@@ -5830,7 +5844,7 @@ function QASelectField({ label, value, onChange, options, placeholder = 'Select.
 }
 
 // Redesigned, simplified NCR form -- group/item, non-conformance details, resolution.
-function NCRForm({ project, showToast, type, existing = null, onBack, onSaved }) {
+function NCRForm({ project, showToast, type, existing = null, canEdit = true, onBack, onSaved }) {
   const [f, setF] = useState(() => {
     const d = existing?.data ?? {}
     return {
@@ -5849,7 +5863,8 @@ function NCRForm({ project, showToast, type, existing = null, onBack, onSaved })
   const [savedPhotos, setSavedPhotos] = useState(existing?.data?.photos ?? [])
   const [saving, setSaving] = useState(false)
   // Saved reports open read-only; Edit unlocks them. New reports start editable.
-  const [readOnly, setReadOnly] = useState(!!existing)
+  // Roles without write access never leave read-only.
+  const [readOnly, setReadOnly] = useState(!canEdit || !!existing)
   const fileRef = useRef(null)
   const cameraRef = useRef(null)
   const [lightbox, setLightbox] = useState(null)
@@ -5932,7 +5947,7 @@ function NCRForm({ project, showToast, type, existing = null, onBack, onSaved })
       )}
       <div className="flex items-center justify-between gap-3 mb-4">
         <p className="text-lg font-bold text-gray-800">{type.title}</p>
-        {readOnly && (
+        {readOnly && canEdit && (
           <button
             onClick={() => setReadOnly(false)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors flex-shrink-0"
