@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, memo } from 'react'
+import { useState, useEffect, useRef, useCallback, memo } from 'react'
 import { createPortal } from 'react-dom'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable'
@@ -77,11 +77,12 @@ const MILESTONE_PHASE_MAP_IN = Object.fromEntries(
   Object.entries(MILESTONE_PHASE_MAP_OUT).map(([k, v]) => [v, k])
 )
 
-function GInlineInput({ value, onChange, type = 'text', placeholder = '', min, max, error, disabled = false, onKeyDown, ghost = false, textClassName = '' }) {
+function GInlineInput({ value, onChange, type = 'text', placeholder = '', min, max, error, disabled = false, onKeyDown, ghost = false, textClassName = '', dataRow }) {
   const resolvedMin = min !== undefined ? min : (type === 'number' ? 0 : undefined)
   return (
     <input
       type={type}
+      data-name-cell={dataRow}
       value={value ?? ''}
       onChange={e => !disabled && onChange(e.target.value, type === 'date' ? e.target.validity.badInput : undefined)}
       onKeyDown={onKeyDown}
@@ -554,7 +555,7 @@ function RemDurCell({ remDur, plannedStart, plannedEnd, projectedEnd, projectedS
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, rowNumW = ROW_NUM_W, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '' }) {
+function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, rowNumW = ROW_NUM_W, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '', rowIndex = 0, selCol = null, inSelRange = false, onCellMouseDown = null, onCellMouseEnter = null }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
 
@@ -576,8 +577,25 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
     + (showActual ? dateColWidths.actStart + dateColWidths.actEnd : 0)
     + (showProjected ? dateColWidths.projStart + dateColWidths.projEnd : 0)
 
-  const dateCell = (content, w, bg, bl) => (
-    <div style={{ width: w, minWidth: w, ...(bg && { backgroundColor: bg }), ...(bl && { borderLeft: bl }) }} className="px-1.5 py-1 text-xs border-r border-gray-200 flex items-center min-h-[52px]">
+  const cellSelected = (col) => !!col && selCol === col && inSelRange
+  const dateCell = (content, w, bg, bl, col = null) => (
+    <div
+      data-cell-col={col ?? undefined}
+      data-cell-row={col ? rowIndex : undefined}
+      style={{
+        width: w, minWidth: w,
+        ...(bg && { backgroundColor: bg }),
+        ...(bl && { borderLeft: bl }),
+        ...(cellSelected(col) && {
+          backgroundColor: 'rgba(237,96,85,0.12)',
+          boxShadow: 'inset 0 0 0 1px rgba(237,96,85,0.45)',
+        }),
+      }}
+      className="px-1.5 py-1 text-xs border-r border-gray-200 flex items-center min-h-[52px]"
+      onPointerDown={col && onCellMouseDown ? (e) => e.stopPropagation() : undefined}
+      onMouseDown={col && onCellMouseDown ? () => onCellMouseDown(col, rowIndex) : undefined}
+      onMouseEnter={col && onCellMouseEnter ? () => onCellMouseEnter(col, rowIndex) : undefined}
+    >
       {content}
     </div>
   )
@@ -607,8 +625,19 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
         {/* Activity name */}
         {labelW > 0 && (
         <div
-          style={{ width: labelW, minWidth: labelW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+          data-cell-col="name"
+          data-cell-row={rowIndex}
+          style={{
+            width: labelW, minWidth: labelW, borderRight: '1px solid #e5e7eb',
+            backgroundColor: cellSelected('name') ? 'rgba(237,96,85,0.12)' : 'inherit',
+            boxShadow: cellSelected('name') ? 'inset 0 0 0 1px rgba(237,96,85,0.45)' : undefined,
+          }}
           className="flex items-center pr-2 flex-shrink-0 self-stretch"
+          // keep dnd-kit (listeners live on the whole row) from turning a cell
+          // drag-select into a row reorder -- the # column stays the drag handle
+          onPointerDown={onCellMouseDown ? (e) => e.stopPropagation() : undefined}
+          onMouseDown={onCellMouseDown ? () => onCellMouseDown('name', rowIndex) : undefined}
+          onMouseEnter={onCellMouseEnter ? () => onCellMouseEnter('name', rowIndex) : undefined}
         >
           {/* Depth indent + expand/collapse toggle */}
           <div className="flex items-center flex-shrink-0" style={{ width: 16 + depth * 16 }}>
@@ -634,6 +663,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
               onChange={onDraftChange}
               onKeyDown={e => { if (e.key === 'Escape') { e.preventDefault(); onRevertDraft() } }}
               ghost
+              dataRow={rowIndex}
               textClassName={depth > 0 ? 'text-gray-700 pl-0.5' : 'font-bold text-gray-700'}
             />
           ) : (
@@ -710,18 +740,18 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
             , dateColWidths.plnEnd)}
             {showActual && dateCell(
               <DateCell value={m.actual_start} onSave={v => onSaveDate('actual_start', v)} isAdmin={canEdit} max={m.actual_end || undefined} />
-            , dateColWidths.actStart)}
+            , dateColWidths.actStart, undefined, undefined, canEdit ? 'actual_start' : null)}
             {showActual && dateCell(
               <DateCell value={m.actual_end} onSave={v => onSaveDate('actual_end', v)} isAdmin={canEdit} min={m.actual_start || undefined} />
-            , dateColWidths.actEnd)}
+            , dateColWidths.actEnd, undefined, undefined, canEdit ? 'actual_end' : null)}
             {showProjected && dateCell(m.actual_start
               ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start)}</span>
               : <DateCell value={m.projected_start} onSave={v => onSaveDate('projected_start', v)} isAdmin={canEdit} max={m.projected_end || undefined} />
-            , dateColWidths.projStart)}
+            , dateColWidths.projStart, undefined, undefined, (canEdit && !m.actual_start) ? 'projected_start' : null)}
             {showProjected && dateCell(m.actual_end
               ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end)}</span>
               : <DateCell value={m.projected_end} onSave={v => onSaveDate('projected_end', v)} isAdmin={canEdit} min={m.projected_start || undefined} />
-            , dateColWidths.projEnd)}
+            , dateColWidths.projEnd, undefined, undefined, (canEdit && !m.actual_end) ? 'projected_end' : null)}
           </div>
         )}
       </div>
@@ -760,7 +790,12 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
             {(showProjectedBar || showActualBar) && (
               <div className="absolute inset-x-0" style={{ top: showPlannedBar ? 25 : 16, height: 20 }}>
                 <div className="relative h-full">
-                  {showProjectedBar && <GanttBar start={m.projected_start} end={m.projected_end} color={barColors.projected} toPx={toPx} />}
+                  {/* Once the activity has actually finished the forecast is moot --
+                      drop the bar rather than leaving a stale tail past the actual end */}
+                  {/* Once work has actually started the forecast runs from that date
+                      (matching the Projected Start column), and once it has actually
+                      finished the forecast is moot so the bar drops entirely */}
+                  {showProjectedBar && !m.actual_end && <GanttBar start={m.actual_start || m.projected_start} end={m.projected_end} color={barColors.projected} toPx={toPx} />}
                   {showActualBar && <GanttBar start={m.actual_start} end={m.actual_end || (m.actual_start ? todayStr : null)} color={barColors.actual} toPx={toPx} />}
                 </div>
               </div>
@@ -771,7 +806,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
               const ends = [
                 showPlannedBar   && m.planned_end,
                 showActualBar    && (m.actual_end || (m.actual_start ? todayStr : null)),
-                showProjectedBar && m.projected_end,
+                showProjectedBar && !m.actual_end && m.projected_end,
               ].filter(Boolean)
               if (!ends.length) return null
               const rightmostPx = Math.max(...ends.map(d => toPx(parseDate(d))))
@@ -817,6 +852,10 @@ function SortableMilestoneRow({ id, isAdmin, canEdit, isSelected, onSelect, disa
     </div>
   )
 }
+
+// Columns that support drag-select + spreadsheet paste. Planned dates are derived,
+// so they stay read-only here.
+const PASTEABLE_COLS = new Set(['name', 'actual_start', 'actual_end', 'projected_start', 'projected_end'])
 
 const TIME_SCALES = [
   { key: 'day',   label: 'Day' },
@@ -1049,6 +1088,97 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const dragRef = useRef(null)
   const ganttScrollRef = useRef(null)
   const mobileStickyInnerRef = useRef(null)
+
+  // -- Cell range selection + spreadsheet paste (activity name + date columns) --
+  // cellSel holds the drag-highlighted row range within a single column.
+  const [cellSel, setCellSel] = useState(null)
+  const cellDragRef = useRef(null)
+  const selRange = cellSel
+    ? { col: cellSel.col, from: Math.min(cellSel.a, cellSel.b), to: Math.max(cellSel.a, cellSel.b) }
+    : null
+
+  const handleCellMouseDown = useCallback((col, idx) => {
+    setCellSel(null)
+    cellDragRef.current = { col, startIdx: idx, dragging: false }
+  }, [])
+
+  const handleCellMouseEnter = useCallback((col, idx) => {
+    const st = cellDragRef.current
+    if (!st || st.col !== col || idx === st.startIdx) return
+    if (!st.dragging) {
+      st.dragging = true
+      // drop the caret so dragging highlights cells instead of selecting text
+      document.activeElement?.blur?.()
+    }
+    window.getSelection?.()?.removeAllRanges?.()
+    setCellSel({ col, a: st.startIdx, b: idx })
+  }, [])
+
+  useEffect(() => {
+    const endDrag = () => { cellDragRef.current = null }
+    const onKeyDown = (e) => { if (e.key === 'Escape') setCellSel(null) }
+    window.addEventListener('mouseup', endDrag)
+    window.addEventListener('keydown', onKeyDown)
+    return () => {
+      window.removeEventListener('mouseup', endDrag)
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!isAdmin || !canEdit) return
+    const onPaste = async (e) => {
+      const targetCell = e.target?.closest?.('[data-cell-col]')
+      const editingElsewhere = !targetCell && /^(INPUT|TEXTAREA)$/.test(e.target?.tagName ?? '')
+      if (!targetCell && (!selRange || editingElsewhere)) return
+      const col = selRange?.col ?? targetCell?.dataset.cellCol
+      if (!col || !PASTEABLE_COLS.has(col)) return
+
+      const raw = e.clipboardData?.getData('text/plain') ?? ''
+      const lines = raw.replace(/\r\n?/g, '\n').split('\n').map(l => l.split('\t')[0].trim())
+      while (lines.length && lines[lines.length - 1] === '') lines.pop()
+      // A single value with no range selected is an ordinary paste -- leave it alone
+      if (!lines.length || (lines.length === 1 && !selRange)) return
+
+      e.preventDefault()
+      const startIdx = selRange ? selRange.from : Number(targetCell.dataset.cellRow)
+      const ids = buildTree(milestones, collapsedIds).map(n => n.id)
+      setCellSel(null)
+
+      if (col === 'name') {
+        const updates = {}
+        lines.forEach((line, i) => {
+          const id = ids[startIdx + i]
+          if (id && line) updates[id] = line
+        })
+        const n = Object.keys(updates).length
+        if (!n) return
+        setDrafts(p => ({ ...p, ...updates }))
+        showToast(`Pasted ${n} name${n !== 1 ? 's' : ''}. Click "Save all" to apply.`, 'success')
+        return
+      }
+
+      // Dates go through the normal per-cell save path so the existing rules hold
+      // (actual writes straight through, projected stages into pending edits)
+      let applied = 0
+      let skipped = 0
+      for (let i = 0; i < lines.length; i++) {
+        const id = ids[startIdx + i]
+        if (!id || !lines[i]) continue
+        const iso = toDateStr(lines[i])
+        if (!iso) { skipped++; continue }
+        await onSaveDate(id, col, iso)
+        applied++
+      }
+      if (!applied && !skipped) return
+      showToast(
+        `Pasted ${applied} date${applied !== 1 ? 's' : ''}${skipped ? ` (${skipped} unrecognised)` : ''}.`,
+        !applied ? 'error' : 'success',
+      )
+    }
+    document.addEventListener('paste', onPaste)
+    return () => document.removeEventListener('paste', onPaste)
+  }, [isAdmin, canEdit, selRange, milestones, collapsedIds, setDrafts, showToast, onSaveDate])
 
   useEffect(() => {
     const scrollEl = ganttScrollRef.current
@@ -1324,12 +1454,17 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   allSortableIds.push(..._flatNodes.map(n => n.id))
 
   const milestoneRows = [
-    ..._flatNodes.flatMap(node => {
+    ..._flatNodes.flatMap((node, nodeIdx) => {
       const displayM = (node.hasChildren && node.children.length)
         ? { ...node, ...computeParentDates(node.children) }
         : node
       const rowProps = {
         m: displayM,
+        rowIndex: nodeIdx,
+        selCol: selRange?.col ?? null,
+        inSelRange: !!selRange && nodeIdx >= selRange.from && nodeIdx <= selRange.to,
+        onCellMouseDown: isAdmin && canEdit ? handleCellMouseDown : null,
+        onCellMouseEnter: isAdmin && canEdit ? handleCellMouseEnter : null,
         rowNum: idToRowNum.get(node.id) ?? 0,
         predText: formatPredecessors(dependencies.filter(d => d.to_id === node.id), idToRowNum),
         onSavePreds: (text) => onSavePreds(node.id, text),
@@ -1611,6 +1746,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const [inlineAddName, setInlineAddName] = useState('')
   const [inlineAdding, setInlineAdding] = useState(false)
   const [pendingEdits, setPendingEdits]  = useState({}) // milestoneId → { projected_start?, projected_end?, rem_dur? }
+  const pendingLoadedFor = useRef(null) // baseline whose staged edits have been restored
   const [orderDirty, setOrderDirty]     = useState(false)
   const [savingOrder, setSavingOrder]   = useState(false)
   const [selectedId,  setSelectedId]    = useState(null)
@@ -1695,10 +1831,13 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     if (error) { showToast('Failed to save view', 'error') } else { showToast('View saved for all users') }
   }
 
-  const loadMilestones = async (blId) => {
-    setLoading(true)
+  // silent = refresh the rows in place. The full-screen loader unmounts the grid,
+  // which throws away its scroll position, so only the initial load / baseline
+  // switch uses it -- refetching after an edit keeps the list where it was.
+  const loadMilestones = async (blId, { silent = false } = {}) => {
+    if (!silent) setLoading(true)
     const resolvedId = blId ?? activeBL
-    if (!resolvedId) { setMilestones([]); setDependencies([]); setLoading(false); return }
+    if (!resolvedId) { setMilestones([]); setDependencies([]); if (!silent) setLoading(false); return }
 
     const [{ data: rawTasks }, { data: rawDeps }] = await Promise.all([
       supabase
@@ -1725,12 +1864,51 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       dependencies: depsByToId[t.id] ?? [],
     }))
 
-    const depRows = expandDependencies(tasks)
-    setMilestones(tasks)
+    // Re-apply unsaved row order / nesting, so reloading the rows (adding an
+    // activity, for instance) doesn't silently throw those changes away.
+    let finalTasks = tasks
+    try {
+      const raw = sessionStorage.getItem(`milestone-order-${resolvedId}`)
+      const pendingOrder = raw ? JSON.parse(raw) : null
+      if (pendingOrder?.length) {
+        const byId = new Map(pendingOrder.map(p => [p.id, p]))
+        finalTasks = tasks.map(t => {
+          const p = byId.get(t.id)
+          return p ? { ...t, sort_order: p.sort_order, phase: p.phase, parent_id: p.parent_id } : t
+        })
+        setOrderDirty(true)
+      }
+    } catch { /* unreadable snapshot -- fall back to the stored order */ }
+
+    const depRows = expandDependencies(finalTasks)
+    setMilestones(finalTasks)
     setDependencies(depRows)
-    setPendingEdits({})
-    setLoading(false)
+    // Staged forecast edits live only in memory until "Update" writes them, so
+    // restore them here -- otherwise a refetch/refresh silently drops them.
+    let restoredPending = {}
+    try {
+      const rawPending = sessionStorage.getItem(`gantt-pending-${resolvedId}`)
+      if (rawPending) restoredPending = JSON.parse(rawPending) ?? {}
+    } catch { /* unreadable snapshot -- start clean */ }
+    pendingLoadedFor.current = resolvedId
+    setPendingEdits(restoredPending)
+    if (!silent) setLoading(false)
   }
+
+  // Persist staged forecast edits so they survive a refresh, mirroring how name
+  // drafts and pending row order are kept. Gated on the restore having run for
+  // this baseline -- otherwise the empty initial state would clear the snapshot
+  // before loadMilestones reads it back.
+  useEffect(() => {
+    if (!activeBL || pendingLoadedFor.current !== activeBL) return
+    try {
+      if (Object.keys(pendingEdits).length > 0) {
+        sessionStorage.setItem(`gantt-pending-${activeBL}`, JSON.stringify(pendingEdits))
+      } else {
+        sessionStorage.removeItem(`gantt-pending-${activeBL}`)
+      }
+    } catch { /* storage unavailable -- edits just won't survive a refresh */ }
+  }, [pendingEdits, activeBL])
 
   useEffect(() => {
     if (!activeBL) { setMilestones([]); setLoading(false); return }
@@ -1753,7 +1931,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     if (failed.length) { showToast(`${failed.length} error(s) saving.`, 'error'); return }
     setDrafts({})
     showToast(`Saved ${dirty.length} change${dirty.length !== 1 ? 's' : ''}.`, 'success')
-    loadMilestones()
+    loadMilestones(undefined, { silent: true })
   }
 
   const handleDelete = async (id) => {
@@ -1763,7 +1941,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     ])
     if (error) { showToast(error.message, 'error'); return }
     showToast('Deleted.', 'success')
-    loadMilestones()
+    loadMilestones(undefined, { silent: true })
   }
 
   const computeProjStart = (milestoneId) => {
@@ -1865,7 +2043,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       })
       if (error) { showToast(error.message, 'error'); return }
       showToast('Activity added.', 'success')
-      await loadMilestones()
+      await loadMilestones(undefined, { silent: true })
     } finally {
       setInlineAdding(false)
     }
@@ -1933,13 +2111,17 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const handleIndent = (id) => {
     const node = milestones.find(m => m.id === id)
     if (!node || !isAdmin || !activeBL) return
-    // Build flat visible order to find the row immediately above
+    // Indent under the previous *sibling* so the row always drops exactly one
+    // level, however deeply nested the rows displayed in between happen to be.
+    const siblings = milestones
+      .filter(m => m.parent_id === node.parent_id)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const sibIdx = siblings.findIndex(s => s.id === id)
+    if (sibIdx <= 0) return                  // first sibling has nothing to indent under
+    const newParentId = siblings[sibIdx - 1].id
     const flatNodes = buildTree(milestones, collapsedIds)
-    const idx = flatNodes.findIndex(n => n.id === id)
-    if (idx <= 0) return
-    const above = flatNodes[idx - 1]
-    if (above.depth >= 3) return             // MAX_DEPTH
-    const newParentId = above.id
+    const newParentDepth = flatNodes.find(n => n.id === newParentId)?.depth ?? 0
+    if (newParentDepth >= 3) return          // MAX_DEPTH
     const oldSiblings = milestones
       .filter(m => m.parent_id === node.parent_id && m.id !== id)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
@@ -2008,7 +2190,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const handleDiscardOrder = () => {
     try { sessionStorage.removeItem(`milestone-order-${activeBL}`) } catch {}
     setOrderDirty(false)
-    loadMilestones()
+    loadMilestones(undefined, { silent: true })
   }
 
   const handleOpenNewBLModal = async () => {
@@ -2027,6 +2209,16 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const handleCreateBaseline = async () => {
     const label = newBLName.trim()
     if (!label) return
+    // The copy reads from the database, so anything still staged locally would be
+    // silently left out of the new baseline
+    if (Object.keys(pendingEdits).length > 0) {
+      showToast('Unsaved forecast edits — click Update first so the new baseline picks them up.', 'error')
+      return
+    }
+    if (orderDirty) {
+      showToast('Unsaved row order — save it first so the new baseline picks it up.', 'error')
+      return
+    }
     setCreatingBL(true)
     try {
       const { data, error: blErr } = await supabase
@@ -2053,15 +2245,45 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           const { data: srcActs } = await supabase
             .from('workprogram_activities').select('*').eq('baseline_id', srcBL.id)
           if (srcActs?.length) {
+            // parent_id points at the source baseline's row ids -- remap it onto the
+            // copies, otherwise children lose their summary parent in the new baseline
+            const taskIdByOldId = Object.fromEntries(srcActs.map(a => [a.id, a.task_id]))
             const copies = srcActs.map(({ id: _id, ...rest }) => ({
               ...rest,
               id:            `${rest.task_id}_${newBlId}`,
               baseline_id:   newBlId,
-              planned_start: rest.projected_start ?? rest.planned_start,
-              planned_end:   rest.projected_end   ?? rest.planned_end,
+              parent_id:     rest.parent_id && taskIdByOldId[rest.parent_id]
+                ? `${taskIdByOldId[rest.parent_id]}_${newBlId}`
+                : null,
+              // Re-baseline onto what the grid actually shows: actuals for work
+              // already started/finished, forecast for the rest. The stored
+              // projected_* can be a stale forecast once an actual date exists.
+              planned_start: rest.actual_start ?? rest.projected_start ?? rest.planned_start,
+              planned_end:   rest.actual_end   ?? rest.projected_end   ?? rest.planned_end,
             }))
             const { error: copyErr } = await supabase.from('workprogram_activities').insert(copies)
             if (copyErr) { console.error('[baseline] copy error:', copyErr); showToast(copyErr.message, 'error'); return }
+
+            // Carry predecessor links over, remapped onto the copied activity ids
+            const newId = (oldId) => taskIdByOldId[oldId] ? `${taskIdByOldId[oldId]}_${newBlId}` : null
+            const { data: srcDeps } = await supabase
+              .from('workprogram_dependencies')
+              .select('from_id, to_id, type, lag')
+              .eq('baseline_id', srcBL.id)
+            const depCopies = (srcDeps ?? [])
+              .map(d => ({
+                project_id:  project.id,
+                baseline_id: newBlId,
+                from_id:     newId(d.from_id),
+                to_id:       newId(d.to_id),
+                type:        d.type,
+                lag:         d.lag ?? 0,
+              }))
+              .filter(d => d.from_id && d.to_id)
+            if (depCopies.length) {
+              const { error: depErr } = await supabase.from('workprogram_dependencies').insert(depCopies)
+              if (depErr) { console.error('[baseline] dependency copy error:', depErr); showToast(depErr.message, 'error'); return }
+            }
           }
         }
       }
@@ -2091,6 +2313,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       return parentNode ? `${buildSeqForExport(parentNode, allNodes)}.${idx}` : String(idx)
     }
 
+    // Predecessors are written as display row numbers (same notation as the grid),
+    // numbered over the fully expanded tree so they line up with the sheet's rows
+    const exportRowNums = new Map()
+    allVisible.forEach((node, i) => exportRowNums.set(node.id, i + 1))
+
     const exportRows = allVisible.map(node => {
       const parentNode = node.parent_id ? allVisible.find(x => x.id === node.parent_id) : null
       return {
@@ -2098,6 +2325,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         phase:           MILESTONE_PHASE_MAP_OUT?.[node.phase] ?? node.phase,
         milestone_name:  node.milestone_name,
         parent_name:     parentNode?.milestone_name ?? '',
+        predecessors:    formatPredecessors(dependencies.filter(d => d.to_id === node.id), exportRowNums),
         planned_start:   node.planned_start   ?? '',
         planned_end:     node.planned_end     ?? '',
         actual_start:    node.actual_start    ?? '',
@@ -2115,6 +2343,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         { key: 'phase',           header: 'Phase' },
         { key: 'milestone_name',  header: 'Milestone Name' },
         { key: 'parent_name',     header: 'Parent Milestone' },
+        { key: 'predecessors',    header: 'Predecessors' },
         { key: 'planned_start',   header: 'Planned Start' },
         { key: 'planned_end',     header: 'Planned End' },
         { key: 'actual_start',    header: 'Actual Start' },
@@ -2139,6 +2368,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       const rawRows = sheets['Milestones'] ?? Object.values(sheets)[0] ?? []
 
       const newRows = []
+      const predTexts = [] // predecessor cell per row, index-aligned with newRows
       let legacyParentName = null
       rawRows.forEach((r, i) => {
         const rawName   = String(r['Milestone Name'] ?? '').trim()
@@ -2161,6 +2391,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           sort_order:      i,
           _parentName:     parentName,
         })
+        predTexts.push(String(r['Predecessors'] ?? '').trim())
       })
 
       const errors = []
@@ -2193,10 +2424,24 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       if (blErr) throw blErr
       const blId = blData.id
 
-      const uniqueParentNames = [...new Set(newRows.map(r => r._parentName).filter(Boolean))]
+      // Summary rows are exported as rows in their own right, so link rows to each
+      // other by name. Synthesising a parent per "Parent Milestone" value instead
+      // would duplicate every summary (once empty holding the children, once with
+      // the real dates but childless) and flatten anything deeper than one level.
       const parentNameToDbId = {}
-      if (uniqueParentNames.length > 0) {
-        const parentRows = uniqueParentNames.map((name, i) => {
+      const prepared = newRows.map(r => {
+        const rawId = crypto.randomUUID()
+        const actId = `${rawId}_${blId}`
+        if (!(r.milestone_name in parentNameToDbId)) parentNameToDbId[r.milestone_name] = actId
+        return { ...r, _rawId: rawId, _actId: actId }
+      })
+
+      // A parent named in the sheet but never listed as its own row still needs one
+      const missingParents = [...new Set(
+        prepared.map(r => r._parentName).filter(n => n && !(n in parentNameToDbId))
+      )]
+      if (missingParents.length > 0) {
+        const parentRows = missingParents.map((name, i) => {
           const rawId = crypto.randomUUID()
           const actId = `${rawId}_${blId}`
           parentNameToDbId[name] = actId
@@ -2205,27 +2450,52 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
             task_id:        rawId,
             baseline_id:    blId,
             project_id:     pid,
-            phase:          newRows.find(r => r._parentName === name)?.phase ?? 'initiation',
+            phase:          prepared.find(r => r._parentName === name)?.phase ?? 'initiation',
             milestone_name: name,
-            sort_order:     -(uniqueParentNames.length - i),
+            sort_order:     -(missingParents.length - i),
           }
         })
         const { error: pErr } = await supabase.from('workprogram_activities').insert(parentRows)
         if (pErr) throw pErr
       }
 
-      const childRows = newRows.map(({ _parentName, ...rest }) => {
-        const rawId = crypto.randomUUID()
+      const childRows = prepared.map(({ _parentName, _rawId, _actId, ...rest }) => {
+        const parentId = _parentName ? (parentNameToDbId[_parentName] ?? null) : null
         return {
           ...rest,
-          id:          `${rawId}_${blId}`,
-          task_id:     rawId,
+          id:          _actId,
+          task_id:     _rawId,
           baseline_id: blId,
-          parent_id:   _parentName ? (parentNameToDbId[_parentName] ?? null) : null,
+          // guard against a row naming itself as its own parent
+          parent_id:   parentId === _actId ? null : parentId,
         }
       })
       const { error: cErr } = await supabase.from('workprogram_activities').insert(childRows)
       if (cErr) throw cErr
+
+      // Predecessors reference sheet row numbers, which match the order rows were read
+      const rowNumToId = new Map(prepared.map((r, i) => [i + 1, r._actId]))
+      const depRows = []
+      prepared.forEach((r, i) => {
+        if (!predTexts[i]) return
+        const parsed = parsePredecessors(predTexts[i], rowNumToId)
+        if (!parsed) return // unresolvable reference -- skip rather than fail the import
+        parsed.forEach(d => {
+          if (d.fromId === r._actId) return
+          depRows.push({
+            project_id:  pid,
+            baseline_id: blId,
+            from_id:     d.fromId,
+            to_id:       r._actId,
+            type:        d.type,
+            lag:         d.lagDays ?? 0,
+          })
+        })
+      })
+      if (depRows.length) {
+        const { error: dErr } = await supabase.from('workprogram_dependencies').insert(depRows)
+        if (dErr) throw dErr
+      }
 
       const { data: newBLs } = await supabase
         .from('workprogram_baselines')
@@ -2383,7 +2653,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
 
       const entries = Object.entries(result)
       if (!entries.length) {
-        loadMilestones()
+        loadMilestones(undefined, { silent: true })
         return true
       }
 
@@ -2400,7 +2670,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       } else {
         showToast('Schedule updated.', 'success')
       }
-      loadMilestones()
+      loadMilestones(undefined, { silent: true })
       return !failed.length
     } finally {
       schedulerRunning.current = false
@@ -2420,7 +2690,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     if (schedStart) {
       await runScheduler(schedStart)
     } else {
-      loadMilestones()
+      loadMilestones(undefined, { silent: true })
       showToast('Set a project start date to auto-calculate planned dates.', 'info')
     }
   }
@@ -2580,7 +2850,10 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     }))
     const failed = results.filter(r => r.error)
     if (failed.length) { showToast('Update partially failed.', 'error') } else { showToast(`Updated ${changed.length} activit${changed.length === 1 ? 'y' : 'ies'}.`) }
-    loadMilestones()
+    // Written through -- drop the staged copy so the reload doesn't restore it
+    setPendingEdits({})
+    try { sessionStorage.removeItem(`gantt-pending-${activeBL}`) } catch { /* ignore */ }
+    loadMilestones(undefined, { silent: true })
   }
 
   useEffect(() => {

@@ -14,6 +14,7 @@ import useProfile from '../hooks/useProfile'
 import ReportBuilderModal from './ReportBuilderModal'
 import SearchDropdown from './SearchDropdown'
 import PermitsTab from './PermitsTab'
+import { buildNCRPrintPdf } from '../lib/ncrPrintPdf'
 import workProgramIconImg from '../assets/workProgramIcon.png'
 import permitsIconImg from '../assets/permitsIcon.png'
 import scurveIconImg from '../assets/scurveIcon.png'
@@ -21,6 +22,7 @@ import unitCompletionIconImg from '../assets/unitCompletionIcon.png'
 import photosIconImg from '../assets/photosIcon.png'
 import issuesIconImg from '../assets/issuesIcon.png'
 import claimsIconImg from '../assets/claimsIcon.png'
+import qualityAssuranceIconImg from '../assets/qualityAssuranceIcon.png'
 import projectInfoIconImg from '../assets/projectInfoIcon.png'
 
 // -- Constants -----------------------------------------------------------------
@@ -5499,6 +5501,554 @@ function SitePlanView({ project, isAdmin, buildings, allFloors = [], onViewGalle
   )
 }
 
+// -- Quality Assurance ----------------------------------------------------------
+
+function QualityAssuranceTab({ project, isAdmin, profile, showToast, onRegisterBack }) {
+  return (
+    <div className="pt-4 px-3 sm:px-6 pb-10">
+      <QAReportSection
+        project={project}
+        showToast={showToast}
+        type={QA_REPORT_TYPES.ncr}
+        canDelete={isAdmin || ['admin', 'head', 'reporter', 'endorser'].includes(profile?.role)}
+        onRegisterBack={onRegisterBack}
+      />
+    </div>
+  )
+}
+
+function QASectionBar({ children }) {
+  return (
+    <div className="bg-red-600 text-white text-[11px] font-bold uppercase tracking-wider px-4 py-2 -mx-5 sm:-mx-6 mt-6 mb-4 first:mt-0">
+      {children}
+    </div>
+  )
+}
+
+function QAField({ label, value, onChange, type = 'text', textarea = false, placeholder = '', disabled = false }) {
+  const cls = `w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent ${
+    disabled
+      ? 'border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed'
+      : 'border-gray-200 text-black placeholder-gray-400'
+  }`
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{label}</label>
+      {textarea ? (
+        <textarea
+          rows={4}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`${cls} resize-none`}
+        />
+      ) : (
+        <input
+          type={type}
+          value={value}
+          onChange={e => onChange(e.target.value)}
+          placeholder={placeholder}
+          disabled={disabled}
+          className={`${cls} min-h-[44px]`}
+        />
+      )}
+    </div>
+  )
+}
+
+const QA_REPORT_TYPES = {
+  ncr: {
+    abbr:      'NCR',
+    title:     'Quality Findings Report',
+    listTitle: 'Quality Findings Report',
+    table:     'project_ncr_reports',
+    bucket:    'ncr-photos',
+    rowTitle:  (r) => r.data?.defect || [r.data?.group, r.data?.itemName].filter(Boolean).join(': ') || null,
+    newLabel:  'New Findings',
+    backLabel: 'All Findings',
+    hideStatus: true,
+  },
+}
+
+function QAReportSection({ project, showToast, type, canDelete = false, onRegisterBack }) {
+  const [rows, setRows]       = useState([])
+  const [loading, setLoading] = useState(true)
+  const [editing, setEditing] = useState(null) // null = list | 'new' | row object
+  const [deleting, setDeleting] = useState(null)
+  const [printMode, setPrintMode] = useState(false)
+  const [printIds, setPrintIds] = useState(() => new Set())
+  const [printing, setPrinting] = useState(false)
+
+  // Back closes an open report, or cancels print selection, before the tab itself handles it
+  useEffect(() => {
+    // Must return true so the app header knows the back press was consumed --
+    // otherwise it falls through and leaves the tab entirely
+    const handler = editing
+      ? () => { setEditing(null); return true }
+      : printMode
+        ? () => { setPrintMode(false); setPrintIds(new Set()); return true }
+        : null
+    onRegisterBack?.(handler)
+    return () => onRegisterBack?.(null)
+  }, [editing, printMode, onRegisterBack])
+
+  const load = async () => {
+    setLoading(true)
+    const { data } = await supabase
+      .from(type.table)
+      .select('*')
+      .eq('project_id', project.id)
+      .order('created_at', { ascending: false })
+    setRows(data ?? [])
+    setLoading(false)
+  }
+
+  useEffect(() => { load() }, [project.id]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const confirmDelete = async () => {
+    const row = deleting
+    setDeleting(null)
+
+    // Clean up the report's uploaded evidence photos so they don't orphan
+    const marker = `/public/${type.bucket}/`
+    const paths = (row.data?.photos ?? [])
+      .map(url => url.split(marker)[1])
+      .filter(Boolean)
+      .map(p => decodeURIComponent(p.split('?')[0]))
+    if (paths.length) await supabase.storage.from(type.bucket).remove(paths)
+
+    const { error } = await supabase.from(type.table).delete().eq('id', row.id)
+    if (error) { showToast(`Failed to delete ${type.abbr}: ` + error.message, 'error'); return }
+    showToast(`${type.abbr} deleted.`, 'success')
+    load()
+  }
+
+  const togglePrintId = (id) => setPrintIds(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  const exitPrintMode = () => { setPrintMode(false); setPrintIds(new Set()) }
+
+  const handlePrint = async () => {
+    const selected = rows.filter(r => printIds.has(r.id))
+    if (!selected.length) { showToast('Select at least one report to print.', 'error'); return }
+    setPrinting(true)
+    try {
+      const pdf = await buildNCRPrintPdf({ project, rows: selected })
+      pdf.save(`${(project.name ?? 'project').replace(/[^a-zA-Z0-9.\-_]/g, '_')}-quality-findings.pdf`)
+      exitPrintMode()
+    } catch (err) {
+      showToast('Print failed: ' + err.message, 'error')
+    } finally {
+      setPrinting(false)
+    }
+  }
+
+  if (editing) {
+    return (
+      <NCRForm
+        project={project}
+        showToast={showToast}
+        type={type}
+        existing={editing === 'new' ? null : editing}
+        onBack={() => setEditing(null)}
+        onSaved={() => { setEditing(null); load() }}
+      />
+    )
+  }
+
+  if (loading) return <TriangleLoader label={`Loading ${type.abbr}s...`} />
+
+  return (
+    <div className="max-w-3xl mx-auto">
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <p className="text-lg font-bold text-gray-700 min-w-0 truncate">{type.listTitle}</p>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {rows.length > 0 && (
+            <button
+              onClick={() => (printMode ? exitPrintMode() : setPrintMode(true))}
+              title={printMode ? 'Cancel printing' : 'Print reports'}
+              aria-label={printMode ? 'Cancel printing' : 'Print reports'}
+              className={`flex items-center justify-center w-10 h-10 rounded-xl border transition-colors ${
+                printMode
+                  ? 'border-[#ed6055] text-[#ed6055] bg-red-50'
+                  : 'border-gray-200 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055]'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={() => { exitPrintMode(); setEditing('new') }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97]"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            {type.newLabel ?? `New ${type.abbr}`}
+          </button>
+        </div>
+      </div>
+
+      {printMode && (
+        <div className="flex items-center gap-3 mb-3 px-4 py-2.5 rounded-xl border border-[#ed6055]/30 bg-red-50/60">
+          <span className="text-xs text-gray-600 flex-1 min-w-0">
+            <span className="font-semibold text-gray-800">{printIds.size}</span> selected
+            {printIds.size > 0 && <span className="text-gray-400"> · 1 report per page</span>}
+          </span>
+          <button
+            onClick={() => setPrintIds(printIds.size === rows.length ? new Set() : new Set(rows.map(r => r.id)))}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors flex-shrink-0"
+          >
+            {printIds.size === rows.length ? 'Clear all' : 'Select all'}
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={printing || printIds.size === 0}
+            className="px-4 py-1.5 rounded-lg bg-[#ed6055] text-white text-xs font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97] disabled:opacity-50 flex-shrink-0"
+          >
+            {printing ? 'Preparing...' : 'Print'}
+          </button>
+        </div>
+      )}
+
+      {rows.length === 0 ? (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center">
+          <p className="text-sm font-semibold text-gray-500 mb-1">No {type.abbr}s yet</p>
+          <p className="text-xs text-gray-400">Create one with the {type.newLabel ?? `New ${type.abbr}`} button.</p>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+          {rows.map((r, i) => (
+            <div key={r.id} className={`flex items-center ${i > 0 ? 'border-t border-gray-100' : ''}`}>
+            {printMode && (
+              <button
+                onClick={() => togglePrintId(r.id)}
+                aria-label={printIds.has(r.id) ? 'Deselect report' : 'Select report'}
+                className="flex-shrink-0 pl-4 pr-1 py-3"
+              >
+                <span className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                  printIds.has(r.id) ? 'bg-[#ed6055] border-[#ed6055]' : 'border-gray-300 bg-white'
+                }`}>
+                  {printIds.has(r.id) && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </span>
+              </button>
+            )}
+            <button
+              onClick={() => (printMode ? togglePrintId(r.id) : setEditing(r))}
+              className={`flex-1 min-w-0 text-left py-3 hover:bg-gray-50 transition-colors ${printMode ? 'px-2' : 'px-4'}`}
+            >
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className="text-sm font-semibold text-gray-800 truncate">
+                    {(type.rowTitle ? type.rowTitle(r) : r[type.refColumn]) || `Untitled ${type.abbr}`}
+                  </span>
+                  {!type.hideStatus && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wide flex-shrink-0 ${
+                      r.status === 'closed'
+                        ? 'bg-emerald-50 text-emerald-600'
+                        : 'bg-amber-50 text-amber-600'
+                    }`}>
+                      {r.status === 'closed' ? 'Closed' : 'Open'}
+                    </span>
+                  )}
+                </div>
+                <span className="text-[11px] text-gray-400 flex-shrink-0">
+                  {r.date_of_inspection
+                    ? new Date(r.date_of_inspection + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                    : new Date(r.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                </span>
+              </div>
+              {r.description && (
+                <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>
+              )}
+            </button>
+            {canDelete && !printMode && (
+              <button
+                onClick={() => setDeleting(r)}
+                className="flex-shrink-0 p-3 mr-1 text-gray-300 hover:text-red-500 transition-colors"
+                title={`Delete ${type.abbr}`}
+                aria-label={`Delete ${type.abbr}`}
+              >
+                <TrashIcon />
+              </button>
+            )}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {deleting && createPortal(
+        <ConfirmDeleteModal onConfirm={confirmDelete} onCancel={() => setDeleting(null)} />
+      , document.body)}
+    </div>
+  )
+}
+
+const NCR_GROUP_OPTIONS = [
+  { value: 'Document',  label: 'Document' },
+  { value: 'Materials', label: 'Materials' },
+  { value: 'Activity',  label: 'Activity' },
+]
+const NCR_ROOT_CAUSE_OPTIONS = [
+  'Design', 'Specification', 'Material', 'Method', 'Workmanship', 'Leadership',
+].map(v => ({ value: v, label: v }))
+
+function QASelectField({ label, value, onChange, options, placeholder = 'Select...', disabled = false }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{label}</label>
+      <div className="[&>div>button]:min-h-[44px] [&>div>button]:text-sm">
+        <SearchDropdown
+          options={options}
+          value={value}
+          onChange={onChange}
+          emptyValue=""
+          emptyLabel={placeholder}
+          disabled={disabled}
+          fluid
+        />
+      </div>
+    </div>
+  )
+}
+
+// Redesigned, simplified NCR form -- group/item, non-conformance details, resolution.
+function NCRForm({ project, showToast, type, existing = null, onBack, onSaved }) {
+  const [f, setF] = useState(() => {
+    const d = existing?.data ?? {}
+    return {
+      group: d.group ?? '',
+      itemName: d.itemName ?? '',
+      dateIssued: existing?.date_of_inspection ?? '',
+      defect: d.defect ?? '',
+      description: existing?.description ?? '',
+      rootCause: existing?.root_cause ?? '',
+      tower: d.tower ?? '',
+      floor: d.floor ?? '',
+      zone: d.zone ?? '',
+    }
+  })
+  const [photos, setPhotos] = useState([])
+  const [savedPhotos, setSavedPhotos] = useState(existing?.data?.photos ?? [])
+  const [saving, setSaving] = useState(false)
+  // Saved reports open read-only; Edit unlocks them. New reports start editable.
+  const [readOnly, setReadOnly] = useState(!!existing)
+  const fileRef = useRef(null)
+  const cameraRef = useRef(null)
+  const [lightbox, setLightbox] = useState(null)
+  const [landscapeUrls, setLandscapeUrls] = useState(() => new Set())
+  const markOrientation = (url) => (e) => {
+    if (e.target.naturalWidth > e.target.naturalHeight) {
+      setLandscapeUrls(prev => prev.has(url) ? prev : new Set(prev).add(url))
+    }
+  }
+  const set = (key, value) => setF(prev => ({ ...prev, [key]: value }))
+
+  const addPhotos = (e) => {
+    const files = Array.from(e.target.files ?? [])
+    setPhotos(prev => [...prev, ...files.map(file => ({ file, url: URL.createObjectURL(file) }))])
+    e.target.value = ''
+  }
+  const removePhoto = (i) => {
+    setPhotos(prev => {
+      URL.revokeObjectURL(prev[i].url)
+      return prev.filter((_, idx) => idx !== i)
+    })
+  }
+
+  const itemLabel = f.group === 'Document' ? 'Document' : f.group === 'Materials' ? 'Material' : 'Activity'
+
+  const handleSave = async () => {
+    setSaving(true)
+    const { data: { session } } = await supabase.auth.getSession()
+
+    const photoUrls = []
+    for (const p of photos) {
+      const safeName = p.file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
+      const path = `${project.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
+      const { error: upErr } = await supabase.storage.from(type.bucket).upload(path, p.file)
+      if (upErr) { showToast('Photo upload failed: ' + upErr.message, 'error'); setSaving(false); return }
+      photoUrls.push(supabase.storage.from(type.bucket).getPublicUrl(path).data.publicUrl)
+    }
+
+    const payload = {
+      project_id:         project.id,
+      project_code:       project.project_code ?? null,
+      description:        f.description || null,
+      root_cause:         f.rootCause || null,
+      date_of_inspection: f.dateIssued || null,
+      data: {
+        group:              f.group,
+        itemName:           f.itemName,
+        defect:             f.defect,
+        tower:              f.tower,
+        floor:              f.floor,
+        zone:               f.zone,
+        photos:             [...savedPhotos, ...photoUrls],
+      },
+    }
+
+    const { error } = existing
+      ? await supabase.from(type.table)
+          .update({ ...payload, updated_at: new Date().toISOString() })
+          .eq('id', existing.id)
+      : await supabase.from(type.table).insert({ ...payload, created_by: session?.user?.id ?? null })
+
+    setSaving(false)
+    if (error) { showToast(`Failed to save ${type.abbr}: ` + error.message, 'error'); return }
+    showToast(existing ? `${type.abbr} updated.` : `${type.abbr} saved.`, 'success')
+    onSaved?.()
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto bg-white rounded-2xl border border-gray-200 shadow-sm px-5 py-6 sm:px-6">
+      {onBack && (
+        <button
+          onClick={onBack}
+          className="hidden sm:flex items-center gap-1.5 mb-3 text-sm font-semibold text-gray-500 hover:text-[#ed6055] transition-colors"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+          {type.backLabel ?? `All ${type.abbr}s`}
+        </button>
+      )}
+      <div className="flex items-center justify-between gap-3 mb-4">
+        <p className="text-lg font-bold text-gray-800">{type.title}</p>
+        {readOnly && (
+          <button
+            onClick={() => setReadOnly(false)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors flex-shrink-0"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+            </svg>
+            Edit
+          </button>
+        )}
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <QASelectField label="Group" value={f.group} onChange={v => set('group', v)} options={NCR_GROUP_OPTIONS} disabled={readOnly} />
+        <QAField label={itemLabel} value={f.itemName} onChange={v => set('itemName', v)} disabled={readOnly} />
+        <QAField label="Date" type="date" value={f.dateIssued} onChange={v => set('dateIssued', v)} disabled={readOnly} />
+      </div>
+
+      <div className="flex flex-col gap-3 mt-5">
+        <QAField label="Defect" value={f.defect} onChange={v => set('defect', v)} disabled={readOnly} />
+        <QAField label="Description" textarea value={f.description} onChange={v => set('description', v)} disabled={readOnly} />
+        <QASelectField label="Root Cause" value={f.rootCause} onChange={v => set('rootCause', v)} options={NCR_ROOT_CAUSE_OPTIONS} disabled={readOnly} />
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <QAField label="Tower / Location" value={f.tower} onChange={v => set('tower', v)} disabled={readOnly} />
+          <QAField label="Floor" value={f.floor} onChange={v => set('floor', v)} disabled={readOnly} />
+          <QAField label="Zone" value={f.zone} onChange={v => set('zone', v)} disabled={readOnly} />
+        </div>
+
+        <div>
+          <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">Photos</label>
+          <div className={readOnly ? 'grid grid-cols-2 gap-2 mt-1' : 'flex flex-wrap gap-2 mt-1'}>
+            {(readOnly
+              ? [...savedPhotos].sort((a, b) => Number(landscapeUrls.has(a)) - Number(landscapeUrls.has(b)))
+              : savedPhotos
+            ).map((url, i) => {
+              const isLandscape = landscapeUrls.has(url)
+              return (
+              <button
+                key={url}
+                type="button"
+                onClick={() => setLightbox(url)}
+                className={`relative rounded-lg overflow-hidden border border-gray-200 bg-gray-100 cursor-zoom-in ${
+                  readOnly
+                    ? `w-full ${isLandscape ? 'col-span-2 aspect-[4/3]' : 'aspect-[3/4]'}`
+                    : 'w-20 h-20 flex-shrink-0'
+                }`}
+              >
+                <img src={url} alt="" className="w-full h-full object-cover" onLoad={markOrientation(url)} />
+                {!readOnly && (
+                  <span onClick={e => { e.stopPropagation(); setSavedPhotos(prev => prev.filter((_, idx) => idx !== i)) }} className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center leading-none">×</span>
+                )}
+              </button>
+              )
+            })}
+            {photos.map((p, i) => (
+              <button key={i} type="button" onClick={() => setLightbox(p.url)} className="relative w-20 h-20 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0 cursor-zoom-in">
+                <img src={p.url} alt="" className="w-full h-full object-cover" />
+                <span onClick={e => { e.stopPropagation(); removePhoto(i) }} className="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-500 text-white text-[10px] flex items-center justify-center leading-none">×</span>
+              </button>
+            ))}
+            {!readOnly && (
+            <button
+              onClick={() => cameraRef.current?.click()}
+              className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors flex items-center justify-center flex-shrink-0"
+              title="Take photo"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 015.186 7.23c-.38.054-.757.112-1.134.175C2.999 7.58 2.25 8.507 2.25 9.574V18a2.25 2.25 0 002.25 2.25h15A2.25 2.25 0 0021.75 18V9.574c0-1.067-.75-1.994-1.802-2.169a47.865 47.865 0 00-1.134-.175 2.31 2.31 0 01-1.64-1.055l-.822-1.316a2.192 2.192 0 00-1.736-1.039 48.774 48.774 0 00-5.232 0 2.192 2.192 0 00-1.736 1.039l-.821 1.316z" /><path strokeLinecap="round" strokeLinejoin="round" d="M16.5 12.75a4.5 4.5 0 11-9 0 4.5 4.5 0 019 0zM18.75 10.5h.008v.008h-.008V10.5z" /></svg>
+            </button>
+            )}
+            {!readOnly && (
+            <button
+              onClick={() => fileRef.current?.click()}
+              className="w-20 h-20 rounded-lg border-2 border-dashed border-gray-300 text-gray-400 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors flex items-center justify-center flex-shrink-0"
+              title="Choose from gallery"
+            >
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            </button>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={addPhotos} />
+            <input ref={cameraRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={addPhotos} />
+          </div>
+        </div>
+      </div>
+
+      {!readOnly && (
+        <div className="flex justify-end mt-6">
+          <button
+            onClick={handleSave}
+            disabled={saving}
+            className="px-6 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97] disabled:opacity-60"
+          >
+            {saving ? 'Saving...' : 'Save'}
+          </button>
+        </div>
+      )}
+
+      {lightbox && createPortal(
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/90 backdrop-blur-md cursor-zoom-out"
+          onClick={() => setLightbox(null)}
+        >
+          <button
+            onClick={() => setLightbox(null)}
+            className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center transition-colors shadow-lg active:scale-[0.97]"
+            aria-label="Close preview"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+          <img
+            src={lightbox}
+            alt=""
+            className="max-w-[92vw] max-h-[92vh] object-contain rounded-2xl shadow-2xl"
+            onClick={e => e.stopPropagation()}
+          />
+        </div>
+      , document.body)}
+    </div>
+  )
+}
+
 // -- Photos Gallery ------------------------------------------------------------
 
 function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearchChange, filterTags = [], onFilterTagsChange, filterMonth = '', onFilterMonthChange, sortOrder = 'newest', onSortOrderChange, showUpload = false, onShowUploadChange, onGoHome }) {
@@ -6695,7 +7245,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
 
 // -- Main Modal ----------------------------------------------------------------
 
-export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange, photosSearch = '', onPhotosSearchChange, photosFilterTags = [], onPhotosFilterTagsChange, photosFilterMonth = '', onPhotosFilterMonthChange, photosSortOrder = 'newest', onPhotosSortOrderChange, photosShowUpload = false, onPhotosShowUploadChange, issuesSearch = '', onIssuesSearchChange, issuesFilterStatus = 'all', onIssuesFilterStatusChange, issuesFilterGroup = 'all', onIssuesFilterGroupChange, issuesFilterMgmtLevel = 'all', onIssuesFilterMgmtLevelChange, issuesShowAdd = false, onIssuesShowAddChange, onIssuesRegisterFns, onGanttRegisterFns, onGanttActiveBLChange }) {
+export default function ProjectDetailModal({ project: initialProject, isAdmin, onClose, onProjectUpdated, startEditing = false, startTab = 'Project Info', onTabChange, onSectionChange, activeSection: controlledSection, reportOpen = false, onReportClose, asPage = false, permitsSearch = '', onPermitsSearchChange, permitsFilter = 'all', onPermitsFilterChange, permitsCreating = false, onPermitsCreatingChange, photosSearch = '', onPhotosSearchChange, photosFilterTags = [], onPhotosFilterTagsChange, photosFilterMonth = '', onPhotosFilterMonthChange, photosSortOrder = 'newest', onPhotosSortOrderChange, photosShowUpload = false, onPhotosShowUploadChange, issuesSearch = '', onIssuesSearchChange, issuesFilterStatus = 'all', onIssuesFilterStatusChange, issuesFilterGroup = 'all', onIssuesFilterGroupChange, issuesFilterMgmtLevel = 'all', onIssuesFilterMgmtLevelChange, issuesShowAdd = false, onIssuesShowAddChange, onIssuesRegisterFns, onGanttRegisterFns, onGanttActiveBLChange, onQARegisterBack }) {
   const { profile } = useProfile()
   const [project, setProject] = useState(initialProject)
 
@@ -6800,7 +7350,7 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
       `}</style>
 
       {/* No modal header bar -- navigation lives in DashboardLayout topbar (asPage) or via onClose */}
-      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Work Program' || activeSection === 'S-Curve') ? 'bg-gray-200 flex-1 min-h-0' : asPage && (activeSection === null || activeSection === 'Project Home' || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
+      <div className={`rounded-none w-full flex flex-col ${asPage && (activeSection === 'Work Program' || activeSection === 'S-Curve') ? 'bg-gray-200 flex-1 min-h-0' : asPage && (activeSection === null || activeSection === 'Project Home' || activeSection === 'Permits' || activeSection === 'Photos' || activeSection === 'Issues & Concerns' || activeSection === 'Unit Completion' || activeSection === 'Quality Assurance') ? 'bg-gray-200' : asPage ? 'bg-gray-200 flex-1 min-h-0 overflow-hidden' : 'bg-white shadow-2xl h-full overflow-hidden'}`}>
 
         {/* Non-page mode: floating close button */}
         {!asPage && (
@@ -6843,6 +7393,10 @@ export default function ProjectDetailModal({ project: initialProject, isAdmin, o
         ) : activeSection === 'Unit Completion' ? (
           <div key="Unit Completion" className="section-slide-in">
             <CompletionTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} />
+          </div>
+        ) : activeSection === 'Quality Assurance' ? (
+          <div key="Quality Assurance" className="section-slide-in">
+            <QualityAssuranceTab project={project} isAdmin={isAdmin} profile={profile} showToast={showToast} onRegisterBack={onQARegisterBack} />
           </div>
         ) : activeSection === 'S-Curve' ? (
           <div key="S-Curve" className="section-slide-in permits-hero-pull flex-1 flex flex-col bg-[#e4e7ec] sm:overflow-hidden">
@@ -6983,6 +7537,9 @@ const HomeShortcutIssuesIcon = () => (
 const HomeShortcutClaimsIcon = () => (
   <img src={claimsIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
 )
+const HomeShortcutQualityIcon = () => (
+  <img src={qualityAssuranceIconImg} alt="" className="w-14 h-14 object-contain drop-shadow-xl" />
+)
 const HOME_SHORTCUTS = [
   { key: null,                label: 'Project Info',       Icon: HomeShortcutProjectInfoIcon },
   { key: 'Work Program',      label: 'Work Program',      Icon: HomeShortcutWorkProgramIcon },
@@ -6991,6 +7548,7 @@ const HOME_SHORTCUTS = [
   { key: 'Unit Completion',   label: 'Unit Completion',    Icon: HomeShortcutUnitCompletionIcon, soon: true },
   { key: 'Photos',            label: 'Photos',             Icon: HomeShortcutPhotosIcon },
   { key: 'Issues & Concerns', label: 'Issues & Concerns',  Icon: HomeShortcutIssuesIcon },
+  { key: 'Quality Assurance', label: 'Quality Assurance',  Icon: HomeShortcutQualityIcon },
   { key: 'claims',            label: 'Claims',             Icon: HomeShortcutClaimsIcon, soon: true },
 ]
 const GripIcon = () => (

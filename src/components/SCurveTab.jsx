@@ -2031,7 +2031,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                 </button>
               </div>
               {/* Legends row — below controls on mobile, left of controls on desktop */}
-              <div className="order-2 sm:order-1 flex items-center justify-between gap-2 px-4 pt-0 sm:pt-2.5 pb-2.5 flex-1 min-w-0">
+              <div className="order-2 sm:order-1 flex items-center justify-between sm:justify-start gap-2 sm:gap-1.5 px-4 sm:pl-1 pt-0 sm:pt-2.5 pb-2.5 flex-1 min-w-0">
               {selectedBaselineIds.map((id, i) => {
                 const bl    = baselines.find(b => b.id === id)
                 const color = blColor(id, i)
