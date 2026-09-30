@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useMemo, useCallback, Fragment } from 'react'
+﻿import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback, Fragment } from 'react'
 import { createPortal } from 'react-dom'
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } from '@dnd-kit/sortable'
@@ -5545,17 +5545,32 @@ function QAField({ label, value, onChange, type = 'text', textarea = false, plac
   const dateCls = type === 'date'
     ? ' appearance-none [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-w-0'
     : ''
+
+  // Textareas grow with their content instead of scrolling inside a fixed box.
+  // Measured after paint so the first render (and a restored value) sizes too.
+  const taRef = useRef(null)
+  useLayoutEffect(() => {
+    const el = taRef.current
+    if (!el) return
+    const fit = () => { el.style.height = 'auto'; el.style.height = `${el.scrollHeight}px` }
+    fit()
+    // Width changes re-wrap the text, so the measured height goes stale
+    window.addEventListener('resize', fit)
+    return () => window.removeEventListener('resize', fit)
+  }, [value, textarea])
+
   return (
     <div className="flex flex-col gap-1 min-w-0">
       <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{label}</label>
       {textarea ? (
         <textarea
-          rows={4}
+          ref={taRef}
+          rows={3}
           value={value}
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          className={`${cls} resize-none`}
+          className={`${cls} resize-none overflow-hidden`}
         />
       ) : (
         <input
@@ -5581,7 +5596,6 @@ const QA_REPORT_TYPES = {
     rowTitle:  (r) => r.data?.defect || [r.data?.group, r.data?.itemName].filter(Boolean).join(': ') || null,
     newLabel:  'New Findings',
     backLabel: 'All Findings',
-    hideStatus: true,
   },
 }
 
@@ -5857,6 +5871,7 @@ function NCRForm({ project, showToast, type, existing = null, canEdit = true, on
       tower: d.tower ?? '',
       floor: d.floor ?? '',
       zone: d.zone ?? '',
+      status: existing?.status ?? 'open',
     }
   })
   const [photos, setPhotos] = useState([])
@@ -5909,6 +5924,7 @@ function NCRForm({ project, showToast, type, existing = null, canEdit = true, on
       description:        f.description || null,
       root_cause:         f.rootCause || null,
       date_of_inspection: f.dateIssued || null,
+      status:             f.status,
       data: {
         group:              f.group,
         itemName:           f.itemName,
@@ -5946,18 +5962,34 @@ function NCRForm({ project, showToast, type, existing = null, canEdit = true, on
         </button>
       )}
       <div className="flex items-center justify-between gap-3 mb-4">
-        <p className="text-lg font-bold text-gray-800">{type.title}</p>
-        {readOnly && canEdit && (
-          <button
-            onClick={() => setReadOnly(false)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors flex-shrink-0"
+        <p className="text-lg font-bold text-gray-800 min-w-0 truncate">{type.title}</p>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {readOnly && canEdit && (
+            <button
+              onClick={() => setReadOnly(false)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 text-xs font-semibold text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors flex-shrink-0"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
+              </svg>
+              Edit
+            </button>
+          )}
+          <label
+            className="qa-switch"
+            style={{ '--qa-off': '"OPEN"', '--qa-on': '"CLOSED"' }}
+            title={f.status === 'closed' ? 'Finding is closed' : 'Finding is open'}
           >
-            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" />
-            </svg>
-            Edit
-          </button>
-        )}
+            <input
+              type="checkbox"
+              checked={f.status === 'closed'}
+              disabled={readOnly}
+              onChange={e => set('status', e.target.checked ? 'closed' : 'open')}
+              aria-label="Finding status"
+            />
+            <span className="slider" />
+          </label>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
