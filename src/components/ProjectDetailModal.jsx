@@ -5526,13 +5526,18 @@ function QASectionBar({ children }) {
 }
 
 function QAField({ label, value, onChange, type = 'text', textarea = false, placeholder = '', disabled = false }) {
-  // `min-w-0` + `max-w-full`: iOS renders date inputs at an intrinsic width that
-  // otherwise blows past the grid cell and pushes the form off-screen.
-  const cls = `w-full min-w-0 max-w-full box-border px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent ${
+  // `text-base` on mobile: anything under 16px makes iOS zoom the viewport on
+  // focus, which shoves the form off-screen. `min-w-0`/`max-w-full` keep the
+  // input inside its grid cell -- date inputs otherwise size to their intrinsic
+  // width, and `appearance-none` is what makes them honour `w-full` on iOS.
+  const cls = `w-full min-w-0 max-w-full box-border px-3 py-2 text-base sm:text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent ${
     disabled
       ? 'border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed'
       : 'border-gray-200 text-black placeholder-gray-400'
   }`
+  const dateCls = type === 'date'
+    ? ' appearance-none [&::-webkit-date-and-time-value]:text-left [&::-webkit-date-and-time-value]:min-w-0'
+    : ''
   return (
     <div className="flex flex-col gap-1 min-w-0">
       <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{label}</label>
@@ -5552,7 +5557,7 @@ function QAField({ label, value, onChange, type = 'text', textarea = false, plac
           onChange={e => onChange(e.target.value)}
           placeholder={placeholder}
           disabled={disabled}
-          className={`${cls} min-h-[44px]`}
+          className={`${cls} min-h-[44px]${dateCls}`}
         />
       )}
     </div>
