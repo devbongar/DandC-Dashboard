@@ -145,6 +145,7 @@ export async function buildNCRPrintPdf({ project, rows }) {
       ['Group', d.group],
       [itemLabel, d.itemName],
       ['Date', fmtDate(row.date_of_inspection)],
+      ['Status', row.status === 'closed' ? 'Closed' : 'Open'],
     ])
 
     sectionLabel('Quality Findings')
