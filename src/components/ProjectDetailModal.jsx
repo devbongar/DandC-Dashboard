@@ -14,6 +14,7 @@ import useProfile from '../hooks/useProfile'
 import ReportBuilderModal from './ReportBuilderModal'
 import SearchDropdown from './SearchDropdown'
 import PermitsTab from './PermitsTab'
+import { buildNCRPrintPdf } from '../lib/ncrPrintPdf'
 import workProgramIconImg from '../assets/workProgramIcon.png'
 import permitsIconImg from '../assets/permitsIcon.png'
 import scurveIconImg from '../assets/scurveIcon.png'
@@ -5575,12 +5576,22 @@ function QAReportSection({ project, showToast, type, canDelete = false, onRegist
   const [loading, setLoading] = useState(true)
   const [editing, setEditing] = useState(null) // null = list | 'new' | row object
   const [deleting, setDeleting] = useState(null)
+  const [printMode, setPrintMode] = useState(false)
+  const [printIds, setPrintIds] = useState(() => new Set())
+  const [printing, setPrinting] = useState(false)
 
-  // Back out of an open report before the tab itself handles back
+  // Back closes an open report, or cancels print selection, before the tab itself handles it
   useEffect(() => {
-    onRegisterBack?.(editing ? () => setEditing(null) : null)
+    // Must return true so the app header knows the back press was consumed --
+    // otherwise it falls through and leaves the tab entirely
+    const handler = editing
+      ? () => { setEditing(null); return true }
+      : printMode
+        ? () => { setPrintMode(false); setPrintIds(new Set()); return true }
+        : null
+    onRegisterBack?.(handler)
     return () => onRegisterBack?.(null)
-  }, [editing, onRegisterBack])
+  }, [editing, printMode, onRegisterBack])
 
   const load = async () => {
     setLoading(true)
@@ -5613,6 +5624,29 @@ function QAReportSection({ project, showToast, type, canDelete = false, onRegist
     load()
   }
 
+  const togglePrintId = (id) => setPrintIds(prev => {
+    const next = new Set(prev)
+    next.has(id) ? next.delete(id) : next.add(id)
+    return next
+  })
+
+  const exitPrintMode = () => { setPrintMode(false); setPrintIds(new Set()) }
+
+  const handlePrint = async () => {
+    const selected = rows.filter(r => printIds.has(r.id))
+    if (!selected.length) { showToast('Select at least one report to print.', 'error'); return }
+    setPrinting(true)
+    try {
+      const pdf = await buildNCRPrintPdf({ project, rows: selected })
+      pdf.save(`${(project.name ?? 'project').replace(/[^a-zA-Z0-9.\-_]/g, '_')}-quality-findings.pdf`)
+      exitPrintMode()
+    } catch (err) {
+      showToast('Print failed: ' + err.message, 'error')
+    } finally {
+      setPrinting(false)
+    }
+  }
+
   if (editing) {
     return (
       <NCRForm
@@ -5630,18 +5664,58 @@ function QAReportSection({ project, showToast, type, canDelete = false, onRegist
 
   return (
     <div className="max-w-3xl mx-auto">
-      <div className="flex items-center justify-between mb-3">
-        <p className="text-lg font-bold text-gray-700">{type.listTitle}</p>
-        <button
-          onClick={() => setEditing('new')}
-          className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97]"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          {type.newLabel ?? `New ${type.abbr}`}
-        </button>
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <p className="text-lg font-bold text-gray-700 min-w-0 truncate">{type.listTitle}</p>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {rows.length > 0 && (
+            <button
+              onClick={() => (printMode ? exitPrintMode() : setPrintMode(true))}
+              title={printMode ? 'Cancel printing' : 'Print reports'}
+              aria-label={printMode ? 'Cancel printing' : 'Print reports'}
+              className={`flex items-center justify-center w-10 h-10 rounded-xl border transition-colors ${
+                printMode
+                  ? 'border-[#ed6055] text-[#ed6055] bg-red-50'
+                  : 'border-gray-200 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055]'
+              }`}
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.72 13.829c-.24.03-.48.062-.72.096m.72-.096a42.415 42.415 0 0110.56 0m-10.56 0L6.34 18m10.94-4.171c.24.03.48.062.72.096m-.72-.096L17.66 18m0 0l.229 2.523a1.125 1.125 0 01-1.12 1.227H7.231c-.662 0-1.18-.568-1.12-1.227L6.34 18m11.318 0h1.091A2.25 2.25 0 0021 15.75V9.456c0-1.081-.768-2.015-1.837-2.175a48.055 48.055 0 00-1.913-.247M6.34 18H5.25A2.25 2.25 0 013 15.75V9.456c0-1.081.768-2.015 1.837-2.175a48.041 48.041 0 011.913-.247m10.5 0a48.536 48.536 0 00-10.5 0m10.5 0V3.375c0-.621-.504-1.125-1.125-1.125h-8.25c-.621 0-1.125.504-1.125 1.125v3.659M18 10.5h.008v.008H18V10.5zm-3 0h.008v.008H15V10.5z" />
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={() => { exitPrintMode(); setEditing('new') }}
+            className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97]"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+            </svg>
+            {type.newLabel ?? `New ${type.abbr}`}
+          </button>
+        </div>
       </div>
+
+      {printMode && (
+        <div className="flex items-center gap-3 mb-3 px-4 py-2.5 rounded-xl border border-[#ed6055]/30 bg-red-50/60">
+          <span className="text-xs text-gray-600 flex-1 min-w-0">
+            <span className="font-semibold text-gray-800">{printIds.size}</span> selected
+            {printIds.size > 0 && <span className="text-gray-400"> · 1 report per page</span>}
+          </span>
+          <button
+            onClick={() => setPrintIds(printIds.size === rows.length ? new Set() : new Set(rows.map(r => r.id)))}
+            className="px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs font-medium text-gray-600 hover:bg-gray-50 transition-colors flex-shrink-0"
+          >
+            {printIds.size === rows.length ? 'Clear all' : 'Select all'}
+          </button>
+          <button
+            onClick={handlePrint}
+            disabled={printing || printIds.size === 0}
+            className="px-4 py-1.5 rounded-lg bg-[#ed6055] text-white text-xs font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97] disabled:opacity-50 flex-shrink-0"
+          >
+            {printing ? 'Preparing...' : 'Print'}
+          </button>
+        </div>
+      )}
 
       {rows.length === 0 ? (
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm p-10 text-center">
@@ -5652,9 +5726,26 @@ function QAReportSection({ project, showToast, type, canDelete = false, onRegist
         <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
           {rows.map((r, i) => (
             <div key={r.id} className={`flex items-center ${i > 0 ? 'border-t border-gray-100' : ''}`}>
+            {printMode && (
+              <button
+                onClick={() => togglePrintId(r.id)}
+                aria-label={printIds.has(r.id) ? 'Deselect report' : 'Select report'}
+                className="flex-shrink-0 pl-4 pr-1 py-3"
+              >
+                <span className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${
+                  printIds.has(r.id) ? 'bg-[#ed6055] border-[#ed6055]' : 'border-gray-300 bg-white'
+                }`}>
+                  {printIds.has(r.id) && (
+                    <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+                    </svg>
+                  )}
+                </span>
+              </button>
+            )}
             <button
-              onClick={() => setEditing(r)}
-              className="flex-1 min-w-0 text-left px-4 py-3 hover:bg-gray-50 transition-colors"
+              onClick={() => (printMode ? togglePrintId(r.id) : setEditing(r))}
+              className={`flex-1 min-w-0 text-left py-3 hover:bg-gray-50 transition-colors ${printMode ? 'px-2' : 'px-4'}`}
             >
               <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2 min-w-0">
@@ -5681,7 +5772,7 @@ function QAReportSection({ project, showToast, type, canDelete = false, onRegist
                 <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{r.description}</p>
               )}
             </button>
-            {canDelete && (
+            {canDelete && !printMode && (
               <button
                 onClick={() => setDeleting(r)}
                 className="flex-shrink-0 p-3 mr-1 text-gray-300 hover:text-red-500 transition-colors"
