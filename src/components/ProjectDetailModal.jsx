@@ -5526,13 +5526,15 @@ function QASectionBar({ children }) {
 }
 
 function QAField({ label, value, onChange, type = 'text', textarea = false, placeholder = '', disabled = false }) {
-  const cls = `w-full px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent ${
+  // `min-w-0` + `max-w-full`: iOS renders date inputs at an intrinsic width that
+  // otherwise blows past the grid cell and pushes the form off-screen.
+  const cls = `w-full min-w-0 max-w-full box-border px-3 py-2 text-sm rounded-lg border focus:outline-none focus:ring-2 focus:ring-[#ed6055] focus:border-transparent ${
     disabled
       ? 'border-gray-100 bg-gray-50 text-gray-500 cursor-not-allowed'
       : 'border-gray-200 text-black placeholder-gray-400'
   }`
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 min-w-0">
       <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{label}</label>
       {textarea ? (
         <textarea
@@ -5805,7 +5807,7 @@ const NCR_ROOT_CAUSE_OPTIONS = [
 
 function QASelectField({ label, value, onChange, options, placeholder = 'Select...', disabled = false }) {
   return (
-    <div className="flex flex-col gap-1">
+    <div className="flex flex-col gap-1 min-w-0">
       <label className="text-[11px] font-bold text-gray-500 uppercase tracking-wide">{label}</label>
       <div className="[&>div>button]:min-h-[44px] [&>div>button]:text-sm">
         <SearchDropdown
