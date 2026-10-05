@@ -5857,6 +5857,38 @@ function QASelectField({ label, value, onChange, options, placeholder = 'Select.
   )
 }
 
+const QA_PHOTO_MAX_DIM = 1600
+
+// iPhones hand over .heic when a photo is picked from the gallery, and only
+// Safari can decode it -- every other browser shows a broken image, and the
+// print-to-PDF silently drops it. Re-encode to JPEG at pick time, on the device
+// that took the photo, which is the one place a decoder is guaranteed. Also
+// caps the long edge, since a raw iPhone shot is ~2MB.
+function toUploadableJpeg(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      const scale  = Math.min(QA_PHOTO_MAX_DIM / img.width, QA_PHOTO_MAX_DIM / img.height, 1)
+      const canvas = document.createElement('canvas')
+      canvas.width  = Math.round(img.width * scale)
+      canvas.height = Math.round(img.height * scale)
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height)
+      canvas.toBlob(
+        blob => (blob ? resolve(blob) : reject(new Error(`Could not process ${file.name}.`))),
+        'image/jpeg',
+        0.85,
+      )
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      reject(new Error(`${file.name} is in a format this browser cannot open. Try taking the photo with the camera button instead.`))
+    }
+    img.src = url
+  })
+}
+
 // Redesigned, simplified NCR form -- group/item, non-conformance details, resolution.
 function NCRForm({ project, showToast, type, existing = null, canEdit = true, onBack, onSaved }) {
   const [f, setF] = useState(() => {
@@ -5891,10 +5923,20 @@ function NCRForm({ project, showToast, type, existing = null, canEdit = true, on
   }
   const set = (key, value) => setF(prev => ({ ...prev, [key]: value }))
 
-  const addPhotos = (e) => {
+  // Converted as soon as they are picked, so the thumbnail below the field is
+  // the image that will actually be stored and an unreadable file is rejected
+  // before the user fills in the rest of the form.
+  const addPhotos = async (e) => {
     const files = Array.from(e.target.files ?? [])
-    setPhotos(prev => [...prev, ...files.map(file => ({ file, url: URL.createObjectURL(file) }))])
     e.target.value = ''
+    for (const file of files) {
+      try {
+        const blob = await toUploadableJpeg(file)
+        setPhotos(prev => [...prev, { blob, name: file.name, url: URL.createObjectURL(blob) }])
+      } catch (err) {
+        showToast(err.message, 'error')
+      }
+    }
   }
   const removePhoto = (i) => {
     setPhotos(prev => {
@@ -5911,9 +5953,11 @@ function NCRForm({ project, showToast, type, existing = null, canEdit = true, on
 
     const photoUrls = []
     for (const p of photos) {
-      const safeName = p.file.name.replace(/[^a-zA-Z0-9.\-_]/g, '_')
-      const path = `${project.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}`
-      const { error: upErr } = await supabase.storage.from(type.bucket).upload(path, p.file)
+      // Already re-encoded to JPEG when the photo was picked
+      const safeName = p.name.replace(/\.[^.]+$/, '').replace(/[^a-zA-Z0-9\-_]/g, '_')
+      const path = `${project.id}/${Date.now()}-${Math.random().toString(36).slice(2)}-${safeName}.jpg`
+      const { error: upErr } = await supabase.storage.from(type.bucket)
+        .upload(path, p.blob, { contentType: 'image/jpeg' })
       if (upErr) { showToast('Photo upload failed: ' + upErr.message, 'error'); setSaving(false); return }
       photoUrls.push(supabase.storage.from(type.bucket).getPublicUrl(path).data.publicUrl)
     }
