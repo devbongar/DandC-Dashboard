@@ -361,7 +361,7 @@ function ImportErrorPanel({ errors, onDismiss }) {
       <ul className="space-y-1">
         {errors.map((e, i) => (
           <li key={i} className="text-xs text-red-600 flex items-start gap-1.5">
-            <span className="flex-shrink-0 mt-0.5">â€¢</span><span>{e}</span>
+            <span className="flex-shrink-0 mt-0.5">•</span><span>{e}</span>
           </li>
         ))}
       </ul>
@@ -428,7 +428,7 @@ function FloorUploadCell({ value, onChange, showToast }) {
       {uploading
         ? <span className="text-[10px] text-gray-400 italic">Uploading...</span>
         : <button type="button" onClick={() => ref.current?.click()} className="text-[10px] px-2 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition whitespace-nowrap">
-            {value ? 'âœ“ Change' : 'â†‘ Upload'}
+            {value ? '✓ Change' : '↑ Upload'}
           </button>
       }
     </div>
@@ -1273,8 +1273,8 @@ function UnitTypePhotoCarousel({ photos }) {
         </div>
         {filtered.length > 1 && (
           <>
-            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">â€¹</button>
-            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">â€º</button>
+            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">‹</button>
+            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">›</button>
             <div className="absolute bottom-3 right-3 flex gap-1">
               {filtered.map((_, i) => (
                 <button
@@ -1303,7 +1303,7 @@ function UnitTypePhotoCarousel({ photos }) {
             <button
               onClick={e => { e.stopPropagation(); prev() }}
               className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors text-xl leading-none active:scale-95"
-            >â€¹</button>
+            >‹</button>
           )}
           <img
             src={photo.url}
@@ -1315,7 +1315,7 @@ function UnitTypePhotoCarousel({ photos }) {
             <button
               onClick={e => { e.stopPropagation(); next() }}
               className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors text-xl leading-none active:scale-95"
-            >â€º</button>
+            >›</button>
           )}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
             <div className="px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm text-center">
@@ -1377,7 +1377,7 @@ function UnitTypePhotoManager({ unitTypeId, unitTypeName, showToast }) {
 
   return (
     <div className="px-4 py-3 bg-gray-50 border-t border-dashed border-gray-200">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Photos â€” {unitTypeName}</p>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Photos — {unitTypeName}</p>
       <div className="flex items-start gap-2 flex-wrap">
         {photos.map(p => (
           <div key={p.id} className="relative group w-24 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
@@ -2382,7 +2382,7 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
               </div>
             </div>
             <button onClick={() => setAddRes(v => !v)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] transition">
-              {addRes ? 'âˆ’ Hide' : '+ Add more floors'}
+              {addRes ? '− Hide' : '+ Add more floors'}
             </button>
             {addRes && <TowerFloorRangeFields from={reFrom} setFrom={setReFrom} to={reTo} setTo={setReTo} prefix={rePrefix} setPrefix={setRePrefix} count={reUnits} setCount={setReUnits} countLabel="Units" />}
           </div>
@@ -2395,7 +2395,7 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
               </div>
             </div>
             <button onClick={() => setAddPark(v => !v)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] transition">
-              {addPark ? 'âˆ’ Hide' : '+ Add parking floors'}
+              {addPark ? '− Hide' : '+ Add parking floors'}
             </button>
             {addPark && <TowerFloorRangeFields from={pkFrom} setFrom={setPkFrom} to={pkTo} setTo={setPkTo} prefix={pkPrefix} setPrefix={setPkPrefix} count={pkSpaces} setCount={setPkSpaces} countLabel="Spaces" />}
           </div>
@@ -2434,7 +2434,7 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
   }
 
   const handle = () => {
-    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be â‰¤ To.' : 'Maximum 100 floors at a time.'); return }
+    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be ≤ To.' : 'Maximum 100 floors at a time.'); return }
     setErr('')
     const floors = []
     for (let i = f; i <= t; i++) {
@@ -2886,7 +2886,7 @@ function DevelopmentTab({ project, isAdmin, profile, showToast }) {
       validateFloorSheet(sheets['Parking Floor Schedule'] ?? [], 'Parking Floor Schedule')
       if (errors.length > 0) { setImportErrors(errors); return }
 
-      // -- 3. Upsert buildings, build nameâ†’id map --------------------------------
+      // -- 3. Upsert buildings, build name→id map --------------------------------
       const allBuildingNames = [...new Set(flRows.map(r => r.building_name).filter(Boolean))]
       const { data: existingBuildings } = await supabase.from('project_buildings').select('id, name').eq('project_id', pid)
       const existingByName = Object.fromEntries((existingBuildings ?? []).map(b => [b.name.trim().toLowerCase(), b.id]))
@@ -4561,7 +4561,7 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
                   <td key={i} className="p-0 border border-gray-200 relative" style={{ width: 44, height: 44 }}>
                     <button
                       onClick={isAdmin ? (multiSelectMode ? () => onToggleCell(type, floor, unitNum) : () => onOpenCell(type, floor, unitNum)) : undefined}
-                      title={`${floor.physical_level}-${boxLabel(floor, labels, i)} â€” ${cfg.label}`}
+                      title={`${floor.physical_level}-${boxLabel(floor, labels, i)} — ${cfg.label}`}
                       aria-label={`${type === 'parking' ? 'Parking' : 'Unit'} ${floor.physical_level}-${boxLabel(floor, labels, i)}: ${cfg.label}`}
                       className={`w-full h-full text-[10px] font-semibold tracking-wide transition-all duration-150 ease-out ${cfg.cell} ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'ring-2 ring-[#ed6055] ring-inset z-10 relative' : (isAdmin && !multiSelectMode ? 'hover:scale-[1.18] hover:shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:z-10 hover:relative' : '')}`}
                     >
@@ -6650,7 +6650,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
             </button>
           )}
           <div className="relative flex items-center justify-center max-w-[88vw] max-h-[80vh]" onClick={e => e.stopPropagation()}>
-            {/* Thumbnail placeholder â€” visible until full-size loads */}
+            {/* Thumbnail placeholder — visible until full-size loads */}
             {!lbLoaded && (
               <img
                 src={getThumbnailUrl(filteredPhotos[lightbox].storage_path)}
@@ -7149,7 +7149,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
     } else {
       const ins = await supabase.from(table).insert(payload)
       if (ins.error?.code === '23505') {
-        // Row exists but wasn't in local state â€” update by natural key
+        // Row exists but wasn't in local state — update by natural key
         ;({ error } = await supabase.from(table).update(payload)
           .eq('project_id', project.id).eq('floor_id', floor.id).eq('unit_number', unitNum))
       } else {
@@ -7469,10 +7469,10 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
               )}
               <button
                 onClick={() => setUnitSortAsc(v => !v)}
-                title={unitSortAsc ? 'Sorted: low â†’ high. Click to reverse.' : 'Sorted: high â†’ low. Click to reverse.'}
+                title={unitSortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
                 className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
               >
-                {unitSortAsc ? 'â†‘' : 'â†“'}
+                {unitSortAsc ? '↑' : '↓'}
               </button>
             </div>
           )} />
@@ -7508,10 +7508,10 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
               )}
               <button
                 onClick={() => setParkingSortAsc(v => !v)}
-                title={parkingSortAsc ? 'Sorted: low â†’ high. Click to reverse.' : 'Sorted: high â†’ low. Click to reverse.'}
+                title={parkingSortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
                 className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
               >
-                {parkingSortAsc ? 'â†‘' : 'â†“'}
+                {parkingSortAsc ? '↑' : '↓'}
               </button>
             </div>
           )} />

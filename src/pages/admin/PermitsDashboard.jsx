@@ -653,7 +653,7 @@ export default function PermitsDashboard() {
                     <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.28 7.22a.75.75 0 00-1.06 1.06L8.94 10l-1.72 1.72a.75.75 0 101.06 1.06L10 11.06l1.72 1.72a.75.75 0 101.06-1.06L11.06 10l1.72-1.72a.75.75 0 00-1.06-1.06L10 8.94 8.28 7.22z" clipRule="evenodd" />
                   </svg>
                   <div className="min-w-0">
-                    <span className="text-xs font-medium text-red-700 truncate block">{p.permitId || '(no ID)'}{p.permitName ? ` â€” ${p.permitName}` : ''}</span>
+                    <span className="text-xs font-medium text-red-700 truncate block">{p.permitId || '(no ID)'}{p.permitName ? ` — ${p.permitName}` : ''}</span>
                     <span className="text-[10px] text-red-400">{p.reason}</span>
                   </div>
                 </div>
