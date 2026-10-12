@@ -6149,6 +6149,57 @@ function NCRForm({ project, showToast, type, existing = null, canEdit = true, on
 
 // -- Photos Gallery ------------------------------------------------------------
 
+// Tower and floor labels are free text and inconsistent across projects:
+// "T1" alongside "Tower 1", "Tower A" through "Tower Q", floors written as
+// "9F", "Level 9", "GF", "Basement 2". Plain string sorting puts "T10" before
+// "T2" and "Level 10" before "Level 2", so compare digit runs as numbers --
+// which also makes zero-padded labels ("Tower 01") sort with their unpadded
+// twins.
+const naturalChunks = (s) => String(s ?? '').toLowerCase().match(/\d+|\D+/g) ?? []
+function naturalCompare(a, b) {
+  const ca = naturalChunks(a)
+  const cb = naturalChunks(b)
+  for (let i = 0; i < Math.max(ca.length, cb.length); i++) {
+    const x = ca[i]
+    const y = cb[i]
+    if (x === undefined) return -1
+    if (y === undefined) return 1
+    if (/^\d/.test(x) && /^\d/.test(y)) {
+      if (Number(x) !== Number(y)) return Number(x) - Number(y)
+    } else if (x !== y) {
+      return x.localeCompare(y)
+    }
+  }
+  return 0
+}
+
+// Height of a floor label, lowest first. `project_location_floors.sort_order`
+// exists but is not maintained -- it comes back shuffled (T1 reads 16F, 2F, 6F,
+// 12F...) -- so the ladder is derived from the label instead.
+// band 0 = vertical floors, band 1 = other named locations (Block 12A, CP 3,
+// Site Development) compared as text, band 2 = unlabelled, always last.
+function floorRank(label) {
+  const s = String(label ?? '').trim().toLowerCase()
+  if (!s) return { band: 2, n: 0 }
+  let m
+  if ((m = s.match(/^basement\s*(\d+)/)))   return { band: 0, n: -Number(m[1]) }
+  if (/^(lg|lower\s*ground)\b/.test(s))     return { band: 0, n: -0.5 }
+  if (/^(ug|upper\s*g)/.test(s))            return { band: 0, n: 0.5 }
+  if (/^(gf|ground)\b/.test(s))             return { band: 0, n: 0 }
+  if (/^(rd|roof)/.test(s))                 return { band: 0, n: Number.MAX_SAFE_INTEGER }
+  if ((m = s.match(/^(\d+)\s*f\b/)))        return { band: 0, n: Number(m[1]) }
+  if ((m = s.match(/^level\s*(\d+)/)))      return { band: 0, n: Number(m[1]) }
+  return { band: 1, n: 0 }
+}
+
+function compareFloors(a, b) {
+  const ra = floorRank(a)
+  const rb = floorRank(b)
+  if (ra.band !== rb.band) return ra.band - rb.band
+  if (ra.n !== rb.n) return ra.n - rb.n
+  return naturalCompare(a, b)
+}
+
 function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearchChange, filterTags = [], onFilterTagsChange, filterMonth = '', onFilterMonthChange, sortOrder = 'newest', onSortOrderChange, showUpload = false, onShowUploadChange, onGoHome }) {
   const [view, setView]                   = useState('site-plan')  // 'site-plan' | 'gallery'
   const [photos, setPhotos]               = useState([])
@@ -6223,13 +6274,33 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
       if (q && !(p.file_name ?? '').toLowerCase().includes(q) && !(p.tags ?? []).some(t => t.toLowerCase().includes(q))) return false
       return true
     })
-    result.sort((a, b) => {
+    const byDate = (a, b) => {
       const da = a.photo_date ?? a.created_at?.slice(0, 10) ?? ''
       const db = b.photo_date ?? b.created_at?.slice(0, 10) ?? ''
       return sortOrder === 'newest' ? db.localeCompare(da) : da.localeCompare(db)
-    })
+    }
+    // Sorting the flat list (rather than each group) keeps the lightbox arrows
+    // stepping through photos in the order they appear on screen -- the grid
+    // groups in encounter order, and `_flatIdx` indexes back into this array.
+    if (groupMode === 'tower') {
+      const buildingName = Object.fromEntries(buildings.map(b => [b.id, b.name]))
+      result.sort((a, b) => {
+        // Photos with no tower sink below the towers rather than leading
+        if (!a.building_id !== !b.building_id) return a.building_id ? -1 : 1
+        const t = naturalCompare(buildingName[a.building_id], buildingName[b.building_id])
+        if (t) return t
+        const f = compareFloors(
+          a.project_location_floors?.physical_level,
+          b.project_location_floors?.physical_level,
+        )
+        if (f) return f
+        return byDate(a, b)
+      })
+    } else {
+      result.sort(byDate)
+    }
     return result
-  }, [photos, filterMonth, filterTags, filterBuilding, filterFloor, sortOrder])
+  }, [photos, filterMonth, filterTags, filterBuilding, filterFloor, sortOrder, groupMode, buildings])
 
   const groupedPhotos = useMemo(() => {
     const map = new Map()
