@@ -6243,6 +6243,20 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
   const getThumbnailUrl = (path) =>
     supabase.storage.from('project-photos').getPublicUrl(`thumbs/${path}`).data.publicUrl
 
+  // Lightbox source. Originals are stored uncompressed -- 6MB on average, up to
+  // 38MB -- which is a punishing download on site over mobile data. Supabase
+  // Image Transformations serve the same photo at ~900KB. The transformer
+  // refuses sources over ~25MB ("source image file is too large to process"),
+  // so `previewFailed` records those and falls back to the original.
+  const [previewFailed, setPreviewFailed] = useState(() => new Set())
+  const getPreviewUrl = (path) =>
+    previewFailed.has(path)
+      ? getUrl(path)
+      : supabase.storage.from('project-photos')
+          .getPublicUrl(path, { transform: { width: 1600, quality: 75 } }).data.publicUrl
+  const handlePreviewError = (path) => () =>
+    setPreviewFailed(prev => (prev.has(path) ? prev : new Set(prev).add(path)))
+
   const months = useMemo(() => {
     const seen = new Set()
     photos.forEach(p => { const m = (p.photo_date ?? p.created_at)?.slice(0, 7); if (m) seen.add(m) })
@@ -6458,7 +6472,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
               <div key={photo.id}
                 className="group relative aspect-square rounded-xl overflow-hidden bg-gray-100 cursor-pointer hover:-translate-y-1 hover:scale-[1.02] transition-all duration-200 ease-out"
                 style={{ boxShadow: '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)' }}
-                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'; const img = new Image(); img.src = getUrl(photo.storage_path) }}
+                onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 12px 32px rgba(0,0,0,0.28), 0 4px 10px rgba(0,0,0,0.18)'; const img = new Image(); img.src = getPreviewUrl(photo.storage_path) }}
                 onMouseLeave={e => e.currentTarget.style.boxShadow = '0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)'}
                 onClick={() => { setSlideDir('open'); setImgKey(k => k + 1); setLbLoaded(false); setLbEditBuilding(false); setLbEditFloor(false); setLightbox(photo._flatIdx) }}>
                 <img
@@ -6572,9 +6586,10 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
             )}
             <img
               key={imgKey}
-              src={getUrl(filteredPhotos[lightbox].storage_path)}
+              src={getPreviewUrl(filteredPhotos[lightbox].storage_path)}
               alt={fixEncoding(filteredPhotos[lightbox].file_name)}
               onLoad={() => setLbLoaded(true)}
+              onError={handlePreviewError(filteredPhotos[lightbox].storage_path)}
               className={`relative max-w-[88vw] max-h-[80vh] object-contain rounded-lg shadow-2xl transition-opacity duration-300 ${lbLoaded ? 'opacity-100' : 'opacity-0'} ${slideDir === 'next' ? 'lb-slide-next' : slideDir === 'prev' ? 'lb-slide-prev' : 'lb-img-open'}`}
             />
           </div>
