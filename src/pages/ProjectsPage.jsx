@@ -153,10 +153,17 @@ export default function ProjectsPage() {
     setLoading(false)
   }
 
+  // Diacritics are stripped on both sides so "Dasmarinas" finds "Dasmariñas City"
+  const normalize = (s) =>
+    String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
+
+  const needle = normalize(search)
   const filtered = projects.filter(p => {
-    const matchSearch  = !search ||
-      p.name?.toLowerCase().includes(search.toLowerCase()) ||
-      p.description?.toLowerCase().includes(search.toLowerCase())
+    // project_code holds the short name teams actually use (Jab, MEL, SJDM),
+    // and city covers both cities and municipalities
+    const matchSearch = !needle || [
+      p.name, p.project_code, p.city, p.province, p.business_unit, p.description,
+    ].some(field => normalize(field).includes(needle))
     const matchPhase   = phaseFilter.length === 0 || phaseFilter.includes(p.phase)
     const match4ph     = is4phFilter === 'all' || (is4phFilter === 'yes' ? p.is_4ph_project : !p.is_4ph_project)
     const matchBU      = businessUnitFilter.length === 0 || businessUnitFilter.includes(p.business_unit)
@@ -316,7 +323,7 @@ export default function ProjectsPage() {
           </svg>
           <input
             type="text"
-            placeholder="Search projects..."
+            placeholder="Search Projects"
             value={search}
             onChange={e => setSearch(e.target.value)}
             className="pl-9 pr-3 py-1.5 text-sm rounded-lg bg-black/[0.05] text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/30 focus:bg-black/[0.07] transition w-96"
@@ -374,7 +381,7 @@ export default function ProjectsPage() {
         </svg>
         <input
           type="text"
-          placeholder="Search projects..."
+          placeholder="Search Projects"
           value={search}
           onChange={e => setSearch(e.target.value)}
           className="w-full pl-8 pr-9 py-4 text-sm rounded-2xl text-gray-700 placeholder-gray-400 outline-none focus:ring-2 focus:ring-[#ed6055]/40 transition"
