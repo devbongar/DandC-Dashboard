@@ -6320,15 +6320,22 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
 
   // Lightbox source. Originals are stored uncompressed -- 6MB on average, up to
   // 38MB -- which is a punishing download on site over mobile data. Supabase
-  // Image Transformations serve the same photo at ~900KB. The transformer
-  // refuses sources over ~25MB ("source image file is too large to process"),
-  // so `previewFailed` records those and falls back to the original.
+  // Image Transformations serve the same photo at a few hundred KB.
+  //
+  // `resize: 'contain'` matters: the default is 'cover', which with a width
+  // alone sets the width and leaves the height at the original, squashing the
+  // photo (8000x4500 came back 1600x4500). Giving both bounds with 'contain'
+  // fits the photo inside a 1600x1600 box at its own aspect ratio.
+  //
+  // The transformer refuses sources over ~25MB or ~50MP, so `previewFailed`
+  // records those and falls back to the original.
   const [previewFailed, setPreviewFailed] = useState(() => new Set())
   const getPreviewUrl = (path) =>
     previewFailed.has(path)
       ? getUrl(path)
-      : supabase.storage.from('project-photos')
-          .getPublicUrl(path, { transform: { width: 1600, quality: 75 } }).data.publicUrl
+      : supabase.storage.from('project-photos').getPublicUrl(path, {
+          transform: { width: 1600, height: 1600, resize: 'contain', quality: 75 },
+        }).data.publicUrl
   const handlePreviewError = (path) => () =>
     setPreviewFailed(prev => (prev.has(path) ? prev : new Set(prev).add(path)))
 
