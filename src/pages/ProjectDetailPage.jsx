@@ -395,7 +395,7 @@ export default function ProjectDetailPage() {
             </div>
           )}
 
-          {/* Expand / collapse toggle â€" hidden on mobile */}
+          {/* Expand / collapse toggle — hidden on mobile */}
           <div className={`mt-1 relative group ${mobileSidebarOpen ? 'hidden' : ''}`}
             onMouseEnter={(e) => showTooltip(e, sidebarExpanded ? 'Collapse' : 'Expand')}
             onMouseLeave={hideTooltip}
@@ -442,18 +442,18 @@ export default function ProjectDetailPage() {
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
         <main id="main-scroll" ref={mainScrollRef} className={`flex-1 min-h-0 flex flex-col [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] ${section === 'Work Program' ? 'sm:overflow-hidden overflow-x-hidden' : 'overflow-y-auto'}`}>
 
-          {/* Header â€" transparent + sticky on Project Info so cover photo shows through */}
+          {/* Header — transparent + sticky on Project Info so cover photo shows through */}
           <header
             className={`flex flex-col sticky top-0 z-10`}
             style={{ background: headerOnLight ? '#e5e7eb' : headerScrolled ? 'linear-gradient(to bottom, rgba(0,0,0,0.82) 0%, rgba(0,0,0,0) 100%)' : 'transparent', transition: 'background 200ms ease' }}
           >
-            {/* Safe area spacer â€" pushes header content below iOS status bar on mobile */}
+            {/* Safe area spacer — pushes header content below iOS status bar on mobile */}
             <div className="sm:hidden flex-shrink-0" style={{ height: 'env(safe-area-inset-top, 0px)' }} />
             <div className={`flex items-center h-14`}>
             {/* Inner content wrapper: aligns with max-w-7xl content containers */}
             <div className="flex flex-1 items-center h-full min-w-0 px-3 sm:px-6">
             <div className="w-full flex items-center gap-4 h-full">
-            {/* Back button â€" mobile only */}
+            {/* Back button — mobile only */}
             <button
               className={`sm:hidden flex items-center justify-center w-8 h-8 rounded-full flex-shrink-0 active:scale-90 transition-all ${headerOnLight ? 'text-gray-600' : 'text-white'}`}
               style={{ background: headerOnLight ? 'rgba(0,0,0,0.07)' : 'rgba(255,255,255,0.18)' }}
@@ -468,7 +468,7 @@ export default function ProjectDetailPage() {
                 <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
               </svg>
             </button>
-            {/* Tab title â€" mobile only (the cover photo already titles Home/Info) */}
+            {/* Tab title — mobile only (the cover photo already titles Home/Info) */}
             {section !== null && section !== 'Project Home' && (
               <span className={`sm:hidden text-base font-bold tracking-wide truncate min-w-0 ${headerOnLight ? 'text-gray-800' : 'text-white'}`}>
                 {activeLabel}
@@ -489,7 +489,7 @@ export default function ProjectDetailPage() {
             )}
             <div className="flex-1" />
 
-            {/* Photos controls â€" only visible on Photos tab */}
+            {/* Photos controls — only visible on Photos tab */}
             {section === 'Photos' && (
               <>
               {/* Mobile search toggle */}
@@ -626,7 +626,7 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Issues & Concerns controls â€" only visible on Issues tab */}
+            {/* Issues & Concerns controls — only visible on Issues tab */}
             {section === 'Issues & Concerns' && (
               <div className="flex items-center gap-0 sm:gap-4 flex-shrink-0 -mr-3 sm:mr-0">
                 {/* Mobile search toggle */}
@@ -789,7 +789,7 @@ export default function ProjectDetailPage() {
               </div>
             )}
 
-            {/* Work Program controls â€" only visible on Work Program tab */}
+            {/* Work Program controls — only visible on Work Program tab */}
             {section === 'Work Program' && (
               <div className="flex items-center gap-2 flex-shrink-0">
                 <button
@@ -843,7 +843,7 @@ export default function ProjectDetailPage() {
               </div>
             )}
 
-            {/* Permits controls â€" only visible on Permits tab */}
+            {/* Permits controls — only visible on Permits tab */}
             {section === 'Permits' && (
               <>
                 {/* Mobile search toggle */}
@@ -874,7 +874,7 @@ export default function ProjectDetailPage() {
                   />
                 </div>
 
-                {/* Filter button + popover â€" desktop only; mobile filter lives in the content row */}
+                {/* Filter button + popover — desktop only; mobile filter lives in the content row */}
                 <div className="relative flex-shrink-0 hidden sm:block" ref={filterPopRef}>
                   <button
                     onClick={() => setPermitsFilterOpen(v => !v)}
@@ -973,7 +973,7 @@ export default function ProjectDetailPage() {
               </>
             )}
 
-            {/* Setup button â€" Unit Completion tab only, opens Planned M4/M5 */}
+            {/* Setup button — Unit Completion tab only, opens Planned M4/M5 */}
             {section === 'Unit Completion' && (
               <button
                 onClick={() => setSection('Planned M4/M5')}
@@ -988,7 +988,7 @@ export default function ProjectDetailPage() {
               </button>
             )}
 
-            {/* Report button â€" hidden on Permits/Photos/Issues/Work Program tabs (lives inside Actions dropdown there) */}
+            {/* Report button — hidden on Permits/Photos/Issues/Work Program tabs (lives inside Actions dropdown there) */}
             {section !== 'Permits' && section !== 'Photos' && section !== 'Issues & Concerns' && section !== 'Work Program' && (
               <button
                 onClick={() => setReportOpen(true)}
@@ -1005,7 +1005,7 @@ export default function ProjectDetailPage() {
 
             <NotificationBell userId={profile?.id} variant={headerOnLight ? 'light' : undefined} />
 
-            {/* User menu â€" hidden on mobile */}
+            {/* User menu — hidden on mobile */}
             <div className="relative flex-shrink-0 hidden sm:block">
               <button
                 onClick={() => setMenuOpen(v => !v)}

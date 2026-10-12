@@ -5,7 +5,7 @@ import { SortableContext, verticalListSortingStrategy, useSortable, arrayMove } 
 import { CSS } from '@dnd-kit/utilities'
 import { useNavigate } from 'react-router-dom'
 import { supabase, fetchAll } from '../lib/supabaseClient'
-import { downloadWorkbook, parseWorkbook, toDateStr, toFloat, toInt } from '../lib/excelUtils'
+import { downloadWorkbook, parseWorkbook, parseWorkbookRows, toDateStr, toFloat, toInt } from '../lib/excelUtils'
 import { PH_PROVINCES, PH_CITIES } from '../lib/philippinesLocations'
 import TriangleLoader from './TriangleLoader'
 import { GanttContent } from './GanttModal'
@@ -361,7 +361,7 @@ function ImportErrorPanel({ errors, onDismiss }) {
       <ul className="space-y-1">
         {errors.map((e, i) => (
           <li key={i} className="text-xs text-red-600 flex items-start gap-1.5">
-            <span className="flex-shrink-0 mt-0.5">â€¢</span><span>{e}</span>
+            <span className="flex-shrink-0 mt-0.5">•</span><span>{e}</span>
           </li>
         ))}
       </ul>
@@ -428,7 +428,7 @@ function FloorUploadCell({ value, onChange, showToast }) {
       {uploading
         ? <span className="text-[10px] text-gray-400 italic">Uploading...</span>
         : <button type="button" onClick={() => ref.current?.click()} className="text-[10px] px-2 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:border-[#ed6055] hover:text-[#ed6055] transition whitespace-nowrap">
-            {value ? 'âœ“ Change' : 'â†‘ Upload'}
+            {value ? '✓ Change' : '↑ Upload'}
           </button>
       }
     </div>
@@ -1273,8 +1273,8 @@ function UnitTypePhotoCarousel({ photos }) {
         </div>
         {filtered.length > 1 && (
           <>
-            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">â€¹</button>
-            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">â€º</button>
+            <button onClick={prev} className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">‹</button>
+            <button onClick={next} className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/40 hover:bg-black/60 text-white flex items-center justify-center transition-colors text-base leading-none active:scale-95">›</button>
             <div className="absolute bottom-3 right-3 flex gap-1">
               {filtered.map((_, i) => (
                 <button
@@ -1303,7 +1303,7 @@ function UnitTypePhotoCarousel({ photos }) {
             <button
               onClick={e => { e.stopPropagation(); prev() }}
               className="absolute left-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors text-xl leading-none active:scale-95"
-            >â€¹</button>
+            >‹</button>
           )}
           <img
             src={photo.url}
@@ -1315,7 +1315,7 @@ function UnitTypePhotoCarousel({ photos }) {
             <button
               onClick={e => { e.stopPropagation(); next() }}
               className="absolute right-4 top-1/2 -translate-y-1/2 w-11 h-11 rounded-full bg-white/10 hover:bg-white/25 text-white flex items-center justify-center transition-colors text-xl leading-none active:scale-95"
-            >â€º</button>
+            >›</button>
           )}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
             <div className="px-4 py-2 rounded-xl bg-black/40 backdrop-blur-sm text-center">
@@ -1377,7 +1377,7 @@ function UnitTypePhotoManager({ unitTypeId, unitTypeName, showToast }) {
 
   return (
     <div className="px-4 py-3 bg-gray-50 border-t border-dashed border-gray-200">
-      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Photos â€” {unitTypeName}</p>
+      <p className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Photos — {unitTypeName}</p>
       <div className="flex items-start gap-2 flex-wrap">
         {photos.map(p => (
           <div key={p.id} className="relative group w-24 h-16 rounded-lg overflow-hidden border border-gray-200 bg-gray-100 flex-shrink-0">
@@ -2382,7 +2382,7 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
               </div>
             </div>
             <button onClick={() => setAddRes(v => !v)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] transition">
-              {addRes ? 'âˆ’ Hide' : '+ Add more floors'}
+              {addRes ? '− Hide' : '+ Add more floors'}
             </button>
             {addRes && <TowerFloorRangeFields from={reFrom} setFrom={setReFrom} to={reTo} setTo={setReTo} prefix={rePrefix} setPrefix={setRePrefix} count={reUnits} setCount={setReUnits} countLabel="Units" />}
           </div>
@@ -2395,7 +2395,7 @@ function EditTowerModal({ building, projectId, onDone, onCancel }) {
               </div>
             </div>
             <button onClick={() => setAddPark(v => !v)} className="text-xs font-semibold text-[#ed6055] hover:text-[#d94f45] transition">
-              {addPark ? 'âˆ’ Hide' : '+ Add parking floors'}
+              {addPark ? '− Hide' : '+ Add parking floors'}
             </button>
             {addPark && <TowerFloorRangeFields from={pkFrom} setFrom={setPkFrom} to={pkTo} setTo={setPkTo} prefix={pkPrefix} setPrefix={setPkPrefix} count={pkSpaces} setCount={setPkSpaces} countLabel="Spaces" />}
           </div>
@@ -2434,7 +2434,7 @@ function BulkAddFloorsModal({ onConfirm, onCancel, unitLabel = 'Units' }) {
   }
 
   const handle = () => {
-    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be â‰¤ To.' : 'Maximum 100 floors at a time.'); return }
+    if (!rangeValid) { setErr(isNaN(f) || isNaN(t) ? 'Enter a valid floor range.' : f > t ? 'From must be ≤ To.' : 'Maximum 100 floors at a time.'); return }
     setErr('')
     const floors = []
     for (let i = f; i <= t; i++) {
@@ -2886,7 +2886,7 @@ function DevelopmentTab({ project, isAdmin, profile, showToast }) {
       validateFloorSheet(sheets['Parking Floor Schedule'] ?? [], 'Parking Floor Schedule')
       if (errors.length > 0) { setImportErrors(errors); return }
 
-      // -- 3. Upsert buildings, build nameâ†’id map --------------------------------
+      // -- 3. Upsert buildings, build name→id map --------------------------------
       const allBuildingNames = [...new Set(flRows.map(r => r.building_name).filter(Boolean))]
       const { data: existingBuildings } = await supabase.from('project_buildings').select('id, name').eq('project_id', pid)
       const existingByName = Object.fromEntries((existingBuildings ?? []).map(b => [b.name.trim().toLowerCase(), b.id]))
@@ -4444,7 +4444,54 @@ const UNIT_STATUS_CONFIG = {
   m5:          { label: 'M5 Handover',  cell: 'bg-green-600 text-white border-green-700',        dot: 'bg-green-600' },
 }
 
-function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectMode, selectedCells, onToggleCell, onOpenCell, onFloorClick }) {
+// Column label shown in the header and in every box of that column. Falls back
+// to the generated number so a grid with no labels set looks exactly as before.
+const columnLabel = (labels, i) => (labels?.[i] || '').trim() || String(i + 1).padStart(2, '0')
+
+// A floor's labels, when it has any, describe its layout: each entry is a
+// position in the row, and only a labelled position is a real unit. A blank
+// between labels is a gap in the layout -- it holds its column so later units
+// stay where they were typed, but it is not a unit and is drawn greyed out.
+// Floors with no labels fall back to "the first num_units positions are units".
+const floorHasLabels = (floor) =>
+  Array.isArray(floor?.unit_labels) && floor.unit_labels.some(v => String(v ?? '').trim() !== '')
+
+const floorSlots = (floor) =>
+  floorHasLabels(floor) ? floor.unit_labels.length : (floor?.num_units ?? 0)
+
+const isUnitSlot = (floor, i) =>
+  floorHasLabels(floor)
+    ? String(floor.unit_labels[i] ?? '').trim() !== ''
+    : i < (floor?.num_units ?? 0)
+
+// 1-based unit numbers that actually exist on this floor
+const unitNumbers = (floor) => {
+  const out = []
+  for (let i = 0; i < floorSlots(floor); i++) if (isUnitSlot(floor, i)) out.push(i + 1)
+  return out
+}
+
+const boxLabel = (floor, labels, i) =>
+  floorHasLabels(floor) ? String(floor.unit_labels[i] ?? '').trim() : columnLabel(labels, i)
+
+// Is this cell still the default for column i? Excel turns a typed "01" into
+// the number 1, so both spellings count as "not customised".
+const isGeneratedLabel = (value, i) => {
+  const s = String(value ?? '').trim()
+  return s === '' || s === String(i + 1) || s === String(i + 1).padStart(2, '0')
+}
+
+function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectMode, selectedCells, onToggleCell, onOpenCell, onFloorClick, labels = [], onLabelChange }) {
+  const [editingCol, setEditingCol] = useState(null)
+  const [draft, setDraft] = useState('')
+  const canEditLabels = isAdmin && !!onLabelChange && !multiSelectMode
+
+  const openLabel = (i) => { setDraft(labels?.[i] ?? ''); setEditingCol(i) }
+  const commitLabel = () => {
+    if (editingCol !== null) onLabelChange(editingCol, draft.trim())
+    setEditingCol(null)
+  }
+
   if (floorList.length === 0) return (
     <p className="text-xs text-gray-400 italic py-4">{emptyMsg}</p>
   )
@@ -4456,8 +4503,35 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
           <tr className="bg-gray-600">
             <th className="px-3 py-2 text-left text-[10px] font-bold text-gray-200 uppercase tracking-widest sticky left-0 bg-gray-600 z-10 min-w-[80px] border-r border-gray-500">Floor</th>
             {Array.from({ length: maxU }, (_, i) => (
-              <th key={i} className="py-2 text-center text-[10px] font-semibold text-gray-300 tracking-wide" style={{ width: 44, minWidth: 44 }}>
-                {String(i + 1).padStart(2, '0')}
+              <th
+                key={i}
+                // Whole cell is the target: the label alone is ~12px wide
+                onClick={canEditLabels && editingCol !== i ? () => openLabel(i) : undefined}
+                title={canEditLabels ? 'Click to rename this column' : undefined}
+                className={`py-2 text-center text-[10px] font-semibold tracking-wide transition-colors ${
+                  canEditLabels
+                    ? 'text-gray-200 cursor-pointer hover:bg-gray-500 hover:text-white underline decoration-dotted decoration-gray-400 underline-offset-[3px]'
+                    : 'text-gray-300'
+                }`}
+                style={{ width: 44, minWidth: 44 }}
+              >
+                {editingCol === i ? (
+                  <input
+                    autoFocus
+                    value={draft}
+                    onClick={e => e.stopPropagation()}
+                    onChange={e => setDraft(e.target.value)}
+                    onBlur={commitLabel}
+                    onKeyDown={e => {
+                      if (e.key === 'Enter') commitLabel()
+                      if (e.key === 'Escape') setEditingCol(null)
+                    }}
+                    maxLength={6}
+                    className="w-10 mx-auto block text-center text-[10px] font-semibold bg-gray-700 text-white rounded px-0.5 py-0.5 outline-none ring-1 ring-[#ed6055]"
+                  />
+                ) : (
+                  columnLabel(labels, i)
+                )}
               </th>
             ))}
           </tr>
@@ -4474,7 +4548,8 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
               </td>
               {Array.from({ length: maxU }, (_, i) => {
                 const unitNum = i + 1
-                if (unitNum > (floor.num_units ?? 0)) {
+                // Greyed: past the end of the floor, or a gap in its layout
+                if (!isUnitSlot(floor, i)) {
                   return <td key={i} className="p-0 bg-gray-500" style={{ width: 44, height: 44 }} />
                 }
                 const c = cMap[`${floor.id}-${unitNum}`]
@@ -4486,11 +4561,11 @@ function UnitGrid({ floorList, cMap, maxU, type, emptyMsg, isAdmin, multiSelectM
                   <td key={i} className="p-0 border border-gray-200 relative" style={{ width: 44, height: 44 }}>
                     <button
                       onClick={isAdmin ? (multiSelectMode ? () => onToggleCell(type, floor, unitNum) : () => onOpenCell(type, floor, unitNum)) : undefined}
-                      title={`${floor.physical_level}-${String(unitNum).padStart(2, '0')} â€” ${cfg.label}`}
-                      aria-label={`${type === 'parking' ? 'Parking' : 'Unit'} ${floor.physical_level}-${String(unitNum).padStart(2, '0')}: ${cfg.label}`}
+                      title={`${floor.physical_level}-${boxLabel(floor, labels, i)} — ${cfg.label}`}
+                      aria-label={`${type === 'parking' ? 'Parking' : 'Unit'} ${floor.physical_level}-${boxLabel(floor, labels, i)}: ${cfg.label}`}
                       className={`w-full h-full text-[10px] font-semibold tracking-wide transition-all duration-150 ease-out ${cfg.cell} ${isAdmin ? 'cursor-pointer' : 'cursor-default'} ${isSelected ? 'ring-2 ring-[#ed6055] ring-inset z-10 relative' : (isAdmin && !multiSelectMode ? 'hover:scale-[1.18] hover:shadow-[0_4px_12px_rgba(0,0,0,0.18)] hover:z-10 hover:relative' : '')}`}
                     >
-                      {String(unitNum).padStart(2, '0')}
+                      {boxLabel(floor, labels, i)}
                     </button>
                   </td>
                 )
@@ -6575,7 +6650,7 @@ function PhotosTab({ project, isAdmin, profile, showToast, search = '', onSearch
             </button>
           )}
           <div className="relative flex items-center justify-center max-w-[88vw] max-h-[80vh]" onClick={e => e.stopPropagation()}>
-            {/* Thumbnail placeholder â€” visible until full-size loads */}
+            {/* Thumbnail placeholder — visible until full-size loads */}
             {!lbLoaded && (
               <img
                 src={getThumbnailUrl(filteredPhotos[lightbox].storage_path)}
@@ -6697,6 +6772,13 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
   const [productType, setProductType]               = useState(null)  // null=both, 'unit', 'parking'
   const [unitSortAsc, setUnitSortAsc]               = useState(true)
   const [parkingSortAsc, setParkingSortAsc]         = useState(true)
+  // Column labels live on the building, so each tower names its units its own way
+  const [unitLabels, setUnitLabels]                 = useState([])
+  const [parkingLabels, setParkingLabels]           = useState([])
+  // Every tower, for the label export -- the grid itself only loads the selected one
+  const [allTowers, setAllTowers]                   = useState([])
+  const [importing, setImporting]                   = useState(false)
+  const labelFileRef                                = useRef(null)
 
   const loadAll = async () => {
     setLoading(true)
@@ -6718,10 +6800,243 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
     setCompletions(cData)
     setParkingFloors(pfData ?? [])
     setParkingCompletions(pcData)
+
+    if (buildingId) {
+      const { data: b } = await supabase.from('project_buildings')
+        .select('unit_column_labels, parking_column_labels').eq('id', buildingId).single()
+      setUnitLabels(b?.unit_column_labels ?? [])
+      setParkingLabels(b?.parking_column_labels ?? [])
+    } else {
+      setUnitLabels([])
+      setParkingLabels([])
+    }
     setLoading(false)
   }
 
+  // Renaming a column rewrites that tower's label array. A label cleared back to
+  // empty is kept as '' so the column falls through to its generated number.
+  const saveColumnLabel = async (type, index, value) => {
+    if (!buildingId) return
+    const column  = type === 'parking' ? 'parking_column_labels' : 'unit_column_labels'
+    const current = type === 'parking' ? parkingLabels : unitLabels
+    const next    = [...current]
+    while (next.length <= index) next.push('')
+    next[index] = value
+    const setter = type === 'parking' ? setParkingLabels : setUnitLabels
+    setter(next)
+    const { error } = await supabase.from('project_buildings').update({ [column]: next }).eq('id', buildingId)
+    if (error) { showToast('Could not save the label: ' + error.message, 'error'); setter(current) }
+  }
+
   useEffect(() => { loadAll() }, [project.id, buildingId])
+
+  // Column count per tower per grid, so the export lists every column that
+  // exists rather than only the ones already named.
+  const loadTowers = async () => {
+    const [{ data: bData }, { data: gData }] = await Promise.all([
+      supabase.from('project_buildings')
+        .select('id, name, sort_order, unit_column_labels, parking_column_labels')
+        .eq('project_id', project.id).order('sort_order'),
+      supabase.from('project_location_groups').select('id, type, building_id').eq('project_id', project.id),
+    ])
+    const groups = gData ?? []
+    const fData = groups.length
+      ? await fetchAll(() => supabase.from('project_location_floors')
+          .select('id, group_id, physical_level, sort_order, num_units, unit_labels')
+          .in('group_id', groups.map(g => g.id)))
+      : []
+    const groupById = Object.fromEntries(groups.map(g => [g.id, g]))
+    const maxBy = {}
+    const floorsBy = {}
+    for (const f of fData) {
+      const g = groupById[f.group_id]
+      if (!g?.building_id) continue
+      const key = `${g.building_id}-${g.type}`
+      maxBy[key] = Math.max(maxBy[key] ?? 0, f.num_units ?? 0)
+      ;(floorsBy[key] ??= []).push(f)
+    }
+    for (const list of Object.values(floorsBy)) list.sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    setAllTowers((bData ?? []).map(b => ({
+      ...b,
+      unitCols:     maxBy[`${b.id}-residential`] ?? 0,
+      parkingCols:  maxBy[`${b.id}-parking`] ?? 0,
+      unitFloors:   floorsBy[`${b.id}-residential`] ?? [],
+      parkingFloors: floorsBy[`${b.id}-parking`] ?? [],
+    })))
+  }
+
+  useEffect(() => { loadTowers() }, [project.id])
+
+  // Excel sheet names: 31 chars, no []:*?/\ , and no duplicates
+  const sheetNameFor = (tower, kind, taken) => {
+    const base = `${String(tower).replace(/[[\]:*?/\\]/g, ' ').trim()} ${kind === 'unit' ? 'Units' : 'Parking'}`
+    let name = base.slice(0, 31)
+    let n = 2
+    while (taken.has(name)) { const suffix = ` (${n++})`; name = base.slice(0, 31 - suffix.length) + suffix }
+    taken.add(name)
+    return name
+  }
+
+  // A sheet per tower, laid out like that tower's grid: the header row holds the
+  // column labels and each row is a floor, so both levels are editable in place.
+  const boxSheet = (t, kind, taken) => {
+    const count  = kind === 'unit' ? t.unitCols : t.parkingCols
+    const floors = kind === 'unit' ? t.unitFloors : t.parkingFloors
+    if (!count || !floors.length) return null
+    const colLabels = kind === 'unit' ? t.unit_column_labels : t.parking_column_labels
+
+    const columns = [
+      { header: 'Floor ID', key: 'fid' },   // match key on import -- do not edit
+      { header: 'Floor',    key: 'floor' }, // editable: renames the floor
+      ...Array.from({ length: count }, (_, i) => ({ header: columnLabel(colLabels, i), key: `c${i}` })),
+    ]
+
+    const rows = floors.map(f => {
+      const row = { fid: f.id, floor: f.physical_level }
+      for (let i = 0; i < count; i++) {
+        // Blank past this floor's unit count -- those boxes are greyed out
+        row[`c${i}`] = i < (f.num_units ?? 0)
+          ? ((f.unit_labels?.[i] || '').trim() || columnLabel(colLabels, i))
+          : ''
+      }
+      return row
+    })
+
+    return { sheetName: sheetNameFor(t.name, kind, taken), columns, rows, buildingId: t.id, kind }
+  }
+
+  const exportLabels = async () => {
+    const taken = new Set()
+    const sheets = []
+    for (const t of allTowers) {
+      for (const kind of ['unit', 'parking']) {
+        const s = boxSheet(t, kind, taken)
+        if (s) sheets.push(s)
+      }
+    }
+
+    if (!sheets.length) { showToast('No towers or floors defined yet.', 'error'); return }
+    await downloadWorkbook(sheets,
+      `${(project.name ?? 'project').replace(/[^a-zA-Z0-9.\-_]/g, '_')}-unit-labels.xlsx`)
+  }
+
+  const importLabels = async (file) => {
+    setImporting(true)
+    try {
+      // Read by position: the header cells are themselves editable data, so they
+      // cannot double as keys.
+      const sheets = await parseWorkbookRows(file)
+
+      // Floor ID is the match key, so renaming a floor or a sheet in Excel can
+      // never send labels to the wrong row.
+      const floorById = {}
+      for (const t of allTowers) {
+        for (const kind of ['unit', 'parking']) {
+          for (const f of (kind === 'unit' ? t.unitFloors : t.parkingFloors)) {
+            floorById[f.id] = { floor: f, buildingId: t.id, kind }
+          }
+        }
+      }
+
+      const floorUpdates = {}   // floorId -> { unit_labels, physical_level? }
+      const towerUpdates = {}   // buildingId -> { unit?: [], parking?: [] }
+      let unknownFloors = 0
+      const grew = []           // floors whose unit count the sheet widened
+
+      for (const rows of Object.values(sheets)) {
+        if (!rows?.length) continue
+        const header = rows[0] ?? []
+        // Identify the tower from the first row that matches a known floor
+        let ctx = null
+        for (const r of rows.slice(1)) {
+          const hit = floorById[String(r[0] ?? '').trim()]
+          if (hit) { ctx = hit; break }
+        }
+        if (!ctx) continue
+
+        // Header cells from column 2 on are this tower's column labels
+        const colCount = ctx.kind === 'unit'
+          ? allTowers.find(t => t.id === ctx.buildingId)?.unitCols ?? 0
+          : allTowers.find(t => t.id === ctx.buildingId)?.parkingCols ?? 0
+        const colLabels = []
+        for (let i = 0; i < colCount; i++) {
+          // A header left at its generated number is not a custom label
+          colLabels.push(isGeneratedLabel(header[i + 2], i) ? '' : String(header[i + 2]).trim())
+        }
+        towerUpdates[ctx.buildingId] ??= {}
+        towerUpdates[ctx.buildingId][ctx.kind] = colLabels
+
+        for (const r of rows.slice(1)) {
+          const entry = floorById[String(r[0] ?? '').trim()]
+          if (!entry) { if (String(r[0] ?? '').trim()) unknownFloors++; continue }
+          const { floor } = entry
+          // Stored exactly as typed, across the sheet's full width rather than
+          // the floor's unit count -- a label past that count is kept so the
+          // work is not lost, and reported below.
+          // The sheet is the layout: every cell up to the last filled one is a
+          // box, blanks included, each label staying in the column it was typed
+          // in. Only trailing blanks are dropped -- they are empty space to the
+          // right of the row, not boxes.
+          const width = Math.max(header.length - 2, floor.num_units ?? 0)
+          const next = []
+          for (let i = 0; i < width; i++) next.push(String(r[i + 2] ?? '').trim())
+          while (next.length && next[next.length - 1] === '') next.pop()
+
+          const patch = { unit_labels: next }
+
+          // num_units is the count of real units, not of layout positions: a
+          // blank holds its column but is not a unit, so it is not counted.
+          const units = next.filter(Boolean).length
+          if (units && units !== (floor.num_units ?? 0)) {
+            patch.num_units = units
+            grew.push(`${floor.physical_level} ${floor.num_units ?? 0}→${units}`)
+          }
+
+          const floorName = String(r[1] ?? '').trim()
+          if (floorName && floorName !== floor.physical_level) patch.physical_level = floorName
+          floorUpdates[floor.id] = patch
+        }
+      }
+
+      const floorIds = Object.keys(floorUpdates)
+      const towerIds = Object.keys(towerUpdates)
+      if (!floorIds.length) {
+        throw new Error('Nothing matched this project. Export a fresh file and edit that.')
+      }
+
+      const results = await Promise.all([
+        ...floorIds.map(id => supabase.from('project_location_floors')
+          .update(floorUpdates[id]).eq('id', id)),
+        ...towerIds.map(id => supabase.from('project_buildings').update({
+          ...(towerUpdates[id].unit    ? { unit_column_labels: towerUpdates[id].unit } : {}),
+          ...(towerUpdates[id].parking ? { parking_column_labels: towerUpdates[id].parking } : {}),
+        }).eq('id', id)),
+      ])
+      const failed = results.filter(r => r.error)
+      if (failed.length) throw new Error(failed[0].error.message)
+
+      const renamed = floorIds.filter(id => floorUpdates[id].physical_level).length
+      await loadTowers()
+      await loadAll()
+      const problems = [
+        unknownFloors ? `${unknownFloors} row${unknownFloors !== 1 ? 's' : ''} had an unrecognised Floor ID` : null,
+        grew.length
+          ? `unit count set from the sheet on ${grew.slice(0, 4).join(', ')}${grew.length > 4 ? '...' : ''} ` +
+            `-- this changes the project's unit totals`
+          : null,
+      ].filter(Boolean)
+      showToast(
+        `Labels updated for ${floorIds.length} floor${floorIds.length !== 1 ? 's' : ''}` +
+        (renamed ? `, ${renamed} renamed` : '') + '.' +
+        (problems.length ? ` ${problems.join('. ')}.` : ''),
+        problems.length ? 'error' : 'success',
+      )
+    } catch (err) {
+      showToast('Import failed: ' + err.message, 'error')
+    } finally {
+      setImporting(false)
+    }
+  }
 
   const completionMap = useMemo(() => {
     const map = {}
@@ -6738,15 +7053,16 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
   const displayFloors        = useMemo(() => [...floors].sort((a, b)        => unitSortAsc    ? (a.sort_order ?? 0) - (b.sort_order ?? 0) : (b.sort_order ?? 0) - (a.sort_order ?? 0)), [floors, unitSortAsc])
   const displayParkingFloors = useMemo(() => [...parkingFloors].sort((a, b) => parkingSortAsc ? (a.sort_order ?? 0) - (b.sort_order ?? 0) : (b.sort_order ?? 0) - (a.sort_order ?? 0)), [parkingFloors, parkingSortAsc])
 
-  const maxUnits        = useMemo(() => floors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [floors])
-  const maxParkingUnits = useMemo(() => parkingFloors.reduce((mx, f) => Math.max(mx, f.num_units ?? 0), 0), [parkingFloors])
-  const unitTotal       = useMemo(() => floors.reduce((s, f) => s + (f.num_units ?? 0), 0), [floors])
-  const parkingTotal    = useMemo(() => parkingFloors.reduce((s, f) => s + (f.num_units ?? 0), 0), [parkingFloors])
+  // Grid width counts layout positions; totals count only the real units
+  const maxUnits        = useMemo(() => floors.reduce((mx, f) => Math.max(mx, floorSlots(f)), 0), [floors])
+  const maxParkingUnits = useMemo(() => parkingFloors.reduce((mx, f) => Math.max(mx, floorSlots(f)), 0), [parkingFloors])
+  const unitTotal       = useMemo(() => floors.reduce((s, f) => s + unitNumbers(f).length, 0), [floors])
+  const parkingTotal    = useMemo(() => parkingFloors.reduce((s, f) => s + unitNumbers(f).length, 0), [parkingFloors])
 
   const unitStats = useMemo(() => {
     let in_progress = 0, m4 = 0, m5 = 0
     floors.forEach(floor => {
-      for (let i = 1; i <= (floor.num_units ?? 0); i++) {
+      for (const i of unitNumbers(floor)) {
         const s = completionMap[`${floor.id}-${i}`]?.status ?? 'none'
         if (s === 'm5') m5++; else if (s === 'm4') m4++; else if (s === 'in_progress') in_progress++
       }
@@ -6757,7 +7073,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
   const parkingStats = useMemo(() => {
     let in_progress = 0, m4 = 0, m5 = 0
     parkingFloors.forEach(floor => {
-      for (let i = 1; i <= (floor.num_units ?? 0); i++) {
+      for (const i of unitNumbers(floor)) {
         const s = parkingCompletionMap[`${floor.id}-${i}`]?.status ?? 'none'
         if (s === 'm5') m5++; else if (s === 'm4') m4++; else if (s === 'in_progress') in_progress++
       }
@@ -6768,9 +7084,9 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
   const stats = useMemo(() => {
     let total = 0, none = 0, in_progress = 0, m4 = 0, m5 = 0
     floors.forEach(floor => {
-      const count = floor.num_units ?? 0
-      total += count
-      for (let i = 1; i <= count; i++) {
+      const nums = unitNumbers(floor)
+      total += nums.length
+      for (const i of nums) {
         const s = completionMap[`${floor.id}-${i}`]?.status ?? 'none'
         if (s === 'm5') m5++
         else if (s === 'm4') m4++
@@ -6779,9 +7095,9 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
       }
     })
     parkingFloors.forEach(floor => {
-      const count = floor.num_units ?? 0
-      total += count
-      for (let i = 1; i <= count; i++) {
+      const nums = unitNumbers(floor)
+      total += nums.length
+      for (const i of nums) {
         const s = parkingCompletionMap[`${floor.id}-${i}`]?.status ?? 'none'
         if (s === 'm5') m5++
         else if (s === 'm4') m4++
@@ -6833,7 +7149,7 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
     } else {
       const ins = await supabase.from(table).insert(payload)
       if (ins.error?.code === '23505') {
-        // Row exists but wasn't in local state â€” update by natural key
+        // Row exists but wasn't in local state — update by natural key
         ;({ error } = await supabase.from(table).update(payload)
           .eq('project_id', project.id).eq('floor_id', floor.id).eq('unit_number', unitNum))
       } else {
@@ -6863,16 +7179,16 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
 
   const openFloorModal = (type, floor) => {
     const cMap = type === 'parking' ? parkingCompletionMap : completionMap
-    const count = floor.num_units ?? 0
+    const nums = unitNumbers(floor)
     let none = 0, in_progress = 0, m4 = 0, m5 = 0
-    for (let i = 1; i <= count; i++) {
+    for (const i of nums) {
       const s = cMap[`${floor.id}-${i}`]?.status ?? 'none'
       if (s === 'm4') m4++
       else if (s === 'm5') m5++
       else if (s === 'in_progress') in_progress++
       else none++
     }
-    setFloorModal({ type, floor, stats: { none, in_progress, m4, m5 }, total: count })
+    setFloorModal({ type, floor, stats: { none, in_progress, m4, m5 }, total: nums.length })
     setFloorModalStatus('none')
     setFloorModalDate('')
     setFloorModalDateBad(false)
@@ -6895,10 +7211,9 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
     const { type, floor } = floorModal
     const table = type === 'parking' ? 'project_parking_unit_completion' : 'project_unit_completion'
     const cMap = type === 'parking' ? parkingCompletionMap : completionMap
-    const count = floor.num_units ?? 0
     const promises = []
     let skipped = 0
-    for (let i = 1; i <= count; i++) {
+    for (const i of unitNumbers(floor)) {
       const existing = cMap[`${floor.id}-${i}`] ?? null
       if (floorModalStatus === 'm5' && existing?.status !== 'm4') { skipped++; continue }
       const payload = {
@@ -7018,6 +7333,38 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
           <div className="flex-1 flex items-center">
             <BuildingSelector projectId={project.id} isAdmin={isAdmin} buildingId={buildingId} onChange={setBuildingId} canAdd={false} usePortalDropdown />
           </div>
+          {canEdit && (
+            <div className="flex items-center gap-1.5">
+              <button
+                onClick={exportLabels}
+                title="Download every tower's unit labels as Excel"
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-gray-200 bg-white/70 text-[11px] font-semibold text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M16.5 12L12 16.5m0 0L7.5 12m4.5 4.5V3" />
+                </svg>
+                Export labels
+              </button>
+              <button
+                onClick={() => labelFileRef.current?.click()}
+                disabled={importing}
+                title="Upload an edited labels file"
+                className="flex-1 flex items-center justify-center gap-1 px-2 py-1.5 rounded-lg border border-gray-200 bg-white/70 text-[11px] font-semibold text-gray-600 hover:border-[#ed6055] hover:text-[#ed6055] transition-colors disabled:opacity-60"
+              >
+                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75V16.5M7.5 7.5L12 3m0 0l4.5 4.5M12 3v13.5" />
+                </svg>
+                {importing ? 'Importing...' : 'Import labels'}
+              </button>
+              <input
+                ref={labelFileRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) importLabels(f) }}
+              />
+            </div>
+          )}
         </div>
 
         {/* Residential card */}
@@ -7122,16 +7469,17 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
               )}
               <button
                 onClick={() => setUnitSortAsc(v => !v)}
-                title={unitSortAsc ? 'Sorted: low â†’ high. Click to reverse.' : 'Sorted: high â†’ low. Click to reverse.'}
+                title={unitSortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
                 className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
               >
-                {unitSortAsc ? 'â†‘' : 'â†“'}
+                {unitSortAsc ? '↑' : '↓'}
               </button>
             </div>
           )} />
           <UnitGrid floorList={displayFloors} cMap={completionMap} maxU={maxUnits} type="unit" emptyMsg="No unit floors defined yet. Add them in the Development tab."
             isAdmin={canEdit} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
-            onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
+            onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal}
+            labels={unitLabels} onLabelChange={(i, v) => saveColumnLabel('unit', i, v)} />
         </div>
       )}
 
@@ -7160,16 +7508,17 @@ function CompletionTab({ project, isAdmin, profile, showToast }) {
               )}
               <button
                 onClick={() => setParkingSortAsc(v => !v)}
-                title={parkingSortAsc ? 'Sorted: low â†’ high. Click to reverse.' : 'Sorted: high â†’ low. Click to reverse.'}
+                title={parkingSortAsc ? 'Sorted: low → high. Click to reverse.' : 'Sorted: high → low. Click to reverse.'}
                 className="px-2 py-1.5 text-xs font-semibold border border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 transition flex items-center gap-1"
               >
-                {parkingSortAsc ? 'â†‘' : 'â†“'}
+                {parkingSortAsc ? '↑' : '↓'}
               </button>
             </div>
           )} />
           <UnitGrid floorList={displayParkingFloors} cMap={parkingCompletionMap} maxU={maxParkingUnits} type="parking" emptyMsg="No parking floors defined yet. Add them in the Development tab."
             isAdmin={canEdit} multiSelectMode={multiSelectMode} selectedCells={selectedCells}
-            onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal} />
+            onToggleCell={toggleCell} onOpenCell={openCell} onFloorClick={openFloorModal}
+            labels={parkingLabels} onLabelChange={(i, v) => saveColumnLabel('parking', i, v)} />
         </div>
       )}
 
