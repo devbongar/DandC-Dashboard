@@ -59,6 +59,28 @@ export async function downloadWorkbook(sheets, filename) {
   URL.revokeObjectURL(url)
 }
 
+// Rows as written, header row included, so a sheet whose header cells are
+// themselves editable data can be read by position rather than by header name.
+export function parseWorkbookRows(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = e => {
+      try {
+        const wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellDates: true })
+        const result = {}
+        for (const name of wb.SheetNames) {
+          result[name] = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '', blankrows: false })
+        }
+        resolve(result)
+      } catch (err) {
+        reject(err)
+      }
+    }
+    reader.onerror = reject
+    reader.readAsArrayBuffer(file)
+  })
+}
+
 export function parseWorkbook(file) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader()
