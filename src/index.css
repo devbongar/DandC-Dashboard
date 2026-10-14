@@ -539,6 +539,33 @@ html::-webkit-scrollbar, body::-webkit-scrollbar {
 }
 
 
+/* -- Assistant panel ------------------------------------------ */
+/* DECO ships as artwork, so the launcher's life comes from CSS -- which also
+   means the reduced-motion rule at the bottom of this file stops it. */
+.deco-float {
+  animation: deco-float 3.2s ease-in-out infinite;
+}
+@keyframes deco-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+.deco-float:hover { animation-play-state: paused; }
+
+.assistant-pop {
+  animation: assistant-rise 220ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+@keyframes assistant-rise {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0)    scale(1); }
+}
+.assistant-dot {
+  animation: assistant-blink 1s ease-in-out infinite;
+}
+@keyframes assistant-blink {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30%           { opacity: 1;   transform: translateY(-2px); }
+}
+
 /* -- Status toggle (Quality Findings: Open / Closed) ---------- */
 /* Adapted from Uiverse.io by NomNomcats. Widened from the original 4em so
    "CLOSED" fits beside the knob, the label text comes from --qa-on / --qa-off

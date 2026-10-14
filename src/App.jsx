@@ -20,6 +20,7 @@ import ProjectsPage from './pages/ProjectsPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import ProtectedRoute from './components/ProtectedRoute'
+import AssistantBubble from './components/AssistantBubble'
 import { AppSettingsProvider } from './contexts/AppSettingsContext'
 
 function App() {
@@ -60,6 +61,8 @@ function App() {
         <Route path="/" element={<Navigate to="/signin" replace />} />
         <Route path="*" element={<Navigate to="/signin" replace />} />
       </Routes>
+      {/* App-wide; hides itself on auth screens and when signed out */}
+      <AssistantBubble />
     </BrowserRouter>
     </AppSettingsProvider>
   )
