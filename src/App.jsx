@@ -17,6 +17,7 @@ import PermitsDashboard from './pages/admin/PermitsDashboard'
 import UnitCompletionPage from './pages/admin/UnitCompletionPage'
 import Settings from './pages/admin/Settings'
 import ProjectsPage from './pages/ProjectsPage'
+import WorkProgramPage from './pages/WorkProgramPage'
 import ProjectDetailPage from './pages/ProjectDetailPage'
 import ProfilePage from './pages/ProfilePage'
 import ProtectedRoute from './components/ProtectedRoute'
@@ -55,6 +56,7 @@ function App() {
         <Route path="/admin/standard-permits"       element={<ProtectedRoute roles={['admin']}><StandardPermits /></ProtectedRoute>} />
         <Route path="/admin/work-program-template"  element={<ProtectedRoute roles={['admin']}><WorkProgramTemplate /></ProtectedRoute>} />
         <Route path="/permits"                       element={<ProtectedRoute roles={['admin','head','reviewer','endorser','reporter','viewer']}><PermitsDashboard /></ProtectedRoute>} />
+        <Route path="/work-program"                 element={<ProtectedRoute roles={['admin','head','reviewer']}><WorkProgramPage /></ProtectedRoute>} />
         <Route path="/unit-completion"               element={<ProtectedRoute><UnitCompletionPage /></ProtectedRoute>} />
         <Route path="/admin/settings"               element={<ProtectedRoute roles={['admin']}><Settings /></ProtectedRoute>} />
 

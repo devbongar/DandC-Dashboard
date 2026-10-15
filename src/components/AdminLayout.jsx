@@ -12,22 +12,13 @@ import { supabase } from '../lib/supabaseClient'
 const NAV_GROUPS = [
   [
     { label: 'Dashboard',         path: '/admin/dashboard', Icon: HomeIcon },
+    { label: 'Work Program',      path: '/work-program',    Icon: GanttIcon },
     { label: 'Unit Completion',   path: '/unit-completion', Icon: ChartBarIcon },
     { label: 'Permits Dashboard', path: '/permits',         Icon: ClipboardListIcon },
     { label: 'Projects',          path: '/projects',        Icon: FolderIcon },
   ],
 ]
 
-function SidebarTooltip({ label }) {
-  return (
-    <div
-      className="absolute left-full ml-2.5 top-1/2 -translate-y-1/2 px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap pointer-events-none z-50 opacity-0 group-hover:opacity-100 transition-opacity duration-100"
-      style={{ background: '#1a1a1a', color: '#fff', boxShadow: '0 4px 12px rgba(0,0,0,0.3)' }}
-    >
-      {label}
-    </div>
-  )
-}
 
 /**
  * Shared admin layout — frosted-glass sidebar + sticky header.
@@ -52,10 +43,32 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
     return () => mq.removeEventListener('change', handler)
   }, [])
 
+  // Hover labels live outside the rail: .sidebar-frost is overflow:hidden, so
+  // a tooltip positioned inside it is clipped at its edge.
+  const tooltipRef = useRef(null)
+  const showTooltip = (e, label) => {
+    const el = tooltipRef.current
+    if (!el) return
+    const rect = e.currentTarget.getBoundingClientRect()
+    el.textContent = label
+    el.style.top = `${rect.top + rect.height / 2}px`
+    el.style.left = `${rect.right + 10}px`
+    el.style.opacity = '1'
+  }
+  const hideTooltip = () => {
+    if (tooltipRef.current) tooltipRef.current.style.opacity = '0'
+  }
+
   const isSite = profile?.team === 'site'
 
+  // Mirrors the route guard in App.jsx -- linking it for other roles only
+  // sends them to /unauthorized
+  const canWorkProgram = ['admin', 'head', 'reviewer'].includes(profile?.role)
+
   const visibleNavGroups = NAV_GROUPS.map(group =>
-    group.filter(item => !isSite || item.path === '/projects')
+    group.filter(item =>
+      (!isSite || item.path === '/projects') &&
+      (item.path !== '/work-program' || canWorkProgram))
   ).filter(g => g.length > 0)
 
   const [expanded,          setExpanded]          = useState(() => localStorage.getItem('sidebar_expanded') === 'true')
@@ -146,7 +159,12 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
               {group.map((item) => {
                 const { Icon } = item
                 return (
-                  <div key={item.path} className="relative group">
+                  <div
+                    key={item.path}
+                    className="relative group"
+                    onMouseEnter={(e) => showTooltip(e, item.label)}
+                    onMouseLeave={hideTooltip}
+                  >
                     <NavLink
                       to={item.path}
                       onClick={() => setMobileSidebarOpen(false)}
@@ -171,7 +189,6 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
                         </>
                       )}
                     </NavLink>
-                    {!showLabels && <SidebarTooltip label={item.label} />}
                   </div>
                 )
               })}
@@ -181,7 +198,11 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
           {/* Settings + collapse pinned to bottom */}
           <div className="flex-1" />
           <div className="my-1 mx-1" style={{ height: 1, background: 'rgba(255,255,255,0.08)' }} />
-          <div className="relative group">
+          <div
+            className="relative group"
+            onMouseEnter={(e) => showTooltip(e, 'Settings')}
+            onMouseLeave={hideTooltip}
+          >
             <NavLink
               to="/admin/settings"
               onClick={() => setMobileSidebarOpen(false)}
@@ -199,13 +220,16 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
                 </>
               )}
             </NavLink>
-            {!showLabels && <SidebarTooltip label="Settings" />}
           </div>
 
           {/* Expand / collapse toggle */}
-          <div className="mt-1 relative group">
+          <div
+            className="mt-1 relative group"
+            onMouseEnter={(e) => showTooltip(e, expanded ? 'Collapse' : 'Expand')}
+            onMouseLeave={hideTooltip}
+          >
             <button
-              onClick={toggleSidebar}
+              onClick={() => { hideTooltip(); toggleSidebar() }}
               className="flex items-center w-full h-11 rounded-lg transition-all duration-150 text-white hover:bg-white/[0.07]"
               style={{ justifyContent: expanded ? 'flex-start' : 'center', paddingLeft: expanded ? 12 : 0 }}
             >
@@ -218,10 +242,33 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
               </svg>
               {showLabels && <span className="ml-3 text-xs font-medium whitespace-nowrap">Collapse</span>}
             </button>
-            {!showLabels && <SidebarTooltip label="Expand" />}
           </div>
         </nav>
       </aside>
+
+      {/* Single hover label, moved to whichever rail item is under the cursor */}
+      <div
+        ref={tooltipRef}
+        className="hidden sm:block"
+        style={{
+          position: 'fixed',
+          left: 0,
+          top: 0,
+          transform: 'translateY(-50%)',
+          background: '#1a1a1a',
+          color: '#fff',
+          padding: '6px 10px',
+          borderRadius: '8px',
+          fontSize: '12px',
+          fontWeight: 500,
+          whiteSpace: 'nowrap',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          opacity: 0,
+          transition: 'opacity 100ms',
+          boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+        }}
+      />
 
       {/* Mobile bottom nav (replaces hamburger on small screens) */}
       <MobileBottomNav profile={profile} />
@@ -380,6 +427,14 @@ function HomeIcon({ className }) {
   )
 }
 
+function GanttIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" d="M4 6.5h9M7 12h10M4 17.5h7" />
+      <path strokeLinecap="round" strokeOpacity="0.45" d="M3 3v18" />
+    </svg>
+  )
+}
 function ChartBarIcon({ className }) {
   return (
     <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>

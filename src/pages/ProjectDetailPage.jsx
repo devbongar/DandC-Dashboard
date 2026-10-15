@@ -15,6 +15,7 @@ export const slugify = (str) =>
 const NAV_GROUPS = [
   [
     { label: 'Dashboard',        path: '/admin/dashboard',   Icon: HomeIcon },
+    { label: 'Work Program',     path: '/work-program',      Icon: GanttIcon },
     { label: 'Unit Completion',  path: '/unit-completion',   Icon: ChartBarIcon },
     { label: 'Permits Dashboard',path: '/permits',           Icon: ClipboardListIcon },
     { label: 'Projects',         path: '/projects',          Icon: FolderIcon },
@@ -56,18 +57,24 @@ export default function ProjectDetailPage() {
   const { profile, loading: profileLoading } = useProfile()
   const isAdmin = profile?.role === 'admin'
   const isSite  = profile?.team === 'site'
+  // Mirrors the route guard in App.jsx
+  const canWorkProgram = ['admin', 'head', 'reviewer'].includes(profile?.role)
   const navGroups = NAV_GROUPS.map(group =>
-    group.filter(item => !isSite || item.path === '/projects')
+    group.filter(item =>
+      (!isSite || item.path === '/projects') &&
+      (item.path !== '/work-program' || canWorkProgram))
   ).filter(group => group.length > 0)
 
   const MOBILE_BOTTOM_NAV_ALL = [
     { label: 'Dashboard',        path: '/admin/dashboard', Icon: HomeIcon },
+    { label: 'Work Program',     path: '/work-program',    Icon: GanttIcon },
     { label: 'Unit Completion',  path: '/unit-completion', Icon: ChartBarIcon },
     { label: 'Permits Dashboard',path: '/permits',         Icon: ClipboardListIcon },
     { label: 'Projects',         path: '/projects',        Icon: FolderIcon },
   ]
   const mobileBottomNav = MOBILE_BOTTOM_NAV_ALL.filter(item =>
-    !isSite || item.path === '/projects'
+    (!isSite || item.path === '/projects') &&
+    (item.path !== '/work-program' || canWorkProgram)
   )
 
   const [project,   setProject]   = useState(null)
@@ -120,7 +127,6 @@ export default function ProjectDetailPage() {
   const issuesActionsPopRef  = useRef(null)
 
   const showTooltip = (e, label) => {
-    if (sidebarShowLabels) return
     const rect = e.currentTarget.getBoundingClientRect()
     const el = tooltipRef.current
     if (!el) return
@@ -1197,6 +1203,15 @@ function InfoIcon({ className, style, solid }) {
     <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955a1.126 1.126 0 011.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" /></svg>
   )
 }
+function GanttIcon({ className }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" d="M4 6.5h9M7 12h10M4 17.5h7" />
+      <path strokeLinecap="round" strokeOpacity="0.45" d="M3 3v18" />
+    </svg>
+  )
+}
+
 function WorkProgramIcon({ className, style, solid }) {
   return solid ? (
     <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor">
