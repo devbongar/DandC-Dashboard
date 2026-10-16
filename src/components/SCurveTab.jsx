@@ -686,7 +686,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   // Fetch work program baselines list for marker selection
   useEffect(() => {
     supabase.from('workprogram_baselines')
-      .select('id, name, confirmed_at, scurve_baseline_id')
+      .select('id, name, confirmed_at, scurve_baseline_id, is_draft')
       .eq('project_id', project.id)
       .order('confirmed_at', { ascending: false })
       .then(({ data }) => setWpBaselines(data ?? []))
@@ -959,6 +959,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   // A work program baseline shows its paired S-curve baseline's name -- that
   // one is the display name for the revision. Unpaired rows keep their own.
   const wpBaselineLabel = (w) => {
+    if (w.is_draft) return `${w.name} · not baselined`
     const sc = baselines.find(b => b.id === w.scurve_baseline_id)
     return sc ? sc.name : `${w.name} · unlinked`
   }
@@ -973,7 +974,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
       await supabase.from('workprogram_baselines').update({ scurve_baseline_id: scurveId }).eq('id', wpId)
     }
     const { data } = await supabase.from('workprogram_baselines')
-      .select('id, name, confirmed_at, scurve_baseline_id')
+      .select('id, name, confirmed_at, scurve_baseline_id, is_draft')
       .eq('project_id', project.id)
       .order('confirmed_at', { ascending: false })
     setWpBaselines(data ?? [])
@@ -1610,7 +1611,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                             display name for both sides, so the work program's
                             own typed name no longer has to agree. */}
                         <SearchDropdown
-                          options={wpBaselines.map(w => ({ value: w.id, label: w.name }))}
+                          options={wpBaselines.filter(w => !w.is_draft).map(w => ({ value: w.id, label: w.name }))}
                           value={wpBaselines.find(w => w.scurve_baseline_id === b.id)?.id ?? ''}
                           onChange={(v) => handleLinkWpBaseline(b.id, v || null)}
                           emptyValue=""
