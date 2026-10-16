@@ -9,6 +9,7 @@ import TriangleLoader from './TriangleLoader'
 import { buildTree, isViolated, calcArrowPath, parsePredecessors, formatPredecessors, scheduleMilestones, scheduleProjected, expandDependencies } from '../lib/ganttDependencies'
 import { buildChildAddForm, computeReorder } from '../lib/ganttUtils'
 import { copyTemplateToBaseline } from '../lib/templateUtils'
+import SearchDropdown from './SearchDropdown'
 import useProfile from '../hooks/useProfile'
 
 const PHASES = [
@@ -1752,9 +1753,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const [selectedId,  setSelectedId]    = useState(null)
   const [dependencies, setDependencies] = useState([])
   const [newBLName, setNewBLName]     = useState('')
+  const [newBLNum,  setNewBLNum]      = useState('')
   const [showNewBLModal, setShowNewBLModal] = useState(false)
   const [templateCount,  setTemplateCount]  = useState(0)
   const [loadTemplate,   setLoadTemplate]   = useState(true)
+  const [sourceBLId,     setSourceBLId]     = useState(null)
   const [creatingBL,     setCreatingBL]     = useState(false)
   const [importing, setImporting]               = useState(false)
   const [importErrors, setImportErrors]         = useState([])
@@ -2213,7 +2216,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
 
   const handleOpenNewBLModal = async () => {
     setNewBLName('')
+    setNewBLNum(String(nextBLNumber))
     setLoadTemplate(true)
+    setSourceBLId(activeBL)
     setShowNewBLModal(true)
     // Template option is only relevant when creating the very first baseline
     if (baselines.length === 0) {
@@ -2224,9 +2229,37 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     }
   }
 
+  // Baselines are named "Baseline <n>" and nothing else. Free text produced
+  // "BL", "BL02", "Baseline 02" and "Initial" across projects, which is why
+  // nothing could be matched between modules by name.
+  const BL_NAME = (n) => `Baseline ${n}`
+  const blNumberOf = (name) => {
+    const m = String(name ?? '').match(/(\d+)\s*$/)
+    return m ? parseInt(m[1], 10) : null
+  }
+  const usedBLNumbers = baselines.map(b => blNumberOf(b.name)).filter(n => n !== null)
+  const usedBLSet = new Set(usedBLNumbers)
+  const nextBLNumber = usedBLNumbers.length ? Math.max(...usedBLNumbers) + 1 : 1
+
+  // A number belongs to a baseline until that baseline is deleted, so the
+  // steppers walk past the taken ones instead of landing on them
+  const stepBLNumber = (from, dir) => {
+    let n = (parseInt(from, 10) || 0) + dir
+    while (n >= 0 && usedBLSet.has(n)) n += dir
+    return n < 0 ? null : n
+  }
+  const blNumTaken = newBLNum !== '' && usedBLSet.has(parseInt(newBLNum, 10))
+  const blNumOwner = blNumTaken
+    ? baselines.find(b => blNumberOf(b.name) === parseInt(newBLNum, 10))
+    : null
+
   const handleCreateBaseline = async () => {
-    const label = newBLName.trim()
-    if (!label) return
+    const num = parseInt(newBLNum, 10)
+    if (!Number.isInteger(num) || num < 0) {
+      showToast('Enter a baseline number.', 'error')
+      return
+    }
+    const label = BL_NAME(num)
     // The copy reads from the database, so anything still staged locally would be
     // silently left out of the new baseline
     if (Object.keys(pendingEdits).length > 0) {
@@ -2237,7 +2270,34 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       showToast('Unsaved row order — save it first so the new baseline picks it up.', 'error')
       return
     }
+    // Two baselines with the same name are indistinguishable in every dropdown
+    // Matches on the number, so a legacy "BL02" still blocks "Baseline 2"
+    const clash = baselines.find(b =>
+      blNumberOf(b.name) === num ||
+      (b.name ?? '').trim().toLowerCase() === label.toLowerCase())
+    if (clash) {
+      showToast(`Number ${num} is already used by "${clash.name}" — pick another.`, 'error')
+      return
+    }
+
+    // Copy from the baseline on screen unless another is picked, not from
+    // whichever happens to be newest
+    const srcBL = baselines.find(b => b.id === (sourceBLId ?? activeBL)) ?? null
+
+    // Decided before anything is written, so the empty-source case cannot end
+    // as a silent success
+    let srcActs = []
+    if (srcBL) {
+      const { data } = await supabase.from('workprogram_activities').select('*').eq('baseline_id', srcBL.id)
+      srcActs = data ?? []
+      if (!srcActs.length) {
+        showToast(`"${srcBL.name}" has no activities to copy — pick another baseline to copy from.`, 'error')
+        return
+      }
+    }
+
     setCreatingBL(true)
+    let newBlId = null
     try {
       const { data, error: blErr } = await supabase
         .from('workprogram_baselines')
@@ -2245,64 +2305,53 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         .select('id')
         .single()
       if (blErr || !data) { showToast(blErr?.message ?? 'Failed to create baseline', 'error'); return }
+      newBlId = data.id
 
-      const newBlId = data.id
-      const { data: existingActs } = await supabase
-        .from('workprogram_activities')
-        .select('id')
-        .eq('project_id', project.id)
-        .limit(1)
-
-      if (!existingActs?.length) {
-        const { error: copyErr } = await copyTemplateToBaseline(newBlId, project.id, supabase)
-        if (copyErr) { console.error('[baseline] template copy error:', copyErr); showToast(copyErr, 'error'); return }
+      if (!srcBL) {
+        // First baseline: the modal's template choice decides, nothing else
+        if (loadTemplate && templateCount > 0) {
+          const { error: copyErr } = await copyTemplateToBaseline(newBlId, project.id, supabase)
+          if (copyErr) { console.error('[baseline] template copy error:', copyErr); showToast(copyErr, 'error'); return }
+        }
       } else {
-        // Copy activities from most recent other baseline
-        const srcBL = baselines.filter(b => b.id !== newBlId).slice(-1)[0]
-        if (srcBL) {
-          const { data: srcActs } = await supabase
-            .from('workprogram_activities').select('*').eq('baseline_id', srcBL.id)
-          if (srcActs?.length) {
-            // parent_id points at the source baseline's row ids -- remap it onto the
-            // copies, otherwise children lose their summary parent in the new baseline
-            const taskIdByOldId = Object.fromEntries(srcActs.map(a => [a.id, a.task_id]))
-            const copies = srcActs.map(({ id: _id, ...rest }) => ({
-              ...rest,
-              id:            `${rest.task_id}_${newBlId}`,
-              baseline_id:   newBlId,
-              parent_id:     rest.parent_id && taskIdByOldId[rest.parent_id]
-                ? `${taskIdByOldId[rest.parent_id]}_${newBlId}`
-                : null,
-              // Re-baseline onto what the grid actually shows: actuals for work
-              // already started/finished, forecast for the rest. The stored
-              // projected_* can be a stale forecast once an actual date exists.
-              planned_start: rest.actual_start ?? rest.projected_start ?? rest.planned_start,
-              planned_end:   rest.actual_end   ?? rest.projected_end   ?? rest.planned_end,
-            }))
-            const { error: copyErr } = await supabase.from('workprogram_activities').insert(copies)
-            if (copyErr) { console.error('[baseline] copy error:', copyErr); showToast(copyErr.message, 'error'); return }
+        // parent_id points at the source baseline's row ids -- remap it onto the
+        // copies, otherwise children lose their summary parent in the new baseline
+        const taskIdByOldId = Object.fromEntries(srcActs.map(a => [a.id, a.task_id]))
+        const copies = srcActs.map(({ id: _id, ...rest }) => ({
+          ...rest,
+          id:            `${rest.task_id}_${newBlId}`,
+          baseline_id:   newBlId,
+          parent_id:     rest.parent_id && taskIdByOldId[rest.parent_id]
+            ? `${taskIdByOldId[rest.parent_id]}_${newBlId}`
+            : null,
+          // Re-baseline onto what the grid actually shows: actuals for work
+          // already started/finished, forecast for the rest. The stored
+          // projected_* can be a stale forecast once an actual date exists.
+          planned_start: rest.actual_start ?? rest.projected_start ?? rest.planned_start,
+          planned_end:   rest.actual_end   ?? rest.projected_end   ?? rest.planned_end,
+        }))
+        const { error: copyErr } = await supabase.from('workprogram_activities').insert(copies)
+        if (copyErr) { console.error('[baseline] copy error:', copyErr); showToast(copyErr.message, 'error'); return }
 
-            // Carry predecessor links over, remapped onto the copied activity ids
-            const newId = (oldId) => taskIdByOldId[oldId] ? `${taskIdByOldId[oldId]}_${newBlId}` : null
-            const { data: srcDeps } = await supabase
-              .from('workprogram_dependencies')
-              .select('from_id, to_id, type, lag')
-              .eq('baseline_id', srcBL.id)
-            const depCopies = (srcDeps ?? [])
-              .map(d => ({
-                project_id:  project.id,
-                baseline_id: newBlId,
-                from_id:     newId(d.from_id),
-                to_id:       newId(d.to_id),
-                type:        d.type,
-                lag:         d.lag ?? 0,
-              }))
-              .filter(d => d.from_id && d.to_id)
-            if (depCopies.length) {
-              const { error: depErr } = await supabase.from('workprogram_dependencies').insert(depCopies)
-              if (depErr) { console.error('[baseline] dependency copy error:', depErr); showToast(depErr.message, 'error'); return }
-            }
-          }
+        // Carry predecessor links over, remapped onto the copied activity ids
+        const newId = (oldId) => taskIdByOldId[oldId] ? `${taskIdByOldId[oldId]}_${newBlId}` : null
+        const { data: srcDeps } = await supabase
+          .from('workprogram_dependencies')
+          .select('from_id, to_id, type, lag')
+          .eq('baseline_id', srcBL.id)
+        const depCopies = (srcDeps ?? [])
+          .map(d => ({
+            project_id:  project.id,
+            baseline_id: newBlId,
+            from_id:     newId(d.from_id),
+            to_id:       newId(d.to_id),
+            type:        d.type,
+            lag:         d.lag ?? 0,
+          }))
+          .filter(d => d.from_id && d.to_id)
+        if (depCopies.length) {
+          const { error: depErr } = await supabase.from('workprogram_dependencies').insert(depCopies)
+          if (depErr) { console.error('[baseline] dependency copy error:', depErr); showToast(depErr.message, 'error'); return }
         }
       }
 
@@ -2312,10 +2361,19 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         .eq('project_id', project.id)
         .order('created_at')
       if (newBLs) { setBaselines(newBLs); setActiveBL(newBlId) }
-      setNewBLName('')
+      newBlId = null // created and populated; nothing to roll back
+      setNewBLNum('')
       setShowNewBLModal(false)
       showToast('Baseline created.', 'success')
     } finally {
+      // Anything that returned early above left a named baseline with no
+      // activities behind it. Drop it, or the list fills with empty baselines
+      // every time someone retries.
+      if (newBlId) {
+        await supabase.from('workprogram_activities').delete().eq('baseline_id', newBlId)
+        await supabase.from('workprogram_dependencies').delete().eq('baseline_id', newBlId)
+        await supabase.from('workprogram_baselines').delete().eq('id', newBlId)
+      }
       setCreatingBL(false)
     }
   }
@@ -3362,18 +3420,52 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
             </h3>
             <p className="text-sm text-gray-500 mb-4">
               {baselines.length > 0
-                ? `Give the revised baseline a name. It will be a copy of "${baselines.find(b => b.id === activeBL)?.name ?? 'current baseline'}" that you can then edit.`
-                : 'Give a name to identify this baseline (e.g. BL0, Initial, Revised).'}
+                ? `Pick the revision number. It will be a copy of "${baselines.find(b => b.id === activeBL)?.name ?? 'current baseline'}" that you can then edit.`
+                : 'Pick the number for this first baseline.'}
             </p>
-            <input
-              autoFocus
-              type="text"
-              value={newBLName}
-              onChange={e => setNewBLName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter' && newBLName.trim()) handleCreateBaseline() }}
-              placeholder={baselines.length > 0 ? 'e.g. BL1' : 'e.g. BL0'}
-              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 text-sm text-black placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055] mb-4"
-            />
+
+            {/* Number only -- the name is always "Baseline <n>". Free text gave
+                us BL, BL02, Baseline 02 and Initial across projects. */}
+            <div className="mb-4">
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-2.5 rounded-xl bg-gray-100 text-sm font-semibold text-gray-600 select-none">Baseline</span>
+                <button
+                  type="button"
+                  onClick={() => setNewBLNum(n => { const v = stepBLNumber(n, -1); return v === null ? n : String(v) })}
+                  className="w-9 h-9 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex-shrink-0"
+                  aria-label="Lower the number"
+                >
+                  &minus;
+                </button>
+                <input
+                  autoFocus
+                  type="text"
+                  inputMode="numeric"
+                  value={newBLNum}
+                  onChange={e => setNewBLNum(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={e => { if (e.key === 'Enter' && newBLNum !== '' && !blNumTaken) handleCreateBaseline() }}
+                  className={`w-16 px-3 py-2.5 rounded-xl border text-base sm:text-sm text-center text-black focus:outline-none focus:ring-2 focus:ring-[#ed6055] ${blNumTaken ? 'border-[#ed6055] bg-red-50' : 'border-gray-200'}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setNewBLNum(n => String(stepBLNumber(n, 1)))}
+                  className="w-9 h-9 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex-shrink-0"
+                  aria-label="Raise the number"
+                >
+                  +
+                </button>
+              </div>
+              {blNumTaken ? (
+                <p className="text-[11px] text-[#ed6055] font-medium mt-1.5">
+                  Number {newBLNum} is already used by "{blNumOwner?.name}". Delete it first, or pick another.
+                </p>
+              ) : (
+                <p className="text-[11px] text-gray-400 mt-1.5">
+                  Will be saved as <span className="font-semibold text-gray-600">{newBLNum === '' ? 'Baseline —' : BL_NAME(parseInt(newBLNum, 10))}</span>
+                  {usedBLNumbers.length > 0 && <span className="text-gray-400"> · {[...usedBLSet].sort((a, b) => a - b).join(', ')} taken</span>}
+                </p>
+              )}
+            </div>
             {/* Template option -- only when creating the very first baseline */}
             {baselines.length === 0 && templateCount > 0 && (
               <div className="mb-5">
@@ -3396,6 +3488,24 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
                 </div>
               </div>
             )}
+            {/* Which baseline the activities are copied from. Defaults to the
+                one on screen -- silently copying the newest overrides whatever
+                the user deliberately opened. */}
+            {baselines.length > 0 && (
+              <div className="mb-4">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Copy activities from</p>
+                <SearchDropdown
+                  options={baselines.map(b => ({ value: b.id, label: blLabel(b) }))}
+                  value={sourceBLId ?? ''}
+                  onChange={v => setSourceBLId(v || null)}
+                  emptyValue=""
+                  emptyLabel="Select baseline"
+                  placeholder="Select baseline"
+                  fluid
+                />
+              </div>
+            )}
+
             {/* Reminder note -- updating an existing baseline */}
             {baselines.length > 0 && (
               <div className="mb-5 bg-amber-50 border border-amber-200 rounded-xl px-3.5 py-3 text-xs text-amber-800 leading-relaxed">
@@ -3405,7 +3515,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
             <div className="flex gap-3">
               <button onClick={() => setShowNewBLModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button
-                disabled={!newBLName.trim() || creatingBL}
+                disabled={newBLNum === '' || blNumTaken || creatingBL}
                 onClick={handleCreateBaseline}
                 className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >{creatingBL ? 'Creating…' : 'Create'}</button>
