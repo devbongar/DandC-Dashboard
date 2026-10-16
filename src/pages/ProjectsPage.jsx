@@ -174,6 +174,25 @@ export default function ProjectsPage() {
     return sortOrder === 'asc' ? cmp : -cmp
   })
 
+  // Close-out first, initiation last: the list reads from nearly done to
+  // barely started, which is the order these get discussed in
+  const PHASE_ORDER = ['closeout', 'execution_monitoring', 'planning', 'initiation']
+  const phaseGroups = [
+    ...PHASE_ORDER.map(key => ({
+      key,
+      label: PHASE_MAP[key]?.label ?? key,
+      color: PHASE_MAP[key]?.color ?? '#94a3b8',
+      items: filtered.filter(p => p.phase === key),
+    })),
+    // Anything with a missing or unrecognised phase still has to appear
+    {
+      key: 'unset',
+      label: 'No phase set',
+      color: '#cbd5e1',
+      items: filtered.filter(p => !PHASE_ORDER.includes(p.phase)),
+    },
+  ].filter(g => g.items.length > 0)
+
   const openAdd = () => { setForm(EMPTY_FORM); setShowForm(true) }
 
   const handleSubmit = async (e) => {
@@ -520,12 +539,15 @@ export default function ProjectsPage() {
                 </div>
               ) : (
                 <>
+                  {phaseGroups.map(group => (
+                  <div key={group.key}>
                   <div className="flex items-baseline gap-2 mb-4 mt-6">
-                    <span className="text-sm font-bold text-gray-800">Projects</span>
-                    <span className="text-xs font-semibold text-gray-400">{filtered.length}</span>
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: group.color }} />
+                    <span className="text-sm font-bold text-gray-800">{group.label}</span>
+                    <span className="text-xs font-semibold text-gray-400">{group.items.length}</span>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-5 gap-y-10">
-                    {filtered.map((project, idx) => {
+                    {group.items.map((project, idx) => {
                       const ph = PHASE_MAP[project.phase]
                       const phaseColor = ph?.color ?? '#94a3b8'
                       const location = project.city && project.province
@@ -638,6 +660,8 @@ export default function ProjectsPage() {
                       )
                     })}
                   </div>
+                  </div>
+                  ))}
                   <p className="text-xs text-gray-400 mt-4 text-right">{filtered.length} of {projects.length} shown</p>
                 </>
               )}
