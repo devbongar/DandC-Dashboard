@@ -13,9 +13,11 @@ import useProfile from '../hooks/useProfile'
 // work done -- and the gap between them is the point of the page: a bar that
 // is 100% elapsed and 75% complete is a project in trouble.
 
+// Narrower columns on a phone: at the desktop widths a two-year programme is
+// several screens of sideways scrolling before the bars make any shape
 const UNITS = {
-  quarter: { label: 'Quarters', width: 92 },
-  month:   { label: 'Months',   width: 46 },
+  quarter: { label: 'Quarters', width: 92, mobileWidth: 58 },
+  month:   { label: 'Months',   width: 46, mobileWidth: 30 },
 }
 
 // Variance thresholds, in percentage points of actual POC against the
@@ -85,17 +87,16 @@ const EASE = 'cubic-bezier(0.4, 0, 0.2, 1)'
 // Sticky project column. Mobile shows the short name, so it needs far less.
 const LABEL_W = { desktop: 200, mobile: 104 }
 
-function useLabelWidth() {
-  const [w, setW] = useState(() =>
-    typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches
-      ? LABEL_W.mobile : LABEL_W.desktop)
+function useIsPhone() {
+  const [phone, setPhone] = useState(() =>
+    typeof window !== 'undefined' && window.matchMedia('(max-width: 639px)').matches)
   useEffect(() => {
     const mq = window.matchMedia('(max-width: 639px)')
-    const handler = e => setW(e.matches ? LABEL_W.mobile : LABEL_W.desktop)
+    const handler = e => setPhone(e.matches)
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
   }, [])
-  return w
+  return phone
 }
 
 export default function WorkProgramPage() {
@@ -103,13 +104,22 @@ export default function WorkProgramPage() {
   const [missing, setMissing] = useState([])
   const [unit, setUnit] = useState('quarter')
   const today = useMemo(() => new Date(), [])
-  const labelW = useLabelWidth()
+  const isPhone = useIsPhone()
+  const labelW = isPhone ? LABEL_W.mobile : LABEL_W.desktop
+  const colW = isPhone ? UNITS[unit].mobileWidth : UNITS[unit].width
 
   // Clicking a row opens the detail panel. Its queries are cached per project
   // for the session, so rows nobody opens cost nothing.
   const [selected, setSelected] = useState(null)
   const detailCache = useRef({})
   const closePanel = useCallback(() => setSelected(null), [])
+  // Callback refs, not useRef: AdminLayout holds a LoadingScreen over the page
+  // until the profile resolves, so on a cold load the chart is not mounted when
+  // the centring effect first runs. State makes the node itself a dependency,
+  // so the effect re-runs the moment it appears.
+  const [scrollEl, setScrollEl] = useState(null)
+  const [todayEl, setTodayEl] = useState(null)
+
 
   useEffect(() => {
     const load = async () => {
@@ -183,10 +193,32 @@ export default function WorkProgramPage() {
     const lastFinish = parseDay(rows.reduce((m, r) => r.finish > m ? r.finish : m, rows[0].finish))
     const last = addMonths(startOfMonth(lastFinish > today ? lastFinish : today), 1)
     const months = Math.max(1, Math.round((last - first) / 2.628e9))
-    const width = unit === 'month' ? months * UNITS.month.width : Math.ceil(months / 3) * UNITS.quarter.width
+    const width = unit === 'month' ? months * colW : Math.ceil(months / 3) * colW
     const x = (d) => ((d - first) / (last - first)) * width
     return { first, last, months, width, x }
-  }, [rows, unit, today])
+  }, [rows, unit, today, colW])
+
+  // Open on today rather than on the earliest baseline start: a portfolio
+  // spanning years otherwise lands you in history with no bars moving.
+  // Re-runs when the scale changes, so switching Quarters/Months keeps today
+  // where you were looking. Must sit below the scale memo -- the dependency
+  // array is read during render, so referencing it earlier is a TDZ error.
+  useEffect(() => {
+    if (!scale || !scrollEl || !todayEl) return
+    // scrollIntoView rather than computing scrollLeft: the browser measures
+    // after its own layout. It centres today in the whole box, but the sticky
+    // project column covers the left labelW pixels of that, so the visible
+    // graph's centre is labelW/2 further right. Scrolling back by that much
+    // moves the line right onto it.
+    const id = requestAnimationFrame(() => {
+      todayEl.scrollIntoView({ inline: 'center', block: 'nearest' })
+      scrollEl.scrollLeft = Math.max(
+        0,
+        Math.min(scrollEl.scrollLeft - labelW / 2, scrollEl.scrollWidth - scrollEl.clientWidth),
+      )
+    })
+    return () => cancelAnimationFrame(id)
+  }, [scale, labelW, today, scrollEl, todayEl])
 
   const columns = useMemo(() => {
     if (!scale) return []
@@ -203,7 +235,7 @@ export default function WorkProgramPage() {
     return out
   }, [scale, unit])
 
-  const headerActions = (
+  const unitToggle = (
     <div className="flex items-center gap-1 rounded-lg border border-gray-200 bg-white/70 p-0.5">
       {Object.entries(UNITS).map(([k, u]) => (
         <button
@@ -218,8 +250,13 @@ export default function WorkProgramPage() {
     </div>
   )
 
+  // Beside the title on desktop; its own row on mobile, where the two of them
+  // together do not fit across 360px
+  const headerActions = <div className="hidden sm:block">{unitToggle}</div>
+  const mobileActionsRow = <div className="flex justify-start">{unitToggle}</div>
+
   return (
-    <AdminLayout title="Work Program" actions={headerActions}>
+    <AdminLayout title="Work Program" actions={headerActions} mobileActionsRow={mobileActionsRow}>
       <div className="max-w-[1600px] mx-auto pt-4 px-3 sm:px-6 pb-10 space-y-4">
         {!rows ? (
           <p className="text-sm text-gray-400 py-10 text-center">Loading…</p>
@@ -229,9 +266,9 @@ export default function WorkProgramPage() {
               <Legend />
             </div>
             <div className="wp-fade bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden" style={{ animationDelay: '60ms' }}>
-              <div className="overflow-x-auto">
+              <div ref={setScrollEl} className="overflow-x-auto">
                 <div className="relative" style={{ minWidth: labelW + (scale?.width ?? 0) }}>
-                  <TimelineHeader columns={columns} unit={unit} scale={scale} today={today} labelW={labelW} />
+                  <TimelineHeader columns={columns} unit={unit} scale={scale} today={today} labelW={labelW} colW={colW} />
                   {rows.map((r, i) => (
                     <GanttRow
                       key={r.id}
@@ -250,6 +287,7 @@ export default function WorkProgramPage() {
                       the sticky project column (z-10) and header (z-20). */}
                   {scale && (
                     <div
+                      ref={setTodayEl}
                       className="wp-animated absolute top-0 bottom-0 w-px bg-[#ed6055] z-[5] pointer-events-none"
                       style={{ left: labelW + scale.x(today), transition: `left 320ms ${EASE}` }}
                     />
@@ -411,7 +449,7 @@ function GanttRow({ row, scale, today, index = 0, labelW, selected = false, onSe
   )
 }
 
-function TimelineHeader({ columns, unit, scale, today, labelW }) {
+function TimelineHeader({ columns, unit, scale, today, labelW, colW }) {
   return (
     <div className="flex sticky top-0 z-20 bg-gray-600">
       <div className="flex-shrink-0 sticky left-0 bg-gray-600 z-10 border-r border-gray-500 px-2 sm:px-3 py-2" style={{ width: labelW }}>
@@ -423,7 +461,7 @@ function TimelineHeader({ columns, unit, scale, today, labelW }) {
             <div
               key={c.key}
               className={`py-2 text-center text-[10px] font-semibold text-gray-300 ${c.newYear ? 'border-l border-gray-400' : ''}`}
-              style={{ width: UNITS[unit].width }}
+              style={{ width: colW }}
             >
               {c.label}
               {c.newYear && <span className="block text-[9px] text-gray-400">{c.year}</span>}
@@ -438,12 +476,16 @@ function TimelineHeader({ columns, unit, scale, today, labelW }) {
 
 function Legend() {
   const Chip = ({ children }) => (
-    <span className="inline-flex items-center gap-1.5 bg-white border border-gray-200 rounded-full pl-1 pr-2.5 py-1 text-[11px] font-medium text-gray-700">
+    <span className="inline-flex items-center gap-1.5 flex-shrink-0 bg-white border border-gray-200 rounded-full pl-1 pr-2.5 py-1 text-[11px] font-medium text-gray-700 whitespace-nowrap">
       {children}
     </span>
   )
   return (
-    <div className="flex flex-wrap items-center gap-2">
+    // One swipeable row on mobile -- six chips wrap to two rows plus a
+    // sentence otherwise, which is most of a phone screen before any bars
+    <div className="flex items-center gap-2 overflow-x-auto flex-nowrap -mx-3 px-3 [&::-webkit-scrollbar]:hidden sm:mx-0 sm:px-0 sm:flex-wrap sm:overflow-visible"
+      style={{ scrollbarWidth: 'none' }}
+    >
       {[STATUS.on_track, STATUS.at_risk, STATUS.behind, STATUS.none].map(s => (
         <Chip key={s.label}>
           <StatusMark status={s} size={16} inline />
@@ -467,7 +509,7 @@ function Legend() {
         <span className="ml-1.5 mr-0.5 w-0.5 h-3.5 bg-[#ed6055] flex-shrink-0" />
         Today
       </Chip>
-      <p className="w-full text-[11px] text-gray-500 mt-0.5">
+      <p className="hidden sm:block w-full text-[11px] text-gray-500 mt-0.5">
         Shading shows time elapsed; the marker compares actual POC against the baseline.
       </p>
     </div>

@@ -35,8 +35,15 @@ export default function MobileBottomNav({ profile }) {
     return () => target.removeEventListener('scroll', onScroll)
   }, [])
 
+  // Work Program is gated the same way as its route in App.jsx -- other roles
+  // would land on /unauthorized
+  const canWorkProgram = ['admin', 'head', 'reviewer'].includes(profile?.role)
+
   const items = [
     { label: 'Dashboard',  path: dashboardPath,       Icon: HomeIcon },
+    ...(!isSite && canWorkProgram ? [
+      { label: 'Program',  path: '/work-program',     Icon: GanttIcon },
+    ] : []),
     ...(!isSite ? [
       { label: 'Units',    path: '/unit-completion',  Icon: ChartBarIcon },
       { label: 'Permits',  path: '/permits',          Icon: ClipboardListIcon },
@@ -91,7 +98,7 @@ export default function MobileBottomNav({ profile }) {
           key={path}
           to={path}
           end={path === dashboardPath}
-          className="flex flex-col items-center gap-1 px-4 py-2 rounded-full"
+          className="flex flex-col items-center gap-1 px-3 py-2 rounded-full"
         >
           {({ isActive }) => (
             <>
@@ -126,6 +133,22 @@ function HomeIcon({ className, style, solid }) {
   ) : (
     <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
       <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 12l8.954-8.955c.44-.439 1.152-.439 1.591 0L21.75 12M4.5 9.75v10.125c0 .621.504 1.125 1.125 1.125H9.75v-4.875c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125V21h4.125c.621 0 1.125-.504 1.125-1.125V9.75M8.25 21h8.25" />
+    </svg>
+  )
+}
+
+function GanttIcon({ className, style, solid }) {
+  return solid ? (
+    <svg className={className} style={style} viewBox="0 0 24 24" fill="currentColor">
+      <path d="M3 3a1 1 0 0 1 1 1v16a1 1 0 1 1-2 0V4a1 1 0 0 1 1-1Z" opacity="0.5" />
+      <rect x="5.5" y="5" width="9" height="3" rx="1.5" />
+      <rect x="8" y="10.5" width="10" height="3" rx="1.5" />
+      <rect x="5.5" y="16" width="7" height="3" rx="1.5" />
+    </svg>
+  ) : (
+    <svg className={className} style={style} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.75}>
+      <path strokeLinecap="round" d="M4 6.5h9M7 12h10M4 17.5h7" />
+      <path strokeLinecap="round" strokeOpacity="0.45" d="M3 3v18" />
     </svg>
   )
 }
