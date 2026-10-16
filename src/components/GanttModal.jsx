@@ -33,6 +33,7 @@ const AXIS_H      = 56   // px -- sticky month/year axis header height
 const PAD     = 7 * 86400000
 const LABEL_W = 320
 const ROW_NUM_W  = 36   // # column (sequential row number)
+const SEL_W      = 30   // selection tick box, left of the # column
 const PRED_COL_W = 96   // Predecessors editable column
 const DEFAULT_COL_PX = { day: 20, week: 20, month: 20 }
 const MOBILE_DEFAULT_COL_PX = { day: 30, week: 30, month: 30 }
@@ -211,6 +212,71 @@ function GBarColorRow({ label, barKey, value, onChange }) {
         </label>
       </div>
     </div>
+  )
+}
+
+// Collapse/expand to a chosen depth. Rendered through a portal: the grid
+// scrolls horizontally, and a dropdown inside that container gets clipped.
+function GLevelMenu({ maxLevel, onPick }) {
+  const [open, setOpen] = useState(false)
+  const [pos, setPos] = useState({ top: 0, left: 0 })
+  const btnRef = useRef(null)
+  const menuRef = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    // The menu is in a portal, so it is not inside the button -- without
+    // checking it too, mousedown on an item closed the menu before its click
+    const close = (e) => {
+      if (btnRef.current?.contains(e.target)) return
+      if (menuRef.current?.contains(e.target)) return
+      setOpen(false)
+    }
+    const onKey = (e) => { if (e.key === 'Escape') setOpen(false) }
+    document.addEventListener('mousedown', close)
+    document.addEventListener('keydown', onKey)
+    return () => { document.removeEventListener('mousedown', close); document.removeEventListener('keydown', onKey) }
+  }, [open])
+
+  const toggle = () => {
+    const r = btnRef.current?.getBoundingClientRect()
+    if (r) setPos({ top: r.bottom + 4, left: Math.max(8, r.right - 170) })
+    setOpen(v => !v)
+  }
+
+  const pick = (level) => { onPick(level); setOpen(false) }
+
+  return (
+    <>
+      <button
+        ref={btnRef}
+        onClick={toggle}
+        title="Collapse or expand to a level"
+        aria-label="Collapse or expand to a level"
+        className="flex-shrink-0 px-1 text-gray-300 hover:text-white transition-colors"
+      >
+        <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
+          <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
+        </svg>
+      </button>
+      {open && createPortal(
+        <div
+          ref={menuRef}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, width: 170 }}
+          className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden py-1"
+        >
+          <button onClick={() => pick('all')} className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+            Expand all
+          </button>
+          {Array.from({ length: maxLevel }, (_, i) => i + 1).map(lvl => (
+            <button key={lvl} onClick={() => pick(lvl)} className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
+              Show level {lvl}{lvl === 1 ? ' only' : ' and above'}
+            </button>
+          ))}
+        </div>,
+        document.body,
+      )}
+    </>
   )
 }
 
@@ -556,7 +622,7 @@ function RemDurCell({ remDur, plannedStart, plannedEnd, projectedEnd, projectedS
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, rowNumW = ROW_NUM_W, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '', rowIndex = 0, selCol = null, inSelRange = false, onCellMouseDown = null, onCellMouseEnter = null }) {
+function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, rowNumW = ROW_NUM_W, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '', rowIndex = 0, selCols = null, inSelRange = false, onCellMouseDown = null, onCellMouseEnter = null }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
 
@@ -570,7 +636,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
   const bgBase     = hasViolation ? '#fff1f2' : '#ffffff'
   const bgHover    = hasViolation ? '#fecdd3' : '#e5e7eb'
 
-  const frozenW = rowNumW + labelW
+  const frozenW = (onToggleSelect ? SEL_W : 0) + rowNumW + labelW
     + (showDuration ? durColW : 0)
     + (showRemDur ? remDurColW : 0)
     + (showPredecessor ? predColW : 0)
@@ -578,7 +644,13 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
     + (showActual ? dateColWidths.actStart + dateColWidths.actEnd : 0)
     + (showProjected ? dateColWidths.projStart + dateColWidths.projEnd : 0)
 
-  const cellSelected = (col) => !!col && selCol === col && inSelRange
+  // A cell is lit when its column falls inside the selected span and its row
+  // is in range -- selCols is [from, to] as indexes into PASTEABLE_ORDER
+  const cellSelected = (col) => {
+    if (!col || !inSelRange || !selCols) return false
+    const i = PASTEABLE_ORDER.indexOf(col)
+    return i >= selCols[0] && i <= selCols[1]
+  }
   const dateCell = (content, w, bg, bl, col = null) => (
     <div
       data-cell-col={col ?? undefined}
@@ -594,6 +666,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
       }}
       className="px-1.5 py-1 text-xs border-r border-gray-200 flex items-center min-h-[52px]"
       onPointerDown={col && onCellMouseDown ? (e) => e.stopPropagation() : undefined}
+      onClick={col && onCellMouseDown ? (e) => e.stopPropagation() : undefined}
       onMouseDown={col && onCellMouseDown ? () => onCellMouseDown(col, rowIndex) : undefined}
       onMouseEnter={col && onCellMouseEnter ? () => onCellMouseEnter(col, rowIndex) : undefined}
     >
@@ -604,15 +677,33 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
   return (
     <div
       className="flex items-center border-b border-gray-200 transition-colors group"
-      style={{ backgroundColor: bgBase, ...(hasViolation && { borderLeft: '3px solid #f43f5e' }) }}
-      onMouseEnter={e => { e.currentTarget.style.backgroundColor = bgHover }}
-      onMouseLeave={e => { e.currentTarget.style.backgroundColor = bgBase }}
+      style={{ backgroundColor: isSelected ? '#eff6ff' : bgBase, ...(hasViolation && { borderLeft: '3px solid #f43f5e' }) }}
+      onMouseEnter={e => { if (!isSelected) e.currentTarget.style.backgroundColor = bgHover }}
+      onMouseLeave={e => { if (!isSelected) e.currentTarget.style.backgroundColor = bgBase }}
     >
       {/* Frozen panel: # col + label + optional columns */}
       <div
         style={{ width: frozenW, minWidth: frozenW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
         className="sticky left-0 z-30 flex items-center flex-shrink-0 self-stretch"
       >
+        {/* Selection column -- always present so rows can be picked without
+            first entering a mode, and so the tick boxes line up as a column */}
+        {onToggleSelect && (
+          <div
+            style={{ width: SEL_W, minWidth: SEL_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+            className="flex items-center justify-center flex-shrink-0 self-stretch"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => e.stopPropagation()}
+          >
+            <input
+              type="checkbox"
+              checked={isSelected}
+              onChange={onToggleSelect}
+              className="w-3.5 h-3.5 accent-[#ed6055] cursor-pointer"
+              aria-label={`Select row ${rowNum}`}
+            />
+          </div>
+        )}
         {/* # column */}
         {rowNumW > 0 && (
           <div
@@ -637,6 +728,7 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
           // keep dnd-kit (listeners live on the whole row) from turning a cell
           // drag-select into a row reorder -- the # column stays the drag handle
           onPointerDown={onCellMouseDown ? (e) => e.stopPropagation() : undefined}
+          onClick={onCellMouseDown ? (e) => e.stopPropagation() : undefined}
           onMouseDown={onCellMouseDown ? () => onCellMouseDown('name', rowIndex) : undefined}
           onMouseEnter={onCellMouseEnter ? () => onCellMouseEnter('name', rowIndex) : undefined}
         >
@@ -831,6 +923,8 @@ function MilestoneRow({ m, rowNum = 0, predText = '', onSavePreds = () => {}, to
 const MilestoneRowMemo = memo(MilestoneRow)
 
 function SortableMilestoneRow({ id, isAdmin, canEdit, isSelected, onSelect, disableDrag = false, ...props }) {
+  // Modifier keys decide whether a click replaces the selection, adds to it,
+  // or extends from the anchor -- the row itself does not need to know which
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id })
   const dragActive = isAdmin && !disableDrag
   return (
@@ -847,16 +941,27 @@ function SortableMilestoneRow({ id, isAdmin, canEdit, isSelected, onSelect, disa
       }}
       {...(dragActive ? listeners : {})}
       {...(dragActive ? attributes : {})}
-      onClick={() => onSelect?.(id)}
+      onClick={(e) => onSelect?.(id, { additive: e.ctrlKey || e.metaKey, range: e.shiftKey })}
     >
-      <MilestoneRowMemo {...props} isAdmin={isAdmin} canEdit={canEdit} showDragHandle={dragActive} />
+      <MilestoneRowMemo
+        {...props}
+        isAdmin={isAdmin}
+        canEdit={canEdit}
+        showDragHandle={dragActive}
+        isSelected={isSelected}
+        onToggleSelect={isAdmin ? () => onSelect?.(id, { additive: true }) : null}
+      />
     </div>
   )
 }
 
 // Columns that support drag-select + spreadsheet paste. Planned dates are derived,
 // so they stay read-only here.
-const PASTEABLE_COLS = new Set(['name', 'actual_start', 'actual_end', 'projected_start', 'projected_end'])
+// Left-to-right display order. A drag across columns selects everything
+// between two of these, so the order has to match what the eye sees.
+const PASTEABLE_ORDER = ['name', 'actual_start', 'actual_end', 'projected_start', 'projected_end']
+const PASTEABLE_COLS = new Set(PASTEABLE_ORDER)
+const colIdx = (c) => PASTEABLE_ORDER.indexOf(c)
 
 const TIME_SCALES = [
   { key: 'day',   label: 'Day' },
@@ -1081,7 +1186,7 @@ function DragResizeHandle({ onMouseDown }) {
   )
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, rowNumW = ROW_NUM_W, disableDrag = false, colVisibility = { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, onReorder = () => {}, selectedId = null, onSelect = () => {}, dataDate = '' }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, rowNumW = ROW_NUM_W, disableDrag = false, colVisibility = { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, onReorder = () => {}, selectedIds = new Set(), onSelect = () => {}, onSelectAll = () => {}, onSetCollapseLevel = () => {}, maxLevel = 1, rowPasteArmed = false, dataDate = '' }) {
   const [durColW,    setDurColW]    = useState(DUR_COL_W)
   const [remDurColW, setRemDurColW] = useState(DUR_COL_W)
   const [predColW,   setPredColW]   = useState(PRED_COL_W)
@@ -1091,11 +1196,18 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const mobileStickyInnerRef = useRef(null)
 
   // -- Cell range selection + spreadsheet paste (activity name + date columns) --
-  // cellSel holds the drag-highlighted row range within a single column.
+  // cellSel is a rectangle: two corners, in rows and in columns.
   const [cellSel, setCellSel] = useState(null)
   const cellDragRef = useRef(null)
   const selRange = cellSel
-    ? { col: cellSel.col, from: Math.min(cellSel.a, cellSel.b), to: Math.max(cellSel.a, cellSel.b) }
+    ? {
+        from:    Math.min(cellSel.rowA, cellSel.rowB),
+        to:      Math.max(cellSel.rowA, cellSel.rowB),
+        colFrom: Math.min(colIdx(cellSel.colA), colIdx(cellSel.colB)),
+        colTo:   Math.max(colIdx(cellSel.colA), colIdx(cellSel.colB)),
+        // the leftmost column, kept for the single-column callers
+        col:     PASTEABLE_ORDER[Math.min(colIdx(cellSel.colA), colIdx(cellSel.colB))],
+      }
     : null
 
   const handleCellMouseDown = useCallback((col, idx) => {
@@ -1105,14 +1217,16 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
 
   const handleCellMouseEnter = useCallback((col, idx) => {
     const st = cellDragRef.current
-    if (!st || st.col !== col || idx === st.startIdx) return
+    if (!st) return
+    if (col === st.col && idx === st.startIdx) return
+    if (colIdx(col) === -1) return
     if (!st.dragging) {
       st.dragging = true
       // drop the caret so dragging highlights cells instead of selecting text
       document.activeElement?.blur?.()
     }
     window.getSelection?.()?.removeAllRanges?.()
-    setCellSel({ col, a: st.startIdx, b: idx })
+    setCellSel({ colA: st.col, colB: col, rowA: st.startIdx, rowB: idx })
   }, [])
 
   useEffect(() => {
@@ -1130,56 +1244,84 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     if (!isAdmin || !canEdit) return
     const onPaste = async (e) => {
       const targetCell = e.target?.closest?.('[data-cell-col]')
+      // Row paste is handled on keydown. Only stand aside when this paste is
+      // not aimed at the grid -- a paste into a cell is always a cell paste,
+      // whether or not rows happen to be on the clipboard.
+      if (rowPasteArmed && !targetCell && !selRange) return
       const editingElsewhere = !targetCell && /^(INPUT|TEXTAREA)$/.test(e.target?.tagName ?? '')
       if (!targetCell && (!selRange || editingElsewhere)) return
       const col = selRange?.col ?? targetCell?.dataset.cellCol
       if (!col || !PASTEABLE_COLS.has(col)) return
 
       const raw = e.clipboardData?.getData('text/plain') ?? ''
-      const lines = raw.replace(/\r\n?/g, '\n').split('\n').map(l => l.split('\t')[0].trim())
-      while (lines.length && lines[lines.length - 1] === '') lines.pop()
-      // A single value with no range selected is an ordinary paste -- leave it alone
-      if (!lines.length || (lines.length === 1 && !selRange)) return
+      // Keep every column of the clipboard, not just the first: a block copied
+      // from Excel lands as a block
+      const grid = raw.replace(/\r\n?/g, '\n').split('\n').map(l => l.split('\t').map(c => c.trim()))
+      while (grid.length && grid[grid.length - 1].every(c => c === '')) grid.pop()
+      const oneCell = grid.length === 1 && grid[0].length === 1
+
+      // Rows selected and a single value: fill that column in every selected
+      // row. A cell rectangle still wins -- it is the more specific gesture.
+      const rowFill = !selRange && selectedIds.size > 0 && oneCell
+      if (!grid.length || (oneCell && !selRange && !rowFill)) return
 
       e.preventDefault()
-      const startIdx = selRange ? selRange.from : Number(targetCell.dataset.cellRow)
-      const ids = buildTree(milestones, collapsedIds).map(n => n.id)
+      const order = buildTree(milestones, collapsedIds)
+      const ids = order.map(n => n.id)
       setCellSel(null)
 
-      if (col === 'name') {
-        const updates = {}
-        lines.forEach((line, i) => {
-          const id = ids[startIdx + i]
-          if (id && line) updates[id] = line
-        })
-        const n = Object.keys(updates).length
-        if (!n) return
-        setDrafts(p => ({ ...p, ...updates }))
-        showToast(`Pasted ${n} name${n !== 1 ? 's' : ''}. Click "Save all" to apply.`, 'success')
-        return
+      const applyCell = async (id, column, text) => {
+        if (!id || !column || !PASTEABLE_COLS.has(column) || !text) return 'empty'
+        if (column === 'name') { setDrafts(p => ({ ...p, [id]: text })); return 'ok' }
+        const iso = toDateStr(text)
+        if (!iso) return 'bad'
+        await onSaveDate(id, column, iso)
+        return 'ok'
       }
 
-      // Dates go through the normal per-cell save path so the existing rules hold
-      // (actual writes straight through, projected stages into pending edits)
-      let applied = 0
-      let skipped = 0
-      for (let i = 0; i < lines.length; i++) {
-        const id = ids[startIdx + i]
-        if (!id || !lines[i]) continue
-        const iso = toDateStr(lines[i])
-        if (!iso) { skipped++; continue }
-        await onSaveDate(id, col, iso)
-        applied++
+      let ok = 0, bad = 0, overflow = 0
+
+      if (rowFill) {
+        const targets = order.filter(n => selectedIds.has(n.id)).map(n => n.id)
+        for (const id of targets) {
+          const r = await applyCell(id, col, grid[0][0])
+          if (r === 'ok') ok++; else if (r === 'bad') bad++
+        }
+      } else {
+        // Anchor at the rectangle's top-left, or at the clicked cell
+        const startRow = selRange ? selRange.from : Number(targetCell.dataset.cellRow)
+        const startCol = selRange ? selRange.colFrom : colIdx(col)
+
+        // One value into a rectangle fills it; otherwise the block lands as-is
+        const fillRect = selRange && oneCell
+        const rowCount = fillRect ? (selRange.to - selRange.from + 1) : grid.length
+        const colCount = fillRect ? (selRange.colTo - selRange.colFrom + 1) : Math.max(...grid.map(r => r.length))
+
+        for (let r = 0; r < rowCount; r++) {
+          const id = ids[startRow + r]
+          if (!id) { overflow++; continue }
+          for (let c = 0; c < colCount; c++) {
+            const column = PASTEABLE_ORDER[startCol + c]
+            if (!column) continue
+            const text = fillRect ? grid[0][0] : (grid[r]?.[c] ?? '')
+            const res = await applyCell(id, column, text)
+            if (res === 'ok') ok++; else if (res === 'bad') bad++
+          }
+        }
       }
-      if (!applied && !skipped) return
+
+      if (!ok && !bad && !overflow) return
       showToast(
-        `Pasted ${applied} date${applied !== 1 ? 's' : ''}${skipped ? ` (${skipped} unrecognised)` : ''}.`,
-        !applied ? 'error' : 'success',
+        `Pasted ${ok} cell${ok !== 1 ? 's' : ''}`
+          + (bad ? ` (${bad} unrecognised)` : '')
+          + (overflow ? `; ${overflow} row${overflow !== 1 ? 's' : ''} had nowhere to land` : '')
+          + (ok ? '. Names need Save to apply.' : '.'),
+        (!ok || overflow) ? 'error' : 'success',
       )
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
-  }, [isAdmin, canEdit, selRange, milestones, collapsedIds, setDrafts, showToast, onSaveDate])
+  }, [isAdmin, canEdit, selRange, selectedIds, rowPasteArmed, milestones, collapsedIds, setDrafts, showToast, onSaveDate])
 
   useEffect(() => {
     const scrollEl = ganttScrollRef.current
@@ -1275,7 +1417,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const todayPx      = refDatePx
 
   const { duration: showDuration, remDur: showRemDur, predecessor: showPredecessor, planned: showPlanned, actual: showActual, projected: showProjected, gantt: showGantt } = colVisibility
-  const frozenW = rowNumW + labelW
+  const frozenW = (isAdmin ? SEL_W : 0) + rowNumW + labelW
     + (showDuration ? durColW : 0)
     + (showRemDur ? remDurColW : 0)
     + (showPredecessor ? predColW : 0)
@@ -1294,6 +1436,9 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     })
   }
 
+  // Built before axisHeader, which reads it for the select-all tick box
+  const _flatNodes = buildTree(milestones, collapsedIds)
+
   const axisHeader = (
     <>
       <div className="flex" style={{ width: totalW, minWidth: totalW, backgroundColor: '#4b5563' }}>
@@ -1301,6 +1446,18 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
           style={{ width: frozenW, minWidth: frozenW, borderRight: '1px solid #d1d5db', backgroundColor: '#4b5563', position: 'sticky', left: 0, zIndex: 10 }}
           className="flex-shrink-0 flex items-center"
         >
+          {/* Selection column header -- select or clear every visible row */}
+          {isAdmin && (
+            <div style={{ width: SEL_W, minWidth: SEL_W }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0">
+              <input
+                type="checkbox"
+                checked={_flatNodes.length > 0 && _flatNodes.every(n => selectedIds.has(n.id))}
+                onChange={e => onSelectAll(e.target.checked)}
+                className="w-3.5 h-3.5 accent-[#ed6055] cursor-pointer"
+                aria-label="Select all rows"
+              />
+            </div>
+          )}
           {/* # column header */}
           {rowNumW > 0 && (
             <div style={{ width: rowNumW, minWidth: rowNumW }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0">
@@ -1311,6 +1468,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
           {labelW > 0 && (
             <div style={{ width: labelW, minWidth: labelW, position: 'relative' }} className="flex items-center pl-3 pr-1 self-stretch border-r border-gray-500 flex-shrink-0">
               <span className="text-xs font-bold text-gray-200 flex-1 min-w-0">Activity</span>
+              <GLevelMenu maxLevel={maxLevel} onPick={onSetCollapseLevel} />
               <DragResizeHandle onMouseDown={e => startColDrag(e, labelW, setLabelW, 120)} />
             </div>
           )}
@@ -1451,7 +1609,6 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
 
   // Single flat ID list for the SortableContext spanning all tasks.
   const allSortableIds = []
-  const _flatNodes = buildTree(milestones, collapsedIds)
   allSortableIds.push(..._flatNodes.map(n => n.id))
 
   const milestoneRows = [
@@ -1462,7 +1619,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
       const rowProps = {
         m: displayM,
         rowIndex: nodeIdx,
-        selCol: selRange?.col ?? null,
+        selCols: selRange ? [selRange.colFrom, selRange.colTo] : null,
         inSelRange: !!selRange && nodeIdx >= selRange.from && nodeIdx <= selRange.to,
         onCellMouseDown: isAdmin && canEdit ? handleCellMouseDown : null,
         onCellMouseEnter: isAdmin && canEdit ? handleCellMouseEnter : null,
@@ -1493,7 +1650,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         barColors,
         dataDate,
       }
-      const items = [<SortableMilestoneRow key={node.id} id={node.id} isAdmin={isAdmin} disableDrag={disableDrag} isSelected={selectedId === node.id} onSelect={onSelect} {...rowProps} />]
+      const items = [<SortableMilestoneRow key={node.id} id={node.id} isAdmin={isAdmin} disableDrag={disableDrag} isSelected={selectedIds.has(node.id)} onSelect={onSelect} {...rowProps} />]
       if (inlineAdd?.parentId === node.id) {
         items.push(
           <InlineAddRow key={`inline-${node.id}`} depth={node.depth + 1} name={inlineAddName}
@@ -1555,7 +1712,15 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
           </SortableContext>
           {isAdmin && activeBL && !isBLConfirmed && (
             <button
-              onClick={() => onSetInlineAdd({ phase: 'execution_monitoring', parentId: null, depth: 0 })}
+              onClick={() => {
+                // Continue the list rather than always starting a new top-level
+                // row: the new activity takes the parent, level and phase of the
+                // last row above it, which is where the eye expects it to land
+                const above = _flatNodes[_flatNodes.length - 1]
+                onSetInlineAdd(above
+                  ? { phase: above.phase, parentId: above.parent_id ?? null, depth: above.depth }
+                  : { phase: 'execution_monitoring', parentId: null, depth: 0 })
+              }}
               style={{ width: totalW, minWidth: totalW, height: TASK_ROW_H }}
               className="flex items-center gap-1.5 px-4 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors text-left border-b border-gray-100"
             >
@@ -1750,7 +1915,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const pendingLoadedFor = useRef(null) // baseline whose staged edits have been restored
   const [orderDirty, setOrderDirty]     = useState(false)
   const [savingOrder, setSavingOrder]   = useState(false)
-  const [selectedId,  setSelectedId]    = useState(null)
+  const [savingAll,   setSavingAll]     = useState(false)
+  const [selectedIds, setSelectedIds]   = useState(() => new Set())
+  const [selectAnchor, setSelectAnchor] = useState(null)   // for shift-click ranges
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  const [rowClipboard, setRowClipboard] = useState([])  // ids held by Ctrl+C
   const [dependencies, setDependencies] = useState([])
   const [newBLName, setNewBLName]     = useState('')
   const [newBLNum,  setNewBLNum]      = useState('')
@@ -2092,77 +2261,135 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     const overNode   = milestones.find(m => m.id === overId)
     if (!activeNode || !overNode || activeId === overId) return
 
-    const sameParent = activeNode.parent_id === overNode.parent_id
-    let newMs
+    // Dragging a selected row carries the rest of the selection with it, as one
+    // block, keeping its relative order. Only rows sharing the dragged row's
+    // parent come along -- yanking a child out from under its summary because a
+    // cousin was dragged would be a surprise.
+    const block = selectedIds.has(activeId)
+      ? milestones
+          .filter(m => selectedIds.has(m.id) && m.parent_id === activeNode.parent_id)
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      : [activeNode]
+    const moving = block.length > 1 && !selectedIds.has(overId) ? block : [activeNode]
+    const movingIds = new Set(moving.map(m => m.id))
+    if (movingIds.has(overId)) return
 
-    if (sameParent) {
-      const reordered = computeReorder(milestones, activeId, overId)
-      if (!reordered) return
-      const orderMap = new Map(reordered.map((m, i) => [m.id, i]))
-      newMs = milestones.map(m => orderMap.has(m.id) ? { ...m, sort_order: orderMap.get(m.id) } : m)
+    // Where the rows land decides their level: they take the parent of whatever
+    // row ends up directly above them, which is what the drop looks like.
+    const order = buildTree(milestones, collapsedIds)
+    const aIdx = order.findIndex(n => n.id === activeId)
+    const oIdx = order.findIndex(n => n.id === overId)
+    if (aIdx === -1 || oIdx === -1) return
+    const rest = order.filter(n => !movingIds.has(n.id))
+    const overPos = rest.findIndex(n => n.id === overId)
+    if (overPos === -1) return
+    const insertPos = aIdx < oIdx ? overPos + 1 : overPos
+    const above = insertPos > 0 ? rest[insertPos - 1] : null
 
-    } else {
-      // Different parent: reparent active to overNode's parent
-      const newParentId = overNode.parent_id
-      const srcSiblings = milestones
-        .filter(m => m.parent_id === activeNode.parent_id && m.id !== activeId)
+    // `above` is a sibling of the row's new home by construction: the new
+    // parent is its parent. Dropping at the very top means top level.
+    const newParentId = above ? (above.parent_id ?? null) : null
+    const newPhase    = above ? above.phase : overNode.phase
+    const oldParentId = activeNode.parent_id ?? null
+
+    const destSiblings = milestones
+      .filter(m => (m.parent_id ?? null) === newParentId && !movingIds.has(m.id))
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const afterIdx = above ? destSiblings.findIndex(m => m.id === above.id) : -1
+    const at = afterIdx === -1 ? 0 : afterIdx + 1
+    const newDest = [...destSiblings.slice(0, at), ...moving, ...destSiblings.slice(at)]
+
+    const updateMap = new Map()
+    newDest.forEach((m, i) => updateMap.set(m.id, { sort_order: i, parent_id: newParentId, phase: newPhase }))
+    if (newParentId !== oldParentId) {
+      milestones
+        .filter(m => (m.parent_id ?? null) === oldParentId && !movingIds.has(m.id))
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      const destSiblings = milestones
-        .filter(m => m.parent_id === newParentId && m.id !== activeId)
-        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      const overIdx = destSiblings.findIndex(m => m.id === overId)
-      const insertAt = overIdx === -1 ? destSiblings.length : overIdx
-      const newDestOrder = [
-        ...destSiblings.slice(0, insertAt),
-        activeNode,
-        ...destSiblings.slice(insertAt),
-      ]
-      const updateMap = new Map()
-      newDestOrder.forEach((m, i) => updateMap.set(m.id, { sort_order: i, parent_id: newParentId, phase: activeNode.phase }))
-      srcSiblings.forEach((m, i)  => updateMap.set(m.id, { sort_order: i, parent_id: activeNode.parent_id, phase: m.phase }))
-      newMs = milestones.map(m => {
-        const upd = updateMap.get(m.id)
-        return upd ? { ...m, ...upd } : m
-      })
+        .forEach((m, i) => updateMap.set(m.id, { sort_order: i, parent_id: oldParentId, phase: m.phase }))
     }
 
-    applyReorderState(newMs)
-  }
-
-  const handleIndent = (id) => {
-    const node = milestones.find(m => m.id === id)
-    if (!node || !isAdmin || !activeBL) return
-    // Indent under the previous *sibling* so the row always drops exactly one
-    // level, however deeply nested the rows displayed in between happen to be.
-    const siblings = milestones
-      .filter(m => m.parent_id === node.parent_id)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    const sibIdx = siblings.findIndex(s => s.id === id)
-    if (sibIdx <= 0) return                  // first sibling has nothing to indent under
-    const newParentId = siblings[sibIdx - 1].id
-    const flatNodes = buildTree(milestones, collapsedIds)
-    const newParentDepth = flatNodes.find(n => n.id === newParentId)?.depth ?? 0
-    if (newParentDepth >= 3) return          // MAX_DEPTH
-    const oldSiblings = milestones
-      .filter(m => m.parent_id === node.parent_id && m.id !== id)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    const newSortOrder = milestones.filter(m => m.parent_id === newParentId).length
-    const updateMap = new Map()
-    updateMap.set(id, { parent_id: newParentId, sort_order: newSortOrder, phase: node.phase })
-    oldSiblings.forEach((m, i) => updateMap.set(m.id, { sort_order: i, parent_id: m.parent_id, phase: m.phase }))
     applyReorderState(milestones.map(m => { const u = updateMap.get(m.id); return u ? { ...m, ...u } : m }))
   }
 
-  const handleOutdent = (id) => {
-    const node = milestones.find(m => m.id === id)
-    if (!node || !isAdmin || !activeBL || node.parent_id === null) return
-    const parent = milestones.find(m => m.id === node.parent_id)
-    if (!parent) return
-    const newParentId = parent.parent_id
-    const oldSiblings = milestones
+  // Plain click selects one row; ctrl/cmd adds or removes; shift takes
+  // everything between the anchor and this row in display order
+  const handleSelectRow = (id, { additive = false, range = false } = {}) => {
+    setSelectedIds(prev => {
+      if (range && selectAnchor) {
+        const order = buildTree(milestones, collapsedIds).map(n => n.id)
+        const a = order.indexOf(selectAnchor)
+        const b = order.indexOf(id)
+        if (a === -1 || b === -1) return new Set([id])
+        const [from, to] = a < b ? [a, b] : [b, a]
+        return new Set(order.slice(from, to + 1))
+      }
+      if (additive) {
+        const next = new Set(prev)
+        next.has(id) ? next.delete(id) : next.add(id)
+        return next
+      }
+      // Clicking the only selected row clears it, so there is a way out
+      return prev.size === 1 && prev.has(id) ? new Set() : new Set([id])
+    })
+    if (!range) setSelectAnchor(id)
+  }
+
+  const clearSelection = () => { setSelectedIds(new Set()); setSelectAnchor(null) }
+
+  // "Show level N" means every row down to depth N-1 stays open and anything
+  // deeper is folded away. Depths come from the fully expanded tree, not the
+  // current view, or collapsing twice would keep finding fewer rows.
+  const fullTree = buildTree(milestones, new Set())
+  const maxLevel = Math.max(1, ...fullTree.map(n => (n.depth ?? 0) + 1))
+
+  const handleSetCollapseLevel = (level) => {
+    if (level === 'all') { setCollapsedIds(new Set()); return }
+    setCollapsedIds(new Set(
+      fullTree.filter(n => n.hasChildren && (n.depth ?? 0) >= level - 1).map(n => n.id)
+    ))
+  }
+
+  const handleSelectAll = (checked) => {
+    setSelectedIds(checked ? new Set(buildTree(milestones, collapsedIds).map(n => n.id)) : new Set())
+    setSelectAnchor(null)
+  }
+
+  // Pure: takes the list, returns the list. Bulk indent folds over the result
+  // of the previous row, which a handler reading `milestones` could not do.
+  const indentOne = (ms, id) => {
+    const node = ms.find(m => m.id === id)
+    if (!node) return ms
+    // Indent under the previous *sibling* so the row always drops exactly one
+    // level, however deeply nested the rows displayed in between happen to be.
+    const siblings = ms
+      .filter(m => m.parent_id === node.parent_id)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const sibIdx = siblings.findIndex(x => x.id === id)
+    if (sibIdx <= 0) return ms               // first sibling has nothing to indent under
+    const newParentId = siblings[sibIdx - 1].id
+    const flatNodes = buildTree(ms, collapsedIds)
+    const newParentDepth = flatNodes.find(n => n.id === newParentId)?.depth ?? 0
+    if (newParentDepth >= 3) return ms       // MAX_DEPTH
+    const oldSiblings = ms
       .filter(m => m.parent_id === node.parent_id && m.id !== id)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-    const newSiblings = milestones
+    const newSortOrder = ms.filter(m => m.parent_id === newParentId).length
+    const updateMap = new Map()
+    updateMap.set(id, { parent_id: newParentId, sort_order: newSortOrder, phase: node.phase })
+    oldSiblings.forEach((m, i) => updateMap.set(m.id, { sort_order: i, parent_id: m.parent_id, phase: m.phase }))
+    return ms.map(m => { const u = updateMap.get(m.id); return u ? { ...m, ...u } : m })
+  }
+
+  const outdentOne = (ms, id) => {
+    const node = ms.find(m => m.id === id)
+    if (!node || node.parent_id === null) return ms
+    const parent = ms.find(m => m.id === node.parent_id)
+    if (!parent) return ms
+    const newParentId = parent.parent_id
+    const oldSiblings = ms
+      .filter(m => m.parent_id === node.parent_id && m.id !== id)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const newSiblings = ms
       .filter(m => m.parent_id === newParentId && m.id !== id)
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
     const parentIdx = newSiblings.findIndex(m => m.id === parent.id)
@@ -2174,22 +2401,170 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     const updateMap = new Map()
     newOrder.forEach((m, i)    => updateMap.set(m.id, { sort_order: i, parent_id: newParentId, phase: node.phase }))
     oldSiblings.forEach((m, i) => updateMap.set(m.id, { sort_order: i, parent_id: node.parent_id, phase: m.phase }))
-    applyReorderState(milestones.map(m => { const u = updateMap.get(m.id); return u ? { ...m, ...u } : m }))
+    return ms.map(m => { const u = updateMap.get(m.id); return u ? { ...m, ...u } : m })
   }
 
-  // Tab / Shift+Tab to indent / outdent the selected row
+  // Outdent runs deepest-first and indent shallowest-first, so a parent never
+  // moves out from under a child that is still waiting its turn
+  const shiftLevel = (dir) => {
+    if (!isAdmin || !activeBL || selectedIds.size === 0) return
+    const order = buildTree(milestones, collapsedIds)
+    const ids = order
+      .filter(n => selectedIds.has(n.id))
+      .sort((a, b) => dir === 'in' ? a.depth - b.depth : b.depth - a.depth)
+      .map(n => n.id)
+    const next = ids.reduce((ms, id) => dir === 'in' ? indentOne(ms, id) : outdentOne(ms, id), milestones)
+    if (next !== milestones) applyReorderState(next)
+  }
+
+  const handleIndent  = (id) => { const n = indentOne(milestones, id);  if (n !== milestones) applyReorderState(n) }
+  const handleOutdent = (id) => { const n = outdentOne(milestones, id); if (n !== milestones) applyReorderState(n) }
+
+  // Tab / Shift+Tab indents or outdents everything selected; Ctrl+A takes the
+  // visible rows; Escape clears
   useEffect(() => {
-    if (!selectedId || !isAdmin || !activeBL) return
+    if (!isAdmin || !activeBL) return
     const onKey = (e) => {
-      if (e.key === 'Escape') { setSelectedId(null); return }
-      if (e.key !== 'Tab') return
-      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return
+      const typing = ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)
+      if (e.key === 'Escape') { clearSelection(); return }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'a' && !typing) {
+        e.preventDefault()
+        setSelectedIds(new Set(buildTree(milestones, collapsedIds).map(n => n.id)))
+        return
+      }
+      const mod = e.ctrlKey || e.metaKey
+      if (mod && e.key.toLowerCase() === 'c' && !typing && selectedIds.size > 0) {
+        setRowClipboard([...selectedIds])
+        showToast(`${selectedIds.size} ${selectedIds.size === 1 ? 'activity' : 'activities'} copied.`, 'success')
+        return
+      }
+      if (mod && e.key.toLowerCase() === 'v' && !typing && rowClipboard.length > 0) {
+        e.preventDefault()
+        pasteRows()
+        return
+      }
+      const blLocked = !!baselines.find(b => b.id === activeBL)?.confirmed_at
+      if ((e.key === 'Delete' || e.key === 'Backspace') && !typing && selectedIds.size > 0 && !blLocked) {
+        e.preventDefault()
+        setConfirmBulkDelete(true)
+        return
+      }
+      if (e.key !== 'Tab' || selectedIds.size === 0 || typing) return
       e.preventDefault()
-      e.shiftKey ? handleOutdent(selectedId) : handleIndent(selectedId)
+      shiftLevel(e.shiftKey ? 'out' : 'in')
     }
     document.addEventListener('keydown', onKey)
     return () => document.removeEventListener('keydown', onKey)
-  }, [selectedId, milestones, collapsedIds, isAdmin, activeBL])
+  }, [selectedIds, rowClipboard, milestones, collapsedIds, isAdmin, activeBL, baselines]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Ctrl+C remembers the rows; Ctrl+V inserts copies of them. Copying a
+  // summary takes its whole subtree, selected or not -- a summary without its
+  // children is not a useful copy. Planned dates and duration carry over;
+  // actuals and forecast do not, since the copy has not happened yet.
+  const pasteRows = async () => {
+    if (!rowClipboard.length || !activeBL) return
+
+    const present = rowClipboard.filter(id => milestones.some(m => m.id === id))
+    if (!present.length) { showToast('The copied activities are no longer here.', 'error'); return }
+
+    const childrenOf = (id) => milestones.filter(m => (m.parent_id ?? null) === id)
+    const withDescendants = (id, acc = []) => {
+      acc.push(id)
+      childrenOf(id).forEach(c => withDescendants(c.id, acc))
+      return acc
+    }
+    const order = buildTree(milestones, collapsedIds).map(n => n.id)
+    const copySet = new Set(present)
+    const roots = present.filter(id => {
+      let p = milestones.find(m => m.id === id)?.parent_id ?? null
+      while (p) { if (copySet.has(p)) return false; p = milestones.find(m => m.id === p)?.parent_id ?? null }
+      return true
+    }).sort((a, b) => order.indexOf(a) - order.indexOf(b))
+
+    const copyIds = roots.flatMap(id => withDescendants(id))
+    const newTaskId = new Map(copyIds.map(id => [id, crypto.randomUUID()]))
+    const newRowId = (oldId) => newTaskId.has(oldId) ? `${newTaskId.get(oldId)}_${activeBL}` : null
+
+    // Land below the selected row, at its level -- the same rule a drag
+    // follows. With nothing selected, go to the end of the top level.
+    const anchorId = [...selectedIds].sort((a, b) => order.indexOf(b) - order.indexOf(a))[0] ?? null
+    const anchor = anchorId ? milestones.find(m => m.id === anchorId) : null
+    const destParent = anchor ? (anchor.parent_id ?? null) : null
+    const destPhase  = anchor ? anchor.phase : (milestones[0]?.phase ?? 'execution_monitoring')
+
+    const sibs = milestones
+      .filter(m => (m.parent_id ?? null) === destParent)
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+    const at = anchor ? sibs.findIndex(m => m.id === anchor.id) + 1 : sibs.length
+    const merged = [
+      ...sibs.slice(0, at),
+      ...roots.map(id => ({ id: newRowId(id) })),
+      ...sibs.slice(at),
+    ]
+    const reorders = new Map(merged.map((m, i) => [m.id, i]))
+
+    const rows = copyIds.map(oldId => {
+      const src = milestones.find(m => m.id === oldId)
+      const isRoot = roots.includes(oldId)
+      return {
+        id:             newRowId(oldId),
+        task_id:        newTaskId.get(oldId),
+        baseline_id:    activeBL,
+        project_id:     project.id,
+        parent_id:      isRoot ? destParent : newRowId(src.parent_id),
+        phase:          isRoot ? destPhase : src.phase,
+        milestone_name: src.milestone_name,
+        duration:       src.duration ?? null,
+        planned_start:  src.planned_start ?? null,
+        planned_end:    src.planned_end ?? null,
+        sort_order:     isRoot ? (reorders.get(newRowId(oldId)) ?? 0) : (src.sort_order ?? 0),
+      }
+    })
+
+    const { error } = await supabase.from('workprogram_activities').insert(rows)
+    if (error) { showToast(error.message, 'error'); return }
+
+    // Only links with both ends inside the copied set: a predecessor pointing
+    // at an original row would silently tie the copy to the thing it copied
+    const inside = new Set(copyIds)
+    const depCopies = dependencies
+      .filter(d => inside.has(d.from_id) && inside.has(d.to_id))
+      .map(d => ({
+        project_id: project.id, baseline_id: activeBL,
+        from_id: newRowId(d.from_id), to_id: newRowId(d.to_id),
+        type: d.type, lag: d.lag ?? 0,
+      }))
+    if (depCopies.length) await supabase.from('workprogram_dependencies').insert(depCopies)
+
+    // Push the rows now sitting below the inserted ones down to match
+    for (const [id, sort_order] of reorders) {
+      const existing = milestones.find(m => m.id === id)
+      if (existing && (existing.sort_order ?? 0) !== sort_order) {
+        await supabase.from('workprogram_activities').update({ sort_order }).eq('id', id)
+      }
+    }
+
+    clearSelection()
+    showToast(`${rows.length} ${rows.length === 1 ? 'activity' : 'activities'} pasted.`, 'success')
+    loadMilestones(undefined, { silent: true })
+  }
+
+  // Deleting several rows is one statement, not a loop of round trips
+  const handleDeleteSelected = async () => {
+    const ids = [...selectedIds]
+    if (!ids.length) return
+    const list = ids.map(id => `"${id}"`).join(',')
+    const [{ error }] = await Promise.all([
+      supabase.from('workprogram_activities').delete().in('id', ids),
+      supabase.from('workprogram_dependencies').delete().eq('baseline_id', activeBL)
+        .or(`from_id.in.(${list}),to_id.in.(${list})`),
+    ])
+    if (error) { showToast(error.message, 'error'); return }
+    clearSelection()
+    setConfirmBulkDelete(false)
+    showToast(`${ids.length} ${ids.length === 1 ? 'activity' : 'activities'} deleted.`, 'success')
+    loadMilestones(undefined, { silent: true })
+  }
 
   const handleSaveOrder = async () => {
     setSavingOrder(true)
@@ -2206,6 +2581,33 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     } finally {
       setSavingOrder(false)
     }
+  }
+
+  // What "unsaved" means, in one place
+  const dirtyNames = Object.entries(drafts).filter(([id, name]) => {
+    const m = milestones.find(x => x.id === id)
+    return m && name.trim() && name.trim() !== m.milestone_name
+  }).length
+  const dirtyForecast = Object.keys(pendingEdits).length
+
+  // One button, applied in dependency order: names and order first, then the
+  // forecast run, which reads the rows back out of the database
+  const handleSaveEverything = async () => {
+    setSavingAll(true)
+    try {
+      if (dirtyNames > 0) await handleSave()
+      if (orderDirty) await handleSaveOrder()
+      if (dirtyForecast > 0) await handleUpdate()
+    } finally {
+      setSavingAll(false)
+    }
+  }
+
+  const handleDiscardEverything = () => {
+    setDrafts({})
+    setPendingEdits({})
+    try { sessionStorage.removeItem(`gantt-pending-${activeBL}`) } catch {}
+    if (orderDirty) handleDiscardOrder()
   }
 
   const handleDiscardOrder = () => {
@@ -3264,53 +3666,34 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       </div>
 
 
-      {/* Save strip -- unsaved name edits */}
-      {Object.keys(drafts).length > 0 && (
+      {/* One save strip for every kind of pending change -- names, row order
+          and forecast edits each used to have their own button and their own
+          colour, which made "have I saved?" a three-part question */}
+      {(dirtyNames > 0 || orderDirty || dirtyForecast > 0) && (
         <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-[#ed6055]/20 border-l-4 border-l-[#ed6055] flex-shrink-0" style={{ background: 'rgba(237,96,85,0.06)' }}>
           <svg className="w-3.5 h-3.5 text-[#ed6055] flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
           </svg>
-          <span className="text-xs text-gray-500 flex-1 min-w-0">
-            <span className="font-semibold text-gray-800">{Object.keys(drafts).length}</span> unsaved change{Object.keys(drafts).length !== 1 ? 's' : ''}
+          <span className="text-xs text-gray-500 flex-1 min-w-0 truncate">
+            Unsaved: {[
+              dirtyNames > 0 && `${dirtyNames} name${dirtyNames !== 1 ? 's' : ''}`,
+              orderDirty && 'row order',
+              dirtyForecast > 0 && `${dirtyForecast} forecast edit${dirtyForecast !== 1 ? 's' : ''}`,
+            ].filter(Boolean).join(' · ')}
           </span>
           <button
-            onClick={handleSave}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#ed6055] text-white text-xs font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97] flex-shrink-0"
+            onClick={handleSaveEverything}
+            disabled={savingAll}
+            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-[#ed6055] text-white text-xs font-semibold hover:bg-[#d94f45] transition-colors active:scale-[0.97] disabled:opacity-60 flex-shrink-0"
           >
             <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
               <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
             </svg>
-            Save all
+            {savingAll ? 'Saving…' : 'Save'}
           </button>
           <button
-            onClick={() => setDrafts({})}
-            className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors active:scale-[0.97] flex-shrink-0"
-          >
-            Discard
-          </button>
-        </div>
-      )}
-
-      {/* Save strip -- unsaved row order */}
-      {orderDirty && (
-        <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 border-b border-blue-200 border-l-4 border-l-blue-400 flex-shrink-0" style={{ background: 'rgba(59,130,246,0.05)' }}>
-          <svg className="w-3.5 h-3.5 text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M3 7h18M3 12h18M3 17h18" />
-          </svg>
-          <span className="text-xs text-gray-500 flex-1 min-w-0">Row order has unsaved changes</span>
-          <button
-            onClick={handleSaveOrder}
-            disabled={savingOrder}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-blue-500 text-white text-xs font-semibold hover:bg-blue-600 transition-colors active:scale-[0.97] disabled:opacity-60 flex-shrink-0"
-          >
-            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
-            </svg>
-            {savingOrder ? 'Saving…' : 'Save order'}
-          </button>
-          <button
-            onClick={handleDiscardOrder}
-            disabled={savingOrder}
+            onClick={handleDiscardEverything}
+            disabled={savingAll}
             className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs font-medium text-gray-500 hover:bg-gray-50 transition-colors active:scale-[0.97] disabled:opacity-60 flex-shrink-0"
           >
             Discard
@@ -3384,8 +3767,12 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
               onSaveDate={handleSaveDate}
               onSaveRemDur={handleSaveRemDur}
               onReorder={handleReorder}
-              selectedId={selectedId}
-              onSelect={setSelectedId}
+              selectedIds={selectedIds}
+              onSelect={handleSelectRow}
+              onSelectAll={handleSelectAll}
+              rowPasteArmed={rowClipboard.length > 0}
+              onSetCollapseLevel={handleSetCollapseLevel}
+              maxLevel={maxLevel}
               dataDate={dataDate}
             />
             {/* Floating legend card */}
@@ -3412,6 +3799,21 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           onCancel={() => setDeleteId(null)}
         />
       )}
+      {confirmBulkDelete && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setConfirmBulkDelete(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-black mb-1">Delete {selectedIds.size} {selectedIds.size === 1 ? 'activity' : 'activities'}?</h3>
+            <p className="text-sm text-gray-500 mb-5">
+              Their predecessor links go too. This cannot be undone.
+            </p>
+            <div className="flex gap-3">
+              <button onClick={() => setConfirmBulkDelete(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+              <button onClick={handleDeleteSelected} className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showNewBLModal && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setShowNewBLModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
