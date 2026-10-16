@@ -2588,7 +2588,13 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     const m = milestones.find(x => x.id === id)
     return m && name.trim() && name.trim() !== m.milestone_name
   }).length
-  const dirtyForecast = Object.keys(pendingEdits).length
+  const dirtyForecast = Object.entries(pendingEdits).filter(([id, p]) => {
+    const m = milestones.find(x => x.id === id)
+    if (!m) return false
+    return (p.projected_start !== undefined && p.projected_start !== m.projected_start)
+        || (p.projected_end   !== undefined && p.projected_end   !== m.projected_end)
+        || (p.rem_dur         !== undefined && p.rem_dur         !== m.rem_dur)
+  }).length
 
   // One button, applied in dependency order: names and order first, then the
   // forecast run, which reads the rows back out of the database
@@ -3317,7 +3323,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           || p.projected_end   !== m.projected_end
           || (pe.rem_dur !== undefined && pe.rem_dur !== m.rem_dur)
     })
-    if (!changed.length) { showToast('Nothing to update.'); return }
+    if (!changed.length) {
+      // Staged edits that compute to what is already stored are not pending
+      // work -- leaving them would keep the save strip up for ever
+      setPendingEdits({})
+      try { sessionStorage.removeItem(`gantt-pending-${activeBL}`) } catch { /* ignore */ }
+      showToast('Already up to date.')
+      return
+    }
 
     const results = await Promise.all(changed.map(m => {
       const p = proj[m.id]
