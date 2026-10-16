@@ -670,7 +670,9 @@ function ProjectPanel({ row, onClose, cacheRef, today }) {
         className={[
           'fixed z-[61] bg-white shadow-2xl flex flex-col',
           'inset-x-0 bottom-0 max-h-[78vh] rounded-t-2xl',
-          'sm:inset-y-0 sm:left-auto sm:right-0 sm:bottom-auto sm:w-[380px] sm:max-h-none sm:rounded-t-none sm:border-l sm:border-gray-200',
+          // No sm:bottom-auto here -- it would cancel inset-y-0's bottom and
+          // leave the drawer as tall as its content, with nothing to scroll in
+          'sm:inset-y-0 sm:left-auto sm:right-0 sm:w-[380px] sm:max-h-none sm:rounded-t-none sm:border-l sm:border-gray-200',
           open ? 'translate-y-0 sm:translate-x-0' : 'translate-y-full sm:translate-y-0 sm:translate-x-full',
         ].join(' ')}
         style={{ transition: `transform 280ms ${EASE}` }}
@@ -708,7 +710,7 @@ function ProjectPanel({ row, onClose, cacheRef, today }) {
           </span>
         </div>
 
-        <div className="flex-1 overflow-y-auto pb-[env(safe-area-inset-bottom,0px)]">
+        <div className="flex-1 min-h-0 overflow-y-auto pb-[env(safe-area-inset-bottom,0px)]">
           <Card title="S-Curve" onOpen={() => go(TAB.scurve)}>
             {row?.poc === null ? (
               <p className="text-xs text-gray-400">No actual POC reported yet</p>
@@ -828,7 +830,7 @@ function ProjectPanel({ row, onClose, cacheRef, today }) {
                             </span>
                           )}
                         </div>
-                        <p className="text-[11px] text-gray-600 leading-snug line-clamp-2 mt-0.5">{i.text}</p>
+                        <p className="text-[11px] text-gray-600 leading-snug whitespace-pre-wrap break-words mt-0.5">{i.text}</p>
                       </li>
                     ))}
                   </ul>
@@ -882,6 +884,7 @@ function Discussion({ projectId }) {
   const [names, setNames] = useState({})
   const [draft, setDraft] = useState('')
   const [sending, setSending] = useState(false)
+  const [confirmId, setConfirmId] = useState(null)
   const endRef = useRef(null)
 
   const load = useCallback(async () => {
@@ -901,7 +904,7 @@ function Discussion({ projectId }) {
     }
   }, [projectId])
 
-  useEffect(() => { setRows(null); setDraft(''); load() }, [load])
+  useEffect(() => { setRows(null); setDraft(''); setConfirmId(null); load() }, [load])
 
   // Newest message is the one worth seeing when the thread first paints
   useEffect(() => { endRef.current?.scrollIntoView({ block: 'nearest' }) }, [rows])
@@ -919,7 +922,10 @@ function Discussion({ projectId }) {
     if (!error) { setDraft(''); load() }
   }
 
+  // Inline confirm rather than window.confirm, matching the baseline delete
+  // in SCurveTab -- a deleted message is not recoverable
   const remove = async (id) => {
+    setConfirmId(null)
     await supabase.from('project_comments').delete().eq('id', id)
     load()
   }
@@ -933,7 +939,7 @@ function Discussion({ projectId }) {
         )}
       </div>
 
-      <div className="px-4 pb-2 space-y-2.5 max-h-56 overflow-y-auto">
+      <div className="px-4 pb-2 space-y-2.5">
         {rows === null ? (
           <Skeleton />
         ) : rows.length === 0 ? (
@@ -949,13 +955,31 @@ function Discussion({ projectId }) {
                 <span className="text-[10px] text-gray-400">{relTime(r.created_at)}</span>
                 <div className="flex-1" />
                 {(mine || profile?.role === 'admin') && (
+                  confirmId === r.id ? (
+                    <span className="flex items-center gap-1.5">
+                      <span className="text-[10px] text-gray-500">Delete?</span>
+                      <button
+                        onClick={() => remove(r.id)}
+                        className="text-[10px] font-semibold text-[#ed6055] hover:underline"
+                      >
+                        Yes
+                      </button>
+                      <button
+                        onClick={() => setConfirmId(null)}
+                        className="text-[10px] text-gray-400 hover:text-gray-600"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  ) : (
                   <button
-                    onClick={() => remove(r.id)}
-                    className="opacity-0 group-hover/msg:opacity-100 transition-opacity text-[10px] text-gray-400 hover:text-[#ed6055]"
+                    onClick={() => setConfirmId(r.id)}
+                    className="opacity-0 group-hover/msg:opacity-100 focus:opacity-100 transition-opacity text-[10px] text-gray-400 hover:text-[#ed6055]"
                     aria-label="Delete message"
                   >
                     Delete
                   </button>
+                  )
                 )}
               </div>
               <p className="text-[11px] text-gray-600 leading-snug whitespace-pre-wrap break-words mt-0.5">{r.body}</p>
