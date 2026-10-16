@@ -1,6 +1,7 @@
 ﻿import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { supabase } from '../lib/supabaseClient'
+import SearchDropdown from './SearchDropdown'
 import useProfile from '../hooks/useProfile'
 import { buildAllPeriods, computeChartData, parsePeriodDate, detectConflicts, formatPeriod, getScopeFilter } from '../lib/scurveUtils'
 import { downloadWorkbook, downloadBaselineTemplate, downloadActualTemplate, downloadForecastTemplate, parseWorkbook, toFloat } from '../lib/excelUtils'
@@ -685,7 +686,7 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
   // Fetch work program baselines list for marker selection
   useEffect(() => {
     supabase.from('workprogram_baselines')
-      .select('id, name, confirmed_at')
+      .select('id, name, confirmed_at, scurve_baseline_id')
       .eq('project_id', project.id)
       .order('confirmed_at', { ascending: false })
       .then(({ data }) => setWpBaselines(data ?? []))
@@ -951,6 +952,31 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
     setRenamingId(null)
     setRenameSaving(false)
     showToast('Baseline renamed')
+  }
+
+  // One work program baseline per S-curve baseline from this UI. The column
+  // itself allows many-to-one; this screen just does not create that.
+  // A work program baseline shows its paired S-curve baseline's name -- that
+  // one is the display name for the revision. Unpaired rows keep their own.
+  const wpBaselineLabel = (w) => {
+    const sc = baselines.find(b => b.id === w.scurve_baseline_id)
+    return sc ? sc.name : `${w.name} · unlinked`
+  }
+
+  const handleLinkWpBaseline = async (scurveId, wpId) => {
+    await supabase
+      .from('workprogram_baselines')
+      .update({ scurve_baseline_id: null })
+      .eq('project_id', project.id)
+      .eq('scurve_baseline_id', scurveId)
+    if (wpId) {
+      await supabase.from('workprogram_baselines').update({ scurve_baseline_id: scurveId }).eq('id', wpId)
+    }
+    const { data } = await supabase.from('workprogram_baselines')
+      .select('id, name, confirmed_at, scurve_baseline_id')
+      .eq('project_id', project.id)
+      .order('confirmed_at', { ascending: false })
+    setWpBaselines(data ?? [])
   }
 
   const handleDeleteBaseline = async (id) => {
@@ -1580,6 +1606,20 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
                       <>
                         <span className="flex-1 text-xs text-gray-700 truncate">{b.name}</span>
                         {b.cutoff_date && <span className="text-[10px] text-gray-400 flex-shrink-0">re-baseline</span>}
+                        {/* The pairing is by id; this baseline's name is the
+                            display name for both sides, so the work program's
+                            own typed name no longer has to agree. */}
+                        <SearchDropdown
+                          options={wpBaselines.map(w => ({ value: w.id, label: w.name }))}
+                          value={wpBaselines.find(w => w.scurve_baseline_id === b.id)?.id ?? ''}
+                          onChange={(v) => handleLinkWpBaseline(b.id, v || null)}
+                          emptyValue=""
+                          emptyLabel="Not linked"
+                          placeholder="Work program"
+                          clearable
+                          grayAccent
+                          minWidth={150}
+                        />
                         <button
                           onClick={() => { setRenamingId(b.id); setRenameValue(b.name) }}
                           className="flex-shrink-0 p-1 -m-1 rounded text-gray-400 hover:text-[#ed6055] transition-colors duration-150 ease-out active:scale-[0.9]"
@@ -1610,19 +1650,21 @@ export default function SCurveTab({ project, isAdmin, canEdit, showToast: showTo
             <div className="flex flex-col gap-2 border-t border-gray-200 pt-3">
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Work Program Markers</span>
               <div className="flex items-center gap-2 flex-wrap">
-                <select
+                {/* Labelled by the linked S-curve baseline where there is
+                    one, so both modules read the same revision name */}
+                <SearchDropdown
+                  options={wpBaselines.map(b => ({ value: b.id, label: wpBaselineLabel(b) }))}
                   value={wpMarkerBaselineId ?? ''}
-                  onChange={e => {
-                    setWpMarkerBaselineId(e.target.value || null)
+                  onChange={v => {
+                    setWpMarkerBaselineId(v || null)
                     setWpMarkerSelectedIds([])
                   }}
-                  className="px-2 py-1.5 text-xs rounded-lg border border-gray-200 text-gray-700 focus:outline-none focus:ring-2 focus:ring-amber-400 focus:border-transparent bg-white cursor-pointer"
-                >
-                  <option value="">Select baseline…</option>
-                  {wpBaselines.map(b => (
-                    <option key={b.id} value={b.id}>{b.name}</option>
-                  ))}
-                </select>
+                  emptyValue=""
+                  emptyLabel="Select baseline…"
+                  placeholder="Select baseline…"
+                  clearable
+                  minWidth={170}
+                />
                 {wpMarkerBaselineId && wpMarkerActivities.length === 0 && (
                   <span className="text-[10px] text-gray-400">No activities with planned end dates</span>
                 )}
