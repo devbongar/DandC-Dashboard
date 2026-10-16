@@ -353,11 +353,11 @@ function GanttRow({ row, scale, today, index = 0, labelW, selected = false, onSe
             start -- a square edge butted against that curve leaves a notch. */}
         {hasOverrun && (
           <div
-            className="wp-animated absolute top-1/2 -translate-y-1/2 h-7 rounded-full border border-[#ed6055]/50"
+            className="wp-animated absolute top-1/2 -translate-y-1/2 h-7 rounded-full border border-emerald-600/50"
             style={{
               left: right - 14,
               width: overrun + 14,
-              backgroundImage: 'repeating-linear-gradient(45deg, rgba(237,96,85,0.28) 0 6px, transparent 6px 12px)',
+              backgroundImage: 'repeating-linear-gradient(45deg, rgba(5,150,105,0.30) 0 6px, transparent 6px 12px)',
               transition: `left 320ms ${EASE}, width 320ms ${EASE}`,
             }}
             title={`Past baseline finish by ${Math.round((today - parseDay(row.finish)) / 86400000)} days`}
@@ -459,7 +459,7 @@ function Legend() {
       <Chip>
         <span
           className="ml-1 w-3.5 h-3.5 rounded-sm flex-shrink-0"
-          style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(237,96,85,0.45) 0 4px, transparent 4px 8px)', border: '1px solid rgba(237,96,85,0.6)' }}
+          style={{ backgroundImage: 'repeating-linear-gradient(45deg, rgba(5,150,105,0.45) 0 4px, transparent 4px 8px)', border: '1px solid rgba(5,150,105,0.6)' }}
         />
         Past baseline finish
       </Chip>
