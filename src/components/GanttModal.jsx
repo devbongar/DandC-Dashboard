@@ -1763,17 +1763,35 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const schedulerRunning = useRef(false)
   const settingsWrapRef  = useRef(null)
 
+  const [scurveBaselines, setScurveBaselines] = useState([])
+
+  // Paired baselines take the S-curve name; unpaired ones keep their own and
+  // say so, which is how PRJ-000008's duplicates stay visible
+  const blLabel = (b) => {
+    if (!b) return ''
+    const sc = scurveBaselines.find(x => x.id === b.scurve_baseline_id)
+    return sc ? sc.name : `${b.name} · unlinked`
+  }
+
   useEffect(() => {
     const loadBaselines = async () => {
       const { data } = await supabase
         .from('workprogram_baselines')
-        .select('id, name, created_at, start_date, confirmed_at')
+        .select('id, name, created_at, start_date, confirmed_at, scurve_baseline_id')
         .eq('project_id', project.id)
         .order('created_at', { ascending: true })
       const bls = data ?? []
       setBaselines(bls)
       setActiveBL(bls.length > 0 ? bls[bls.length - 1].id : null)
       setInlineAdd(null); setInlineAddName('')
+
+      // A baseline is named by the S-curve baseline it is paired with, so the
+      // two modules cannot show different names for the same revision
+      const { data: sc } = await supabase
+        .from('project_scurve_baselines')
+        .select('id, name')
+        .eq('project_id', project.id)
+      setScurveBaselines(sc ?? [])
     }
     loadBaselines()
   }, [project.id])
@@ -2335,7 +2353,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       }
     })
 
-    const blLabel = baselines.find(b => b.id === activeBL)?.name ?? ''
+    const blName = baselines.find(b => b.id === activeBL)?.name ?? ''
     downloadWorkbook([{
       rows: exportRows,
       columns: [
@@ -2352,7 +2370,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         { key: 'projected_end',   header: 'Projected End' },
       ],
       sheetName: 'Milestones',
-    }], `${project.name}_milestones${blLabel ? `_${blLabel}` : ''}.xlsx`)
+    }], `${project.name}_milestones${blName ? `_${blName}` : ''}.xlsx`)
   }
 
   const handleImportRequest = (file) => {
@@ -2893,7 +2911,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
                 ghost
                 value={activeBL ?? ''}
                 onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
-                options={baselines.map(b => ({ value: b.id, label: b.name }))}
+                options={baselines.map(b => ({ value: b.id, label: blLabel(b) }))}
               />
             </div>
           )}
@@ -2939,7 +2957,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
                     fullWidth
                     value={activeBL ?? ''}
                     onChange={v => { setActiveBL(v); setInlineAdd(null); setInlineAddName('') }}
-                    options={baselines.map(b => ({ value: b.id, label: b.name }))}
+                    options={baselines.map(b => ({ value: b.id, label: blLabel(b) }))}
                   />
                 ) : (
                   <p className="text-xs text-gray-400 italic">No baselines yet</p>
@@ -3432,7 +3450,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-black mb-1">Delete baseline?</h3>
             <p className="text-sm text-gray-500 mb-1">
-              You are about to delete <span className="font-semibold text-gray-700">{baselines.find(b => b.id === deleteBLId)?.name}</span>.
+              You are about to delete <span className="font-semibold text-gray-700">{blLabel(baselines.find(b => b.id === deleteBLId))}</span>.
             </p>
             <p className="text-sm text-gray-500 mb-5">All milestones in this baseline will be permanently removed. This cannot be undone.</p>
             <div className="flex gap-3">
