@@ -44,7 +44,30 @@ const DATE_COL_W   = 100  // width of each individual date cell (px)
 const DATE_GROUP_W = DATE_COL_W * 2  // two cols per group (start + end)
 const DATE_COLS_W  = DATE_GROUP_W * 3  // three groups: planned, actual, projected
 
-const fmtDate = d => d ? new Date(d + 'T00:00:00').toLocaleDateString('en-PH', { year: 'numeric', month: 'short', day: 'numeric' }) : '--'
+// m/d/yyyy everywhere, built from the parts rather than toLocaleDateString --
+// the locale decides order and separators, and the grid must not
+const fmtDate = (d) => {
+  if (!d) return '--'
+  const [y, m, day] = String(d).slice(0, 10).split('-').map(Number)
+  if (!y || !m || !day) return '--'
+  return `${m}/${day}/${y}`
+}
+
+// Accepts what fmtDate prints, and the ISO the database stores
+const parseMDY = (text) => {
+  const t = String(text ?? '').trim()
+  if (!t) return null
+  const iso = t.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+  if (iso) return t
+  const m = t.match(/^(\d{1,2})[/\-.](\d{1,2})[/\-.](\d{2}|\d{4})$/)
+  if (!m) return undefined          // unparseable, as distinct from blank
+  const mm = Number(m[1]), dd = Number(m[2])
+  let yy = Number(m[3])
+  if (yy < 100) yy += yy < 70 ? 2000 : 1900
+  const d = new Date(yy, mm - 1, dd)
+  if (d.getFullYear() !== yy || d.getMonth() !== mm - 1 || d.getDate() !== dd) return undefined
+  return `${yy}-${String(mm).padStart(2, '0')}-${String(dd).padStart(2, '0')}`
+}
 
 const isValidDate = (str) => {
   if (!str) return true
@@ -93,7 +116,7 @@ function GInlineInput({ value, onChange, type = 'text', placeholder = '', min, m
       max={max}
       disabled={disabled}
       className={ghost
-        ? `w-full px-0.5 py-0 text-xs bg-transparent border-0 outline-none focus:outline-none focus:ring-0 truncate ${textClassName}`
+        ? `w-full h-full self-stretch px-1 py-0 text-xs bg-transparent border-0 outline-none focus:outline-none focus:ring-0 focus:bg-blue-50/40 truncate ${textClassName}`
         : `w-full px-2 py-1.5 text-xs rounded border focus:outline-none focus:ring-1 bg-white transition ${
             disabled
               ? 'border-gray-100 bg-gray-50 text-gray-400 cursor-not-allowed'
@@ -421,7 +444,7 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
     return (
       <div
         onClick={() => setEditing(true)}
-        className="text-xs text-gray-700 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-blue-50 hover:text-blue-600 transition"
+        className="text-xs text-gray-700 px-2 cursor-text w-full h-full self-stretch flex items-center hover:bg-blue-50 hover:text-blue-600 transition"
         title="Click to edit predecessors (e.g. 3FS, 2SS+5)"
       >
         {predText || <span className="text-gray-500 select-none">--</span>}
@@ -443,7 +466,7 @@ function PredecessorsCell({ predText, onSave, isAdmin }) {
         if (e.key === 'Enter') { e.preventDefault(); cancelRef.current = true; setEditing(false); onSave(value) }
         if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; setEditing(false); setValue(predText) }
       }}
-      className="text-xs px-2 py-0.5 rounded border border-[#ed6055] focus:outline-none w-full"
+      className="text-xs px-2 border-2 border-[#ed6055] bg-blue-50/40 focus:outline-none w-full h-full self-stretch"
       placeholder="e.g. 3FS,2SS+5"
     />
   )
@@ -459,12 +482,12 @@ function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
   }, [duration, editing])
 
   if (hasChildren) {
-    return <div className="text-xs text-gray-300 px-2 flex items-center min-h-[24px]">--</div>
+    return <div className="text-xs text-gray-300 px-2 flex items-center w-full h-full self-stretch">--</div>
   }
 
   if (!isAdmin) {
     return (
-      <div className="text-xs text-gray-400 px-2 flex items-center min-h-[24px]">
+      <div className="text-xs text-gray-400 px-2 flex items-center w-full h-full self-stretch">
         {duration != null ? duration : <span className="text-gray-200">--</span>}
       </div>
     )
@@ -474,7 +497,7 @@ function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
     return (
       <div
         onClick={() => setEditing(true)}
-        className="text-xs text-gray-400 px-2 py-1 rounded cursor-text min-h-[24px] flex items-center hover:bg-yellow-50 hover:text-yellow-700 transition"
+        className="text-xs text-gray-400 px-2 cursor-text w-full h-full self-stretch flex items-center hover:bg-yellow-50 hover:text-yellow-700 transition"
         title="Click to edit duration (calendar days)"
       >
         {duration != null ? duration : <span className="text-gray-400 select-none">--</span>}
@@ -485,11 +508,10 @@ function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
   return (
     <input
       autoFocus
-      type="number"
-      min={1}
-      step={1}
+      type="text"
+      inputMode="numeric"
       value={value}
-      onChange={e => setValue(e.target.value)}
+      onChange={e => setValue(e.target.value.replace(/[^0-9]/g, ''))}
       onBlur={() => {
         if (cancelRef.current) { cancelRef.current = false; return }
         setEditing(false)
@@ -513,12 +535,24 @@ function DurationCell({ duration, hasChildren, onSave, isAdmin }) {
 
 function DateCell({ value, onSave, isAdmin, min, max }) {
   const [editing, setEditing] = useState(false)
-  const [val, setVal] = useState(value ?? '')
+  const [val, setVal] = useState(value ? fmtDate(value) : '')
+  const [bad, setBad] = useState(false)
   const cancelRef = useRef(false)
 
   useEffect(() => {
-    if (!editing) setVal(value ?? '')
+    if (!editing) { setVal(value ? fmtDate(value) : ''); setBad(false) }
   }, [value, editing])
+
+  // Typed, not picked: a native date input opens a picker over the grid and
+  // shows the browser's locale order. The cell is the field.
+  const commit = () => {
+    const iso = parseMDY(val)
+    if (iso === undefined) { setBad(true); return false }   // keep editing
+    setEditing(false)
+    setBad(false)
+    if ((iso ?? null) !== (value ?? null)) onSave(iso ?? null)
+    return true
+  }
 
   if (!isAdmin) {
     return <span className={`whitespace-nowrap text-[11px] ${value ? 'text-gray-700' : 'text-gray-500'}`}>{value ? fmtDate(value) : '--'}</span>
@@ -528,7 +562,7 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
     return (
       <div
         onClick={() => setEditing(true)}
-        className="text-[11px] whitespace-nowrap px-0.5 rounded cursor-text flex items-center hover:bg-blue-50 transition select-none w-full group"
+        className="text-[11px] whitespace-nowrap px-1.5 cursor-text flex items-center hover:bg-blue-50 transition select-none w-full h-full self-stretch group"
         title="Click to edit date"
       >
         {value
@@ -541,21 +575,23 @@ function DateCell({ value, onSave, isAdmin, min, max }) {
   return (
     <input
       autoFocus
-      type="date"
+      type="text"
+      inputMode="numeric"
+      placeholder="m/d/yyyy"
       value={val}
-      min={min}
-      max={max}
-      onChange={e => setVal(e.target.value)}
+      onChange={e => { setVal(e.target.value); if (bad) setBad(false) }}
+      onFocus={e => e.target.select()}
       onBlur={() => {
         if (cancelRef.current) { cancelRef.current = false; return }
-        setEditing(false)
-        onSave(val || null)
+        // An unreadable entry on blur reverts rather than trapping the caret
+        if (!commit()) { setEditing(false); setVal(value ? fmtDate(value) : ''); setBad(false) }
       }}
       onKeyDown={e => {
-        if (e.key === 'Enter')  { e.preventDefault(); cancelRef.current = true; setEditing(false); onSave(val || null) }
-        if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; setEditing(false); setVal(value ?? '') }
+        if (e.key === 'Enter')  { e.preventDefault(); if (commit()) cancelRef.current = true }
+        if (e.key === 'Escape') { e.preventDefault(); cancelRef.current = true; setEditing(false); setVal(value ? fmtDate(value) : ''); setBad(false) }
       }}
-      className="text-[11px] px-1 py-0.5 rounded border border-[#ed6055] focus:outline-none w-full"
+      className={`text-[11px] px-1.5 border-2 focus:outline-none w-full h-full self-stretch ${bad ? 'border-red-500 bg-red-50' : 'border-[#ed6055] bg-blue-50/40'}`}
+      title={bad ? 'Enter a date as m/d/yyyy' : undefined}
     />
   )
 }
@@ -590,7 +626,7 @@ function RemDurCell({ remDur, plannedStart, plannedEnd, projectedEnd, projectedS
     return (
       <div
         onClick={() => { setValue(displayVal != null ? String(displayVal) : ''); setEditing(true) }}
-        className="text-xs tabular-nums px-0.5 rounded cursor-text flex items-center justify-center hover:bg-blue-50 transition select-none w-full group"
+        className="text-xs tabular-nums px-1 cursor-text flex items-center justify-center hover:bg-blue-50 transition select-none w-full h-full self-stretch group"
         title="Click to edit remaining duration (calendar days)"
       >
         {displayVal != null
@@ -603,10 +639,10 @@ function RemDurCell({ remDur, plannedStart, plannedEnd, projectedEnd, projectedS
   return (
     <input
       autoFocus
-      type="number"
-      min={0}
+      type="text"
+      inputMode="numeric"
       value={value}
-      onChange={e => setValue(e.target.value)}
+      onChange={e => setValue(e.target.value.replace(/[^0-9]/g, ''))}
       onBlur={() => {
         if (cancelRef.current) { cancelRef.current = false; return }
         setEditing(false)
@@ -617,7 +653,7 @@ function RemDurCell({ remDur, plannedStart, plannedEnd, projectedEnd, projectedS
         if (e.key === 'Enter')  { e.preventDefault(); cancelRef.current = true; setEditing(false); const parsed = value.trim() === '' ? null : parseInt(value, 10); onSave(isNaN(parsed) ? null : parsed) }
         if (e.key === 'Escape') { cancelRef.current = true; setEditing(false); setValue(displayVal != null ? String(displayVal) : '') }
       }}
-      className="text-xs px-1 py-0.5 rounded border border-[#ed6055] focus:outline-none w-full tabular-nums text-center"
+      className="text-xs px-1 border-2 border-[#ed6055] bg-blue-50/40 tabular-nums text-center focus:outline-none w-full h-full self-stretch"
     />
   )
 }
@@ -651,7 +687,7 @@ function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null
     const i = PASTEABLE_ORDER.indexOf(col)
     return i >= selCols[0] && i <= selCols[1]
   }
-  const dateCell = (content, w, bg, bl, col = null) => (
+  const dateCell = (content, w, bg, bl, col = null, flush = false) => (
     <div
       data-cell-col={col ?? undefined}
       data-cell-row={col ? rowIndex : undefined}
@@ -664,7 +700,7 @@ function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null
           boxShadow: 'inset 0 0 0 1px rgba(237,96,85,0.45)',
         }),
       }}
-      className="px-1.5 py-1 text-xs border-r border-gray-200 flex items-center min-h-[52px]"
+      className={`text-xs border-r border-gray-200 flex items-stretch min-h-[52px] ${flush ? 'p-0' : 'px-1.5 py-1 items-center'}`}
       onPointerDown={col && onCellMouseDown ? (e) => e.stopPropagation() : undefined}
       onClick={col && onCellMouseDown ? (e) => e.stopPropagation() : undefined}
       onMouseDown={col && onCellMouseDown ? () => onCellMouseDown(col, rowIndex) : undefined}
@@ -797,7 +833,7 @@ function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null
         {showRemDur && (
           <div
             style={{ width: remDurColW, minWidth: remDurColW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
-            className="flex items-center justify-center flex-shrink-0 self-stretch px-1"
+            className="flex items-stretch flex-shrink-0 self-stretch"
           >
             <RemDurCell
               remDur={m.rem_dur}
@@ -816,7 +852,7 @@ function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null
         {showPredecessor && (
           <div
             style={{ width: predColW, minWidth: predColW, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
-            className="flex items-center flex-shrink-0 self-stretch px-1"
+            className="flex items-stretch flex-shrink-0 self-stretch"
           >
             <PredecessorsCell predText={predText} onSave={onSavePreds} isAdmin={canEdit && !hasActual && !isBLConfirmed} />
           </div>
@@ -833,18 +869,18 @@ function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null
             , dateColWidths.plnEnd)}
             {showActual && dateCell(
               <DateCell value={m.actual_start} onSave={v => onSaveDate('actual_start', v)} isAdmin={canEdit} max={m.actual_end || undefined} />
-            , dateColWidths.actStart, undefined, undefined, canEdit ? 'actual_start' : null)}
+            , dateColWidths.actStart, undefined, undefined, canEdit ? 'actual_start' : null, canEdit)}
             {showActual && dateCell(
               <DateCell value={m.actual_end} onSave={v => onSaveDate('actual_end', v)} isAdmin={canEdit} min={m.actual_start || undefined} />
-            , dateColWidths.actEnd, undefined, undefined, canEdit ? 'actual_end' : null)}
+            , dateColWidths.actEnd, undefined, undefined, canEdit ? 'actual_end' : null, canEdit)}
             {showProjected && dateCell(m.actual_start
               ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.actual_start)}</span>
               : <DateCell value={m.projected_start} onSave={v => onSaveDate('projected_start', v)} isAdmin={canEdit} max={m.projected_end || undefined} />
-            , dateColWidths.projStart, undefined, undefined, (canEdit && !m.actual_start) ? 'projected_start' : null)}
+            , dateColWidths.projStart, undefined, undefined, (canEdit && !m.actual_start) ? 'projected_start' : null, canEdit && !m.actual_start)}
             {showProjected && dateCell(m.actual_end
               ? <span className="text-gray-700 whitespace-nowrap text-[11px]">{fmtDate(m.actual_end)}</span>
               : <DateCell value={m.projected_end} onSave={v => onSaveDate('projected_end', v)} isAdmin={canEdit} min={m.projected_start || undefined} />
-            , dateColWidths.projEnd, undefined, undefined, (canEdit && !m.actual_end) ? 'projected_end' : null)}
+            , dateColWidths.projEnd, undefined, undefined, (canEdit && !m.actual_end) ? 'projected_end' : null, canEdit && !m.actual_end)}
           </div>
         )}
       </div>
