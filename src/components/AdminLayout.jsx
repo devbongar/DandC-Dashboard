@@ -304,9 +304,11 @@ export default function AdminLayout({ title, actions, mobileActionsRow, mobileTi
           <div className="px-5 relative">
           {/* Row 1: title + actions (desktop) + bell + avatar */}
           <div className="flex items-center h-14 gap-2 sm:gap-4">
-            <span className={`font-bold tracking-wide ${mobileBg && isMobile ? 'text-white' : 'text-gray-800'}`} style={{ fontSize: 24 }}>{title}</span>
+            {/* Row 1 is a fixed h-14: a wrapping title overflows it and lands
+                on whatever sits below, so it stays on one line and truncates */}
+            <span className={`font-bold tracking-wide whitespace-nowrap truncate text-xl sm:text-2xl ${mobileBg && isMobile ? 'text-white' : 'text-gray-800'}`}>{title}</span>
 
-            <div className="flex-1" />
+            <div className="flex-1 min-w-0" />
 
             {actions}
 
