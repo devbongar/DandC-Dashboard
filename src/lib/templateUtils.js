@@ -28,6 +28,11 @@ export async function copyTemplateToBaseline(baselineId, projectId, supabase) {
   // Map template uuid → new rawTaskId, then build composite activity id
   const oldToRawId = new Map()
 
+  // Stable activity codes, issued in template order. A template copy is the
+  // first thing in the project, so numbering starts clean at A1000.
+  let codeSeq = 1000
+  const nextCode = () => { const c = `A${codeSeq}`; codeSeq += 10; return c }
+
   const parents  = templateTasks.filter(t => !t.parent_id)
   const children = templateTasks.filter(t =>  t.parent_id)
 
@@ -39,6 +44,7 @@ export async function copyTemplateToBaseline(baselineId, projectId, supabase) {
       task_id:        rawId,
       baseline_id:    baselineId,
       project_id:     projectId,
+      activity_code:  nextCode(),
       sort_order:     i + 1,
       milestone_name: t.milestone_name,
       phase:          t.phase,
@@ -61,6 +67,7 @@ export async function copyTemplateToBaseline(baselineId, projectId, supabase) {
         task_id:        rawId,
         baseline_id:    baselineId,
         project_id:     projectId,
+        activity_code:  nextCode(),
         sort_order:     parents.length + i + 1,
         milestone_name: t.milestone_name,
         phase:          t.phase,

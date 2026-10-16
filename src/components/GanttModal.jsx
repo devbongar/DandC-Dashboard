@@ -35,6 +35,7 @@ const LABEL_W = 320
 const ROW_NUM_W  = 36   // # column (sequential row number)
 const SEL_W      = 30   // selection tick box, left of the # column
 const PRED_COL_W = 96   // Predecessors editable column
+const CODE_COL_W = 68   // Activity ID (stable code)
 const DEFAULT_COL_PX = { day: 20, week: 20, month: 20 }
 const MOBILE_DEFAULT_COL_PX = { day: 30, week: 30, month: 30 }
 const getDefaultColPx = () => window.innerWidth < 640 ? MOBILE_DEFAULT_COL_PX : DEFAULT_COL_PX
@@ -240,7 +241,7 @@ function GBarColorRow({ label, barKey, value, onChange }) {
 
 // Collapse/expand to a chosen depth. Rendered through a portal: the grid
 // scrolls horizontally, and a dropdown inside that container gets clipped.
-function GLevelMenu({ maxLevel, onPick }) {
+function GLevelMenu({ maxLevel, onPick, filter = '', onFilterChange = () => {} }) {
   const [open, setOpen] = useState(false)
   const [pos, setPos] = useState({ top: 0, left: 0 })
   const btnRef = useRef(null)
@@ -276,18 +277,43 @@ function GLevelMenu({ maxLevel, onPick }) {
         onClick={toggle}
         title="Collapse or expand to a level"
         aria-label="Collapse or expand to a level"
-        className="flex-shrink-0 px-1 text-gray-300 hover:text-white transition-colors"
+        className={`relative flex-shrink-0 px-1 transition-colors ${filter ? 'text-[#ed6055]' : 'text-gray-300 hover:text-white'}`}
       >
         <svg className="w-4 h-4" viewBox="0 0 24 24" fill="currentColor">
           <circle cx="12" cy="5" r="1.6" /><circle cx="12" cy="12" r="1.6" /><circle cx="12" cy="19" r="1.6" />
         </svg>
+        {filter && <span className="absolute top-0 right-0 w-1.5 h-1.5 rounded-full bg-[#ed6055]" />}
       </button>
       {open && createPortal(
         <div
           ref={menuRef}
-          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, width: 170 }}
+          style={{ position: 'fixed', top: pos.top, left: pos.left, zIndex: 9999, width: 210 }}
           className="bg-white rounded-xl shadow-xl border border-gray-200 overflow-hidden py-1"
         >
+          <div className="px-2 pt-1 pb-2 border-b border-gray-100">
+            <div className="relative">
+              <svg className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M17 10.5a6.5 6.5 0 11-13 0 6.5 6.5 0 0113 0z" />
+              </svg>
+              <input
+                autoFocus
+                value={filter}
+                onChange={e => onFilterChange(e.target.value)}
+                placeholder="Filter activities"
+                className="w-full bg-black/[0.05] rounded-lg py-1.5 pl-7 pr-6 text-xs text-gray-700 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#ed6055]/40"
+              />
+              {filter && (
+                <button
+                  onClick={() => onFilterChange('')}
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-700 text-xs"
+                  aria-label="Clear filter"
+                >
+                  &times;
+                </button>
+              )}
+            </div>
+            <p className="text-[10px] text-gray-400 mt-1 px-0.5">Matches name or ID. Reordering is off while filtering.</p>
+          </div>
           <button onClick={() => pick('all')} className="w-full text-left px-3 py-2 text-xs text-gray-700 hover:bg-gray-50 transition">
             Expand all
           </button>
@@ -658,7 +684,7 @@ function RemDurCell({ remDur, plannedStart, plannedEnd, projectedEnd, projectedS
   )
 }
 
-function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, rowNumW = ROW_NUM_W, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '', rowIndex = 0, selCols = null, inSelRange = false, onCellMouseDown = null, onCellMouseEnter = null }) {
+function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null, predText = '', onSavePreds = () => {}, toPx, chartPxWidth, gridDates, todayPx, showToday, todayStr, isChild = false, isLastChild = false, rowNumW = ROW_NUM_W, labelW = LABEL_W, durColW = DUR_COL_W, remDurColW = DUR_COL_W, predColW = PRED_COL_W, dateColWidths = { plnStart: DATE_COL_W, plnEnd: DATE_COL_W, actStart: DATE_COL_W, actEnd: DATE_COL_W, projStart: DATE_COL_W, projEnd: DATE_COL_W }, showCode = true, showDuration = true, showRemDur = true, showPredecessor = true, showPlanned = true, showActual = true, showProjected = true, showPlannedBar = true, showActualBar = true, showProjectedBar = true, showBarLabels = true, draftName = '', onDraftChange = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, depth = 0, hasChildren = false, isCollapsed = false, onToggleCollapse = () => {}, onAddChild = null, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showDragHandle = false, dataDate = '', rowIndex = 0, selCols = null, inSelRange = false, onCellMouseDown = null, onCellMouseEnter = null }) {
   const hasDates   = [m.planned_start, m.planned_end, m.actual_start, m.actual_end, m.projected_start, m.projected_end].some(Boolean)
   const hasActual  = !!(m.actual_start || m.actual_end)
 
@@ -672,7 +698,7 @@ function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null
   const bgBase     = hasViolation ? '#fff1f2' : '#ffffff'
   const bgHover    = hasViolation ? '#fecdd3' : '#e5e7eb'
 
-  const frozenW = (onToggleSelect ? SEL_W : 0) + rowNumW + labelW
+  const frozenW = (onToggleSelect ? SEL_W : 0) + rowNumW + (showCode ? CODE_COL_W : 0) + labelW
     + (showDuration ? durColW : 0)
     + (showRemDur ? remDurColW : 0)
     + (showPredecessor ? predColW : 0)
@@ -748,6 +774,16 @@ function MilestoneRow({ m, rowNum = 0, isSelected = false, onToggleSelect = null
             title={showDragHandle ? 'Drag to reorder' : undefined}
           >
             <span className="text-[10px] font-mono text-gray-700 tabular-nums select-none">{rowNum}</span>
+          </div>
+        )}
+        {/* Activity ID -- assigned once, never renumbered, so it can be
+            referenced without depending on row position */}
+        {showCode && (
+          <div
+            style={{ width: CODE_COL_W, minWidth: CODE_COL_W, borderRight: '1px solid #e5e7eb', backgroundColor: 'inherit' }}
+            className="flex items-center justify-center flex-shrink-0 self-stretch px-1"
+          >
+            <span className="text-[10px] font-mono tabular-nums text-gray-500 select-text">{m.activity_code ?? '--'}</span>
           </div>
         )}
         {/* Activity name */}
@@ -1222,7 +1258,7 @@ function DragResizeHandle({ onMouseDown }) {
   )
 }
 
-function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, rowNumW = ROW_NUM_W, disableDrag = false, colVisibility = { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, onReorder = () => {}, selectedIds = new Set(), onSelect = () => {}, onSelectAll = () => {}, onSetCollapseLevel = () => {}, maxLevel = 1, rowPasteArmed = false, dataDate = '' }) {
+function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month', colPx = 20, labelW = LABEL_W, setLabelW = () => {}, rowNumW = ROW_NUM_W, disableDrag = false, colVisibility = { code: true, duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }, barVisibility = { planned: true, actual: true, projected: true }, barColors = { planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' }, showBarLabels = true, drafts = {}, setDrafts = () => {}, onSave = () => {}, onDelete = () => {}, isAdmin = false, canEdit = false, showToast = () => {}, inlineAdd = null, inlineAddName = '', onInlineNameChange = () => {}, onInlineSave = () => {}, onInlineCancel = () => {}, inlineAdding = false, onSetInlineAdd = () => {}, activeBL = null, collapsedIds = new Set(), onToggleCollapse = () => {}, dependencies = [], onSavePreds = () => {}, isAutoMode = false, isBLConfirmed = false, onSaveDuration = () => {}, onSaveDate = () => {}, onSaveRemDur = () => {}, onReorder = () => {}, selectedIds = new Set(), onSelect = () => {}, onSelectAll = () => {}, onSetCollapseLevel = () => {}, maxLevel = 1, rowFilter = '', onRowFilterChange = () => {}, rowPasteArmed = false, clipSignature = '', onRowPaste = () => {}, dataDate = '' }) {
   const [durColW,    setDurColW]    = useState(DUR_COL_W)
   const [remDurColW, setRemDurColW] = useState(DUR_COL_W)
   const [predColW,   setPredColW]   = useState(PRED_COL_W)
@@ -1280,10 +1316,24 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     if (!isAdmin || !canEdit) return
     const onPaste = async (e) => {
       const targetCell = e.target?.closest?.('[data-cell-col]')
-      // Row paste is handled on keydown. Only stand aside when this paste is
-      // not aimed at the grid -- a paste into a cell is always a cell paste,
-      // whether or not rows happen to be on the clipboard.
-      if (rowPasteArmed && !targetCell && !selRange) return
+
+      // Rows were copied and the clipboard still holds exactly what that copy
+      // put there, so this is a row paste. Any later copy -- from Excel or
+      // anywhere else -- changes the text and falls through to the cell paste.
+      const pastedText = e.clipboardData?.getData('text/plain') ?? ''
+      // Windows hands back CRLF where the signature was written with LF,
+      // and some apps add a trailing newline -- compare shapes, not bytes
+      const strip = (t) => String(t).split('\r').join('').trimEnd()
+      const sameText = (a, b) => strip(a) === strip(b)
+      // clipSignature is empty when the browser refused the clipboard write;
+      // a paste that is not aimed at a cell is then still a row paste
+      const rowPaste = rowPasteArmed && !targetCell && !selRange &&
+        (clipSignature ? sameText(pastedText, clipSignature) : true)
+      if (rowPaste) {
+        e.preventDefault()
+        onRowPaste()
+        return
+      }
       const editingElsewhere = !targetCell && /^(INPUT|TEXTAREA)$/.test(e.target?.tagName ?? '')
       if (!targetCell && (!selRange || editingElsewhere)) return
       const col = selRange?.col ?? targetCell?.dataset.cellCol
@@ -1357,7 +1407,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
     }
     document.addEventListener('paste', onPaste)
     return () => document.removeEventListener('paste', onPaste)
-  }, [isAdmin, canEdit, selRange, selectedIds, rowPasteArmed, milestones, collapsedIds, setDrafts, showToast, onSaveDate])
+  }, [isAdmin, canEdit, selRange, selectedIds, rowPasteArmed, clipSignature, onRowPaste, milestones, collapsedIds, setDrafts, showToast, onSaveDate])
 
   useEffect(() => {
     const scrollEl = ganttScrollRef.current
@@ -1453,7 +1503,8 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
   const todayPx      = refDatePx
 
   const { duration: showDuration, remDur: showRemDur, predecessor: showPredecessor, planned: showPlanned, actual: showActual, projected: showProjected, gantt: showGantt } = colVisibility
-  const frozenW = (isAdmin ? SEL_W : 0) + rowNumW + labelW
+  const showCode = colVisibility.code !== false
+  const frozenW = (isAdmin ? SEL_W : 0) + rowNumW + (showCode ? CODE_COL_W : 0) + labelW
     + (showDuration ? durColW : 0)
     + (showRemDur ? remDurColW : 0)
     + (showPredecessor ? predColW : 0)
@@ -1500,11 +1551,17 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
               <span className="text-[10px] font-bold text-gray-300">#</span>
             </div>
           )}
+          {/* Activity ID column header */}
+          {showCode && (
+            <div style={{ width: CODE_COL_W, minWidth: CODE_COL_W }} className="flex items-center justify-center self-stretch border-r border-gray-500 flex-shrink-0">
+              <span className="text-xs font-bold text-gray-300">ID</span>
+            </div>
+          )}
           {/* Activity name column */}
           {labelW > 0 && (
             <div style={{ width: labelW, minWidth: labelW, position: 'relative' }} className="flex items-center pl-3 pr-1 self-stretch border-r border-gray-500 flex-shrink-0">
               <span className="text-xs font-bold text-gray-200 flex-1 min-w-0">Activity</span>
-              <GLevelMenu maxLevel={maxLevel} onPick={onSetCollapseLevel} />
+              <GLevelMenu maxLevel={maxLevel} onPick={onSetCollapseLevel} filter={rowFilter} onFilterChange={onRowFilterChange} />
               <DragResizeHandle onMouseDown={e => startColDrag(e, labelW, setLabelW, 120)} />
             </div>
           )}
@@ -1671,7 +1728,7 @@ function GanttChart({ milestones, overrideMin, overrideMax, timeScale = 'month',
         todayPx, showToday, todayStr: refDateStr,
         isChild: node.depth > 0, isLastChild: false,
         rowNumW,
-        labelW, durColW, remDurColW, predColW, dateColWidths, showDuration, showRemDur, showPredecessor, showPlanned, showActual, showProjected,
+        labelW, durColW, remDurColW, predColW, dateColWidths, showCode, showDuration, showRemDur, showPredecessor, showPlanned, showActual, showProjected,
         showPlannedBar: barVisibility.planned, showActualBar: barVisibility.actual, showProjectedBar: barVisibility.projected, showBarLabels,
         draftName: drafts[node.id] ?? displayM.milestone_name,
         onDraftChange: (v) => setDrafts(p => ({ ...p, [node.id]: v })),
@@ -1935,8 +1992,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const [colVisibility, setColVisibility] = useState(() => {
     const mobile = window.innerWidth < 640
     return mobile
-      ? { duration: false, remDur: false, predecessor: false, planned: false, actual: false, projected: false, gantt: true }
-      : { duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }
+      ? { code: false, duration: false, remDur: false, predecessor: false, planned: false, actual: false, projected: false, gantt: true }
+      : { code: true, duration: true, remDur: true, predecessor: true, planned: true, actual: true, projected: true, gantt: true }
   })
   const [barVisibility, setBarVisibility] = useState({ planned: true, actual: true, projected: true })
   const [barColors, setBarColors]         = useState({ planned: '#9ca3af', actual: '#22c55e', projected: '#fde047' })
@@ -1956,6 +2013,9 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const [selectAnchor, setSelectAnchor] = useState(null)   // for shift-click ranges
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
   const [rowClipboard, setRowClipboard] = useState([])  // ids held by Ctrl+C
+  const [showTagModal, setShowTagModal] = useState(false)
+  const [rowFilter, setRowFilter] = useState('')
+  const [blankCount, setBlankCount] = useState('10')  // starting rows for a blank schedule
   const [dependencies, setDependencies] = useState([])
   const [newBLName, setNewBLName]     = useState('')
   const [newBLNum,  setNewBLNum]      = useState('')
@@ -1977,6 +2037,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   // say so, which is how PRJ-000008's duplicates stay visible
   const blLabel = (b) => {
     if (!b) return ''
+    if (b.is_draft) return `${b.name} · not baselined`
     const sc = scurveBaselines.find(x => x.id === b.scurve_baseline_id)
     return sc ? sc.name : `${b.name} · unlinked`
   }
@@ -1985,7 +2046,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     const loadBaselines = async () => {
       const { data } = await supabase
         .from('workprogram_baselines')
-        .select('id, name, created_at, start_date, confirmed_at, scurve_baseline_id')
+        .select('id, name, created_at, start_date, confirmed_at, scurve_baseline_id, is_draft')
         .eq('project_id', project.id)
         .order('created_at', { ascending: true })
       const bls = data ?? []
@@ -2257,9 +2318,11 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         .order('sort_order', { ascending: false }).limit(1)
       const N = allActs?.length ? (allActs[0].sort_order ?? 0) + 1 : 1
       const rawTaskId = crypto.randomUUID()
+      const [code] = await nextActivityCodes(1)
       const { error } = await supabase.from('workprogram_activities').insert({
         id:             `${rawTaskId}_${activeBL}`,
         task_id:        rawTaskId,
+        activity_code:  code,
         baseline_id:    activeBL,
         project_id:     project.id,
         phase,
@@ -2385,6 +2448,23 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     ))
   }
 
+  // Filtering keeps a match's ancestors so the row still reads in context --
+  // a sub-activity shown with no summary above it is just a floating name.
+  const filteredMilestones = (() => {
+    const q = rowFilter.trim().toLowerCase()
+    if (!q) return milestones
+    const byId = Object.fromEntries(milestones.map(m => [m.id, m]))
+    const keep = new Set()
+    for (const m of milestones) {
+      const hay = `${m.milestone_name ?? ''} ${m.activity_code ?? ''}`.toLowerCase()
+      if (!hay.includes(q)) continue
+      keep.add(m.id)
+      let p = m.parent_id
+      while (p && byId[p] && !keep.has(p)) { keep.add(p); p = byId[p].parent_id }
+    }
+    return milestones.filter(m => keep.has(m.id))
+  })()
+
   const handleSelectAll = (checked) => {
     setSelectedIds(checked ? new Set(buildTree(milestones, collapsedIds).map(n => n.id)) : new Set())
     setSelectAnchor(null)
@@ -2470,13 +2550,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
       }
       const mod = e.ctrlKey || e.metaKey
       if (mod && e.key.toLowerCase() === 'c' && !typing && selectedIds.size > 0) {
-        setRowClipboard([...selectedIds])
-        showToast(`${selectedIds.size} ${selectedIds.size === 1 ? 'activity' : 'activities'} copied.`, 'success')
-        return
-      }
-      if (mod && e.key.toLowerCase() === 'v' && !typing && rowClipboard.length > 0) {
-        e.preventDefault()
-        pasteRows()
+        copyRows()
         return
       }
       const blLocked = !!baselines.find(b => b.id === activeBL)?.confirmed_at
@@ -2494,9 +2568,24 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   }, [selectedIds, rowClipboard, milestones, collapsedIds, isAdmin, activeBL, baselines]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Ctrl+C remembers the rows; Ctrl+V inserts copies of them. Copying a
-  // summary takes its whole subtree, selected or not -- a summary without its
-  // children is not a useful copy. Planned dates and duration carry over;
-  // actuals and forecast do not, since the copy has not happened yet.
+  // The row clipboard has to lose to a later Excel copy. Copying rows writes
+  // their names to the real clipboard as a signature; a paste counts as a row
+  // paste only while the clipboard still holds exactly that text.
+  const clipSigRef = useRef('')
+  const copyRows = async () => {
+    const order = buildTree(milestones, collapsedIds)
+    const picked = order.filter(n => selectedIds.has(n.id))
+    if (!picked.length) return
+    const sig = picked.map(n => n.milestone_name ?? '').join('\n')
+    clipSigRef.current = sig
+    setRowClipboard(picked.map(n => n.id))
+    try { await navigator.clipboard.writeText(sig) } catch { /* blocked: the signature still guards the paste */ }
+    showToast(`${picked.length} ${picked.length === 1 ? 'activity' : 'activities'} copied.`, 'success')
+  }
+
+  // Copying a summary takes its whole subtree, selected or not -- a summary
+  // without its children is not a useful copy. Planned dates and duration
+  // carry over; actuals and forecast do not, the copy has not happened yet.
   const pasteRows = async () => {
     if (!rowClipboard.length || !activeBL) return
 
@@ -2539,12 +2628,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
     ]
     const reorders = new Map(merged.map((m, i) => [m.id, i]))
 
-    const rows = copyIds.map(oldId => {
+    const codes = await nextActivityCodes(copyIds.length)
+    const rows = copyIds.map((oldId, i) => {
       const src = milestones.find(m => m.id === oldId)
       const isRoot = roots.includes(oldId)
       return {
         id:             newRowId(oldId),
         task_id:        newTaskId.get(oldId),
+        activity_code:  codes[i],
         baseline_id:    activeBL,
         project_id:     project.id,
         parent_id:      isRoot ? destParent : newRowId(src.parent_id),
@@ -2677,6 +2768,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   // "BL", "BL02", "Baseline 02" and "Initial" across projects, which is why
   // nothing could be matched between modules by name.
   const BL_NAME = (n) => `Baseline ${n}`
+  const DRAFT_NAME = 'Working Schedule'
   const blNumberOf = (name) => {
     const m = String(name ?? '').match(/(\d+)\s*$/)
     return m ? parseInt(m[1], 10) : null
@@ -2696,6 +2788,101 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
   const blNumOwner = blNumTaken
     ? baselines.find(b => blNumberOf(b.name) === parseInt(newBLNum, 10))
     : null
+
+  // A project with no schedule gets a working schedule, not a baseline: there
+  // are no dates yet for a baseline to be a snapshot of.
+  // Codes are per project and never reused, so the next one comes from the
+  // highest already issued -- including baselines other than the active one
+  const nextActivityCodes = async (count) => {
+    const { data } = await supabase
+      .from('workprogram_activities')
+      .select('activity_code')
+      .eq('project_id', project.id)
+      .not('activity_code', 'is', null)
+    const highest = (data ?? []).reduce((max, r) => {
+      const n = parseInt(String(r.activity_code).replace(/^A/i, ''), 10)
+      return Number.isFinite(n) && n > max ? n : max
+    }, 990)
+    return Array.from({ length: count }, (_, i) => `A${highest + (i + 1) * 10}`)
+  }
+
+  const handleCreateWorkProgram = async () => {
+    if (creatingBL) return
+    setCreatingBL(true)
+    let newId = null
+    try {
+      const { data, error } = await supabase
+        .from('workprogram_baselines')
+        .insert({ project_id: project.id, name: DRAFT_NAME, is_draft: true })
+        .select('id')
+        .single()
+      if (error || !data) { showToast(error?.message ?? 'Failed to create work program', 'error'); return }
+      newId = data.id
+
+      if (loadTemplate && templateCount > 0) {
+        const { error: copyErr } = await copyTemplateToBaseline(newId, project.id, supabase)
+        if (copyErr) { console.error('[work program] template copy error:', copyErr); showToast(copyErr, 'error'); return }
+      } else {
+        // Start with the rows the user asked for, named and numbered, rather
+        // than an empty grid they have to click "Add activity" on N times
+        const n = Math.max(0, Math.min(200, parseInt(blankCount, 10) || 0))
+        if (n > 0) {
+          const rows = Array.from({ length: n }, (_, i) => {
+            const taskId = crypto.randomUUID()
+            return {
+              id:             `${taskId}_${newId}`,
+              task_id:        taskId,
+              baseline_id:    newId,
+              project_id:     project.id,
+              activity_code:  `A${1000 + i * 10}`,
+              phase:          'execution_monitoring',
+              milestone_name: `Activity ${i + 1}`,
+              sort_order:     i,
+            }
+          })
+          const { error: seedErr } = await supabase.from('workprogram_activities').insert(rows)
+          if (seedErr) { showToast(seedErr.message, 'error'); return }
+        }
+      }
+
+      const { data: rows } = await supabase
+        .from('workprogram_baselines')
+        .select('*')
+        .eq('project_id', project.id)
+        .order('created_at')
+      if (rows) { setBaselines(rows); setActiveBL(newId) }
+      newId = null
+      setShowNewBLModal(false)
+      showToast('Work program created. Tag it as a baseline once the plan is agreed.', 'success')
+    } finally {
+      if (newId) await supabase.from('workprogram_baselines').delete().eq('id', newId)
+      setCreatingBL(false)
+    }
+  }
+
+  // Tagging promotes the working schedule in place -- the activities, their
+  // dates and their links stay exactly where they are
+  const handleTagAsBaseline = async () => {
+    const num = parseInt(newBLNum, 10)
+    if (!Number.isInteger(num) || num < 0) { showToast('Enter a baseline number.', 'error'); return }
+    const clash = baselines.find(b => b.id !== activeBL &&
+      (blNumberOf(b.name) === num || (b.name ?? '').trim().toLowerCase() === BL_NAME(num).toLowerCase()))
+    if (clash) { showToast(`Number ${num} is already used by "${clash.name}" — pick another.`, 'error'); return }
+
+    setCreatingBL(true)
+    try {
+      const { error } = await supabase
+        .from('workprogram_baselines')
+        .update({ name: BL_NAME(num), is_draft: false })
+        .eq('id', activeBL)
+      if (error) { showToast(error.message, 'error'); return }
+      setBaselines(prev => prev.map(b => b.id === activeBL ? { ...b, name: BL_NAME(num), is_draft: false } : b))
+      setShowTagModal(false)
+      showToast(`Tagged as ${BL_NAME(num)}.`, 'success')
+    } finally {
+      setCreatingBL(false)
+    }
+  }
 
   const handleCreateBaseline = async () => {
     const num = parseInt(newBLNum, 10)
@@ -3566,6 +3753,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
                 <p className="text-[10px] uppercase tracking-[0.12em] font-semibold text-gray-400 mb-2">Columns</p>
                 <div className="grid grid-cols-2 gap-x-3 gap-y-0.5">
                   {[
+                    { key: 'code',        label: 'Activity ID' },
                     { key: 'duration',    label: 'BL Duration' },
                     { key: 'remDur',      label: 'Rem. Duration' },
                     { key: 'predecessor', label: 'Predecessors' },
@@ -3689,6 +3877,18 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
                       New Baseline
                     </button>
+                    {activeBL && isAdmin && activeBLObj?.is_draft && (
+                      <button
+                        onClick={() => { setNewBLNum(String(nextBLNumber)); setShowTagModal(true) }}
+                        title="Give this working schedule a baseline number"
+                        className="flex items-center gap-1 text-xs font-semibold px-2.5 py-1.5 rounded-lg border border-[#ed6055] bg-red-50 text-[#ed6055] hover:bg-red-100 transition active:scale-[0.97]"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        Tag as Baseline
+                      </button>
+                    )}
                     {activeBL && (
                       <GExcelButtons
                         onExport={handleExport}
@@ -3763,7 +3963,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
             </div>
             <div>
               <p className="text-sm font-semibold text-gray-700 mb-1">No work program yet</p>
-              <p className="text-xs text-gray-400">Create a baseline to start building the schedule.</p>
+              <p className="text-xs text-gray-400">Build the schedule first — you tag it as a baseline once the plan is agreed.</p>
             </div>
             {isAdmin && (
               <button
@@ -3771,14 +3971,14 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
                 className="flex items-center gap-1.5 px-4 py-2.5 rounded-lg bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition-colors duration-200 shadow-sm"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" /></svg>
-                New Baseline
+                Create Work Program
               </button>
             )}
           </div>
         ) : (
           <div className="relative flex-1 min-h-0 flex flex-col">
             <GanttChart
-              milestones={milestones.map(m => pendingEdits[m.id] ? { ...m, ...pendingEdits[m.id] } : m)}
+              milestones={filteredMilestones.map(m => pendingEdits[m.id] ? { ...m, ...pendingEdits[m.id] } : m)}
               overrideMin={overrideMin}
               overrideMax={overrideMax}
               timeScale={timeScale}
@@ -3786,7 +3986,7 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
               labelW={effectiveLabelW}
               setLabelW={setLabelW}
               rowNumW={effectiveRowNumW}
-              disableDrag={isMobile}
+              disableDrag={isMobile || rowFilter.trim() !== ''}
               colVisibility={colVisibility}
               barVisibility={barVisibility}
               barColors={barColors}
@@ -3820,8 +4020,12 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
               onSelect={handleSelectRow}
               onSelectAll={handleSelectAll}
               rowPasteArmed={rowClipboard.length > 0}
+              clipSignature={clipSigRef.current}
+              onRowPaste={pasteRows}
               onSetCollapseLevel={handleSetCollapseLevel}
               maxLevel={maxLevel}
+              rowFilter={rowFilter}
+              onRowFilterChange={setRowFilter}
               dataDate={dataDate}
             />
             {/* Floating legend card */}
@@ -3848,6 +4052,66 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
           onCancel={() => setDeleteId(null)}
         />
       )}
+      {showTagModal && (
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setShowTagModal(false)}>
+          <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-bold text-black mb-1">Tag as baseline</h3>
+            <p className="text-sm text-gray-500 mb-4">
+              The activities, dates and links stay as they are. This only gives the schedule its baseline number.
+            </p>
+            <div className="mb-4">
+              <div className="flex items-center gap-2">
+                <span className="px-3 py-2.5 rounded-xl bg-gray-100 text-sm font-semibold text-gray-600 select-none">Baseline</span>
+                <button
+                  type="button"
+                  onClick={() => setNewBLNum(n => { const v = stepBLNumber(n, -1); return v === null ? n : String(v) })}
+                  className="w-9 h-9 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex-shrink-0"
+                  aria-label="Lower the number"
+                >
+                  &minus;
+                </button>
+                <input
+                  autoFocus
+                  type="text"
+                  inputMode="numeric"
+                  value={newBLNum}
+                  onChange={e => setNewBLNum(e.target.value.replace(/[^0-9]/g, ''))}
+                  onKeyDown={e => { if (e.key === 'Enter' && newBLNum !== '' && !blNumTaken) handleTagAsBaseline() }}
+                  className={`w-16 px-3 py-2.5 rounded-xl border text-base sm:text-sm text-center text-black focus:outline-none focus:ring-2 focus:ring-[#ed6055] ${blNumTaken ? 'border-[#ed6055] bg-red-50' : 'border-gray-200'}`}
+                />
+                <button
+                  type="button"
+                  onClick={() => setNewBLNum(n => String(stepBLNumber(n, 1)))}
+                  className="w-9 h-9 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex-shrink-0"
+                  aria-label="Raise the number"
+                >
+                  +
+                </button>
+              </div>
+              {blNumTaken ? (
+                <p className="text-[11px] text-[#ed6055] font-medium mt-1.5">
+                  Number {newBLNum} is already used by "{blNumOwner?.name}". Delete it first, or pick another.
+                </p>
+              ) : (
+                <p className="text-[11px] text-gray-400 mt-1.5">
+                  Will be saved as <span className="font-semibold text-gray-600">{newBLNum === '' ? 'Baseline —' : BL_NAME(parseInt(newBLNum, 10))}</span>
+                </p>
+              )}
+            </div>
+            <div className="flex gap-3">
+              <button onClick={() => setShowTagModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
+              <button
+                disabled={newBLNum === '' || blNumTaken || creatingBL}
+                onClick={handleTagAsBaseline}
+                className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {creatingBL ? 'Tagging…' : 'Tag'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {confirmBulkDelete && (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setConfirmBulkDelete(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
@@ -3867,17 +4131,17 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/10 backdrop-blur-sm" onClick={() => setShowNewBLModal(false)}>
           <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 mx-4" onClick={e => e.stopPropagation()}>
             <h3 className="text-base font-bold text-black mb-1">
-              {baselines.length > 0 ? 'Update Baseline' : 'New Baseline'}
+              {baselines.length > 0 ? 'Update Baseline' : 'New Work Program'}
             </h3>
             <p className="text-sm text-gray-500 mb-4">
               {baselines.length > 0
                 ? `Pick the revision number. It will be a copy of "${baselines.find(b => b.id === activeBL)?.name ?? 'current baseline'}" that you can then edit.`
-                : 'Pick the number for this first baseline.'}
+                : 'This starts a working schedule. It carries no baseline number until you tag it as one.'}
             </p>
 
             {/* Number only -- the name is always "Baseline <n>". Free text gave
                 us BL, BL02, Baseline 02 and Initial across projects. */}
-            <div className="mb-4">
+            <div className={`mb-4 ${baselines.length === 0 ? 'hidden' : ''}`}>
               <div className="flex items-center gap-2">
                 <span className="px-3 py-2.5 rounded-xl bg-gray-100 text-sm font-semibold text-gray-600 select-none">Baseline</span>
                 <button
@@ -3917,6 +4181,40 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
                 </p>
               )}
             </div>
+            {/* How many rows to start with -- only when nothing is being
+                copied in, since a template brings its own */}
+            {baselines.length === 0 && (!loadTemplate || templateCount === 0) && (
+              <div className="mb-5">
+                <p className="text-xs font-semibold text-gray-700 mb-2">Start with how many activities?</p>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setBlankCount(n => String(Math.max(0, (parseInt(n, 10) || 0) - 5)))}
+                    className="w-9 h-9 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex-shrink-0"
+                    aria-label="Fewer"
+                  >
+                    &minus;
+                  </button>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={blankCount}
+                    onChange={e => setBlankCount(e.target.value.replace(/[^0-9]/g, ''))}
+                    className="w-16 px-3 py-2.5 rounded-xl border border-gray-200 text-base sm:text-sm text-center text-black focus:outline-none focus:ring-2 focus:ring-[#ed6055]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setBlankCount(n => String(Math.min(200, (parseInt(n, 10) || 0) + 5)))}
+                    className="w-9 h-9 rounded-xl border border-gray-200 text-gray-500 hover:bg-gray-50 transition flex-shrink-0"
+                    aria-label="More"
+                  >
+                    +
+                  </button>
+                  <span className="text-[11px] text-gray-400">blank rows, renameable</span>
+                </div>
+              </div>
+            )}
+
             {/* Template option -- only when creating the very first baseline */}
             {baselines.length === 0 && templateCount > 0 && (
               <div className="mb-5">
@@ -3966,8 +4264,8 @@ export function GanttContent({ project, isAdmin = false, showToast = () => {}, o
             <div className="flex gap-3">
               <button onClick={() => setShowNewBLModal(false)} className="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm text-gray-600 hover:bg-gray-50 transition">Cancel</button>
               <button
-                disabled={newBLNum === '' || blNumTaken || creatingBL}
-                onClick={handleCreateBaseline}
+                disabled={(baselines.length > 0 && (newBLNum === '' || blNumTaken)) || creatingBL}
+                onClick={baselines.length === 0 ? handleCreateWorkProgram : handleCreateBaseline}
                 className="flex-1 py-2.5 rounded-xl bg-[#ed6055] text-white text-sm font-semibold hover:bg-[#d94f45] transition disabled:opacity-50 disabled:cursor-not-allowed"
               >{creatingBL ? 'Creating…' : 'Create'}</button>
             </div>
